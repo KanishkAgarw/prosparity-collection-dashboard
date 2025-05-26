@@ -1,14 +1,12 @@
-
 import { useState, useMemo } from "react";
 import { Navigate } from "react-router-dom";
-import { User, Mail, LogOut, Settings } from "lucide-react";
+import { User, Mail, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StatusCards from "@/components/StatusCards";
 import FilterBar from "@/components/FilterBar";
 import ApplicationsTable from "@/components/ApplicationsTable";
 import ApplicationDetailsPanel from "@/components/ApplicationDetailsPanel";
 import UploadApplicationDialog from "@/components/UploadApplicationDialog";
-import UserManagementDialog from "@/components/UserManagementDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useApplications } from "@/hooks/useApplications";
 
@@ -150,7 +148,6 @@ const Index = () => {
             </div>
             <div className="flex items-center space-x-4">
               <UploadApplicationDialog onApplicationAdded={refetch} />
-              <UserManagementDialog />
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
                   <User className="h-5 w-5 text-white" />
