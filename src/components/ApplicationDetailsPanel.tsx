@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { X } from "lucide-react";
 import { Application, AuditLog } from "@/types/application";
 import { toast } from "@/hooks/use-toast";
@@ -72,6 +73,28 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
     toast({
       title: "Changes saved",
       description: "Application details have been updated successfully.",
+    });
+  };
+
+  const formatFieldName = (field: string) => {
+    const fieldMap: { [key: string]: string } = {
+      status: "Status",
+      amountPaid: "Amount Paid",
+      paidDate: "Paid Date",
+      ptpDate: "PTP Date",
+      rmComments: "RM Comments"
+    };
+    return fieldMap[field] || field;
+  };
+
+  const formatDate = (date: Date) => {
+    return new Date(date).toLocaleString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
     });
   };
 
@@ -194,24 +217,72 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
         {application.auditLogs && application.auditLogs.length > 0 && (
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle className="text-lg">Recent Changes</CardTitle>
+              <CardTitle className="text-lg flex items-center justify-between">
+                Recent Changes
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      View All Logs
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Detailed Audit Logs - {application.applicantName}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      {application.auditLogs.map((log) => (
+                        <div key={log.id} className="border rounded-lg p-4 bg-gray-50">
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex items-center space-x-2">
+                              <Badge variant="outline">{formatFieldName(log.field)}</Badge>
+                              <span className="text-sm text-gray-600">by {log.user}</span>
+                            </div>
+                            <span className="text-xs text-gray-500">
+                              {formatDate(log.timestamp)}
+                            </span>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="text-sm">
+                              <span className="text-gray-600">Previous:</span>{" "}
+                              <span className="font-mono bg-red-50 px-2 py-1 rounded text-red-700">
+                                {log.previousValue || "(empty)"}
+                              </span>
+                            </div>
+                            <div className="text-sm">
+                              <span className="text-gray-600">New:</span>{" "}
+                              <span className="font-mono bg-green-50 px-2 py-1 rounded text-green-700">
+                                {log.newValue || "(empty)"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {application.auditLogs.slice(0, 5).map((log) => (
-                  <div key={log.id} className="text-sm">
+                {application.auditLogs.slice(0, 3).map((log) => (
+                  <div key={log.id} className="text-sm border-l-2 border-blue-200 pl-3">
                     <div className="flex justify-between items-start">
-                      <span className="font-medium">{log.field}</span>
+                      <span className="font-medium">{formatFieldName(log.field)}</span>
                       <span className="text-xs text-gray-500">
-                        {new Date(log.timestamp).toLocaleDateString()}
+                        {formatDate(log.timestamp)}
                       </span>
                     </div>
-                    <div className="text-gray-600">
-                      {log.previousValue} → {log.newValue}
+                    <div className="text-gray-600 text-xs">
+                      {log.previousValue || "(empty)"} → {log.newValue || "(empty)"}
                     </div>
                     <div className="text-xs text-gray-500">by {log.user}</div>
                   </div>
                 ))}
+                {application.auditLogs.length > 3 && (
+                  <div className="text-xs text-gray-500 text-center pt-2">
+                    +{application.auditLogs.length - 3} more changes
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
