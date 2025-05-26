@@ -72,7 +72,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
         id: (Date.now() + 3).toString(),
         timestamp,
         user,
-        field: "RM Comments",
+        field: "Comments",
         previousValue: application.rmComments || "No comments",
         newValue: editedApp.rmComments || "No comments"
       });
@@ -98,7 +98,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
     const sectionFields = {
       'Status and Amount': ['Status', 'Amount Paid'],
       'PTP Date': ['PTP Date'],
-      'Comments': ['RM Comments']
+      'Comments': ['Comments']
     };
     
     const logs = application.auditLogs?.filter(log => 
@@ -184,6 +184,34 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
             )}
             {logs.length === 0 && (
               <div className="text-xs text-gray-400 italic">No changes recorded yet</div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const CommentsCard = ({ title, children }: { title: string; children: React.ReactNode }) => {
+    return (
+      <Card className="mb-4">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm">{title}</CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="space-y-3">
+            {children}
+            {currentApp.rmComments && (
+              <div className="border-t pt-3">
+                <p className="text-xs text-gray-500 mb-2">All Comments:</p>
+                <div className="space-y-2">
+                  <div className="text-sm border-l-2 border-blue-200 pl-2 py-2 bg-gray-50">
+                    {currentApp.rmComments}
+                  </div>
+                </div>
+              </div>
+            )}
+            {!currentApp.rmComments && (
+              <div className="text-xs text-gray-400 italic">No comments added yet</div>
             )}
           </div>
         </CardContent>
@@ -288,9 +316,9 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
         </SectionCard>
 
         {/* Comments Section */}
-        <SectionCard title="Comments" logs={getLogsForSection('Comments')}>
+        <CommentsCard title="Comments">
           <div>
-            <Label htmlFor="rmComments">RM Comments</Label>
+            <Label htmlFor="rmComments">Comments</Label>
             <Textarea
               id="rmComments"
               value={currentApp.rmComments || ''}
@@ -299,7 +327,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
               className="min-h-[100px]"
             />
           </div>
-        </SectionCard>
+        </CommentsCard>
 
         {/* Save Button */}
         <Button 
