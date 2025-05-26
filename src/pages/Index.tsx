@@ -1,3 +1,4 @@
+
 import { useState, useMemo } from "react";
 import { Navigate } from "react-router-dom";
 import { User, Mail, LogOut } from "lucide-react";
@@ -23,40 +24,26 @@ const Index = () => {
     emiMonth: [] as string[]
   });
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="bg-blue-600 text-white rounded-lg p-2 w-12 h-12 mx-auto mb-4 flex items-center justify-center">
-            <span className="font-bold text-xl">P</span>
-          </div>
-          <p>Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
-
   // Convert applications to the format expected by existing components
-  const formattedApplications = applications.map(app => ({
-    applicationId: app.application_id,
-    applicantName: app.applicant_name,
-    branch: app.branch,
-    teamLead: app.team_lead,
-    rm: app.rm,
-    dealer: app.dealer,
-    lender: app.lender,
-    status: app.status,
-    emiDue: app.emi_due,
-    paidDate: app.paid_date,
-    ptpDate: app.ptp_date,
-    demandMonth: app.emi_month,
-    rmComments: app.rm_comments,
-    auditLogs: []
-  }));
+  const formattedApplications = useMemo(() => {
+    if (!applications) return [];
+    return applications.map(app => ({
+      applicationId: app.application_id,
+      applicantName: app.applicant_name,
+      branch: app.branch,
+      teamLead: app.team_lead,
+      rm: app.rm,
+      dealer: app.dealer,
+      lender: app.lender,
+      status: app.status,
+      emiDue: app.emi_due,
+      paidDate: app.paid_date,
+      ptpDate: app.ptp_date,
+      demandMonth: app.emi_month,
+      rmComments: app.rm_comments,
+      auditLogs: []
+    }));
+  }, [applications]);
 
   const filterOptions = useMemo(() => {
     const branches = [...new Set(formattedApplications.map(app => app.branch))];
@@ -109,6 +96,24 @@ const Index = () => {
       overdue
     };
   }, [filteredApplications]);
+
+  // All hooks are called above this point - now we can do conditional returns
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="bg-blue-600 text-white rounded-lg p-2 w-12 h-12 mx-auto mb-4 flex items-center justify-center">
+            <span className="font-bold text-xl">P</span>
+          </div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
 
   const handleFilterChange = (key: string, values: string[]) => {
     setFilters(prev => ({ ...prev, [key]: values }));
