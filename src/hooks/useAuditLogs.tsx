@@ -9,6 +9,7 @@ export interface AuditLog {
   previous_value: string | null;
   new_value: string | null;
   user_id: string;
+  user_email: string | null;
   application_id: string;
   created_at: string;
 }
@@ -57,7 +58,8 @@ export const useAuditLogs = (applicationId?: string) => {
           previous_value: previousValue,
           new_value: newValue,
           application_id: applicationId,
-          user_id: user.id
+          user_id: user.id,
+          user_email: user.email
         });
 
       if (error) {

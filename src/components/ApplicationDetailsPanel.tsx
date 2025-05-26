@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Application } from "@/types/application";
 import { useComments } from "@/hooks/useComments";
 import { useAuditLogs } from "@/hooks/useAuditLogs";
@@ -94,15 +95,6 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
     }));
   };
 
-  // Format date as DD-MMM-YY
-  const formatDateDDMMMYY = (dateStr: string) => {
-    try {
-      return format(new Date(dateStr), 'dd-MMM-yy');
-    } catch {
-      return dateStr;
-    }
-  };
-
   // Format datetime with DD-MMM-YY date
   const formatDateTime = (dateStr: string) => {
     try {
@@ -124,8 +116,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
 
   const getLogsForSection = (section: string) => {
     const sectionFields = {
-      'Status and Amount': ['Status', 'Amount Paid'],
-      'PTP Date': ['PTP Date']
+      'Status and PTP': ['Status', 'PTP Date']
     };
     
     const logs = auditLogs.filter(log => 
@@ -135,85 +126,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
     return logs;
   };
 
-  const SectionCard = ({ title, logs, children }: { title: string; logs: any[]; children: React.ReactNode }) => {
-    const recentLogs = logs.slice(0, 2);
-    
-    return (
-      <Card className="mb-4">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm">{title}</CardTitle>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">{logs.length} logs</span>
-              {logs.length > 0 && (
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="ghost" size="sm" className="text-xs">
-                      View All Logs
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>{title} - Audit Trail ({logs.length} entries)</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-3">
-                      {logs.map((log) => (
-                        <div key={log.id} className="border rounded-lg p-3 bg-gray-50">
-                          <div className="flex items-center gap-2 mb-2">
-                            <User className="h-4 w-4 text-gray-500" />
-                            <span className="font-medium text-sm">{user?.email || 'Unknown User'}</span>
-                            <Clock className="h-3 w-3 text-gray-400" />
-                            <span className="text-xs text-gray-500">{formatDateTime(log.created_at)}</span>
-                          </div>
-                          <div className="text-sm">
-                            <span className="font-medium">{log.field}</span> changed
-                            <div className="mt-1 text-xs text-gray-600">
-                              From: <span className="bg-red-100 px-1 rounded">{log.previous_value}</span>
-                              {" → "}
-                              To: <span className="bg-green-100 px-1 rounded">{log.new_value}</span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              )}
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="space-y-3">
-            {children}
-            {recentLogs.length > 0 && (
-              <div className="border-t pt-3">
-                <p className="text-xs text-gray-500 mb-2">Recent Changes:</p>
-                <div className="space-y-2">
-                  {recentLogs.map((log) => (
-                    <div key={log.id} className="text-xs border-l-2 border-blue-200 pl-2 py-1 bg-blue-50">
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium">{log.field}</span>
-                        <span className="text-gray-500">by {user?.email || 'Unknown User'}</span>
-                      </div>
-                      <div className="text-gray-400">{formatDateTime(log.created_at)}</div>
-                      <div className="text-xs mt-1">
-                        <span className="bg-red-100 px-1 rounded">{log.previous_value}</span>
-                        {" → "}
-                        <span className="bg-green-100 px-1 rounded">{log.new_value}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {logs.length === 0 && (
-              <div className="text-xs text-gray-400 italic">No changes recorded yet</div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
+  const statusAndPtpLogs = getLogsForSection('Status and PTP');
 
   return (
     <div className="fixed right-0 top-0 h-full w-96 bg-white shadow-lg border-l z-50 overflow-y-auto">
@@ -238,106 +151,188 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
           </div>
         </div>
 
-        {/* Status Section */}
-        <SectionCard title="Status and Amount Paid" logs={getLogsForSection('Status and Amount')}>
-          <div>
-            <Label htmlFor="status">Status</Label>
-            <Select value={currentApp.status} onValueChange={(value) => updateField('status', value)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Paid">Paid</SelectItem>
-                <SelectItem value="Unpaid">Unpaid</SelectItem>
-                <SelectItem value="Partially Paid">Partially Paid</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </SectionCard>
-
-        {/* PTP Date Section */}
-        <SectionCard title="PTP Date" logs={getLogsForSection('PTP Date')}>
-          <div>
-            <Label htmlFor="ptpDate">Promise to Pay Date</Label>
-            <Input
-              id="ptpDate"
-              type="date"
-              value={currentApp.ptpDate || ''}
-              onChange={(e) => updateField('ptpDate', e.target.value)}
-            />
-            {currentApp.ptpDate && (
-              <p className="text-xs text-gray-500 mt-1">
-                Formatted: {formatPtpDate(currentApp.ptpDate)}
-              </p>
-            )}
-          </div>
-        </SectionCard>
-
-        {/* Comments Section */}
-        <Card className="mb-4">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Comments</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="space-y-3">
-              <div>
-                <Label htmlFor="newComment">Add Comment</Label>
-                <Textarea
-                  id="newComment"
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="Add your comment here..."
-                  className="min-h-[80px]"
-                />
-                <Button 
-                  onClick={handleAddComment} 
-                  className="mt-2 w-full"
-                  size="sm"
-                  disabled={!newComment.trim()}
-                >
-                  Add Comment
-                </Button>
-              </div>
-              {comments.length > 0 && (
-                <div className="border-t pt-3">
-                  <p className="text-xs text-gray-500 mb-3">All Comments:</p>
-                  <div className="space-y-3 max-h-60 overflow-y-auto">
-                    {comments.map((comment) => (
-                      <div key={comment.id} className="border rounded-lg p-3 bg-gray-50 hover:bg-gray-100 transition-colors">
-                        <div className="flex items-start gap-3">
-                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                            <User className="h-4 w-4 text-white" />
+        {/* Tabbed Interface */}
+        <Tabs defaultValue="status" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="status">Status & PTP</TabsTrigger>
+            <TabsTrigger value="comments">Comments</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="status" className="space-y-4">
+            {/* Status Section */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm">Status and PTP Date</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">{statusAndPtpLogs.length} logs</span>
+                    {statusAndPtpLogs.length > 0 && (
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="text-xs">
+                            View All Logs
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Status & PTP - Audit Trail ({statusAndPtpLogs.length} entries)</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-3">
+                            {statusAndPtpLogs.map((log) => (
+                              <div key={log.id} className="border rounded-lg p-3 bg-gray-50">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <User className="h-4 w-4 text-gray-500" />
+                                  <span className="font-medium text-sm">{log.user_email || 'Unknown User'}</span>
+                                  <Clock className="h-3 w-3 text-gray-400" />
+                                  <span className="text-xs text-gray-500">{formatDateTime(log.created_at)}</span>
+                                </div>
+                                <div className="text-sm">
+                                  <span className="font-medium">{log.field}</span> changed
+                                  <div className="mt-1 text-xs text-gray-600">
+                                    From: <span className="bg-red-100 px-1 rounded">{log.previous_value}</span>
+                                    {" → "}
+                                    To: <span className="bg-green-100 px-1 rounded">{log.new_value}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium text-sm">
-                                {comment.user_email || 'Unknown User'}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                {formatDateTime(comment.created_at)}
-                              </span>
-                            </div>
-                            <div className="text-sm text-gray-800">
-                              {comment.content}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                        </DialogContent>
+                      </Dialog>
+                    )}
                   </div>
                 </div>
-              )}
-              {comments.length === 0 && (
-                <div className="text-xs text-gray-400 italic">No comments added yet</div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="status">Status</Label>
+                    <Select value={currentApp.status} onValueChange={(value) => updateField('status', value)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Paid">Paid</SelectItem>
+                        <SelectItem value="Unpaid">Unpaid</SelectItem>
+                        <SelectItem value="Partially Paid">Partially Paid</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="ptpDate">Promise to Pay Date</Label>
+                    <Input
+                      id="ptpDate"
+                      type="date"
+                      value={currentApp.ptpDate || ''}
+                      onChange={(e) => updateField('ptpDate', e.target.value)}
+                    />
+                    {currentApp.ptpDate && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Formatted: {formatPtpDate(currentApp.ptpDate)}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Recent Changes */}
+                  {statusAndPtpLogs.length > 0 && (
+                    <div className="border-t pt-3">
+                      <p className="text-xs text-gray-500 mb-2">Recent Changes:</p>
+                      <div className="space-y-2">
+                        {statusAndPtpLogs.slice(0, 2).map((log) => (
+                          <div key={log.id} className="text-xs border-l-2 border-blue-200 pl-2 py-1 bg-blue-50">
+                            <div className="flex items-center gap-1">
+                              <span className="font-medium">{log.field}</span>
+                              <span className="text-gray-500">by {log.user_email || 'Unknown User'}</span>
+                            </div>
+                            <div className="text-gray-400">{formatDateTime(log.created_at)}</div>
+                            <div className="text-xs mt-1">
+                              <span className="bg-red-100 px-1 rounded">{log.previous_value}</span>
+                              {" → "}
+                              <span className="bg-green-100 px-1 rounded">{log.new_value}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {statusAndPtpLogs.length === 0 && (
+                    <div className="text-xs text-gray-400 italic">No changes recorded yet</div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="comments" className="space-y-4">
+            {/* Comments Section */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Comments</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="newComment">Add Comment</Label>
+                    <Textarea
+                      id="newComment"
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Add your comment here..."
+                      className="min-h-[80px]"
+                    />
+                    <Button 
+                      onClick={handleAddComment} 
+                      className="mt-2 w-full"
+                      size="sm"
+                      disabled={!newComment.trim()}
+                    >
+                      Add Comment
+                    </Button>
+                  </div>
+                  {comments.length > 0 && (
+                    <div className="border-t pt-3">
+                      <p className="text-xs text-gray-500 mb-3">All Comments:</p>
+                      <div className="space-y-3 max-h-60 overflow-y-auto">
+                        {comments.map((comment) => (
+                          <div key={comment.id} className="border rounded-lg p-3 bg-gray-50 hover:bg-gray-100 transition-colors">
+                            <div className="flex items-start gap-3">
+                              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                                <User className="h-4 w-4 text-white" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="font-medium text-sm">
+                                    {comment.user_email || 'Unknown User'}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    {formatDateTime(comment.created_at)}
+                                  </span>
+                                </div>
+                                <div className="text-sm text-gray-800">
+                                  {comment.content}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {comments.length === 0 && (
+                    <div className="text-xs text-gray-400 italic">No comments added yet</div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
 
         {/* Save Button */}
         <Button 
           onClick={handleSave} 
-          className="w-full"
+          className="w-full mt-4"
           disabled={!editedApp || saving}
         >
           {saving ? 'Saving...' : 'Save Changes'}

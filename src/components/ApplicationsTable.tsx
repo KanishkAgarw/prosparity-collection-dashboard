@@ -32,13 +32,13 @@ interface ApplicationsTableProps {
 
 const getStatusBadge = (status: string) => {
   const variants = {
-    'Paid': 'bg-green-100 text-green-800',
-    'Unpaid': 'bg-red-100 text-red-800',
-    'Partially Paid': 'bg-yellow-100 text-yellow-800'
+    'Paid': 'bg-green-100 text-green-800 border-green-200',
+    'Unpaid': 'bg-red-100 text-red-800 border-red-200',
+    'Partially Paid': 'bg-yellow-100 text-yellow-800 border-yellow-200'
   };
   
   return (
-    <Badge className={variants[status as keyof typeof variants] || 'bg-gray-100 text-gray-800'}>
+    <Badge className={`${variants[status as keyof typeof variants] || 'bg-gray-100 text-gray-800 border-gray-200'} border`}>
       {status}
     </Badge>
   );
@@ -85,17 +85,17 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Application ID</TableHead>
-            <TableHead>EMI Month</TableHead>
-            <TableHead>Applicant</TableHead>
-            <TableHead className="hidden md:table-cell">Branch</TableHead>
-            <TableHead className="hidden md:table-cell">Team Lead</TableHead>
-            <TableHead className="hidden lg:table-cell">RM</TableHead>
-            <TableHead className="hidden lg:table-cell">Dealer</TableHead>
-            <TableHead className="hidden lg:table-cell">Lender</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>PTP Date</TableHead>
-            <TableHead>Actions</TableHead>
+            <TableHead className="min-w-[120px]">Application ID</TableHead>
+            <TableHead className="min-w-[100px]">EMI Month</TableHead>
+            <TableHead className="min-w-[150px]">Applicant</TableHead>
+            <TableHead className="hidden md:table-cell min-w-[100px]">Branch</TableHead>
+            <TableHead className="hidden md:table-cell min-w-[120px]">Team Lead</TableHead>
+            <TableHead className="hidden lg:table-cell min-w-[100px]">RM</TableHead>
+            <TableHead className="hidden lg:table-cell min-w-[100px]">Dealer</TableHead>
+            <TableHead className="hidden lg:table-cell min-w-[100px]">Lender</TableHead>
+            <TableHead className="min-w-[120px]">Status</TableHead>
+            <TableHead className="min-w-[100px]">PTP Date</TableHead>
+            <TableHead className="min-w-[80px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -118,7 +118,7 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
               <TableCell className="hidden lg:table-cell">{app.dealer}</TableCell>
               <TableCell className="hidden lg:table-cell">{app.lender}</TableCell>
               <TableCell>{getStatusBadge(app.status)}</TableCell>
-              <TableCell className={app.ptpDate ? 'text-blue-600 font-medium' : 'text-gray-400'}>
+              <TableCell className={`${app.ptpDate ? 'text-blue-600 font-medium' : 'text-gray-400'} whitespace-nowrap`}>
                 {formatPtpDate(app.ptpDate)}
               </TableCell>
               <TableCell>

@@ -77,6 +77,7 @@ export type Database = {
           id: string
           new_value: string | null
           previous_value: string | null
+          user_email: string | null
           user_id: string
         }
         Insert: {
@@ -86,6 +87,7 @@ export type Database = {
           id?: string
           new_value?: string | null
           previous_value?: string | null
+          user_email?: string | null
           user_id: string
         }
         Update: {
@@ -95,6 +97,7 @@ export type Database = {
           id?: string
           new_value?: string | null
           previous_value?: string | null
+          user_email?: string | null
           user_id?: string
         }
         Relationships: []
