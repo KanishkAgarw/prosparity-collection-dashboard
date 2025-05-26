@@ -1,3 +1,4 @@
+
 import { useState, useMemo } from "react";
 import { Navigate } from "react-router-dom";
 import { User, Mail, LogOut } from "lucide-react";
@@ -9,7 +10,7 @@ import ApplicationDetailsPanel from "@/components/ApplicationDetailsPanel";
 import UploadApplicationDialog from "@/components/UploadApplicationDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useApplications } from "@/hooks/useApplications";
-import { format, parse } from "date-fns";
+import { format, parse, isValid } from "date-fns";
 
 const Index = () => {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -24,22 +25,37 @@ const Index = () => {
     emiMonth: [] as string[]
   });
 
-  // Format EMI month to MMM-YY format
+  // Format EMI month to MMM-YY format properly
   const formatEmiMonth = (emiMonth: string) => {
+    if (!emiMonth) return emiMonth;
+    
     try {
-      // Try to parse different common formats
       let date;
-      if (emiMonth.includes(' ')) {
-        // Format like "Jan 2024"
-        date = parse(emiMonth, 'MMM yyyy', new Date());
-      } else if (emiMonth.includes('-')) {
+      
+      // Try different formats
+      if (emiMonth.includes('/')) {
+        // Format like "01/2024" or "1/2024"
+        const [month, year] = emiMonth.split('/');
+        date = new Date(parseInt(year), parseInt(month) - 1, 1);
+      } else if (emiMonth.includes('-') && emiMonth.length > 3) {
         // Format like "2024-01"
         date = parse(emiMonth, 'yyyy-MM', new Date());
+      } else if (emiMonth.includes(' ')) {
+        // Format like "Jan 2024" or "January 2024"
+        date = parse(emiMonth, 'MMM yyyy', new Date());
+        if (!isValid(date)) {
+          date = parse(emiMonth, 'MMMM yyyy', new Date());
+        }
       } else {
         // Return as is if can't parse
         return emiMonth;
       }
-      return format(date, 'MMM-yy');
+      
+      if (isValid(date)) {
+        return format(date, 'MMM-yy');
+      }
+      
+      return emiMonth;
     } catch {
       return emiMonth;
     }
@@ -104,13 +120,15 @@ const Index = () => {
     }, {} as Record<string, number>);
 
     const totalEMIs = filteredApplications.length;
-    const unpaid = counts['Unpaid'] || 0;
+    const fullyPaid = counts['Paid'] || 0;
     const partiallyPaid = counts['Partially Paid'] || 0;
+    const unpaid = counts['Unpaid'] || 0;
 
     return {
       totalEMIs,
-      unpaid,
-      partiallyPaid
+      fullyPaid,
+      partiallyPaid,
+      unpaid
     };
   }, [filteredApplications]);
 

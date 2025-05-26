@@ -4,32 +4,38 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 interface StatusCardsProps {
   data: {
     totalEMIs: number;
-    unpaid: number;
+    fullyPaid: number;
     partiallyPaid: number;
+    unpaid: number;
   };
 }
 
 const StatusCards = ({ data }: StatusCardsProps) => {
   const cards = [
     {
-      title: "Count of EMI",
+      title: "Total Applications",
       value: data.totalEMIs,
       color: "text-blue-600"
+    },
+    {
+      title: "Fully Paid",
+      value: data.fullyPaid,
+      color: "text-green-600"
+    },
+    {
+      title: "Partially Paid",
+      value: data.partiallyPaid,
+      color: "text-yellow-600"
     },
     {
       title: "Unpaid",
       value: data.unpaid,
       color: "text-red-600"
-    },
-    {
-      title: "Partially paid",
-      value: data.partiallyPaid,
-      color: "text-yellow-600"
     }
   ];
 
   return (
-    <div className="grid grid-cols-3 gap-4 mb-6">
+    <div className="grid grid-cols-4 gap-4 mb-6">
       {cards.map((card, index) => (
         <Card key={index} className="text-center">
           <CardHeader className="pb-2">
