@@ -4,6 +4,7 @@ import StatusCards from "@/components/StatusCards";
 import FilterBar from "@/components/FilterBar";
 import ApplicationsTable from "@/components/ApplicationsTable";
 import ApplicationDetailsPanel from "@/components/ApplicationDetailsPanel";
+import UserSidebar from "@/components/UserSidebar";
 import { mockApplications, getFilterOptions, getStatusCounts } from "@/utils/mockData";
 import { Application, AuditLog } from "@/types/application";
 
@@ -61,9 +62,12 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* User Sidebar */}
+      <UserSidebar />
+
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ml-64">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
               <div className="bg-blue-600 text-white rounded-lg p-2">
@@ -88,7 +92,7 @@ const Index = () => {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 ml-64">
         {/* Filters moved to top */}
         <FilterBar 
           filters={filters} 

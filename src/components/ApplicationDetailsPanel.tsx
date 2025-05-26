@@ -10,6 +10,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from "@/components/ui/textarea";
 import { Application, AuditLog } from "@/types/application";
 
+interface Comment {
+  id: string;
+  user: string;
+  timestamp: string;
+  content: string;
+}
+
 interface ApplicationDetailsPanelProps {
   application: Application | null;
   onClose: () => void;
@@ -18,6 +25,21 @@ interface ApplicationDetailsPanelProps {
 
 const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDetailsPanelProps) => {
   const [editedApp, setEditedApp] = useState<Application | null>(null);
+  const [comments, setComments] = useState<Comment[]>([
+    {
+      id: "1",
+      user: "John Smith",
+      timestamp: "2024-05-26T09:15:00Z",
+      content: "Initial review completed. Customer contacted via phone."
+    },
+    {
+      id: "2", 
+      user: "Sarah Johnson",
+      timestamp: "2024-05-26T10:30:00Z",
+      content: "Follow-up call scheduled for tomorrow. Customer requested payment extension."
+    }
+  ]);
+  const [newComment, setNewComment] = useState("");
 
   if (!application) return null;
 
@@ -67,20 +89,22 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
       });
     }
 
-    if (editedApp.rmComments !== application.rmComments) {
-      logs.push({
-        id: (Date.now() + 3).toString(),
-        timestamp,
-        user,
-        field: "Comments",
-        previousValue: application.rmComments || "No comments",
-        newValue: editedApp.rmComments || "No comments"
-      });
-    }
-
     console.log('Generated logs:', logs);
     onSave(editedApp, logs);
     setEditedApp(null);
+  };
+
+  const handleAddComment = () => {
+    if (newComment.trim()) {
+      const comment: Comment = {
+        id: Date.now().toString(),
+        user: "Current User", 
+        timestamp: new Date().toISOString(),
+        content: newComment.trim()
+      };
+      setComments(prev => [...prev, comment]);
+      setNewComment("");
+    }
   };
 
   const updateField = (field: keyof Application, value: any) => {
@@ -97,8 +121,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
   const getLogsForSection = (section: string) => {
     const sectionFields = {
       'Status and Amount': ['Status', 'Amount Paid'],
-      'PTP Date': ['PTP Date'],
-      'Comments': ['Comments']
+      'PTP Date': ['PTP Date']
     };
     
     const logs = application.auditLogs?.filter(log => 
@@ -191,61 +214,6 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
     );
   };
 
-  const CommentsCard = ({ title, children }: { title: string; children: React.ReactNode }) => {
-    // Mock comments data - in real app this would come from the application data
-    const comments = [
-      {
-        id: "1",
-        user: "Current User",
-        timestamp: "2024-05-26T10:30:00Z",
-        content: currentApp.rmComments || ""
-      }
-    ].filter(comment => comment.content.trim() !== "");
-
-    return (
-      <Card className="mb-4">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm">{title}</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="space-y-3">
-            {children}
-            {comments.length > 0 && (
-              <div className="border-t pt-3">
-                <p className="text-xs text-gray-500 mb-3">Comments:</p>
-                <div className="space-y-3">
-                  {comments.map((comment) => (
-                    <div key={comment.id} className="border rounded-lg p-3 bg-gray-50 hover:bg-gray-100 transition-colors">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                          <User className="h-4 w-4 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-sm">{comment.user}</span>
-                            <span className="text-xs text-gray-500">
-                              {new Date(comment.timestamp).toLocaleDateString()} at {new Date(comment.timestamp).toLocaleTimeString()}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-sm text-gray-800 ml-10">
-                        {comment.content}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {comments.length === 0 && (
-              <div className="text-xs text-gray-400 italic">No comments added yet</div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
-
   return (
     <div className="fixed right-0 top-0 h-full w-96 bg-white shadow-lg border-l z-50 overflow-y-auto">
       <div className="p-6">
@@ -254,50 +222,6 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
-        </div>
-
-        {/* Application Info */}
-        <div className="space-y-4 mb-6">
-          <div>
-            <p className="text-sm text-gray-500">Application ID</p>
-            <p className="font-medium">{application.applicationId}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Applicant Name</p>
-            <p className="font-medium">{application.applicantName}</p>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-gray-500">Branch</p>
-              <p className="font-medium">{application.branch}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Team Lead</p>
-              <p className="font-medium">{application.teamLead}</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-gray-500">RM</p>
-              <p className="font-medium">{application.rm}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Dealer</p>
-              <p className="font-medium">{application.dealer}</p>
-            </div>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Lender</p>
-            <p className="font-medium">{application.lender}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">EMI Due</p>
-            <p className="font-medium">₹{application.emiDue.toLocaleString()}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Demand Month</p>
-            <p className="font-medium">{application.demandMonth}</p>
-          </div>
         </div>
 
         {/* Status and Amount Paid Section */}
@@ -343,18 +267,63 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
         </SectionCard>
 
         {/* Comments Section */}
-        <CommentsCard title="Comments">
-          <div>
-            <Label htmlFor="rmComments">Comments</Label>
-            <Textarea
-              id="rmComments"
-              value={currentApp.rmComments || ''}
-              onChange={(e) => updateField('rmComments', e.target.value)}
-              placeholder="Add your comments here..."
-              className="min-h-[100px]"
-            />
-          </div>
-        </CommentsCard>
+        <Card className="mb-4">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">Comments</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="space-y-3">
+              <div>
+                <Label htmlFor="newComment">Add Comment</Label>
+                <Textarea
+                  id="newComment"
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="Add your comment here..."
+                  className="min-h-[80px]"
+                />
+                <Button 
+                  onClick={handleAddComment} 
+                  className="mt-2 w-full"
+                  size="sm"
+                  disabled={!newComment.trim()}
+                >
+                  Add Comment
+                </Button>
+              </div>
+              {comments.length > 0 && (
+                <div className="border-t pt-3">
+                  <p className="text-xs text-gray-500 mb-3">All Comments:</p>
+                  <div className="space-y-3 max-h-60 overflow-y-auto">
+                    {comments.map((comment) => (
+                      <div key={comment.id} className="border rounded-lg p-3 bg-gray-50 hover:bg-gray-100 transition-colors">
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                            <User className="h-4 w-4 text-white" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium text-sm">{comment.user}</span>
+                              <span className="text-xs text-gray-500">
+                                {new Date(comment.timestamp).toLocaleDateString()} at {new Date(comment.timestamp).toLocaleTimeString()}
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-800">
+                              {comment.content}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {comments.length === 0 && (
+                <div className="text-xs text-gray-400 italic">No comments added yet</div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Save Button */}
         <Button 
