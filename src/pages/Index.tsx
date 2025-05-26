@@ -245,6 +245,7 @@ const Index = () => {
               applications={filteredApplications}
               onRowClick={handleRowClick}
               onApplicationDeleted={refetch}
+              selectedApplicationId={selectedApplication?.applicationId}
             />
           )}
         </div>

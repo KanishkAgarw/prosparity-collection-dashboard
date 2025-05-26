@@ -9,7 +9,7 @@ export interface Application {
   lender: string;
   status: string;
   emiDue: number;
-  amountPaid: number;
+  amountPaid?: number;
   paidDate?: string;
   ptpDate?: string;
   demandMonth: string;

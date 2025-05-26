@@ -26,6 +26,7 @@ interface ApplicationsTableProps {
   applications: Application[];
   onRowClick: (application: Application) => void;
   onApplicationDeleted?: () => void;
+  selectedApplicationId?: string;
 }
 
 const getStatusBadge = (status: string) => {
@@ -43,7 +44,7 @@ const getStatusBadge = (status: string) => {
   );
 };
 
-const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted }: ApplicationsTableProps) => {
+const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, selectedApplicationId }: ApplicationsTableProps) => {
   const handleDelete = async (applicationId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent row click
     
@@ -92,7 +93,11 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted }: A
           {applications.map((app) => (
             <TableRow 
               key={app.applicationId} 
-              className="cursor-pointer hover:bg-gray-50"
+              className={`cursor-pointer transition-colors ${
+                selectedApplicationId === app.applicationId 
+                  ? 'bg-blue-50 border-l-4 border-l-blue-500 hover:bg-blue-100' 
+                  : 'hover:bg-gray-50'
+              }`}
               onClick={() => onRowClick(app)}
             >
               <TableCell className="font-medium">{app.applicationId}</TableCell>

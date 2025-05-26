@@ -69,6 +69,63 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_logs: {
+        Row: {
+          application_id: string
+          created_at: string
+          field: string
+          id: string
+          new_value: string | null
+          previous_value: string | null
+          user_id: string
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          field: string
+          id?: string
+          new_value?: string | null
+          previous_value?: string | null
+          user_id: string
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          field?: string
+          id?: string
+          new_value?: string | null
+          previous_value?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      comments: {
+        Row: {
+          application_id: string
+          content: string
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          application_id: string
+          content: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          application_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string | null

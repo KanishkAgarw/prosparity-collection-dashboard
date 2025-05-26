@@ -8,102 +8,81 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Application, AuditLog } from "@/types/application";
-
-interface Comment {
-  id: string;
-  user: string;
-  timestamp: string;
-  content: string;
-}
+import { Application } from "@/types/application";
+import { useComments } from "@/hooks/useComments";
+import { useAuditLogs } from "@/hooks/useAuditLogs";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 interface ApplicationDetailsPanelProps {
   application: Application | null;
   onClose: () => void;
-  onSave: (application: Application, logs: AuditLog[]) => void;
+  onSave: () => void;
 }
 
 const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDetailsPanelProps) => {
+  const { user } = useAuth();
   const [editedApp, setEditedApp] = useState<Application | null>(null);
-  const [comments, setComments] = useState<Comment[]>([
-    {
-      id: "1",
-      user: "John Smith",
-      timestamp: "2024-05-26T09:15:00Z",
-      content: "Initial review completed. Customer contacted via phone."
-    },
-    {
-      id: "2", 
-      user: "Sarah Johnson",
-      timestamp: "2024-05-26T10:30:00Z",
-      content: "Follow-up call scheduled for tomorrow. Customer requested payment extension."
-    }
-  ]);
   const [newComment, setNewComment] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const { comments, addComment } = useComments(application?.applicationId);
+  const { auditLogs, addAuditLog } = useAuditLogs(application?.applicationId);
 
   if (!application) return null;
 
   const currentApp = editedApp || application;
 
-  console.log('Application audit logs:', application.auditLogs);
-  console.log('Application audit logs length:', application.auditLogs?.length || 0);
-
-  const handleSave = () => {
-    if (!editedApp) return;
+  const handleSave = async () => {
+    if (!editedApp || !user) return;
     
-    const logs: AuditLog[] = [];
-    const timestamp = new Date().toISOString();
-    const user = "Current User";
+    setSaving(true);
+    try {
+      console.log('Saving application changes:', editedApp);
 
-    // Compare fields and create audit logs
-    if (editedApp.status !== application.status) {
-      logs.push({
-        id: Date.now().toString(),
-        timestamp,
-        user,
-        field: "Status",
-        previousValue: application.status,
-        newValue: editedApp.status
-      });
+      // Update the application in the database
+      const { error } = await supabase
+        .from('applications')
+        .update({
+          status: editedApp.status,
+          ptp_date: editedApp.ptpDate || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('application_id', editedApp.applicationId);
+
+      if (error) {
+        console.error('Error updating application:', error);
+        toast.error('Failed to save changes');
+        return;
+      }
+
+      // Create audit logs for changes
+      if (editedApp.status !== application.status) {
+        await addAuditLog('Status', application.status, editedApp.status);
+      }
+
+      if (editedApp.ptpDate !== application.ptpDate) {
+        await addAuditLog('PTP Date', application.ptpDate || 'Not set', editedApp.ptpDate || 'Not set');
+      }
+
+      console.log('Application saved successfully');
+      toast.success('Changes saved successfully');
+      setEditedApp(null);
+      onSave();
+    } catch (error) {
+      console.error('Error saving application:', error);
+      toast.error('Failed to save changes');
+    } finally {
+      setSaving(false);
     }
-
-    if (editedApp.amountPaid !== application.amountPaid) {
-      logs.push({
-        id: (Date.now() + 1).toString(),
-        timestamp,
-        user,
-        field: "Amount Paid",
-        previousValue: application.amountPaid?.toString() || "0",
-        newValue: editedApp.amountPaid?.toString() || "0"
-      });
-    }
-
-    if (editedApp.ptpDate !== application.ptpDate) {
-      logs.push({
-        id: (Date.now() + 2).toString(),
-        timestamp,
-        user,
-        field: "PTP Date",
-        previousValue: application.ptpDate || "Not set",
-        newValue: editedApp.ptpDate || "Not set"
-      });
-    }
-
-    console.log('Generated logs:', logs);
-    onSave(editedApp, logs);
-    setEditedApp(null);
   };
 
-  const handleAddComment = () => {
+  const handleAddComment = async () => {
     if (newComment.trim()) {
-      const comment: Comment = {
-        id: Date.now().toString(),
-        user: "Current User", 
-        timestamp: new Date().toISOString(),
-        content: newComment.trim()
-      };
-      setComments(prev => [...prev, comment]);
+      await addComment(newComment);
       setNewComment("");
+      toast.success('Comment added successfully');
     }
   };
 
@@ -124,18 +103,15 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
       'PTP Date': ['PTP Date']
     };
     
-    const logs = application.auditLogs?.filter(log => 
+    const logs = auditLogs.filter(log => 
       sectionFields[section as keyof typeof sectionFields]?.includes(log.field)
     ) || [];
     
-    console.log(`Logs for ${section}:`, logs);
     return logs;
   };
 
-  const SectionCard = ({ title, logs, children }: { title: string; logs: AuditLog[]; children: React.ReactNode }) => {
-    const recentLogs = logs.slice(-2);
-    
-    console.log(`${title} - Total logs:`, logs.length, 'Recent logs:', recentLogs.length);
+  const SectionCard = ({ title, logs, children }: { title: string; logs: any[]; children: React.ReactNode }) => {
+    const recentLogs = logs.slice(0, 2);
     
     return (
       <Card className="mb-4">
@@ -160,16 +136,16 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                         <div key={log.id} className="border rounded-lg p-3 bg-gray-50">
                           <div className="flex items-center gap-2 mb-2">
                             <User className="h-4 w-4 text-gray-500" />
-                            <span className="font-medium text-sm">{log.user}</span>
+                            <span className="font-medium text-sm">User</span>
                             <Clock className="h-3 w-3 text-gray-400" />
-                            <span className="text-xs text-gray-500">{formatDate(log.timestamp)}</span>
+                            <span className="text-xs text-gray-500">{formatDate(log.created_at)}</span>
                           </div>
                           <div className="text-sm">
                             <span className="font-medium">{log.field}</span> changed
                             <div className="mt-1 text-xs text-gray-600">
-                              From: <span className="bg-red-100 px-1 rounded">{log.previousValue}</span>
+                              From: <span className="bg-red-100 px-1 rounded">{log.previous_value}</span>
                               {" → "}
-                              To: <span className="bg-green-100 px-1 rounded">{log.newValue}</span>
+                              To: <span className="bg-green-100 px-1 rounded">{log.new_value}</span>
                             </div>
                           </div>
                         </div>
@@ -192,13 +168,13 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                     <div key={log.id} className="text-xs border-l-2 border-blue-200 pl-2 py-1 bg-blue-50">
                       <div className="flex items-center gap-1">
                         <span className="font-medium">{log.field}</span>
-                        <span className="text-gray-500">by {log.user}</span>
+                        <span className="text-gray-500">by User</span>
                       </div>
-                      <div className="text-gray-400">{formatDate(log.timestamp)}</div>
+                      <div className="text-gray-400">{formatDate(log.created_at)}</div>
                       <div className="text-xs mt-1">
-                        <span className="bg-red-100 px-1 rounded">{log.previousValue}</span>
+                        <span className="bg-red-100 px-1 rounded">{log.previous_value}</span>
                         {" → "}
-                        <span className="bg-green-100 px-1 rounded">{log.newValue}</span>
+                        <span className="bg-green-100 px-1 rounded">{log.new_value}</span>
                       </div>
                     </div>
                   ))}
@@ -224,6 +200,19 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
           </Button>
         </div>
 
+        {/* Applicant ID and Name Header */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+              <User className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg text-blue-900">{application.applicantName}</h3>
+              <p className="text-sm text-blue-700">ID: {application.applicationId}</p>
+            </div>
+          </div>
+        </div>
+
         {/* Status and Amount Paid Section */}
         <SectionCard title="Status and Amount Paid" logs={getLogsForSection('Status and Amount')}>
           <div className="space-y-3">
@@ -242,12 +231,13 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
               </Select>
             </div>
             <div>
-              <Label htmlFor="amountPaid">Amount Paid</Label>
+              <Label htmlFor="emiDue">EMI Due Amount</Label>
               <Input
-                id="amountPaid"
+                id="emiDue"
                 type="number"
-                value={currentApp.amountPaid || 0}
-                onChange={(e) => updateField('amountPaid', Number(e.target.value))}
+                value={currentApp.emiDue || 0}
+                readOnly
+                className="bg-gray-50"
               />
             </div>
           </div>
@@ -303,9 +293,9 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium text-sm">{comment.user}</span>
+                              <span className="font-medium text-sm">User</span>
                               <span className="text-xs text-gray-500">
-                                {new Date(comment.timestamp).toLocaleDateString()} at {new Date(comment.timestamp).toLocaleTimeString()}
+                                {new Date(comment.created_at).toLocaleDateString()} at {new Date(comment.created_at).toLocaleTimeString()}
                               </span>
                             </div>
                             <div className="text-sm text-gray-800">
@@ -329,9 +319,9 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
         <Button 
           onClick={handleSave} 
           className="w-full"
-          disabled={!editedApp}
+          disabled={!editedApp || saving}
         >
-          Save Changes
+          {saving ? 'Saving...' : 'Save Changes'}
         </Button>
       </div>
     </div>
