@@ -1,3 +1,4 @@
+
 import { useState, useMemo } from "react";
 import StatusCards from "@/components/StatusCards";
 import FilterBar from "@/components/FilterBar";
@@ -10,12 +11,12 @@ const Index = () => {
   const [applications, setApplications] = useState<Application[]>(mockApplications);
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [filters, setFilters] = useState({
-    branch: "all",
-    teamLead: "all",
-    dealer: "all",
-    lender: "all",
-    status: "all",
-    emiMonth: "all"
+    branch: [] as string[],
+    teamLead: [] as string[],
+    dealer: [] as string[],
+    lender: [] as string[],
+    status: [] as string[],
+    emiMonth: [] as string[]
   });
 
   const filterOptions = useMemo(() => getFilterOptions(applications), [applications]);
@@ -23,20 +24,20 @@ const Index = () => {
   const filteredApplications = useMemo(() => {
     return applications.filter(app => {
       return (
-        (filters.branch === "all" || app.branch === filters.branch) &&
-        (filters.teamLead === "all" || app.teamLead === filters.teamLead) &&
-        (filters.dealer === "all" || app.dealer === filters.dealer) &&
-        (filters.lender === "all" || app.lender === filters.lender) &&
-        (filters.status === "all" || app.status === filters.status) &&
-        (filters.emiMonth === "all" || app.demandMonth === filters.emiMonth)
+        (filters.branch.length === 0 || filters.branch.includes(app.branch)) &&
+        (filters.teamLead.length === 0 || filters.teamLead.includes(app.teamLead)) &&
+        (filters.dealer.length === 0 || filters.dealer.includes(app.dealer)) &&
+        (filters.lender.length === 0 || filters.lender.includes(app.lender)) &&
+        (filters.status.length === 0 || filters.status.includes(app.status)) &&
+        (filters.emiMonth.length === 0 || filters.emiMonth.includes(app.demandMonth))
       );
     });
   }, [applications, filters]);
 
   const statusCounts = useMemo(() => getStatusCounts(filteredApplications), [filteredApplications]);
 
-  const handleFilterChange = (key: string, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+  const handleFilterChange = (key: string, values: string[]) => {
+    setFilters(prev => ({ ...prev, [key]: values }));
   };
 
   const handleRowClick = (application: Application) => {
@@ -88,12 +89,16 @@ const Index = () => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <StatusCards data={statusCounts} />
+        {/* Filters moved to top */}
         <FilterBar 
           filters={filters} 
           onFilterChange={handleFilterChange}
           filterOptions={filterOptions}
         />
+        
+        {/* Status Cards moved below filters */}
+        <StatusCards data={statusCounts} />
+        
         <div className="bg-white rounded-lg shadow">
           <ApplicationsTable 
             applications={filteredApplications}

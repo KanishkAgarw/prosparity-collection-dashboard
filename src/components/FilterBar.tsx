@@ -1,16 +1,17 @@
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useState } from "react";
+import MultiSelectFilter from "./MultiSelectFilter";
 
 interface FilterBarProps {
   filters: {
-    branch: string;
-    teamLead: string;
-    dealer: string;
-    lender: string;
-    status: string;
-    emiMonth: string;
+    branch: string[];
+    teamLead: string[];
+    dealer: string[];
+    lender: string[];
+    status: string[];
+    emiMonth: string[];
   };
-  onFilterChange: (key: string, value: string) => void;
+  onFilterChange: (key: string, values: string[]) => void;
   filterOptions: {
     branches: string[];
     teamLeads: string[];
@@ -24,77 +25,59 @@ interface FilterBarProps {
 const FilterBar = ({ filters, onFilterChange, filterOptions }: FilterBarProps) => {
   return (
     <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
-      <Select value={filters.emiMonth} onValueChange={(value) => onFilterChange('emiMonth', value)}>
-        <SelectTrigger>
-          <SelectValue placeholder="EMI Month" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Months</SelectItem>
-          {filterOptions.emiMonths.map((month) => (
-            <SelectItem key={month} value={month}>{month}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="relative">
+        <MultiSelectFilter
+          label="EMI Months"
+          options={filterOptions.emiMonths}
+          selectedValues={filters.emiMonth}
+          onSelectionChange={(values) => onFilterChange('emiMonth', values)}
+        />
+      </div>
 
-      <Select value={filters.branch} onValueChange={(value) => onFilterChange('branch', value)}>
-        <SelectTrigger>
-          <SelectValue placeholder="Branch" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Branches</SelectItem>
-          {filterOptions.branches.map((branch) => (
-            <SelectItem key={branch} value={branch}>{branch}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="relative">
+        <MultiSelectFilter
+          label="Branches"
+          options={filterOptions.branches}
+          selectedValues={filters.branch}
+          onSelectionChange={(values) => onFilterChange('branch', values)}
+        />
+      </div>
 
-      <Select value={filters.teamLead} onValueChange={(value) => onFilterChange('teamLead', value)}>
-        <SelectTrigger>
-          <SelectValue placeholder="Team Lead" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Team Leads</SelectItem>
-          {filterOptions.teamLeads.map((lead) => (
-            <SelectItem key={lead} value={lead}>{lead}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="relative">
+        <MultiSelectFilter
+          label="Team Leads"
+          options={filterOptions.teamLeads}
+          selectedValues={filters.teamLead}
+          onSelectionChange={(values) => onFilterChange('teamLead', values)}
+        />
+      </div>
 
-      <Select value={filters.dealer} onValueChange={(value) => onFilterChange('dealer', value)}>
-        <SelectTrigger>
-          <SelectValue placeholder="Dealer" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Dealers</SelectItem>
-          {filterOptions.dealers.map((dealer) => (
-            <SelectItem key={dealer} value={dealer}>{dealer}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="relative">
+        <MultiSelectFilter
+          label="Dealers"
+          options={filterOptions.dealers}
+          selectedValues={filters.dealer}
+          onSelectionChange={(values) => onFilterChange('dealer', values)}
+        />
+      </div>
 
-      <Select value={filters.lender} onValueChange={(value) => onFilterChange('lender', value)}>
-        <SelectTrigger>
-          <SelectValue placeholder="Lender" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Lenders</SelectItem>
-          {filterOptions.lenders.map((lender) => (
-            <SelectItem key={lender} value={lender}>{lender}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="relative">
+        <MultiSelectFilter
+          label="Lenders"
+          options={filterOptions.lenders}
+          selectedValues={filters.lender}
+          onSelectionChange={(values) => onFilterChange('lender', values)}
+        />
+      </div>
 
-      <Select value={filters.status} onValueChange={(value) => onFilterChange('status', value)}>
-        <SelectTrigger>
-          <SelectValue placeholder="Status" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Status</SelectItem>
-          {filterOptions.statuses.map((status) => (
-            <SelectItem key={status} value={status}>{status}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="relative">
+        <MultiSelectFilter
+          label="Status"
+          options={filterOptions.statuses}
+          selectedValues={filters.status}
+          onSelectionChange={(values) => onFilterChange('status', values)}
+        />
+      </div>
     </div>
   );
 };
