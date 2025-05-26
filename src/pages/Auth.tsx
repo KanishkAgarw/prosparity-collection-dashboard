@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 const Auth = () => {
   const { user, signIn } = useAuth();
   const [email, setEmail] = useState('kanishk@prosparity.in');
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState('Kanishk@123');
   const [loading, setLoading] = useState(false);
 
   if (user) {
@@ -21,19 +21,28 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
     
+    console.log('Attempting sign in with:', { email, password: '***' });
+    
     try {
-      const { error } = await signIn(email, password);
+      const { data, error } = await signIn(email, password);
+      console.log('Sign in response:', { data, error });
+      
       if (error) {
+        console.error('Sign in error:', error);
         if (error.message.includes('Invalid login credentials')) {
-          toast.error('Invalid email or password');
+          toast.error('Invalid email or password. Please check your credentials.');
+        } else if (error.message.includes('Email not confirmed')) {
+          toast.error('Please check your email and confirm your account before signing in.');
         } else {
           toast.error(error.message);
         }
       } else {
+        console.log('Sign in successful');
         toast.success('Signed in successfully!');
       }
     } catch (error) {
-      toast.error('An error occurred during sign in');
+      console.error('Unexpected error during sign in:', error);
+      toast.error('An unexpected error occurred during sign in');
     } finally {
       setLoading(false);
     }

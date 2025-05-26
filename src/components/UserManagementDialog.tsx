@@ -26,31 +26,40 @@ const UserManagementDialog = () => {
     e.preventDefault();
     setLoading(true);
 
+    console.log('Creating user with:', { email, fullName });
+
     try {
-      const { error } = await supabase.auth.signUp({
+      // Try to create user with email confirmation disabled
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             full_name: fullName,
-          }
+          },
+          emailRedirectTo: undefined, // Disable email confirmation
         }
       });
 
+      console.log('User creation response:', { data, error });
+
       if (error) {
+        console.error('User creation error:', error);
         if (error.message.includes('User already registered')) {
           toast.error('User already exists with this email');
         } else {
           toast.error(error.message);
         }
       } else {
-        toast.success('User created successfully!');
+        console.log('User created successfully');
+        toast.success('User created successfully! They can now sign in.');
         setEmail('');
         setPassword('');
         setFullName('');
         setOpen(false);
       }
     } catch (error) {
+      console.error('Unexpected error creating user:', error);
       toast.error('An error occurred while creating the user');
     } finally {
       setLoading(false);
