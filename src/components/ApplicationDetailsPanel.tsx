@@ -94,20 +94,20 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
     }));
   };
 
-  // Format date as DD-MM-YY
-  const formatDateDDMMYY = (dateStr: string) => {
+  // Format date as DD-MMM-YY
+  const formatDateDDMMMYY = (dateStr: string) => {
     try {
-      return format(new Date(dateStr), 'dd-MM-yy');
+      return format(new Date(dateStr), 'dd-MMM-yy');
     } catch {
       return dateStr;
     }
   };
 
-  // Format datetime with DD-MM-YY date
+  // Format datetime with DD-MMM-YY date
   const formatDateTime = (dateStr: string) => {
     try {
       const date = new Date(dateStr);
-      return `${format(date, 'dd-MM-yy')} at ${format(date, 'HH:mm')}`;
+      return `${format(date, 'dd-MMM-yy')} at ${format(date, 'HH:mm')}`;
     } catch {
       return dateStr;
     }
@@ -116,7 +116,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
   const formatPtpDate = (ptpDate?: string) => {
     if (!ptpDate) return "NA";
     try {
-      return format(new Date(ptpDate), 'dd-MM-yy');
+      return format(new Date(ptpDate), 'dd-MMM-yy');
     } catch {
       return "NA";
     }
@@ -311,7 +311,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                               <span className="font-medium text-sm">
-                                {comment.user_email || user?.email || 'Unknown User'}
+                                {comment.user_email || 'Unknown User'}
                               </span>
                               <span className="text-xs text-gray-500">
                                 {formatDateTime(comment.created_at)}

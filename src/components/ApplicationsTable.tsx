@@ -47,7 +47,7 @@ const getStatusBadge = (status: string) => {
 const formatPtpDate = (ptpDate?: string) => {
   if (!ptpDate) return "NA";
   try {
-    return format(new Date(ptpDate), 'dd-MM-yy');
+    return format(new Date(ptpDate), 'dd-MMM-yy');
   } catch {
     return "NA";
   }
