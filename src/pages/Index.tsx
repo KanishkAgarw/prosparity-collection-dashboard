@@ -1,9 +1,6 @@
-
 import { useState, useMemo } from "react";
 import { User, Mail, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import StatusCards from "@/components/StatusCards";
 import FilterBar from "@/components/FilterBar";
 import ApplicationsTable from "@/components/ApplicationsTable";
@@ -79,30 +76,19 @@ const Index = () => {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Card className="p-3">
-                <CardContent className="p-0">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                      <User className="h-5 w-5 text-white" />
-                    </div>
-                    <div className="flex flex-col">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <User className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm text-gray-700 font-medium">kanak</span>
-                      </div>
-                      <div className="flex items-center space-x-2 mb-2">
-                        <Mail className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm text-gray-700">kanak@company.com</span>
-                      </div>
-                      <Separator className="my-1" />
-                      <Button variant="outline" size="sm" className="mt-1">
-                        <LogOut className="h-4 w-4 mr-2" />
-                        Log Out
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                  <User className="h-5 w-5 text-white" />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Mail className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm text-gray-700">kanak@company.com</span>
+                </div>
+                <Button variant="outline" size="sm">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Log Out
+                </Button>
+              </div>
             </div>
           </div>
         </div>
