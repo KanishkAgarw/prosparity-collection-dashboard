@@ -1,3 +1,4 @@
+
 import { useState, useMemo } from "react";
 import { Navigate } from "react-router-dom";
 import { User, Mail, LogOut } from "lucide-react";
@@ -10,6 +11,7 @@ import UploadApplicationDialog from "@/components/UploadApplicationDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useApplications } from "@/hooks/useApplications";
 import { format, parse, isValid } from "date-fns";
+import { toast } from "sonner";
 
 const Index = () => {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -189,7 +191,13 @@ const Index = () => {
   };
 
   const handleSignOut = async () => {
-    await signOut();
+    try {
+      await signOut();
+      toast.success('Logged out successfully');
+    } catch (error) {
+      console.error('Error signing out:', error);
+      toast.error('Error signing out');
+    }
   };
 
   return (
@@ -240,6 +248,10 @@ const Index = () => {
         <div className="bg-white rounded-lg shadow">
           {appsLoading ? (
             <div className="p-8 text-center">Loading applications...</div>
+          ) : filteredApplications.length === 0 ? (
+            <div className="p-8 text-center">
+              <p className="text-gray-500">No applications found. Upload some applications to get started.</p>
+            </div>
           ) : (
             <ApplicationsTable 
               applications={filteredApplications}

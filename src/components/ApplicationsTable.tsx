@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 interface Application {
   applicationId: string;
@@ -33,8 +34,7 @@ const getStatusBadge = (status: string) => {
   const variants = {
     'Paid': 'bg-green-100 text-green-800',
     'Unpaid': 'bg-red-100 text-red-800',
-    'Partially Paid': 'bg-yellow-100 text-yellow-800',
-    'Overdue': 'bg-orange-100 text-orange-800'
+    'Partially Paid': 'bg-yellow-100 text-yellow-800'
   };
   
   return (
@@ -42,6 +42,15 @@ const getStatusBadge = (status: string) => {
       {status}
     </Badge>
   );
+};
+
+const formatPtpDate = (ptpDate?: string) => {
+  if (!ptpDate) return "NA";
+  try {
+    return format(new Date(ptpDate), 'dd/MM/yyyy');
+  } catch {
+    return "NA";
+  }
 };
 
 const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, selectedApplicationId }: ApplicationsTableProps) => {
@@ -85,7 +94,7 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
             <TableHead className="hidden lg:table-cell">Dealer</TableHead>
             <TableHead className="hidden lg:table-cell">Lender</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead className="hidden md:table-cell">EMI Due</TableHead>
+            <TableHead>PTP Date</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -109,7 +118,9 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
               <TableCell className="hidden lg:table-cell">{app.dealer}</TableCell>
               <TableCell className="hidden lg:table-cell">{app.lender}</TableCell>
               <TableCell>{getStatusBadge(app.status)}</TableCell>
-              <TableCell className="hidden md:table-cell">₹{app.emiDue.toLocaleString()}</TableCell>
+              <TableCell className={app.ptpDate ? 'text-blue-600 font-medium' : 'text-gray-400'}>
+                {formatPtpDate(app.ptpDate)}
+              </TableCell>
               <TableCell>
                 <Button
                   variant="ghost"
