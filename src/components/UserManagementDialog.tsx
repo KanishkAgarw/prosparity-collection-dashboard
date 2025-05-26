@@ -27,13 +27,14 @@ const UserManagementDialog = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.admin.createUser({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
-        user_metadata: {
-          full_name: fullName,
-        },
-        email_confirm: true,
+        options: {
+          data: {
+            full_name: fullName,
+          }
+        }
       });
 
       if (error) {
