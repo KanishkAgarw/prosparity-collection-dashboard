@@ -9,7 +9,90 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      applications: {
+        Row: {
+          applicant_name: string
+          application_id: string
+          branch: string
+          created_at: string | null
+          dealer: string
+          emi_due: number
+          emi_month: string
+          id: string
+          lender: string
+          paid_date: string | null
+          ptp_date: string | null
+          rm: string
+          rm_comments: string | null
+          status: string
+          team_lead: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          applicant_name: string
+          application_id: string
+          branch: string
+          created_at?: string | null
+          dealer: string
+          emi_due: number
+          emi_month: string
+          id?: string
+          lender: string
+          paid_date?: string | null
+          ptp_date?: string | null
+          rm: string
+          rm_comments?: string | null
+          status?: string
+          team_lead: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          applicant_name?: string
+          application_id?: string
+          branch?: string
+          created_at?: string | null
+          dealer?: string
+          emi_due?: number
+          emi_month?: string
+          id?: string
+          lender?: string
+          paid_date?: string | null
+          ptp_date?: string | null
+          rm?: string
+          rm_comments?: string | null
+          status?: string
+          team_lead?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

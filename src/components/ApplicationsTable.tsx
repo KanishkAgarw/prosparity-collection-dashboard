@@ -1,7 +1,22 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Application } from "@/types/application";
+
+interface Application {
+  applicationId: string;
+  applicantName: string;
+  branch: string;
+  teamLead: string;
+  rm: string;
+  dealer: string;
+  lender: string;
+  status: string;
+  emiDue: number;
+  demandMonth: string;
+  paidDate?: string;
+  ptpDate?: string;
+  rmComments?: string;
+}
 
 interface ApplicationsTableProps {
   applications: Application[];
@@ -30,6 +45,7 @@ const ApplicationsTable = ({ applications, onRowClick }: ApplicationsTableProps)
         <TableHeader>
           <TableRow>
             <TableHead>Application ID</TableHead>
+            <TableHead>EMI Month</TableHead>
             <TableHead>Applicant</TableHead>
             <TableHead className="hidden md:table-cell">Branch</TableHead>
             <TableHead className="hidden md:table-cell">Team Lead</TableHead>
@@ -38,7 +54,6 @@ const ApplicationsTable = ({ applications, onRowClick }: ApplicationsTableProps)
             <TableHead className="hidden lg:table-cell">Lender</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="hidden md:table-cell">EMI Due</TableHead>
-            <TableHead className="hidden md:table-cell">Amount Paid</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -49,6 +64,7 @@ const ApplicationsTable = ({ applications, onRowClick }: ApplicationsTableProps)
               onClick={() => onRowClick(app)}
             >
               <TableCell className="font-medium">{app.applicationId}</TableCell>
+              <TableCell className="font-medium">{app.demandMonth}</TableCell>
               <TableCell>{app.applicantName}</TableCell>
               <TableCell className="hidden md:table-cell">{app.branch}</TableCell>
               <TableCell className="hidden md:table-cell">{app.teamLead}</TableCell>
@@ -57,7 +73,6 @@ const ApplicationsTable = ({ applications, onRowClick }: ApplicationsTableProps)
               <TableCell className="hidden lg:table-cell">{app.lender}</TableCell>
               <TableCell>{getStatusBadge(app.status)}</TableCell>
               <TableCell className="hidden md:table-cell">₹{app.emiDue.toLocaleString()}</TableCell>
-              <TableCell className="hidden md:table-cell">₹{app.amountPaid.toLocaleString()}</TableCell>
             </TableRow>
           ))}
         </TableBody>
