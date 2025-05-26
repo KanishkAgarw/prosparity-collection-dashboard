@@ -3,16 +3,28 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { Upload } from 'lucide-react';
+import { Upload, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 interface UploadApplicationDialogProps {
   onApplicationAdded: () => void;
+}
+
+interface ExcelRowData {
+  'Application ID': string;
+  'Applicant Name': string;
+  'Branch': string;
+  'Team Lead': string;
+  'RM': string;
+  'Dealer': string;
+  'Lender': string;
+  'EMI Due': number;
+  'EMI Month': string;
+  'Status': string;
 }
 
 const UploadApplicationDialog = ({ onApplicationAdded }: UploadApplicationDialogProps) => {
@@ -20,18 +32,6 @@ const UploadApplicationDialog = ({ onApplicationAdded }: UploadApplicationDialog
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [formData, setFormData] = useState({
-    applicationId: '',
-    applicantName: '',
-    branch: '',
-    teamLead: '',
-    rm: '',
-    dealer: '',
-    lender: '',
-    emiDue: '',
-    emiMonth: '',
-    status: 'Unpaid'
-  });
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -46,74 +46,125 @@ const UploadApplicationDialog = ({ onApplicationAdded }: UploadApplicationDialog
     }
   };
 
+  const downloadTemplate = () => {
+    const templateData = [
+      {
+        'Application ID': 'APP001',
+        'Applicant Name': 'John Doe',
+        'Branch': 'Mumbai',
+        'Team Lead': 'Manager Name',
+        'RM': 'RM Name',
+        'Dealer': 'Dealer Name',
+        'Lender': 'Bank Name',
+        'EMI Due': 25000,
+        'EMI Month': 'Jan 2024',
+        'Status': 'Unpaid'
+      }
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Applications');
+    
+    // Set column widths
+    const wscols = [
+      { wch: 15 }, // Application ID
+      { wch: 20 }, // Applicant Name
+      { wch: 15 }, // Branch
+      { wch: 15 }, // Team Lead
+      { wch: 15 }, // RM
+      { wch: 15 }, // Dealer
+      { wch: 15 }, // Lender
+      { wch: 12 }, // EMI Due
+      { wch: 12 }, // EMI Month
+      { wch: 15 }  // Status
+    ];
+    ws['!cols'] = wscols;
+
+    XLSX.writeFile(wb, 'applications_template.xlsx');
+    toast.success('Template downloaded successfully');
+  };
+
   const handleExcelUpload = async () => {
     if (!selectedFile || !user) return;
     
     setLoading(true);
     try {
-      // For now, show a message that Excel parsing will be implemented
-      toast.error('Excel parsing functionality will be implemented. Please use manual entry for now.');
-    } catch (error) {
-      toast.error('Failed to process Excel file');
-    } finally {
-      setLoading(false);
-    }
-  };
+      const fileBuffer = await selectedFile.arrayBuffer();
+      const workbook = XLSX.read(fileBuffer, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet) as ExcelRowData[];
 
-  const handleManualSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-    
-    setLoading(true);
-    try {
+      console.log('Parsed Excel data:', jsonData);
+
+      if (jsonData.length === 0) {
+        toast.error('No data found in Excel file');
+        return;
+      }
+
+      // Validate required columns
+      const requiredColumns = [
+        'Application ID',
+        'Applicant Name', 
+        'Branch',
+        'Team Lead',
+        'RM',
+        'Dealer',
+        'Lender',
+        'EMI Due',
+        'EMI Month',
+        'Status'
+      ];
+
+      const firstRow = jsonData[0];
+      const missingColumns = requiredColumns.filter(col => !(col in firstRow));
+      
+      if (missingColumns.length > 0) {
+        toast.error(`Missing required columns: ${missingColumns.join(', ')}`);
+        return;
+      }
+
+      // Process and insert data
+      const applicationsToInsert = jsonData.map(row => ({
+        application_id: String(row['Application ID']),
+        applicant_name: String(row['Applicant Name']),
+        branch: String(row['Branch']),
+        team_lead: String(row['Team Lead']),
+        rm: String(row['RM']),
+        dealer: String(row['Dealer']),
+        lender: String(row['Lender']),
+        emi_due: Number(row['EMI Due']),
+        emi_month: String(row['EMI Month']),
+        status: String(row['Status']),
+        user_id: user.id
+      }));
+
+      console.log('Applications to insert:', applicationsToInsert);
+
       const { error } = await supabase
         .from('applications')
-        .insert({
-          application_id: formData.applicationId,
-          applicant_name: formData.applicantName,
-          branch: formData.branch,
-          team_lead: formData.teamLead,
-          rm: formData.rm,
-          dealer: formData.dealer,
-          lender: formData.lender,
-          emi_due: parseFloat(formData.emiDue),
-          emi_month: formData.emiMonth,
-          status: formData.status,
-          user_id: user.id
-        });
+        .insert(applicationsToInsert);
 
       if (error) {
+        console.error('Database error:', error);
         if (error.code === '23505') {
-          toast.error('Application ID already exists');
+          toast.error('Some application IDs already exist');
         } else {
-          toast.error('Failed to add application');
+          toast.error('Failed to upload applications');
         }
       } else {
-        toast.success('Application added successfully!');
-        setFormData({
-          applicationId: '',
-          applicantName: '',
-          branch: '',
-          teamLead: '',
-          rm: '',
-          dealer: '',
-          lender: '',
-          emiDue: '',
-          emiMonth: '',
-          status: 'Unpaid'
-        });
+        toast.success(`Successfully uploaded ${applicationsToInsert.length} applications!`);
+        setSelectedFile(null);
         setOpen(false);
         onApplicationAdded();
       }
     } catch (error) {
-      toast.error('An error occurred');
+      console.error('Excel processing error:', error);
+      toast.error('Failed to process Excel file. Please check the format.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   return (
@@ -124,160 +175,52 @@ const UploadApplicationDialog = ({ onApplicationAdded }: UploadApplicationDialog
           Upload Applications
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Upload Applications</DialogTitle>
+          <DialogTitle>Upload Applications via Excel</DialogTitle>
           <DialogDescription>
-            Upload applications manually or via Excel file.
+            Upload multiple applications using an Excel file. Download the template to get started.
           </DialogDescription>
         </DialogHeader>
         
-        <Tabs defaultValue="manual" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="manual">Manual Entry</TabsTrigger>
-            <TabsTrigger value="excel">Excel Upload</TabsTrigger>
-          </TabsList>
+        <div className="space-y-4">
+          <div className="flex justify-center">
+            <Button onClick={downloadTemplate} variant="outline" className="w-full">
+              <Download className="h-4 w-4 mr-2" />
+              Download Excel Template
+            </Button>
+          </div>
           
-          <TabsContent value="excel" className="space-y-4">
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="excel-file">Select Excel File</Label>
-                <Input
-                  id="excel-file"
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={handleFileSelect}
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  Supported formats: .xlsx, .xls
-                </p>
-              </div>
-              {selectedFile && (
-                <div className="p-3 bg-gray-50 rounded-md">
-                  <p className="text-sm">Selected file: {selectedFile.name}</p>
-                  <p className="text-xs text-gray-500">Size: {(selectedFile.size / 1024).toFixed(1)} KB</p>
-                </div>
-              )}
-              <Button 
-                onClick={handleExcelUpload}
-                disabled={!selectedFile || loading}
-                className="w-full"
-              >
-                {loading ? 'Processing...' : 'Upload Excel File'}
-              </Button>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="excel-file">Select Excel File</Label>
+              <Input
+                id="excel-file"
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileSelect}
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Supported formats: .xlsx, .xls
+              </p>
             </div>
-          </TabsContent>
-          
-          <TabsContent value="manual">
-            <form onSubmit={handleManualSubmit} className="space-y-4">
-              <div className="grid gap-4">
-                <div>
-                  <Label htmlFor="applicationId">Application ID</Label>
-                  <Input
-                    id="applicationId"
-                    value={formData.applicationId}
-                    onChange={(e) => handleInputChange('applicationId', e.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="applicantName">Applicant Name</Label>
-                  <Input
-                    id="applicantName"
-                    value={formData.applicantName}
-                    onChange={(e) => handleInputChange('applicantName', e.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="branch">Branch</Label>
-                  <Input
-                    id="branch"
-                    value={formData.branch}
-                    onChange={(e) => handleInputChange('branch', e.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="teamLead">Team Lead</Label>
-                  <Input
-                    id="teamLead"
-                    value={formData.teamLead}
-                    onChange={(e) => handleInputChange('teamLead', e.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="rm">RM</Label>
-                  <Input
-                    id="rm"
-                    value={formData.rm}
-                    onChange={(e) => handleInputChange('rm', e.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="dealer">Dealer</Label>
-                  <Input
-                    id="dealer"
-                    value={formData.dealer}
-                    onChange={(e) => handleInputChange('dealer', e.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="lender">Lender</Label>
-                  <Input
-                    id="lender"
-                    value={formData.lender}
-                    onChange={(e) => handleInputChange('lender', e.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="emiDue">EMI Due (₹)</Label>
-                  <Input
-                    id="emiDue"
-                    type="number"
-                    step="0.01"
-                    value={formData.emiDue}
-                    onChange={(e) => handleInputChange('emiDue', e.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="emiMonth">EMI Month</Label>
-                  <Input
-                    id="emiMonth"
-                    placeholder="e.g., Jan 2024"
-                    value={formData.emiMonth}
-                    onChange={(e) => handleInputChange('emiMonth', e.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="status">Status</Label>
-                  <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Paid">Paid</SelectItem>
-                      <SelectItem value="Unpaid">Unpaid</SelectItem>
-                      <SelectItem value="Partially Paid">Partially Paid</SelectItem>
-                      <SelectItem value="Overdue">Overdue</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+            
+            {selectedFile && (
+              <div className="p-3 bg-gray-50 rounded-md">
+                <p className="text-sm">Selected file: {selectedFile.name}</p>
+                <p className="text-xs text-gray-500">Size: {(selectedFile.size / 1024).toFixed(1)} KB</p>
               </div>
-              <DialogFooter>
-                <Button type="submit" disabled={loading}>
-                  {loading ? 'Adding...' : 'Add Application'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </TabsContent>
-        </Tabs>
+            )}
+            
+            <Button 
+              onClick={handleExcelUpload}
+              disabled={!selectedFile || loading}
+              className="w-full"
+            >
+              {loading ? 'Processing...' : 'Upload Excel File'}
+            </Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
