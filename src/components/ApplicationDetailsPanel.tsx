@@ -192,6 +192,16 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
   };
 
   const CommentsCard = ({ title, children }: { title: string; children: React.ReactNode }) => {
+    // Mock comments data - in real app this would come from the application data
+    const comments = [
+      {
+        id: "1",
+        user: "Current User",
+        timestamp: "2024-05-26T10:30:00Z",
+        content: currentApp.rmComments || ""
+      }
+    ].filter(comment => comment.content.trim() !== "");
+
     return (
       <Card className="mb-4">
         <CardHeader className="pb-3">
@@ -200,17 +210,34 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
         <CardContent className="pt-0">
           <div className="space-y-3">
             {children}
-            {currentApp.rmComments && (
+            {comments.length > 0 && (
               <div className="border-t pt-3">
-                <p className="text-xs text-gray-500 mb-2">All Comments:</p>
-                <div className="space-y-2">
-                  <div className="text-sm border-l-2 border-blue-200 pl-2 py-2 bg-gray-50">
-                    {currentApp.rmComments}
-                  </div>
+                <p className="text-xs text-gray-500 mb-3">Comments:</p>
+                <div className="space-y-3">
+                  {comments.map((comment) => (
+                    <div key={comment.id} className="border rounded-lg p-3 bg-gray-50 hover:bg-gray-100 transition-colors">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                          <User className="h-4 w-4 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm">{comment.user}</span>
+                            <span className="text-xs text-gray-500">
+                              {new Date(comment.timestamp).toLocaleDateString()} at {new Date(comment.timestamp).toLocaleTimeString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-sm text-gray-800 ml-10">
+                        {comment.content}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
-            {!currentApp.rmComments && (
+            {comments.length === 0 && (
               <div className="text-xs text-gray-400 italic">No comments added yet</div>
             )}
           </div>
