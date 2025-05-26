@@ -23,6 +23,9 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
 
   const currentApp = editedApp || application;
 
+  console.log('Application audit logs:', application.auditLogs);
+  console.log('Application audit logs length:', application.auditLogs?.length || 0);
+
   const handleSave = () => {
     if (!editedApp) return;
     
@@ -75,6 +78,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
       });
     }
 
+    console.log('Generated logs:', logs);
     onSave(editedApp, logs);
     setEditedApp(null);
   };
@@ -97,53 +101,61 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
       'Comments': ['RM Comments']
     };
     
-    return application.auditLogs?.filter(log => 
+    const logs = application.auditLogs?.filter(log => 
       sectionFields[section as keyof typeof sectionFields]?.includes(log.field)
     ) || [];
+    
+    console.log(`Logs for ${section}:`, logs);
+    return logs;
   };
 
   const SectionCard = ({ title, logs, children }: { title: string; logs: AuditLog[]; children: React.ReactNode }) => {
     const recentLogs = logs.slice(-2);
+    
+    console.log(`${title} - Total logs:`, logs.length, 'Recent logs:', recentLogs.length);
     
     return (
       <Card className="mb-4">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm">{title}</CardTitle>
-            {logs.length > 0 && (
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="ghost" size="sm" className="text-xs">
-                    View Logs ({logs.length})
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>{title} - Audit Trail</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-3">
-                    {logs.map((log) => (
-                      <div key={log.id} className="border rounded-lg p-3 bg-gray-50">
-                        <div className="flex items-center gap-2 mb-2">
-                          <User className="h-4 w-4 text-gray-500" />
-                          <span className="font-medium text-sm">{log.user}</span>
-                          <Clock className="h-3 w-3 text-gray-400" />
-                          <span className="text-xs text-gray-500">{formatDate(log.timestamp)}</span>
-                        </div>
-                        <div className="text-sm">
-                          <span className="font-medium">{log.field}</span> changed
-                          <div className="mt-1 text-xs text-gray-600">
-                            From: <span className="bg-red-100 px-1 rounded">{log.previousValue}</span>
-                            {" → "}
-                            To: <span className="bg-green-100 px-1 rounded">{log.newValue}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">{logs.length} logs</span>
+              {logs.length > 0 && (
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="text-xs">
+                      View All Logs
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>{title} - Audit Trail ({logs.length} entries)</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                      {logs.map((log) => (
+                        <div key={log.id} className="border rounded-lg p-3 bg-gray-50">
+                          <div className="flex items-center gap-2 mb-2">
+                            <User className="h-4 w-4 text-gray-500" />
+                            <span className="font-medium text-sm">{log.user}</span>
+                            <Clock className="h-3 w-3 text-gray-400" />
+                            <span className="text-xs text-gray-500">{formatDate(log.timestamp)}</span>
+                          </div>
+                          <div className="text-sm">
+                            <span className="font-medium">{log.field}</span> changed
+                            <div className="mt-1 text-xs text-gray-600">
+                              From: <span className="bg-red-100 px-1 rounded">{log.previousValue}</span>
+                              {" → "}
+                              To: <span className="bg-green-100 px-1 rounded">{log.newValue}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </DialogContent>
-              </Dialog>
-            )}
+                      ))}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="pt-0">
@@ -154,16 +166,24 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                 <p className="text-xs text-gray-500 mb-2">Recent Changes:</p>
                 <div className="space-y-2">
                   {recentLogs.map((log) => (
-                    <div key={log.id} className="text-xs border-l-2 border-blue-200 pl-2 py-1">
+                    <div key={log.id} className="text-xs border-l-2 border-blue-200 pl-2 py-1 bg-blue-50">
                       <div className="flex items-center gap-1">
                         <span className="font-medium">{log.field}</span>
                         <span className="text-gray-500">by {log.user}</span>
                       </div>
                       <div className="text-gray-400">{formatDate(log.timestamp)}</div>
+                      <div className="text-xs mt-1">
+                        <span className="bg-red-100 px-1 rounded">{log.previousValue}</span>
+                        {" → "}
+                        <span className="bg-green-100 px-1 rounded">{log.newValue}</span>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
+            )}
+            {logs.length === 0 && (
+              <div className="text-xs text-gray-400 italic">No changes recorded yet</div>
             )}
           </div>
         </CardContent>
