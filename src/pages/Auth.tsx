@@ -9,8 +9,8 @@ import { toast } from 'sonner';
 
 const Auth = () => {
   const { user, signIn } = useAuth();
-  const [email, setEmail] = useState('kanishk@prosparity.in');
-  const [password, setPassword] = useState('Kanishk@123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   if (user) {
