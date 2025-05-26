@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import StatusCards from "@/components/StatusCards";
 import FilterBar from "@/components/FilterBar";
@@ -11,12 +10,12 @@ const Index = () => {
   const [applications, setApplications] = useState<Application[]>(mockApplications);
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [filters, setFilters] = useState({
-    branch: "",
-    teamLead: "",
-    dealer: "",
-    lender: "",
-    status: "",
-    emiMonth: ""
+    branch: "all",
+    teamLead: "all",
+    dealer: "all",
+    lender: "all",
+    status: "all",
+    emiMonth: "all"
   });
 
   const filterOptions = useMemo(() => getFilterOptions(applications), [applications]);
@@ -24,12 +23,12 @@ const Index = () => {
   const filteredApplications = useMemo(() => {
     return applications.filter(app => {
       return (
-        (!filters.branch || app.branch === filters.branch) &&
-        (!filters.teamLead || app.teamLead === filters.teamLead) &&
-        (!filters.dealer || app.dealer === filters.dealer) &&
-        (!filters.lender || app.lender === filters.lender) &&
-        (!filters.status || app.status === filters.status) &&
-        (!filters.emiMonth || app.demandMonth === filters.emiMonth)
+        (filters.branch === "all" || app.branch === filters.branch) &&
+        (filters.teamLead === "all" || app.teamLead === filters.teamLead) &&
+        (filters.dealer === "all" || app.dealer === filters.dealer) &&
+        (filters.lender === "all" || app.lender === filters.lender) &&
+        (filters.status === "all" || app.status === filters.status) &&
+        (filters.emiMonth === "all" || app.demandMonth === filters.emiMonth)
       );
     });
   }, [applications, filters]);

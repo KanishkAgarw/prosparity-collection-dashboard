@@ -29,7 +29,7 @@ const FilterBar = ({ filters, onFilterChange, filterOptions }: FilterBarProps) =
           <SelectValue placeholder="EMI Month" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">All Months</SelectItem>
+          <SelectItem value="all">All Months</SelectItem>
           {filterOptions.emiMonths.map((month) => (
             <SelectItem key={month} value={month}>{month}</SelectItem>
           ))}
@@ -41,7 +41,7 @@ const FilterBar = ({ filters, onFilterChange, filterOptions }: FilterBarProps) =
           <SelectValue placeholder="Branch" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">All Branches</SelectItem>
+          <SelectItem value="all">All Branches</SelectItem>
           {filterOptions.branches.map((branch) => (
             <SelectItem key={branch} value={branch}>{branch}</SelectItem>
           ))}
@@ -53,7 +53,7 @@ const FilterBar = ({ filters, onFilterChange, filterOptions }: FilterBarProps) =
           <SelectValue placeholder="Team Lead" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">All Team Leads</SelectItem>
+          <SelectItem value="all">All Team Leads</SelectItem>
           {filterOptions.teamLeads.map((lead) => (
             <SelectItem key={lead} value={lead}>{lead}</SelectItem>
           ))}
@@ -65,7 +65,7 @@ const FilterBar = ({ filters, onFilterChange, filterOptions }: FilterBarProps) =
           <SelectValue placeholder="Dealer" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">All Dealers</SelectItem>
+          <SelectItem value="all">All Dealers</SelectItem>
           {filterOptions.dealers.map((dealer) => (
             <SelectItem key={dealer} value={dealer}>{dealer}</SelectItem>
           ))}
@@ -77,7 +77,7 @@ const FilterBar = ({ filters, onFilterChange, filterOptions }: FilterBarProps) =
           <SelectValue placeholder="Lender" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">All Lenders</SelectItem>
+          <SelectItem value="all">All Lenders</SelectItem>
           {filterOptions.lenders.map((lender) => (
             <SelectItem key={lender} value={lender}>{lender}</SelectItem>
           ))}
@@ -89,7 +89,7 @@ const FilterBar = ({ filters, onFilterChange, filterOptions }: FilterBarProps) =
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">All Status</SelectItem>
+          <SelectItem value="all">All Status</SelectItem>
           {filterOptions.statuses.map((status) => (
             <SelectItem key={status} value={status}>{status}</SelectItem>
           ))}
