@@ -33,12 +33,11 @@ export const useApplications = () => {
     
     setLoading(true);
     try {
-      console.log('Fetching applications for user:', user.id);
+      console.log('Fetching all applications (shared across users)');
       
       const { data, error } = await supabase
         .from('applications')
         .select('*')
-        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) {

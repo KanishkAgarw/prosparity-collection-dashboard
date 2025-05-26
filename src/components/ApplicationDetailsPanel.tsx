@@ -14,6 +14,7 @@ import { useAuditLogs } from "@/hooks/useAuditLogs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 interface ApplicationDetailsPanelProps {
   application: Application | null;
@@ -95,6 +96,15 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleString();
+  };
+
+  const formatPtpDate = (ptpDate?: string) => {
+    if (!ptpDate) return "NA";
+    try {
+      return format(new Date(ptpDate), 'dd/MM/yyyy');
+    } catch {
+      return "NA";
+    }
   };
 
   const getLogsForSection = (section: string) => {
@@ -240,6 +250,11 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
               value={currentApp.ptpDate || ''}
               onChange={(e) => updateField('ptpDate', e.target.value)}
             />
+            {currentApp.ptpDate && (
+              <p className="text-xs text-gray-500 mt-1">
+                Formatted: {formatPtpDate(currentApp.ptpDate)}
+              </p>
+            )}
           </div>
         </SectionCard>
 
@@ -280,7 +295,9 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium text-sm">User</span>
+                              <span className="font-medium text-sm">
+                                {comment.user_email || 'Unknown User'}
+                              </span>
                               <span className="text-xs text-gray-500">
                                 {new Date(comment.created_at).toLocaleDateString()} at {new Date(comment.created_at).toLocaleTimeString()}
                               </span>

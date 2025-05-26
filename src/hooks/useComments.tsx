@@ -7,6 +7,7 @@ export interface Comment {
   id: string;
   content: string;
   user_id: string;
+  user_email?: string;
   application_id: string;
   created_at: string;
   updated_at: string;
@@ -54,7 +55,8 @@ export const useComments = (applicationId?: string) => {
         .insert({
           content: content.trim(),
           application_id: applicationId,
-          user_id: user.id
+          user_id: user.id,
+          user_email: user.email
         })
         .select()
         .single();
