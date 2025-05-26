@@ -53,6 +53,15 @@ const formatPtpDate = (ptpDate?: string) => {
   }
 };
 
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
 const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, selectedApplicationId }: ApplicationsTableProps) => {
   const handleDelete = async (applicationId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent row click
@@ -88,11 +97,12 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
             <TableHead className="min-w-[120px]">Application ID</TableHead>
             <TableHead className="min-w-[100px]">EMI Month</TableHead>
             <TableHead className="min-w-[150px]">Applicant</TableHead>
-            <TableHead className="hidden md:table-cell min-w-[100px]">Branch</TableHead>
-            <TableHead className="hidden md:table-cell min-w-[120px]">Team Lead</TableHead>
-            <TableHead className="hidden lg:table-cell min-w-[100px]">RM</TableHead>
-            <TableHead className="hidden lg:table-cell min-w-[100px]">Dealer</TableHead>
-            <TableHead className="hidden lg:table-cell min-w-[100px]">Lender</TableHead>
+            <TableHead className="min-w-[100px]">Branch</TableHead>
+            <TableHead className="min-w-[120px]">Team Lead</TableHead>
+            <TableHead className="min-w-[100px]">RM</TableHead>
+            <TableHead className="min-w-[100px]">Dealer</TableHead>
+            <TableHead className="min-w-[100px]">Lender</TableHead>
+            <TableHead className="min-w-[100px]">EMI Due</TableHead>
             <TableHead className="min-w-[120px]">Status</TableHead>
             <TableHead className="min-w-[100px]">PTP Date</TableHead>
             <TableHead className="min-w-[80px]">Actions</TableHead>
@@ -112,11 +122,12 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
               <TableCell className="font-medium">{app.applicationId}</TableCell>
               <TableCell className="font-medium">{app.demandMonth}</TableCell>
               <TableCell>{app.applicantName}</TableCell>
-              <TableCell className="hidden md:table-cell">{app.branch}</TableCell>
-              <TableCell className="hidden md:table-cell">{app.teamLead}</TableCell>
-              <TableCell className="hidden lg:table-cell">{app.rm}</TableCell>
-              <TableCell className="hidden lg:table-cell">{app.dealer}</TableCell>
-              <TableCell className="hidden lg:table-cell">{app.lender}</TableCell>
+              <TableCell>{app.branch}</TableCell>
+              <TableCell>{app.teamLead}</TableCell>
+              <TableCell>{app.rm}</TableCell>
+              <TableCell>{app.dealer}</TableCell>
+              <TableCell>{app.lender}</TableCell>
+              <TableCell className="font-medium text-blue-600">{formatCurrency(app.emiDue)}</TableCell>
               <TableCell>{getStatusBadge(app.status)}</TableCell>
               <TableCell className={`${app.ptpDate ? 'text-blue-600 font-medium' : 'text-gray-400'} whitespace-nowrap`}>
                 {formatPtpDate(app.ptpDate)}

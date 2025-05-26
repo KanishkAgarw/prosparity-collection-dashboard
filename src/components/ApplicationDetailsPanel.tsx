@@ -114,6 +114,29 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
     }
   };
 
+  // Format audit log values, especially for PTP dates
+  const formatAuditValue = (value: string | null, field: string) => {
+    if (!value) return "Not set";
+    
+    // If the field is PTP Date and the value looks like a date, format it
+    if (field === 'PTP Date' && value !== 'Not set') {
+      try {
+        // Handle ISO date strings
+        if (value.includes('T') || value.includes('-')) {
+          const date = new Date(value);
+          if (!isNaN(date.getTime())) {
+            return format(date, 'dd-MMM-yy');
+          }
+        }
+        return value;
+      } catch {
+        return value;
+      }
+    }
+    
+    return value;
+  };
+
   const getLogsForSection = (section: string) => {
     const sectionFields = {
       'Status and PTP': ['Status', 'PTP Date']
@@ -129,7 +152,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
   const statusAndPtpLogs = getLogsForSection('Status and PTP');
 
   return (
-    <div className="fixed right-0 top-0 h-full w-96 bg-white shadow-lg border-l z-50 overflow-y-auto">
+    <div className="fixed right-0 top-0 h-full w-[500px] bg-white shadow-lg border-l z-50 overflow-y-auto">
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold">Application Details</h2>
@@ -189,9 +212,9 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                                 <div className="text-sm">
                                   <span className="font-medium">{log.field}</span> changed
                                   <div className="mt-1 text-xs text-gray-600">
-                                    From: <span className="bg-red-100 px-1 rounded">{log.previous_value}</span>
+                                    From: <span className="bg-red-100 px-1 rounded">{formatAuditValue(log.previous_value, log.field)}</span>
                                     {" → "}
-                                    To: <span className="bg-green-100 px-1 rounded">{log.new_value}</span>
+                                    To: <span className="bg-green-100 px-1 rounded">{formatAuditValue(log.new_value, log.field)}</span>
                                   </div>
                                 </div>
                               </div>
@@ -247,9 +270,9 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                             </div>
                             <div className="text-gray-400">{formatDateTime(log.created_at)}</div>
                             <div className="text-xs mt-1">
-                              <span className="bg-red-100 px-1 rounded">{log.previous_value}</span>
+                              <span className="bg-red-100 px-1 rounded">{formatAuditValue(log.previous_value, log.field)}</span>
                               {" → "}
-                              <span className="bg-green-100 px-1 rounded">{log.new_value}</span>
+                              <span className="bg-green-100 px-1 rounded">{formatAuditValue(log.new_value, log.field)}</span>
                             </div>
                           </div>
                         ))}
@@ -272,7 +295,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                 <CardTitle className="text-sm">Comments</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div>
                     <Label htmlFor="newComment">Add Comment</Label>
                     <Textarea
@@ -280,11 +303,11 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
                       placeholder="Add your comment here..."
-                      className="min-h-[80px]"
+                      className="min-h-[100px] resize-none"
                     />
                     <Button 
                       onClick={handleAddComment} 
-                      className="mt-2 w-full"
+                      className="mt-3 w-full"
                       size="sm"
                       disabled={!newComment.trim()}
                     >
@@ -292,25 +315,25 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                     </Button>
                   </div>
                   {comments.length > 0 && (
-                    <div className="border-t pt-3">
-                      <p className="text-xs text-gray-500 mb-3">All Comments:</p>
-                      <div className="space-y-3 max-h-60 overflow-y-auto">
+                    <div className="border-t pt-4">
+                      <p className="text-sm font-medium text-gray-700 mb-3">All Comments ({comments.length}):</p>
+                      <div className="space-y-4 max-h-60 overflow-y-auto">
                         {comments.map((comment) => (
-                          <div key={comment.id} className="border rounded-lg p-3 bg-gray-50 hover:bg-gray-100 transition-colors">
+                          <div key={comment.id} className="border rounded-lg p-4 bg-gray-50 hover:bg-gray-100 transition-colors">
                             <div className="flex items-start gap-3">
                               <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
                                 <User className="h-4 w-4 text-white" />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="font-medium text-sm">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="font-medium text-sm text-blue-700">
                                     {comment.user_email || 'Unknown User'}
                                   </span>
                                   <span className="text-xs text-gray-500">
                                     {formatDateTime(comment.created_at)}
                                   </span>
                                 </div>
-                                <div className="text-sm text-gray-800">
+                                <div className="text-sm text-gray-800 leading-relaxed break-words">
                                   {comment.content}
                                 </div>
                               </div>
@@ -321,7 +344,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                     </div>
                   )}
                   {comments.length === 0 && (
-                    <div className="text-xs text-gray-400 italic">No comments added yet</div>
+                    <div className="text-sm text-gray-400 italic text-center py-8">No comments added yet</div>
                   )}
                 </div>
               </CardContent>
@@ -332,7 +355,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
         {/* Save Button */}
         <Button 
           onClick={handleSave} 
-          className="w-full mt-4"
+          className="w-full mt-6"
           disabled={!editedApp || saving}
         >
           {saving ? 'Saving...' : 'Save Changes'}
