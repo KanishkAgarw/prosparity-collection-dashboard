@@ -1,10 +1,13 @@
 
 import { useState, useMemo } from "react";
+import { User, Mail, LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import StatusCards from "@/components/StatusCards";
 import FilterBar from "@/components/FilterBar";
 import ApplicationsTable from "@/components/ApplicationsTable";
 import ApplicationDetailsPanel from "@/components/ApplicationDetailsPanel";
-import UserSidebar from "@/components/UserSidebar";
 import { mockApplications, getFilterOptions, getStatusCounts } from "@/utils/mockData";
 import { Application, AuditLog } from "@/types/application";
 
@@ -62,12 +65,9 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* User Sidebar */}
-      <UserSidebar />
-
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ml-64">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
               <div className="bg-blue-600 text-white rounded-lg p-2">
@@ -79,20 +79,37 @@ const Index = () => {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
-                Your Access Level: Admin - You have full access to all applications.
-              </span>
-              <div className="text-right">
-                <p className="text-sm font-medium">Admin Panel</p>
-                <p className="text-xs text-gray-500">kanak</p>
-              </div>
+              <Card className="p-3">
+                <CardContent className="p-0">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                      <User className="h-5 w-5 text-white" />
+                    </div>
+                    <div className="flex flex-col">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <User className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm text-gray-700 font-medium">kanak</span>
+                      </div>
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Mail className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm text-gray-700">kanak@company.com</span>
+                      </div>
+                      <Separator className="my-1" />
+                      <Button variant="outline" size="sm" className="mt-1">
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Log Out
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 ml-64">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Filters moved to top */}
         <FilterBar 
           filters={filters} 
