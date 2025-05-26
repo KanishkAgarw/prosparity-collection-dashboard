@@ -213,33 +213,20 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
           </div>
         </div>
 
-        {/* Status and Amount Paid Section */}
+        {/* Status Section */}
         <SectionCard title="Status and Amount Paid" logs={getLogsForSection('Status and Amount')}>
-          <div className="space-y-3">
-            <div>
-              <Label htmlFor="status">Status</Label>
-              <Select value={currentApp.status} onValueChange={(value) => updateField('status', value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Paid">Paid</SelectItem>
-                  <SelectItem value="Unpaid">Unpaid</SelectItem>
-                  <SelectItem value="Partially Paid">Partially Paid</SelectItem>
-                  <SelectItem value="Overdue">Overdue</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="emiDue">EMI Due Amount</Label>
-              <Input
-                id="emiDue"
-                type="number"
-                value={currentApp.emiDue || 0}
-                readOnly
-                className="bg-gray-50"
-              />
-            </div>
+          <div>
+            <Label htmlFor="status">Status</Label>
+            <Select value={currentApp.status} onValueChange={(value) => updateField('status', value)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Paid">Paid</SelectItem>
+                <SelectItem value="Unpaid">Unpaid</SelectItem>
+                <SelectItem value="Partially Paid">Partially Paid</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </SectionCard>
 
