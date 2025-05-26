@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import { Navigate } from "react-router-dom";
 import { User, Mail, LogOut } from "lucide-react";
@@ -10,6 +9,7 @@ import ApplicationDetailsPanel from "@/components/ApplicationDetailsPanel";
 import UploadApplicationDialog from "@/components/UploadApplicationDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useApplications } from "@/hooks/useApplications";
+import { format, parse } from "date-fns";
 
 const Index = () => {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -23,6 +23,27 @@ const Index = () => {
     status: [] as string[],
     emiMonth: [] as string[]
   });
+
+  // Format EMI month to MMM-YY format
+  const formatEmiMonth = (emiMonth: string) => {
+    try {
+      // Try to parse different common formats
+      let date;
+      if (emiMonth.includes(' ')) {
+        // Format like "Jan 2024"
+        date = parse(emiMonth, 'MMM yyyy', new Date());
+      } else if (emiMonth.includes('-')) {
+        // Format like "2024-01"
+        date = parse(emiMonth, 'yyyy-MM', new Date());
+      } else {
+        // Return as is if can't parse
+        return emiMonth;
+      }
+      return format(date, 'MMM-yy');
+    } catch {
+      return emiMonth;
+    }
+  };
 
   // Convert applications to the format expected by existing components
   const formattedApplications = useMemo(() => {
@@ -39,7 +60,7 @@ const Index = () => {
       emiDue: app.emi_due,
       paidDate: app.paid_date,
       ptpDate: app.ptp_date,
-      demandMonth: app.emi_month,
+      demandMonth: formatEmiMonth(app.emi_month),
       rmComments: app.rm_comments,
       auditLogs: []
     }));
@@ -83,17 +104,13 @@ const Index = () => {
     }, {} as Record<string, number>);
 
     const totalEMIs = filteredApplications.length;
-    const paidThisWeek = 0; // This would need additional logic to calculate
     const unpaid = counts['Unpaid'] || 0;
     const partiallyPaid = counts['Partially Paid'] || 0;
-    const overdue = counts['Overdue'] || 0;
 
     return {
       totalEMIs,
-      paidThisWeek,
       unpaid,
-      partiallyPaid,
-      overdue
+      partiallyPaid
     };
   }, [filteredApplications]);
 
@@ -188,6 +205,7 @@ const Index = () => {
             <ApplicationsTable 
               applications={filteredApplications}
               onRowClick={handleRowClick}
+              onApplicationDeleted={refetch}
             />
           )}
         </div>

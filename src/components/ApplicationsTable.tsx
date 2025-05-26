@@ -1,6 +1,10 @@
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Trash2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Application {
   applicationId: string;
@@ -21,6 +25,7 @@ interface Application {
 interface ApplicationsTableProps {
   applications: Application[];
   onRowClick: (application: Application) => void;
+  onApplicationDeleted?: () => void;
 }
 
 const getStatusBadge = (status: string) => {
@@ -38,7 +43,33 @@ const getStatusBadge = (status: string) => {
   );
 };
 
-const ApplicationsTable = ({ applications, onRowClick }: ApplicationsTableProps) => {
+const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted }: ApplicationsTableProps) => {
+  const handleDelete = async (applicationId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent row click
+    
+    if (!confirm(`Are you sure you want to delete application ${applicationId}?`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('applications')
+        .delete()
+        .eq('application_id', applicationId);
+
+      if (error) {
+        console.error('Error deleting application:', error);
+        toast.error('Failed to delete application');
+      } else {
+        toast.success('Application deleted successfully');
+        onApplicationDeleted?.();
+      }
+    } catch (error) {
+      console.error('Error deleting application:', error);
+      toast.error('Failed to delete application');
+    }
+  };
+
   return (
     <div className="overflow-x-auto">
       <Table>
@@ -54,6 +85,7 @@ const ApplicationsTable = ({ applications, onRowClick }: ApplicationsTableProps)
             <TableHead className="hidden lg:table-cell">Lender</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="hidden md:table-cell">EMI Due</TableHead>
+            <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -73,6 +105,16 @@ const ApplicationsTable = ({ applications, onRowClick }: ApplicationsTableProps)
               <TableCell className="hidden lg:table-cell">{app.lender}</TableCell>
               <TableCell>{getStatusBadge(app.status)}</TableCell>
               <TableCell className="hidden md:table-cell">₹{app.emiDue.toLocaleString()}</TableCell>
+              <TableCell>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => handleDelete(app.applicationId, e)}
+                  className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
