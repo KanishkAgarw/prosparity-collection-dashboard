@@ -6,10 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import CreateInitialUser from '@/components/CreateInitialUser';
 
 const Auth = () => {
   const { user, signIn } = useAuth();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState('kanishk@prosparity.in');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -50,6 +51,7 @@ const Auth = () => {
           <CardDescription>Collection Management System</CardDescription>
         </CardHeader>
         <CardContent>
+          <CreateInitialUser />
           <form onSubmit={handleSignIn} className="space-y-4">
             <div>
               <Input
