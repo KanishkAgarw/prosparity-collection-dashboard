@@ -114,7 +114,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
               <Dialog>
                 <DialogTrigger asChild>
                   <Button variant="ghost" size="sm" className="text-xs">
-                    View Logs
+                    View Logs ({logs.length})
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -201,6 +201,28 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
               <p className="font-medium">{application.teamLead}</p>
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-gray-500">RM</p>
+              <p className="font-medium">{application.rm}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Dealer</p>
+              <p className="font-medium">{application.dealer}</p>
+            </div>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Lender</p>
+            <p className="font-medium">{application.lender}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">EMI Due</p>
+            <p className="font-medium">₹{application.emiDue.toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Demand Month</p>
+            <p className="font-medium">{application.demandMonth}</p>
+          </div>
         </div>
 
         {/* Status and Amount Paid Section */}
@@ -216,6 +238,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                   <SelectItem value="Paid">Paid</SelectItem>
                   <SelectItem value="Unpaid">Unpaid</SelectItem>
                   <SelectItem value="Partially Paid">Partially Paid</SelectItem>
+                  <SelectItem value="Overdue">Overdue</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -234,7 +257,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
         {/* PTP Date Section */}
         <SectionCard title="PTP Date" logs={getLogsForSection('PTP Date')}>
           <div>
-            <Label htmlFor="ptpDate">PTP Date</Label>
+            <Label htmlFor="ptpDate">Promise to Pay Date</Label>
             <Input
               id="ptpDate"
               type="date"
