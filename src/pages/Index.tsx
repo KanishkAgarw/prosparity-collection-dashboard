@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import { Navigate } from "react-router-dom";
 import { User, Mail, LogOut } from "lucide-react";
@@ -30,31 +29,44 @@ const Index = () => {
     if (!emiMonth) return emiMonth;
     
     try {
-      let date;
-      
-      // Try different formats
-      if (emiMonth.includes('/')) {
-        // Format like "01/2024" or "1/2024"
-        const [month, year] = emiMonth.split('/');
-        date = new Date(parseInt(year), parseInt(month) - 1, 1);
-      } else if (emiMonth.includes('-') && emiMonth.length > 3) {
-        // Format like "2024-01"
-        date = parse(emiMonth, 'yyyy-MM', new Date());
-      } else if (emiMonth.includes(' ')) {
-        // Format like "Jan 2024" or "January 2024"
-        date = parse(emiMonth, 'MMM yyyy', new Date());
-        if (!isValid(date)) {
-          date = parse(emiMonth, 'MMMM yyyy', new Date());
-        }
-      } else {
-        // Return as is if can't parse
-        return emiMonth;
+      // Handle Excel serial date numbers (like 45778)
+      if (/^\d+$/.test(emiMonth)) {
+        // Excel serial date: days since January 1, 1900
+        const excelEpoch = new Date(1900, 0, 1);
+        const serialDate = parseInt(emiMonth);
+        // Excel incorrectly treats 1900 as a leap year, so subtract 2 days
+        const actualDate = new Date(excelEpoch.getTime() + (serialDate - 2) * 24 * 60 * 60 * 1000);
+        return format(actualDate, 'MMM-yy');
       }
       
-      if (isValid(date)) {
+      // Handle MM/YYYY format
+      if (/^\d{1,2}\/\d{4}$/.test(emiMonth)) {
+        const [month, year] = emiMonth.split('/');
+        const date = new Date(parseInt(year), parseInt(month) - 1, 1);
         return format(date, 'MMM-yy');
       }
       
+      // Handle YYYY-MM format
+      if (/^\d{4}-\d{2}$/.test(emiMonth)) {
+        const [year, month] = emiMonth.split('-');
+        const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+        return format(date, 'MMM-yy');
+      }
+      
+      // Handle MMM YYYY format (Jan 2024)
+      if (/^[A-Za-z]{3}\s\d{4}$/.test(emiMonth)) {
+        const date = new Date(emiMonth);
+        if (!isNaN(date.getTime())) {
+          return format(date, 'MMM-yy');
+        }
+      }
+      
+      // If already in MMM-YY format, return as is
+      if (/^[A-Za-z]{3}-\d{2}$/.test(emiMonth)) {
+        return emiMonth;
+      }
+      
+      // Return as is if can't parse
       return emiMonth;
     } catch {
       return emiMonth;
@@ -64,22 +76,29 @@ const Index = () => {
   // Convert applications to the format expected by existing components
   const formattedApplications = useMemo(() => {
     if (!applications) return [];
-    return applications.map(app => ({
-      applicationId: app.application_id,
-      applicantName: app.applicant_name,
-      branch: app.branch,
-      teamLead: app.team_lead,
-      rm: app.rm,
-      dealer: app.dealer,
-      lender: app.lender,
-      status: app.status,
-      emiDue: app.emi_due,
-      paidDate: app.paid_date,
-      ptpDate: app.ptp_date,
-      demandMonth: formatEmiMonth(app.emi_month),
-      rmComments: app.rm_comments,
-      auditLogs: []
-    }));
+    console.log('Raw applications from database:', applications); // Debug log
+    
+    return applications.map(app => {
+      const formatted = {
+        applicationId: app.application_id,
+        applicantName: app.applicant_name,
+        branch: app.branch,
+        teamLead: app.team_lead,
+        rm: app.rm,
+        dealer: app.dealer,
+        lender: app.lender,
+        status: app.status,
+        emiDue: app.emi_due,
+        paidDate: app.paid_date,
+        ptpDate: app.ptp_date,
+        demandMonth: formatEmiMonth(app.emi_month),
+        rmComments: app.rm_comments,
+        auditLogs: []
+      };
+      
+      console.log(`Formatted EMI month for ${app.application_id}: ${app.emi_month} -> ${formatted.demandMonth}`); // Debug log
+      return formatted;
+    });
   }, [applications]);
 
   const filterOptions = useMemo(() => {
@@ -123,6 +142,8 @@ const Index = () => {
     const fullyPaid = counts['Paid'] || 0;
     const partiallyPaid = counts['Partially Paid'] || 0;
     const unpaid = counts['Unpaid'] || 0;
+
+    console.log('Status counts:', { totalEMIs, fullyPaid, partiallyPaid, unpaid }); // Debug log
 
     return {
       totalEMIs,

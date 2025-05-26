@@ -33,6 +33,8 @@ export const useApplications = () => {
     
     setLoading(true);
     try {
+      console.log('Fetching applications for user:', user.id);
+      
       const { data, error } = await supabase
         .from('applications')
         .select('*')
@@ -42,6 +44,8 @@ export const useApplications = () => {
       if (error) {
         console.error('Error fetching applications:', error);
       } else {
+        console.log('Fetched applications:', data);
+        console.log('Sample application data:', data?.[0]);
         setApplications(data || []);
       }
     } catch (error) {
