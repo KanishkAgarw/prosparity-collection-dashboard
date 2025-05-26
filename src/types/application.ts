@@ -10,20 +10,20 @@ export interface Application {
   status: string;
   emiDue: number;
   amountPaid: number;
-  paidDate: string;
-  ptpDate: string;
+  paidDate?: string;
+  ptpDate?: string;
   demandMonth: string;
-  auditLogs: AuditLog[];
+  rmComments?: string;
+  auditLogs?: AuditLog[];
 }
 
 export interface AuditLog {
-  id: number;
-  timestamp: Date;
+  id: string;
+  timestamp: string;
   user: string;
   field: string;
   previousValue: string;
   newValue: string;
-  applicationId: string;
 }
 
 export interface FilterOptions {

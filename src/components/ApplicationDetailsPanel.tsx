@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { Application, AuditLog } from "@/types/application";
 
 interface ApplicationDetailsPanelProps {
@@ -17,12 +18,10 @@ interface ApplicationDetailsPanelProps {
 
 const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDetailsPanelProps) => {
   const [editedApp, setEditedApp] = useState<Application | null>(null);
-  const [showAllLogs, setShowAllLogs] = useState(false);
 
   if (!application) return null;
 
   const currentApp = editedApp || application;
-  const recentLogs = application.auditLogs?.slice(-3) || [];
 
   const handleSave = () => {
     if (!editedApp) return;
@@ -54,20 +53,9 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
       });
     }
 
-    if (editedApp.paidDate !== application.paidDate) {
-      logs.push({
-        id: (Date.now() + 2).toString(),
-        timestamp,
-        user,
-        field: "Paid Date",
-        previousValue: application.paidDate || "Not set",
-        newValue: editedApp.paidDate || "Not set"
-      });
-    }
-
     if (editedApp.ptpDate !== application.ptpDate) {
       logs.push({
-        id: (Date.now() + 3).toString(),
+        id: (Date.now() + 2).toString(),
         timestamp,
         user,
         field: "PTP Date",
@@ -78,7 +66,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
 
     if (editedApp.rmComments !== application.rmComments) {
       logs.push({
-        id: (Date.now() + 4).toString(),
+        id: (Date.now() + 3).toString(),
         timestamp,
         user,
         field: "RM Comments",
@@ -102,13 +90,85 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
     return new Date(dateStr).toLocaleString();
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Paid": return "text-green-600";
-      case "Unpaid": return "text-red-600";
-      case "Partially Paid": return "text-yellow-600";
-      default: return "text-gray-600";
-    }
+  const getLogsForSection = (section: string) => {
+    const sectionFields = {
+      'Status and Amount': ['Status', 'Amount Paid'],
+      'PTP Date': ['PTP Date'],
+      'Comments': ['RM Comments']
+    };
+    
+    return application.auditLogs?.filter(log => 
+      sectionFields[section as keyof typeof sectionFields]?.includes(log.field)
+    ) || [];
+  };
+
+  const SectionCard = ({ title, logs, children }: { title: string; logs: AuditLog[]; children: React.ReactNode }) => {
+    const recentLogs = logs.slice(-2);
+    
+    return (
+      <Card className="mb-4">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm">{title}</CardTitle>
+            {logs.length > 0 && (
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="text-xs">
+                    View Logs
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>{title} - Audit Trail</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-3">
+                    {logs.map((log) => (
+                      <div key={log.id} className="border rounded-lg p-3 bg-gray-50">
+                        <div className="flex items-center gap-2 mb-2">
+                          <User className="h-4 w-4 text-gray-500" />
+                          <span className="font-medium text-sm">{log.user}</span>
+                          <Clock className="h-3 w-3 text-gray-400" />
+                          <span className="text-xs text-gray-500">{formatDate(log.timestamp)}</span>
+                        </div>
+                        <div className="text-sm">
+                          <span className="font-medium">{log.field}</span> changed
+                          <div className="mt-1 text-xs text-gray-600">
+                            From: <span className="bg-red-100 px-1 rounded">{log.previousValue}</span>
+                            {" → "}
+                            To: <span className="bg-green-100 px-1 rounded">{log.newValue}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="space-y-3">
+            {children}
+            {recentLogs.length > 0 && (
+              <div className="border-t pt-3">
+                <p className="text-xs text-gray-500 mb-2">Recent Changes:</p>
+                <div className="space-y-2">
+                  {recentLogs.map((log) => (
+                    <div key={log.id} className="text-xs border-l-2 border-blue-200 pl-2 py-1">
+                      <div className="flex items-center gap-1">
+                        <span className="font-medium">{log.field}</span>
+                        <span className="text-gray-500">by {log.user}</span>
+                      </div>
+                      <div className="text-gray-400">{formatDate(log.timestamp)}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
   };
 
   return (
@@ -143,42 +203,36 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
           </div>
         </div>
 
-        {/* Editable Fields */}
-        <div className="space-y-4 mb-6">
-          <div>
-            <Label htmlFor="status">Status</Label>
-            <Select value={currentApp.status} onValueChange={(value) => updateField('status', value)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Paid">Paid</SelectItem>
-                <SelectItem value="Unpaid">Unpaid</SelectItem>
-                <SelectItem value="Partially Paid">Partially Paid</SelectItem>
-              </SelectContent>
-            </Select>
+        {/* Status and Amount Paid Section */}
+        <SectionCard title="Status and Amount Paid" logs={getLogsForSection('Status and Amount')}>
+          <div className="space-y-3">
+            <div>
+              <Label htmlFor="status">Status</Label>
+              <Select value={currentApp.status} onValueChange={(value) => updateField('status', value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Paid">Paid</SelectItem>
+                  <SelectItem value="Unpaid">Unpaid</SelectItem>
+                  <SelectItem value="Partially Paid">Partially Paid</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="amountPaid">Amount Paid</Label>
+              <Input
+                id="amountPaid"
+                type="number"
+                value={currentApp.amountPaid || 0}
+                onChange={(e) => updateField('amountPaid', Number(e.target.value))}
+              />
+            </div>
           </div>
+        </SectionCard>
 
-          <div>
-            <Label htmlFor="amountPaid">Amount Paid</Label>
-            <Input
-              id="amountPaid"
-              type="number"
-              value={currentApp.amountPaid || 0}
-              onChange={(e) => updateField('amountPaid', Number(e.target.value))}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="paidDate">Paid Date</Label>
-            <Input
-              id="paidDate"
-              type="date"
-              value={currentApp.paidDate || ''}
-              onChange={(e) => updateField('paidDate', e.target.value)}
-            />
-          </div>
-
+        {/* PTP Date Section */}
+        <SectionCard title="PTP Date" logs={getLogsForSection('PTP Date')}>
           <div>
             <Label htmlFor="ptpDate">PTP Date</Label>
             <Input
@@ -188,78 +242,21 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
               onChange={(e) => updateField('ptpDate', e.target.value)}
             />
           </div>
+        </SectionCard>
 
+        {/* Comments Section */}
+        <SectionCard title="Comments" logs={getLogsForSection('Comments')}>
           <div>
             <Label htmlFor="rmComments">RM Comments</Label>
-            <textarea
+            <Textarea
               id="rmComments"
-              className="w-full p-2 border rounded-md min-h-[80px]"
               value={currentApp.rmComments || ''}
               onChange={(e) => updateField('rmComments', e.target.value)}
               placeholder="Add your comments here..."
+              className="min-h-[100px]"
             />
           </div>
-        </div>
-
-        {/* Recent Changes */}
-        <Card className="mb-6">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm">Recent Changes</CardTitle>
-              {application.auditLogs && application.auditLogs.length > 0 && (
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="ghost" size="sm" className="text-xs">
-                      View All Logs
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>Complete Audit Trail - {application.applicationId}</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-3">
-                      {application.auditLogs.map((log) => (
-                        <div key={log.id} className="border rounded-lg p-3 bg-gray-50">
-                          <div className="flex items-center gap-2 mb-2">
-                            <User className="h-4 w-4 text-gray-500" />
-                            <span className="font-medium text-sm">{log.user}</span>
-                            <Clock className="h-3 w-3 text-gray-400" />
-                            <span className="text-xs text-gray-500">{formatDate(log.timestamp)}</span>
-                          </div>
-                          <div className="text-sm">
-                            <span className="font-medium">{log.field}</span> changed
-                            <div className="mt-1 text-xs text-gray-600">
-                              From: <span className="bg-red-100 px-1 rounded">{log.previousValue}</span>
-                              {" → "}
-                              To: <span className="bg-green-100 px-1 rounded">{log.newValue}</span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="pt-0">
-            {recentLogs.length > 0 ? (
-              <div className="space-y-2">
-                {recentLogs.map((log) => (
-                  <div key={log.id} className="text-xs border-l-2 border-blue-200 pl-2 py-1">
-                    <div className="flex items-center gap-1">
-                      <span className="font-medium">{log.field}</span>
-                      <span className="text-gray-500">by {log.user}</span>
-                    </div>
-                    <div className="text-gray-400">{formatDate(log.timestamp)}</div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-gray-500">No recent changes</p>
-            )}
-          </CardContent>
-        </Card>
+        </SectionCard>
 
         {/* Save Button */}
         <Button 
