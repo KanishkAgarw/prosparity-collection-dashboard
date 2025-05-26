@@ -94,14 +94,29 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
     }));
   };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString();
+  // Format date as DD-MM-YY
+  const formatDateDDMMYY = (dateStr: string) => {
+    try {
+      return format(new Date(dateStr), 'dd-MM-yy');
+    } catch {
+      return dateStr;
+    }
+  };
+
+  // Format datetime with DD-MM-YY date
+  const formatDateTime = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      return `${format(date, 'dd-MM-yy')} at ${format(date, 'HH:mm')}`;
+    } catch {
+      return dateStr;
+    }
   };
 
   const formatPtpDate = (ptpDate?: string) => {
     if (!ptpDate) return "NA";
     try {
-      return format(new Date(ptpDate), 'dd/MM/yyyy');
+      return format(new Date(ptpDate), 'dd-MM-yy');
     } catch {
       return "NA";
     }
@@ -146,9 +161,9 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                         <div key={log.id} className="border rounded-lg p-3 bg-gray-50">
                           <div className="flex items-center gap-2 mb-2">
                             <User className="h-4 w-4 text-gray-500" />
-                            <span className="font-medium text-sm">User</span>
+                            <span className="font-medium text-sm">{user?.email || 'Unknown User'}</span>
                             <Clock className="h-3 w-3 text-gray-400" />
-                            <span className="text-xs text-gray-500">{formatDate(log.created_at)}</span>
+                            <span className="text-xs text-gray-500">{formatDateTime(log.created_at)}</span>
                           </div>
                           <div className="text-sm">
                             <span className="font-medium">{log.field}</span> changed
@@ -178,9 +193,9 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                     <div key={log.id} className="text-xs border-l-2 border-blue-200 pl-2 py-1 bg-blue-50">
                       <div className="flex items-center gap-1">
                         <span className="font-medium">{log.field}</span>
-                        <span className="text-gray-500">by User</span>
+                        <span className="text-gray-500">by {user?.email || 'Unknown User'}</span>
                       </div>
-                      <div className="text-gray-400">{formatDate(log.created_at)}</div>
+                      <div className="text-gray-400">{formatDateTime(log.created_at)}</div>
                       <div className="text-xs mt-1">
                         <span className="bg-red-100 px-1 rounded">{log.previous_value}</span>
                         {" → "}
@@ -296,10 +311,10 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                               <span className="font-medium text-sm">
-                                {comment.user_email || 'Unknown User'}
+                                {comment.user_email || user?.email || 'Unknown User'}
                               </span>
                               <span className="text-xs text-gray-500">
-                                {new Date(comment.created_at).toLocaleDateString()} at {new Date(comment.created_at).toLocaleTimeString()}
+                                {formatDateTime(comment.created_at)}
                               </span>
                             </div>
                             <div className="text-sm text-gray-800">
