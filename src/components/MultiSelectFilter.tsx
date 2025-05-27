@@ -25,17 +25,17 @@ const MultiSelectFilter = ({
   const [searchTerm, setSearchTerm] = useState("");
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  // Ensure options and selected are always arrays
-  const safeOptions = Array.isArray(options) ? options : [];
-  const safeSelected = Array.isArray(selected) ? selected : [];
+  // Ensure options and selected are always arrays and filter out any falsy values
+  const safeOptions = Array.isArray(options) ? options.filter(Boolean) : [];
+  const safeSelected = Array.isArray(selected) ? selected.filter(Boolean) : [];
 
-  // Filter options based on search term
+  // Filter options based on search term and ensure no undefined values
   const filteredOptions = safeOptions.filter(option =>
-    option && option.toLowerCase().includes(searchTerm.toLowerCase())
+    option && typeof option === 'string' && option.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const toggleOption = (option: string) => {
-    if (!option) return;
+    if (!option || typeof option !== 'string') return;
     
     const newSelected = safeSelected.includes(option)
       ? safeSelected.filter(item => item !== option)
