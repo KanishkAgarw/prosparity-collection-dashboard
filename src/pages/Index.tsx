@@ -1,9 +1,11 @@
+
 import { useState, useMemo } from "react";
 import { Navigate } from "react-router-dom";
 import { User, Mail, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StatusCards from "@/components/StatusCards";
 import FilterBar from "@/components/FilterBar";
+import SearchBar from "@/components/SearchBar";
 import ApplicationsTable from "@/components/ApplicationsTable";
 import ApplicationDetailsPanel from "@/components/ApplicationDetailsPanel";
 import UploadApplicationDialog from "@/components/UploadApplicationDialog";
@@ -16,6 +18,7 @@ const Index = () => {
   const { user, loading: authLoading, signOut } = useAuth();
   const { applications, loading: appsLoading, refetch } = useApplications();
   const [selectedApplication, setSelectedApplication] = useState<any>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
     branch: [] as string[],
     teamLead: [] as string[],
@@ -77,7 +80,7 @@ const Index = () => {
   // Convert applications to the format expected by existing components
   const formattedApplications = useMemo(() => {
     if (!applications) return [];
-    console.log('Raw applications from database:', applications); // Debug log
+    console.log('Raw applications from database:', applications);
     
     return applications.map(app => {
       const formatted = {
@@ -90,6 +93,7 @@ const Index = () => {
         lender: app.lender,
         status: app.status,
         emiDue: app.emi_due,
+        amountPaid: app.amount_paid,
         paidDate: app.paid_date,
         ptpDate: app.ptp_date,
         demandMonth: formatEmiMonth(app.emi_month),
@@ -97,7 +101,7 @@ const Index = () => {
         auditLogs: []
       };
       
-      console.log(`Formatted EMI month for ${app.application_id}: ${app.emi_month} -> ${formatted.demandMonth}`); // Debug log
+      console.log(`Formatted EMI month for ${app.application_id}: ${app.emi_month} -> ${formatted.demandMonth}`);
       return formatted;
     });
   }, [applications]);
@@ -122,7 +126,13 @@ const Index = () => {
 
   const filteredApplications = useMemo(() => {
     return formattedApplications.filter(app => {
-      return (
+      // Apply search filter
+      const matchesSearch = searchTerm === "" || 
+        app.applicationId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        app.applicantName.toLowerCase().includes(searchTerm.toLowerCase());
+
+      // Apply other filters
+      const matchesFilters = (
         (filters.branch.length === 0 || filters.branch.includes(app.branch)) &&
         (filters.teamLead.length === 0 || filters.teamLead.includes(app.teamLead)) &&
         (filters.dealer.length === 0 || filters.dealer.includes(app.dealer)) &&
@@ -130,8 +140,10 @@ const Index = () => {
         (filters.status.length === 0 || filters.status.includes(app.status)) &&
         (filters.emiMonth.length === 0 || filters.emiMonth.includes(app.demandMonth))
       );
+
+      return matchesSearch && matchesFilters;
     });
-  }, [formattedApplications, filters]);
+  }, [formattedApplications, filters, searchTerm]);
 
   const statusCounts = useMemo(() => {
     const counts = filteredApplications.reduce((acc, app) => {
@@ -144,7 +156,7 @@ const Index = () => {
     const partiallyPaid = counts['Partially Paid'] || 0;
     const unpaid = counts['Unpaid'] || 0;
 
-    console.log('Status counts:', { totalEMIs, fullyPaid, partiallyPaid, unpaid }); // Debug log
+    console.log('Status counts:', { totalEMIs, fullyPaid, partiallyPaid, unpaid });
 
     return {
       totalEMIs,
@@ -157,7 +169,7 @@ const Index = () => {
   // All hooks are called above this point - now we can do conditional returns
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="text-center">
           <div className="bg-blue-600 text-white rounded-lg p-2 w-12 h-12 mx-auto mb-4 flex items-center justify-center">
             <span className="font-bold text-xl">P</span>
@@ -209,55 +221,66 @@ const Index = () => {
               <div className="bg-blue-600 text-white rounded-lg p-2">
                 <span className="font-bold text-xl">P</span>
               </div>
-              <div>
+              <div className="hidden sm:block">
                 <h1 className="text-xl font-semibold text-gray-900">ProsParity</h1>
                 <p className="text-sm text-gray-500">Collection Management</p>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
               <UploadApplicationDialog onApplicationAdded={refetch} />
-              <div className="flex items-center space-x-3">
+              <div className="hidden sm:flex items-center space-x-3">
                 <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
                   <User className="h-5 w-5 text-white" />
                 </div>
                 <div className="flex items-center space-x-2">
                   <Mail className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm text-gray-700">{user.email}</span>
+                  <span className="text-sm text-gray-700 hidden md:inline">{user.email}</span>
                 </div>
-                <Button variant="outline" size="sm" onClick={handleSignOut}>
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Log Out
-                </Button>
               </div>
+              <Button variant="outline" size="sm" onClick={handleSignOut}>
+                <LogOut className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Log Out</span>
+              </Button>
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         <FilterBar 
           filters={filters} 
           onFilterChange={handleFilterChange}
           filterOptions={filterOptions}
         />
         
+        <SearchBar 
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+        />
+        
         <StatusCards data={statusCounts} />
         
-        <div className="bg-white rounded-lg shadow">
+        <div className="bg-white rounded-lg shadow overflow-hidden">
           {appsLoading ? (
             <div className="p-8 text-center">Loading applications...</div>
           ) : filteredApplications.length === 0 ? (
             <div className="p-8 text-center">
-              <p className="text-gray-500">No applications found. Upload some applications to get started.</p>
+              {searchTerm || Object.values(filters).some(f => f.length > 0) ? (
+                <p className="text-gray-500">No applications found matching your search criteria.</p>
+              ) : (
+                <p className="text-gray-500">No applications found. Upload some applications to get started.</p>
+              )}
             </div>
           ) : (
-            <ApplicationsTable 
-              applications={filteredApplications}
-              onRowClick={handleRowClick}
-              onApplicationDeleted={refetch}
-              selectedApplicationId={selectedApplication?.applicationId}
-            />
+            <div className="overflow-x-auto">
+              <ApplicationsTable 
+                applications={filteredApplications}
+                onRowClick={handleRowClick}
+                onApplicationDeleted={refetch}
+                selectedApplicationId={selectedApplication?.applicationId}
+              />
+            </div>
           )}
         </div>
       </div>

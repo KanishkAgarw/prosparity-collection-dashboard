@@ -27,6 +27,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
   const { user } = useAuth();
   const [editedApp, setEditedApp] = useState<Application | null>(null);
   const [newComment, setNewComment] = useState("");
+  const [amountPaid, setAmountPaid] = useState("");
   const [saving, setSaving] = useState(false);
 
   const { comments, addComment } = useComments(application?.applicationId);
@@ -43,14 +44,22 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
     try {
       console.log('Saving application changes:', editedApp);
 
+      // Prepare update data
+      const updateData: any = {
+        status: editedApp.status,
+        ptp_date: editedApp.ptpDate || null,
+        updated_at: new Date().toISOString()
+      };
+
+      // Add amount paid if it was entered
+      if (amountPaid && !isNaN(Number(amountPaid))) {
+        updateData.amount_paid = Number(amountPaid);
+      }
+
       // Update the application in the database
       const { error } = await supabase
         .from('applications')
-        .update({
-          status: editedApp.status,
-          ptp_date: editedApp.ptpDate || null,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('application_id', editedApp.applicationId);
 
       if (error) {
@@ -68,9 +77,16 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
         await addAuditLog('PTP Date', application.ptpDate || 'Not set', editedApp.ptpDate || 'Not set');
       }
 
+      if (amountPaid && !isNaN(Number(amountPaid))) {
+        const previousAmount = application.amountPaid || 0;
+        const newAmount = Number(amountPaid);
+        await addAuditLog('Amount Paid', `₹${previousAmount.toLocaleString('en-IN')}`, `₹${newAmount.toLocaleString('en-IN')}`);
+      }
+
       console.log('Application saved successfully');
       toast.success('Changes saved successfully');
       setEditedApp(null);
+      setAmountPaid("");
       onSave();
     } catch (error) {
       console.error('Error saving application:', error);
@@ -114,7 +130,16 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
     }
   };
 
-  // Format audit log values, especially for PTP dates
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  // Format audit log values, especially for PTP dates and amounts
   const formatAuditValue = (value: string | null, field: string) => {
     if (!value) return "Not set";
     
@@ -139,7 +164,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
 
   const getLogsForSection = (section: string) => {
     const sectionFields = {
-      'Status and PTP': ['Status', 'PTP Date']
+      'Status and PTP': ['Status', 'PTP Date', 'Amount Paid']
     };
     
     const logs = auditLogs.filter(log => 
@@ -152,10 +177,10 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
   const statusAndPtpLogs = getLogsForSection('Status and PTP');
 
   return (
-    <div className="fixed right-0 top-0 h-full w-[500px] bg-white shadow-lg border-l z-50 overflow-y-auto">
-      <div className="p-6">
+    <div className="fixed right-0 top-0 h-full w-full sm:w-[500px] bg-white shadow-lg border-l z-50 overflow-y-auto">
+      <div className="p-4 sm:p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold">Application Details</h2>
+          <h2 className="text-lg sm:text-xl font-semibold">Application Details</h2>
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
@@ -167,9 +192,10 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
             <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
               <User className="h-5 w-5 text-white" />
             </div>
-            <div>
-              <h3 className="font-semibold text-lg text-blue-900">{application.applicantName}</h3>
-              <p className="text-sm text-blue-700">ID: {application.applicationId}</p>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold text-lg text-blue-900 truncate">{application.applicantName}</h3>
+              <p className="text-sm text-blue-700 truncate">ID: {application.applicationId}</p>
+              <p className="text-sm text-blue-600 mt-1">EMI Due: {formatCurrency(application.emiDue)}</p>
             </div>
           </div>
         </div>
@@ -177,7 +203,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
         {/* Tabbed Interface */}
         <Tabs defaultValue="status" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="status">Status & PTP</TabsTrigger>
+            <TabsTrigger value="status">Status & Payment</TabsTrigger>
             <TabsTrigger value="comments">Comments</TabsTrigger>
           </TabsList>
           
@@ -186,7 +212,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm">Status and PTP Date</CardTitle>
+                  <CardTitle className="text-sm">Status, Payment & PTP Date</CardTitle>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-gray-500">{statusAndPtpLogs.length} logs</span>
                     {statusAndPtpLogs.length > 0 && (
@@ -198,7 +224,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                         </DialogTrigger>
                         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                           <DialogHeader>
-                            <DialogTitle>Status & PTP - Audit Trail ({statusAndPtpLogs.length} entries)</DialogTitle>
+                            <DialogTitle>Status & Payment - Audit Trail ({statusAndPtpLogs.length} entries)</DialogTitle>
                           </DialogHeader>
                           <div className="space-y-3">
                             {statusAndPtpLogs.map((log) => (
@@ -226,64 +252,80 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="pt-0">
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="status">Status</Label>
-                    <Select value={currentApp.status} onValueChange={(value) => updateField('status', value)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Paid">Paid</SelectItem>
-                        <SelectItem value="Unpaid">Unpaid</SelectItem>
-                        <SelectItem value="Partially Paid">Partially Paid</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+              <CardContent className="pt-0 space-y-4">
+                <div>
+                  <Label htmlFor="status">Status</Label>
+                  <Select value={currentApp.status} onValueChange={(value) => updateField('status', value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Paid">Paid</SelectItem>
+                      <SelectItem value="Unpaid">Unpaid</SelectItem>
+                      <SelectItem value="Partially Paid">Partially Paid</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                  <div>
-                    <Label htmlFor="ptpDate">Promise to Pay Date</Label>
-                    <Input
-                      id="ptpDate"
-                      type="date"
-                      value={currentApp.ptpDate || ''}
-                      onChange={(e) => updateField('ptpDate', e.target.value)}
-                    />
-                    {currentApp.ptpDate && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        Formatted: {formatPtpDate(currentApp.ptpDate)}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Recent Changes */}
-                  {statusAndPtpLogs.length > 0 && (
-                    <div className="border-t pt-3">
-                      <p className="text-xs text-gray-500 mb-2">Recent Changes:</p>
-                      <div className="space-y-2">
-                        {statusAndPtpLogs.slice(0, 2).map((log) => (
-                          <div key={log.id} className="text-xs border-l-2 border-blue-200 pl-2 py-1 bg-blue-50">
-                            <div className="flex items-center gap-1">
-                              <span className="font-medium">{log.field}</span>
-                              <span className="text-gray-500">by {log.user_email || 'Unknown User'}</span>
-                            </div>
-                            <div className="text-gray-400">{formatDateTime(log.created_at)}</div>
-                            <div className="text-xs mt-1">
-                              <span className="bg-red-100 px-1 rounded">{formatAuditValue(log.previous_value, log.field)}</span>
-                              {" → "}
-                              <span className="bg-green-100 px-1 rounded">{formatAuditValue(log.new_value, log.field)}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {statusAndPtpLogs.length === 0 && (
-                    <div className="text-xs text-gray-400 italic">No changes recorded yet</div>
+                <div>
+                  <Label htmlFor="amountPaid">Amount Paid (₹)</Label>
+                  <Input
+                    id="amountPaid"
+                    type="number"
+                    placeholder="Enter amount paid"
+                    value={amountPaid}
+                    onChange={(e) => setAmountPaid(e.target.value)}
+                    min="0"
+                    step="1"
+                  />
+                  {application.amountPaid && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Previous: {formatCurrency(application.amountPaid || 0)}
+                    </p>
                   )}
                 </div>
+
+                <div>
+                  <Label htmlFor="ptpDate">Promise to Pay Date</Label>
+                  <Input
+                    id="ptpDate"
+                    type="date"
+                    value={currentApp.ptpDate || ''}
+                    onChange={(e) => updateField('ptpDate', e.target.value)}
+                  />
+                  {currentApp.ptpDate && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Formatted: {formatPtpDate(currentApp.ptpDate)}
+                    </p>
+                  )}
+                </div>
+
+                {/* Recent Changes */}
+                {statusAndPtpLogs.length > 0 && (
+                  <div className="border-t pt-3">
+                    <p className="text-xs text-gray-500 mb-2">Recent Changes:</p>
+                    <div className="space-y-2">
+                      {statusAndPtpLogs.slice(0, 2).map((log) => (
+                        <div key={log.id} className="text-xs border-l-2 border-blue-200 pl-2 py-1 bg-blue-50">
+                          <div className="flex items-center gap-1">
+                            <span className="font-medium">{log.field}</span>
+                            <span className="text-gray-500">by {log.user_email || 'Unknown User'}</span>
+                          </div>
+                          <div className="text-gray-400">{formatDateTime(log.created_at)}</div>
+                          <div className="text-xs mt-1">
+                            <span className="bg-red-100 px-1 rounded">{formatAuditValue(log.previous_value, log.field)}</span>
+                            {" → "}
+                            <span className="bg-green-100 px-1 rounded">{formatAuditValue(log.new_value, log.field)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {statusAndPtpLogs.length === 0 && (
+                  <div className="text-xs text-gray-400 italic">No changes recorded yet</div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

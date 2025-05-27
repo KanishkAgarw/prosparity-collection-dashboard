@@ -11,6 +11,7 @@ export type Database = {
     Tables: {
       applications: {
         Row: {
+          amount_paid: number
           applicant_name: string
           application_id: string
           branch: string
@@ -30,6 +31,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          amount_paid?: number
           applicant_name: string
           application_id: string
           branch: string
@@ -49,6 +51,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          amount_paid?: number
           applicant_name?: string
           application_id?: string
           branch?: string
