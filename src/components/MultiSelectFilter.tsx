@@ -16,8 +16,8 @@ interface MultiSelectFilterProps {
 
 const MultiSelectFilter = ({ 
   label, 
-  options, 
-  selected, 
+  options = [], // Default to empty array
+  selected = [], // Default to empty array
   onSelectionChange,
   placeholder = "Select options..."
 }: MultiSelectFilterProps) => {
@@ -25,15 +25,21 @@ const MultiSelectFilter = ({
   const [searchTerm, setSearchTerm] = useState("");
   const popoverRef = useRef<HTMLDivElement>(null);
 
+  // Ensure options and selected are always arrays
+  const safeOptions = Array.isArray(options) ? options : [];
+  const safeSelected = Array.isArray(selected) ? selected : [];
+
   // Filter options based on search term
-  const filteredOptions = options.filter(option =>
-    option.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredOptions = safeOptions.filter(option =>
+    option && option.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const toggleOption = (option: string) => {
-    const newSelected = selected.includes(option)
-      ? selected.filter(item => item !== option)
-      : [...selected, option];
+    if (!option) return;
+    
+    const newSelected = safeSelected.includes(option)
+      ? safeSelected.filter(item => item !== option)
+      : [...safeSelected, option];
     onSelectionChange(newSelected);
   };
 
@@ -75,11 +81,11 @@ const MultiSelectFilter = ({
             className="w-full sm:w-auto justify-between min-w-[200px] text-left font-normal"
           >
             <span className="truncate">
-              {selected.length === 0 
+              {safeSelected.length === 0 
                 ? label 
-                : selected.length === 1
-                ? selected[0]
-                : `${selected.length} selected`
+                : safeSelected.length === 1
+                ? safeSelected[0]
+                : `${safeSelected.length} selected`
               }
             </span>
             <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -94,7 +100,7 @@ const MultiSelectFilter = ({
             />
             <CommandEmpty>No options found.</CommandEmpty>
             <CommandGroup className="max-h-64 overflow-auto">
-              {selected.length > 0 && (
+              {safeSelected.length > 0 && (
                 <div className="p-2 border-b">
                   <Button
                     variant="ghost"
@@ -102,7 +108,7 @@ const MultiSelectFilter = ({
                     onClick={clearAll}
                     className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
                   >
-                    Clear All ({selected.length})
+                    Clear All ({safeSelected.length})
                   </Button>
                 </div>
               )}
@@ -114,11 +120,11 @@ const MultiSelectFilter = ({
                 >
                   <div className="flex items-center space-x-2 w-full">
                     <div className={`w-4 h-4 border rounded flex items-center justify-center ${
-                      selected.includes(option) 
+                      safeSelected.includes(option) 
                         ? 'bg-blue-600 border-blue-600' 
                         : 'border-gray-300'
                     }`}>
-                      {selected.includes(option) && (
+                      {safeSelected.includes(option) && (
                         <Check className="w-3 h-3 text-white" />
                       )}
                     </div>
@@ -130,18 +136,18 @@ const MultiSelectFilter = ({
           </Command>
         </PopoverContent>
       </Popover>
-      {selected.length > 0 && (
+      {safeSelected.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-2">
-          {selected.slice(0, 3).map((item) => (
+          {safeSelected.slice(0, 3).map((item) => (
             <Badge key={item} variant="secondary" className="text-xs">
               {item}
             </Badge>
           ))}
-          {selected.length > 3 && (
+          {safeSelected.length > 3 && (
             <Badge variant="secondary" className="text-xs">
-              +{selected.length - 3} more
+              +{safeSelected.length - 3} more
             </Badge>
-          )}
+            )}
         </div>
       )}
     </div>

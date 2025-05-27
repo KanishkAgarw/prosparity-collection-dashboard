@@ -23,13 +23,33 @@ interface FilterBarProps {
 }
 
 const FilterBar = ({ filters, onFilterChange, filterOptions }: FilterBarProps) => {
+  // Ensure all filter options have default empty arrays
+  const safeFilterOptions = {
+    branches: filterOptions?.branches || [],
+    teamLeads: filterOptions?.teamLeads || [],
+    dealers: filterOptions?.dealers || [],
+    lenders: filterOptions?.lenders || [],
+    statuses: filterOptions?.statuses || [],
+    emiMonths: filterOptions?.emiMonths || [],
+  };
+
+  // Ensure all filters have default empty arrays
+  const safeFilters = {
+    branch: filters?.branch || [],
+    teamLead: filters?.teamLead || [],
+    dealer: filters?.dealer || [],
+    lender: filters?.lender || [],
+    status: filters?.status || [],
+    emiMonth: filters?.emiMonth || [],
+  };
+
   return (
     <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
       <div className="relative">
         <MultiSelectFilter
           label="EMI Months"
-          options={filterOptions.emiMonths}
-          selected={filters.emiMonth}
+          options={safeFilterOptions.emiMonths}
+          selected={safeFilters.emiMonth}
           onSelectionChange={(values) => onFilterChange('emiMonth', values)}
         />
       </div>
@@ -37,8 +57,8 @@ const FilterBar = ({ filters, onFilterChange, filterOptions }: FilterBarProps) =
       <div className="relative">
         <MultiSelectFilter
           label="Branches"
-          options={filterOptions.branches}
-          selected={filters.branch}
+          options={safeFilterOptions.branches}
+          selected={safeFilters.branch}
           onSelectionChange={(values) => onFilterChange('branch', values)}
         />
       </div>
@@ -46,8 +66,8 @@ const FilterBar = ({ filters, onFilterChange, filterOptions }: FilterBarProps) =
       <div className="relative">
         <MultiSelectFilter
           label="Team Leads"
-          options={filterOptions.teamLeads}
-          selected={filters.teamLead}
+          options={safeFilterOptions.teamLeads}
+          selected={safeFilters.teamLead}
           onSelectionChange={(values) => onFilterChange('teamLead', values)}
         />
       </div>
@@ -55,8 +75,8 @@ const FilterBar = ({ filters, onFilterChange, filterOptions }: FilterBarProps) =
       <div className="relative">
         <MultiSelectFilter
           label="Dealers"
-          options={filterOptions.dealers}
-          selected={filters.dealer}
+          options={safeFilterOptions.dealers}
+          selected={safeFilters.dealer}
           onSelectionChange={(values) => onFilterChange('dealer', values)}
         />
       </div>
@@ -64,8 +84,8 @@ const FilterBar = ({ filters, onFilterChange, filterOptions }: FilterBarProps) =
       <div className="relative">
         <MultiSelectFilter
           label="Lenders"
-          options={filterOptions.lenders}
-          selected={filters.lender}
+          options={safeFilterOptions.lenders}
+          selected={safeFilters.lender}
           onSelectionChange={(values) => onFilterChange('lender', values)}
         />
       </div>
@@ -73,8 +93,8 @@ const FilterBar = ({ filters, onFilterChange, filterOptions }: FilterBarProps) =
       <div className="relative">
         <MultiSelectFilter
           label="Status"
-          options={filterOptions.statuses}
-          selected={filters.status}
+          options={safeFilterOptions.statuses}
+          selected={safeFilters.status}
           onSelectionChange={(values) => onFilterChange('status', values)}
         />
       </div>
