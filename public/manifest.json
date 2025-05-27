@@ -10,19 +10,14 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
-    },
-    {
-      "src": "/placeholder.svg",
-      "type": "image/svg+xml",
+      "src": "/lovable-uploads/879123ce-9339-4aec-90c9-3857e3b77417.png",
+      "type": "image/png",
       "sizes": "192x192",
       "purpose": "any maskable"
     },
     {
-      "src": "/placeholder.svg",
-      "type": "image/svg+xml", 
+      "src": "/lovable-uploads/879123ce-9339-4aec-90c9-3857e3b77417.png",
+      "type": "image/png", 
       "sizes": "512x512",
       "purpose": "any maskable"
     }

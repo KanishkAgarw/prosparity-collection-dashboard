@@ -107,12 +107,15 @@ const Index = () => {
   }, [applications]);
 
   const filterOptions = useMemo(() => {
-    const branches = [...new Set(formattedApplications.map(app => app.branch))];
-    const teamLeads = [...new Set(formattedApplications.map(app => app.teamLead))];
-    const dealers = [...new Set(formattedApplications.map(app => app.dealer))];
-    const lenders = [...new Set(formattedApplications.map(app => app.lender))];
-    const statuses = [...new Set(formattedApplications.map(app => app.status))];
-    const emiMonths = [...new Set(formattedApplications.map(app => app.demandMonth))];
+    // Add safety checks to prevent undefined iteration errors
+    const safeApplications = formattedApplications || [];
+    
+    const branches = [...new Set(safeApplications.map(app => app.branch).filter(Boolean))];
+    const teamLeads = [...new Set(safeApplications.map(app => app.teamLead).filter(Boolean))];
+    const dealers = [...new Set(safeApplications.map(app => app.dealer).filter(Boolean))];
+    const lenders = [...new Set(safeApplications.map(app => app.lender).filter(Boolean))];
+    const statuses = [...new Set(safeApplications.map(app => app.status).filter(Boolean))];
+    const emiMonths = [...new Set(safeApplications.map(app => app.demandMonth).filter(Boolean))];
 
     return {
       branches,
@@ -171,9 +174,11 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="text-center">
-          <div className="bg-blue-600 text-white rounded-lg p-2 w-12 h-12 mx-auto mb-4 flex items-center justify-center">
-            <span className="font-bold text-xl">P</span>
-          </div>
+          <img 
+            src="/lovable-uploads/879123ce-9339-4aec-90c9-3857e3b77417.png" 
+            alt="ProsParity Logo" 
+            className="w-12 h-12 mx-auto mb-4"
+          />
           <p>Loading...</p>
         </div>
       </div>
@@ -218,9 +223,11 @@ const Index = () => {
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
-              <div className="bg-blue-600 text-white rounded-lg p-2">
-                <span className="font-bold text-xl">P</span>
-              </div>
+              <img 
+                src="/lovable-uploads/879123ce-9339-4aec-90c9-3857e3b77417.png" 
+                alt="ProsParity Logo" 
+                className="w-10 h-10"
+              />
               <div className="hidden sm:block">
                 <h1 className="text-xl font-semibold text-gray-900">ProsParity</h1>
                 <p className="text-sm text-gray-500">Collection Management</p>
