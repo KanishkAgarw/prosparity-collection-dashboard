@@ -1,10 +1,9 @@
-
 import { useState, useMemo } from "react";
 import { Navigate } from "react-router-dom";
-import { User, Mail, LogOut } from "lucide-react";
+import { User, Mail, LogOut, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import StatusCards from "@/components/StatusCards";
-import FilterBar from "@/components/FilterBar";
+import MobileStatusCards from "@/components/MobileStatusCards";
+import MobileFilterBar from "@/components/MobileFilterBar";
 import SearchBar from "@/components/SearchBar";
 import ApplicationsTable from "@/components/ApplicationsTable";
 import ApplicationDetailsPanel from "@/components/ApplicationDetailsPanel";
@@ -13,6 +12,17 @@ import { useAuth } from "@/hooks/useAuth";
 import { useApplications } from "@/hooks/useApplications";
 import { format, parse, isValid } from "date-fns";
 import { toast } from "sonner";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Index = () => {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -27,6 +37,7 @@ const Index = () => {
     status: [] as string[],
     emiMonth: [] as string[]
   });
+  const isMobile = useIsMobile();
 
   // Format EMI month to MMM-YY format properly
   const formatEmiMonth = (emiMonth: string) => {
@@ -218,44 +229,89 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
+      {/* Mobile-Optimized Header */}
+      <div className="bg-white shadow-sm border-b sticky top-0 z-40">
+        <div className="max-w-full mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14 sm:h-16">
+            <div className="flex items-center space-x-2 sm:space-x-4">
               <img 
                 src="/lovable-uploads/879123ce-9339-4aec-90c9-3857e3b77417.png" 
                 alt="ProsParity Logo" 
-                className="w-10 h-10"
+                className="w-8 h-8 sm:w-10 sm:h-10"
               />
               <div className="hidden sm:block">
-                <h1 className="text-xl font-semibold text-gray-900">ProsParity</h1>
-                <p className="text-sm text-gray-500">Collection Management</p>
+                <h1 className="text-lg sm:text-xl font-semibold text-gray-900">ProsParity</h1>
+                <p className="text-xs sm:text-sm text-gray-500">Collection Management</p>
+              </div>
+              <div className="block sm:hidden">
+                <h1 className="text-sm font-semibold text-gray-900">ProsParity</h1>
               </div>
             </div>
-            <div className="flex items-center space-x-2 sm:space-x-4">
+            <div className="flex items-center space-x-1 sm:space-x-4">
               <UploadApplicationDialog onApplicationAdded={refetch} />
-              <div className="hidden sm:flex items-center space-x-3">
-                <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                  <User className="h-5 w-5 text-white" />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Mail className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm text-gray-700 hidden md:inline">{user.email}</span>
-                </div>
-              </div>
-              <Button variant="outline" size="sm" onClick={handleSignOut}>
-                <LogOut className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Log Out</span>
-              </Button>
+              
+              {/* Mobile Menu */}
+              {isMobile ? (
+                <Drawer>
+                  <DrawerTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Menu className="h-4 w-4" />
+                    </Button>
+                  </DrawerTrigger>
+                  <DrawerContent>
+                    <DrawerHeader>
+                      <DrawerTitle>User Menu</DrawerTitle>
+                      <DrawerDescription>
+                        Logged in as {user.email}
+                      </DrawerDescription>
+                    </DrawerHeader>
+                    <div className="p-4 space-y-4">
+                      <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                        <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                          <User className="h-5 w-5 text-white" />
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Mail className="h-4 w-4 text-gray-500" />
+                          <span className="text-sm text-gray-700">{user.email}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <DrawerFooter>
+                      <Button onClick={handleSignOut} variant="outline">
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Log Out
+                      </Button>
+                      <DrawerClose asChild>
+                        <Button variant="outline">Cancel</Button>
+                      </DrawerClose>
+                    </DrawerFooter>
+                  </DrawerContent>
+                </Drawer>
+              ) : (
+                <>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                      <User className="h-5 w-5 text-white" />
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Mail className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm text-gray-700 hidden md:inline">{user.email}</span>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={handleSignOut}>
+                    <LogOut className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Log Out</span>
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-        <FilterBar 
+      <div className="max-w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <MobileFilterBar 
           filters={filters} 
           onFilterChange={handleFilterChange}
           filterOptions={filterOptions}
@@ -266,7 +322,7 @@ const Index = () => {
           onSearchChange={setSearchTerm}
         />
         
-        <StatusCards data={statusCounts} />
+        <MobileStatusCards data={statusCounts} />
         
         <div className="bg-white rounded-lg shadow overflow-hidden">
           {appsLoading ? (
