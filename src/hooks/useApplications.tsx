@@ -14,6 +14,7 @@ export interface Application {
   lender: string;
   status: string;
   emi_due: number;
+  amount_paid: number;
   emi_month: string;
   paid_date?: string;
   ptp_date?: string;

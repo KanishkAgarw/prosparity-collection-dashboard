@@ -29,7 +29,7 @@ const FilterBar = ({ filters, onFilterChange, filterOptions }: FilterBarProps) =
         <MultiSelectFilter
           label="EMI Months"
           options={filterOptions.emiMonths}
-          selectedValues={filters.emiMonth}
+          selected={filters.emiMonth}
           onSelectionChange={(values) => onFilterChange('emiMonth', values)}
         />
       </div>
@@ -38,7 +38,7 @@ const FilterBar = ({ filters, onFilterChange, filterOptions }: FilterBarProps) =
         <MultiSelectFilter
           label="Branches"
           options={filterOptions.branches}
-          selectedValues={filters.branch}
+          selected={filters.branch}
           onSelectionChange={(values) => onFilterChange('branch', values)}
         />
       </div>
@@ -47,7 +47,7 @@ const FilterBar = ({ filters, onFilterChange, filterOptions }: FilterBarProps) =
         <MultiSelectFilter
           label="Team Leads"
           options={filterOptions.teamLeads}
-          selectedValues={filters.teamLead}
+          selected={filters.teamLead}
           onSelectionChange={(values) => onFilterChange('teamLead', values)}
         />
       </div>
@@ -56,7 +56,7 @@ const FilterBar = ({ filters, onFilterChange, filterOptions }: FilterBarProps) =
         <MultiSelectFilter
           label="Dealers"
           options={filterOptions.dealers}
-          selectedValues={filters.dealer}
+          selected={filters.dealer}
           onSelectionChange={(values) => onFilterChange('dealer', values)}
         />
       </div>
@@ -65,7 +65,7 @@ const FilterBar = ({ filters, onFilterChange, filterOptions }: FilterBarProps) =
         <MultiSelectFilter
           label="Lenders"
           options={filterOptions.lenders}
-          selectedValues={filters.lender}
+          selected={filters.lender}
           onSelectionChange={(values) => onFilterChange('lender', values)}
         />
       </div>
@@ -74,7 +74,7 @@ const FilterBar = ({ filters, onFilterChange, filterOptions }: FilterBarProps) =
         <MultiSelectFilter
           label="Status"
           options={filterOptions.statuses}
-          selectedValues={filters.status}
+          selected={filters.status}
           onSelectionChange={(values) => onFilterChange('status', values)}
         />
       </div>
