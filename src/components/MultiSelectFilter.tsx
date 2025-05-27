@@ -16,8 +16,8 @@ interface MultiSelectFilterProps {
 
 const MultiSelectFilter = ({ 
   label, 
-  options = [], // Default to empty array
-  selected = [], // Default to empty array
+  options = [], 
+  selected = [], 
   onSelectionChange,
   placeholder = "Select options..."
 }: MultiSelectFilterProps) => {
@@ -25,19 +25,33 @@ const MultiSelectFilter = ({
   const [searchTerm, setSearchTerm] = useState("");
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  // Ensure options and selected are always arrays and filter out any falsy values
-  const safeOptions = Array.isArray(options) ? options.filter(item => item && typeof item === 'string' && item.trim() !== '') : [];
-  const safeSelected = Array.isArray(selected) ? selected.filter(item => item && typeof item === 'string' && item.trim() !== '') : [];
+  // Ensure we have completely clean arrays with no undefined, null, or empty values
+  const safeOptions = Array.isArray(options) 
+    ? options.filter((item): item is string => 
+        typeof item === 'string' && 
+        item !== null && 
+        item !== undefined && 
+        item.trim().length > 0
+      )
+    : [];
 
-  // Filter options based on search term and ensure no undefined values
-  const filteredOptions = safeOptions.filter(option => {
-    if (!option || typeof option !== 'string') return false;
-    const searchLower = searchTerm?.toLowerCase() || '';
-    return option.toLowerCase().includes(searchLower);
+  const safeSelected = Array.isArray(selected) 
+    ? selected.filter((item): item is string => 
+        typeof item === 'string' && 
+        item !== null && 
+        item !== undefined && 
+        item.trim().length > 0
+      )
+    : [];
+
+  // Filter options based on search term with extra safety
+  const filteredOptions = safeOptions.filter((option) => {
+    if (!searchTerm || searchTerm.trim() === '') return true;
+    return option.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   const toggleOption = (option: string) => {
-    if (!option || typeof option !== 'string') return;
+    if (!option || typeof option !== 'string' || option.trim() === '') return;
     
     const newSelected = safeSelected.includes(option)
       ? safeSelected.filter(item => item !== option)
@@ -49,7 +63,6 @@ const MultiSelectFilter = ({
     onSelectionChange([]);
   };
 
-  // Handle search term changes with safety check
   const handleSearchChange = (value: string) => {
     setSearchTerm(value || "");
   };
@@ -106,63 +119,60 @@ const MultiSelectFilter = ({
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[300px] p-0 z-50" align="start">
-          {open && (
-            <Command shouldFilter={false}>
-              <CommandInput 
-                placeholder={`Search ${label.toLowerCase()}...`}
-                value={searchTerm || ""}
-                onValueChange={handleSearchChange}
-              />
-              <CommandEmpty>No options found.</CommandEmpty>
-              <CommandGroup className="max-h-64 overflow-auto">
-                {safeSelected.length > 0 && (
-                  <div className="p-2 border-b">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearAll}
-                      className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      Clear All ({safeSelected.length})
-                    </Button>
-                  </div>
-                )}
-                {filteredOptions.length > 0 ? (
-                  filteredOptions.map((option) => (
-                    <CommandItem
-                      key={`${option}-${Math.random()}`}
-                      onSelect={() => toggleOption(option)}
-                      className="cursor-pointer"
-                      value={option}
-                    >
-                      <div className="flex items-center space-x-2 w-full">
-                        <div className={`w-4 h-4 border rounded flex items-center justify-center ${
-                          safeSelected.includes(option) 
-                            ? 'bg-blue-600 border-blue-600' 
-                            : 'border-gray-300'
-                        }`}>
-                          {safeSelected.includes(option) && (
-                            <Check className="w-3 h-3 text-white" />
-                          )}
-                        </div>
-                        <span className="flex-1 truncate">{option}</span>
+          <Command shouldFilter={false}>
+            <CommandInput 
+              placeholder={`Search ${label.toLowerCase()}...`}
+              value={searchTerm}
+              onValueChange={handleSearchChange}
+            />
+            <CommandEmpty>No options found.</CommandEmpty>
+            <CommandGroup className="max-h-64 overflow-auto">
+              {safeSelected.length > 0 && (
+                <div className="p-2 border-b">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearAll}
+                    className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    Clear All ({safeSelected.length})
+                  </Button>
+                </div>
+              )}
+              {filteredOptions.length > 0 ? (
+                filteredOptions.map((option, index) => (
+                  <CommandItem
+                    key={`${option}-${index}`}
+                    onSelect={() => toggleOption(option)}
+                    className="cursor-pointer"
+                  >
+                    <div className="flex items-center space-x-2 w-full">
+                      <div className={`w-4 h-4 border rounded flex items-center justify-center ${
+                        safeSelected.includes(option) 
+                          ? 'bg-blue-600 border-blue-600' 
+                          : 'border-gray-300'
+                      }`}>
+                        {safeSelected.includes(option) && (
+                          <Check className="w-3 h-3 text-white" />
+                        )}
                       </div>
-                    </CommandItem>
-                  ))
-                ) : (
-                  <div className="p-2 text-sm text-gray-500 text-center">
-                    {searchTerm ? 'No matching options' : 'No options available'}
-                  </div>
-                )}
-              </CommandGroup>
-            </Command>
-          )}
+                      <span className="flex-1 truncate">{option}</span>
+                    </div>
+                  </CommandItem>
+                ))
+              ) : (
+                <div className="p-2 text-sm text-gray-500 text-center">
+                  {searchTerm ? 'No matching options' : 'No options available'}
+                </div>
+              )}
+            </CommandGroup>
+          </Command>
         </PopoverContent>
       </Popover>
       {safeSelected.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-2">
-          {safeSelected.slice(0, 3).map((item) => (
-            <Badge key={`badge-${item}`} variant="secondary" className="text-xs">
+          {safeSelected.slice(0, 3).map((item, index) => (
+            <Badge key={`badge-${item}-${index}`} variant="secondary" className="text-xs">
               {item}
             </Badge>
           ))}
