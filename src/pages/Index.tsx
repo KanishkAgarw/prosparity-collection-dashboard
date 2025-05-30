@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { User, Mail, LogOut, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import ApplicationDetailsPanel from "@/components/ApplicationDetailsPanel";
 import UploadApplicationDialog from "@/components/UploadApplicationDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useApplications } from "@/hooks/useApplications";
+import { useFilteredOptions } from "@/hooks/useFilteredOptions";
 import { format, parse, isValid } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -137,6 +138,32 @@ const Index = () => {
       emiMonths
     };
   }, [formattedApplications]);
+
+  // Use the new useFilteredOptions hook to get filtered dealers
+  const { filteredDealers } = useFilteredOptions({
+    teamLeads: filterOptions.teamLeads,
+    selectedTeamLead: filters.teamLead
+  });
+
+  // Update dealer filter options based on selected team leads
+  useEffect(() => {
+    // If team leads are selected, update filter options with filtered dealers
+    const updatedFilterOptions = {
+      ...filterOptions,
+      dealers: filters.teamLead.length > 0 ? filteredDealers : filterOptions.dealers
+    };
+    
+    // If any currently selected dealers are no longer in the filtered list, remove them
+    if (filters.teamLead.length > 0) {
+      const validDealers = filters.dealer.filter(dealer => 
+        filteredDealers.includes(dealer)
+      );
+      
+      if (validDealers.length !== filters.dealer.length) {
+        setFilters(prev => ({ ...prev, dealer: validDealers }));
+      }
+    }
+  }, [filters.teamLead, filteredDealers]);
 
   const filteredApplications = useMemo(() => {
     return formattedApplications.filter(app => {
@@ -314,7 +341,10 @@ const Index = () => {
         <MobileFilterBar 
           filters={filters} 
           onFilterChange={handleFilterChange}
-          filterOptions={filterOptions}
+          filterOptions={{
+            ...filterOptions,
+            dealers: filters.teamLead.length > 0 ? filteredDealers : filterOptions.dealers
+          }}
         />
         
         <SearchBar 

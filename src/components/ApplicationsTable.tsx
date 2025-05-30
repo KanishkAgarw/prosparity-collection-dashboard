@@ -6,6 +6,7 @@ import { Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Application {
   applicationId: string;
@@ -63,6 +64,9 @@ const formatCurrency = (amount: number) => {
 };
 
 const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, selectedApplicationId }: ApplicationsTableProps) => {
+  const { user } = useAuth();
+  const isAdmin = user?.email === 'kanishk@prosparity.in';
+
   const handleDelete = async (applicationId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent row click
     
@@ -94,8 +98,8 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="min-w-[120px]">Application ID</TableHead>
             <TableHead className="min-w-[100px]">EMI Month</TableHead>
+            <TableHead className="min-w-[120px]">Application ID</TableHead>
             <TableHead className="min-w-[150px]">Applicant</TableHead>
             <TableHead className="min-w-[100px]">Branch</TableHead>
             <TableHead className="min-w-[120px]">Team Lead</TableHead>
@@ -105,7 +109,7 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
             <TableHead className="min-w-[100px]">EMI Due</TableHead>
             <TableHead className="min-w-[120px]">Status</TableHead>
             <TableHead className="min-w-[100px]">PTP Date</TableHead>
-            <TableHead className="min-w-[80px]">Actions</TableHead>
+            {isAdmin && <TableHead className="min-w-[80px]">Actions</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -119,8 +123,8 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
               }`}
               onClick={() => onRowClick(app)}
             >
-              <TableCell className="font-medium">{app.applicationId}</TableCell>
               <TableCell className="font-medium">{app.demandMonth}</TableCell>
+              <TableCell>{app.applicationId}</TableCell>
               <TableCell>{app.applicantName}</TableCell>
               <TableCell>{app.branch}</TableCell>
               <TableCell>{app.teamLead}</TableCell>
@@ -132,16 +136,18 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
               <TableCell className={`${app.ptpDate ? 'text-blue-600 font-medium' : 'text-gray-400'} whitespace-nowrap`}>
                 {formatPtpDate(app.ptpDate)}
               </TableCell>
-              <TableCell>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => handleDelete(app.applicationId, e)}
-                  className="text-red-600 hover:text-red-800 hover:bg-red-50"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </TableCell>
+              {isAdmin && (
+                <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => handleDelete(app.applicationId, e)}
+                    className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>

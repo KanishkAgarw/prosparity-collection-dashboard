@@ -52,9 +52,11 @@ const Auth = () => {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="bg-blue-600 text-white rounded-lg p-2 w-12 h-12 mx-auto mb-4 flex items-center justify-center">
-            <span className="font-bold text-xl">P</span>
-          </div>
+          <img 
+            src="/lovable-uploads/879123ce-9339-4aec-90c9-3857e3b77417.png" 
+            alt="ProsParity Logo" 
+            className="w-16 h-16 mx-auto mb-4"
+          />
           <CardTitle>ProsParity</CardTitle>
           <CardDescription>Collection Management System</CardDescription>
         </CardHeader>

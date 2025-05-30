@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronDown, ChevronUp, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -27,6 +27,7 @@ interface MobileFilterBarProps {
 
 const MobileFilterBar = ({ filters, onFilterChange, filterOptions }: MobileFilterBarProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [filteredDealers, setFilteredDealers] = useState<string[]>([]);
 
   // Ensure all filter options have default empty arrays
   const safeFilterOptions = {
@@ -53,6 +54,38 @@ const MobileFilterBar = ({ filters, onFilterChange, filterOptions }: MobileFilte
     (count, filterArray) => count + filterArray.length, 
     0
   );
+
+  // Function to handle team lead filter changes
+  const handleTeamLeadFilterChange = (values: string[]) => {
+    onFilterChange('teamLead', values);
+    
+    // Reset dealer filter when team lead changes
+    if (values.length === 0) {
+      // If no team lead is selected, don't filter dealers
+      setFilteredDealers(safeFilterOptions.dealers);
+    } else {
+      // If team lead filter is cleared, reset dealer filter
+      if (safeFilters.dealer.length > 0) {
+        onFilterChange('dealer', []);
+      }
+    }
+  };
+
+  // Update filtered dealers when team lead selection changes
+  useEffect(() => {
+    if (safeFilters.teamLead.length === 0) {
+      // If no team leads selected, show all dealers
+      setFilteredDealers(safeFilterOptions.dealers);
+    } else {
+      // Get dealers from applications in Index.tsx that match selected team leads
+      // For now, we'll just filter the dealers array since we don't have access to the raw data
+      // This will be a simplified version - in production you would want to query the actual relationships
+      
+      // In a production environment, you would query your database for dealers associated with the selected team leads
+      // For now, we'll just use all dealers since we can't determine the actual relationships
+      setFilteredDealers(safeFilterOptions.dealers);
+    }
+  }, [safeFilters.teamLead, safeFilterOptions.dealers]);
 
   return (
     <div className="mb-6">
@@ -103,7 +136,7 @@ const MobileFilterBar = ({ filters, onFilterChange, filterOptions }: MobileFilte
                 label="Team Leads"
                 options={safeFilterOptions.teamLeads}
                 selected={safeFilters.teamLead}
-                onSelectionChange={(values) => onFilterChange('teamLead', values)}
+                onSelectionChange={handleTeamLeadFilterChange}
               />
             </div>
 
@@ -111,7 +144,7 @@ const MobileFilterBar = ({ filters, onFilterChange, filterOptions }: MobileFilte
               <label className="block text-sm font-medium text-gray-700 mb-2">Dealers</label>
               <CustomMultiSelectFilter
                 label="Dealers"
-                options={safeFilterOptions.dealers}
+                options={filteredDealers}
                 selected={safeFilters.dealer}
                 onSelectionChange={(values) => onFilterChange('dealer', values)}
               />
