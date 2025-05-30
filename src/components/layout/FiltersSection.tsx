@@ -2,12 +2,35 @@
 import FilterBar from "@/components/FilterBar";
 import MobileFilterBar from "@/components/MobileFilterBar";
 import SearchBar from "@/components/SearchBar";
-import { FilterOptions } from "@/types/application";
+
+interface FilterState {
+  branch: string[];
+  teamLead: string[];
+  rm: string[];
+  dealer: string[];
+  lender: string[];
+  status: string[];
+  emiMonth: string[];
+  repayment: string[];
+  lastMonthBounce: string[];
+}
+
+interface FilterOptions {
+  branches: string[];
+  teamLeads: string[];
+  rms: string[];
+  dealers: string[];
+  lenders: string[];
+  statuses: string[];
+  emiMonths: string[];
+  repayments: string[];
+  lastMonthBounce: string[];
+}
 
 interface FiltersSectionProps {
-  filters: Record<string, string>;
+  filters: FilterState;
   availableOptions: FilterOptions;
-  onFilterChange: (key: string, value: string) => void;
+  onFilterChange: (key: keyof FilterState, values: string[]) => void;
   searchTerm: string;
   onSearchChange: (term: string) => void;
 }

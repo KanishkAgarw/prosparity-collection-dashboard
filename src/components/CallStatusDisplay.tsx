@@ -1,39 +1,35 @@
 
 import { Check } from "lucide-react";
 import { Application } from "@/types/application";
+import { useContactCallingStatus } from "@/hooks/useContactCallingStatus";
 
 interface CallStatusDisplayProps {
   application: Application;
 }
 
-const getStatusColor = (status?: string) => {
-  if (!status || status === 'Not Called') return 'text-gray-500';
-  if (status === 'Called - Answered') return 'text-green-600';
-  if (status === 'Called - Unsuccessful') return 'text-red-600';
-  return 'text-gray-500';
-};
-
 const CallStatusDisplay = ({ application }: CallStatusDisplayProps) => {
+  const { getStatusForContact } = useContactCallingStatus(application.applicant_id);
+
   const contacts = [
     {
       name: "Applicant",
       person: application.applicant_name,
-      status: application.applicant_calling_status
+      status: getStatusForContact('applicant')
     },
     ...(application.co_applicant_name ? [{
       name: "Co-Applicant", 
       person: application.co_applicant_name,
-      status: application.co_applicant_calling_status
+      status: getStatusForContact('co_applicant')
     }] : []),
     ...(application.guarantor_name ? [{
       name: "Guarantor",
       person: application.guarantor_name, 
-      status: application.guarantor_calling_status
+      status: getStatusForContact('guarantor')
     }] : []),
     ...(application.reference_name ? [{
       name: "Reference",
       person: application.reference_name,
-      status: application.reference_calling_status
+      status: getStatusForContact('reference')
     }] : [])
   ];
 

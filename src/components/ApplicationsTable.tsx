@@ -28,11 +28,6 @@ interface Application {
   co_applicant_mobile?: string;
   guarantor_name?: string;
   guarantor_mobile?: string;
-  latest_calling_status?: string;
-  applicant_calling_status?: string;
-  co_applicant_calling_status?: string;
-  guarantor_calling_status?: string;
-  reference_calling_status?: string;
   reference_name?: string;
   recent_comments?: string[];
 }
@@ -56,6 +51,14 @@ const getStatusBadge = (status: string) => {
       {status}
     </Badge>
   );
+};
+
+// Helper function to display lender name
+const formatLenderName = (lenderName: string) => {
+  if (lenderName === 'Vivriti Capital Limited') {
+    return 'Vivriti';
+  }
+  return lenderName;
 };
 
 const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, selectedApplicationId }: ApplicationsTableProps) => {
@@ -130,7 +133,7 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
                     </div>
                     <div className="text-sm text-gray-600">
                       <span className="font-medium">Dealer:</span> {app.dealer_name} | 
-                      <span className="font-medium"> Lender:</span> {app.lender_name}
+                      <span className="font-medium"> Lender:</span> {formatLenderName(app.lender_name)}
                     </div>
                   </div>
                 </TableCell>

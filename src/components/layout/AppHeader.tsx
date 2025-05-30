@@ -68,7 +68,7 @@ const AppHeader = ({ onExport, onApplicationAdded }: AppHeaderProps) => {
             {isAdmin && <AdminUserManagement isAdmin={isAdmin} />}
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-600">
-            <span className="hidden sm:inline font-medium">{userDisplayName}</span>
+            <span className="font-medium">{userDisplayName}</span>
             <Button
               variant="outline"
               size="sm"
