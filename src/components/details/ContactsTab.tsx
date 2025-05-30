@@ -68,8 +68,11 @@ const ContactsTab = ({ application, callingLogs, onCallingStatusChange }: Contac
         {contacts.map((contact, index) => (
           <ContactCard
             key={index}
-            contact={contact}
-            onCallingStatusChange={onCallingStatusChange}
+            title={contact.type}
+            name={contact.name}
+            mobile={contact.mobile}
+            currentStatus={contact.callingStatus}
+            onStatusChange={(newStatus) => onCallingStatusChange(contact.type, newStatus, contact.callingStatus)}
           />
         ))}
       </div>

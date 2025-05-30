@@ -6,13 +6,13 @@ import { Application } from "@/types/application";
 import { useComments } from "@/hooks/useComments";
 import { useAuditLogs } from "@/hooks/useAuditLogs";
 import { useCallingLogs } from "@/hooks/useCallingLogs";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import ApplicationHeader from "./details/ApplicationHeader";
 import ContactsTab from "./details/ContactsTab";
 import StatusTab from "./details/StatusTab";
 import CommentsTab from "./details/CommentsTab";
+import { useApplicationHandlers } from "./details/ApplicationHandlers";
 
 interface ApplicationDetailsPanelProps {
   application: Application | null;
@@ -27,138 +27,13 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
   const { auditLogs, addAuditLog } = useAuditLogs(application?.applicant_id);
   const { callingLogs, addCallingLog } = useCallingLogs(application?.applicant_id);
 
+  const {
+    handleStatusChange,
+    handlePtpDateChange,
+    handleCallingStatusChange
+  } = useApplicationHandlers(application, user, addAuditLog, addCallingLog, onSave);
+
   if (!application) return null;
-
-  const handleStatusChange = async (newStatus: string) => {
-    if (!user || newStatus === application.status) return;
-    
-    try {
-      const updateData = {
-        status: newStatus,
-        updated_at: new Date().toISOString()
-      };
-
-      const { error } = await supabase
-        .from('applications')
-        .update(updateData)
-        .eq('applicant_id', application.applicant_id);
-
-      if (error) {
-        console.error('Error updating status:', error);
-        toast.error('Failed to update status');
-        return;
-      }
-
-      // Add audit log
-      await addAuditLog('Status', application.status, newStatus);
-
-      // Optimistic update
-      const updatedApp = {
-        ...application,
-        status: newStatus,
-        updated_at: new Date().toISOString()
-      };
-      
-      onSave(updatedApp);
-      toast.success('Status updated successfully');
-    } catch (error) {
-      console.error('Error updating status:', error);
-      toast.error('Failed to update status');
-    }
-  };
-
-  const handlePtpDateChange = async (newDate: string) => {
-    if (!user || newDate === application.ptp_date) return;
-    
-    try {
-      const updateData = {
-        ptp_date: newDate || null,
-        updated_at: new Date().toISOString()
-      };
-
-      const { error } = await supabase
-        .from('applications')
-        .update(updateData)
-        .eq('applicant_id', application.applicant_id);
-
-      if (error) {
-        console.error('Error updating PTP date:', error);
-        toast.error('Failed to update PTP date');
-        return;
-      }
-
-      // Add audit log
-      await addAuditLog('PTP Date', application.ptp_date || 'Not set', newDate || 'Not set');
-
-      // Optimistic update
-      const updatedApp = {
-        ...application,
-        ptp_date: newDate || null,
-        updated_at: new Date().toISOString()
-      };
-      
-      onSave(updatedApp);
-      toast.success('PTP date updated successfully');
-    } catch (error) {
-      console.error('Error updating PTP date:', error);
-      toast.error('Failed to update PTP date');
-    }
-  };
-
-  const handleCallingStatusChange = async (contactType: string, newStatus: string, currentStatus?: string) => {
-    if (!user) return;
-    
-    const previousStatus = currentStatus || "Not Called";
-    
-    try {
-      // Update the specific calling status field in the database
-      const fieldMap = {
-        'Applicant': 'applicant_calling_status',
-        'Co-Applicant': 'co_applicant_calling_status', 
-        'Guarantor': 'guarantor_calling_status',
-        'Reference': 'reference_calling_status'
-      };
-
-      const fieldName = fieldMap[contactType as keyof typeof fieldMap];
-      
-      const updateData = {
-        [fieldName]: newStatus,
-        latest_calling_status: newStatus,
-        updated_at: new Date().toISOString()
-      };
-
-      const { error } = await supabase
-        .from('applications')
-        .update(updateData)
-        .eq('applicant_id', application.applicant_id);
-
-      if (error) {
-        console.error('Error updating calling status:', error);
-        toast.error('Failed to update calling status');
-        return;
-      }
-
-      // Add calling log
-      await addCallingLog(contactType, previousStatus, newStatus);
-      
-      // Add audit log
-      await addAuditLog(`${contactType} Calling Status`, previousStatus, newStatus);
-
-      // Optimistic update - update local state and notify parent
-      const updatedApp = {
-        ...application,
-        [fieldName]: newStatus,
-        latest_calling_status: newStatus,
-        updated_at: new Date().toISOString()
-      };
-      
-      onSave(updatedApp);
-      toast.success('Calling status updated successfully');
-    } catch (error) {
-      console.error('Error updating calling status:', error);
-      toast.error('Failed to update calling status');
-    }
-  };
 
   const handleAddComment = async (content: string) => {
     await addComment(content);
@@ -177,7 +52,6 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
 
         <ApplicationHeader application={application} />
 
-        {/* Tabbed Interface with reordered tabs */}
         <Tabs defaultValue="contacts" className="w-full">
           <TabsList className="grid w-full grid-cols-3 text-xs sm:text-sm mb-4">
             <TabsTrigger value="contacts" className="px-1 py-2 sm:px-3">Contacts</TabsTrigger>
