@@ -1,6 +1,9 @@
 
 import { useState } from "react";
-import MultiSelectFilter from "./MultiSelectFilter";
+import CustomMultiSelectFilter from "./CustomMultiSelectFilter";
+import { Button } from "@/components/ui/button";
+import { Filter } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface FilterBarProps {
   filters: {
@@ -23,6 +26,8 @@ interface FilterBarProps {
 }
 
 const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps) => {
+  const [open, setOpen] = useState(false);
+
   // Ensure all filter options have default empty arrays
   const safeFilterOptions = {
     branches: availableOptions?.branches || [],
@@ -43,61 +48,73 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
     emiMonth: filters?.emiMonth || [],
   };
 
+  // Count total active filters
+  const activeFilterCount = Object.values(safeFilters).reduce((count, filterArray) => count + filterArray.length, 0);
+
   return (
-    <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
-      <div className="relative">
-        <MultiSelectFilter
-          label="EMI Months"
-          options={safeFilterOptions.emiMonths}
-          selected={safeFilters.emiMonth}
-          onSelectionChange={(values) => onFilterChange('emiMonth', values)}
-        />
-      </div>
+    <div className="bg-white p-4 rounded-lg shadow-sm border">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className="gap-2">
+            <Filter className="h-4 w-4" />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                {activeFilterCount}
+              </span>
+            )}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-96 p-4" align="start">
+          <div className="space-y-4">
+            <h3 className="font-medium text-gray-900 mb-3">Filter Applications</h3>
+            
+            <div className="space-y-3">
+              <CustomMultiSelectFilter
+                label="EMI Months"
+                options={safeFilterOptions.emiMonths}
+                selected={safeFilters.emiMonth}
+                onSelectionChange={(values) => onFilterChange('emiMonth', values)}
+              />
 
-      <div className="relative">
-        <MultiSelectFilter
-          label="Branches"
-          options={safeFilterOptions.branches}
-          selected={safeFilters.branch}
-          onSelectionChange={(values) => onFilterChange('branch', values)}
-        />
-      </div>
+              <CustomMultiSelectFilter
+                label="Branches"
+                options={safeFilterOptions.branches}
+                selected={safeFilters.branch}
+                onSelectionChange={(values) => onFilterChange('branch', values)}
+              />
 
-      <div className="relative">
-        <MultiSelectFilter
-          label="Team Leads"
-          options={safeFilterOptions.teamLeads}
-          selected={safeFilters.teamLead}
-          onSelectionChange={(values) => onFilterChange('teamLead', values)}
-        />
-      </div>
+              <CustomMultiSelectFilter
+                label="Team Leads"
+                options={safeFilterOptions.teamLeads}
+                selected={safeFilters.teamLead}
+                onSelectionChange={(values) => onFilterChange('teamLead', values)}
+              />
 
-      <div className="relative">
-        <MultiSelectFilter
-          label="Dealers"
-          options={safeFilterOptions.dealers}
-          selected={safeFilters.dealer}
-          onSelectionChange={(values) => onFilterChange('dealer', values)}
-        />
-      </div>
+              <CustomMultiSelectFilter
+                label="Dealers"
+                options={safeFilterOptions.dealers}
+                selected={safeFilters.dealer}
+                onSelectionChange={(values) => onFilterChange('dealer', values)}
+              />
 
-      <div className="relative">
-        <MultiSelectFilter
-          label="Lenders"
-          options={safeFilterOptions.lenders}
-          selected={safeFilters.lender}
-          onSelectionChange={(values) => onFilterChange('lender', values)}
-        />
-      </div>
+              <CustomMultiSelectFilter
+                label="Lenders"
+                options={safeFilterOptions.lenders}
+                selected={safeFilters.lender}
+                onSelectionChange={(values) => onFilterChange('lender', values)}
+              />
 
-      <div className="relative">
-        <MultiSelectFilter
-          label="Status"
-          options={safeFilterOptions.statuses}
-          selected={safeFilters.status}
-          onSelectionChange={(values) => onFilterChange('status', values)}
-        />
-      </div>
+              <CustomMultiSelectFilter
+                label="Status"
+                options={safeFilterOptions.statuses}
+                selected={safeFilters.status}
+                onSelectionChange={(values) => onFilterChange('status', values)}
+              />
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 };

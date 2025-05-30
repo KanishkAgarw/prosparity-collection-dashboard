@@ -127,22 +127,8 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Status Cards */}
-          <div className="hidden sm:block">
-            <StatusCards applications={searchFilteredApplications} />
-          </div>
-          <div className="sm:hidden">
-            <MobileStatusCards applications={searchFilteredApplications} />
-          </div>
-
-          {/* Search and Filters */}
+          {/* Filters */}
           <div className="space-y-4">
-            <SearchBar 
-              searchTerm={searchTerm} 
-              onSearchChange={setSearchTerm}
-              placeholder="Search by name, ID, dealer, lender, RM, or team lead..."
-            />
-            
             <div className="hidden lg:block">
               <FilterBar
                 filters={filters}
@@ -158,6 +144,21 @@ const Index = () => {
                 onFilterChange={handleFilterChange}
               />
             </div>
+          </div>
+
+          {/* Search */}
+          <SearchBar 
+            searchTerm={searchTerm} 
+            onSearchChange={setSearchTerm}
+            placeholder="Search by name, ID, dealer, lender, RM, or team lead..."
+          />
+
+          {/* Status Cards */}
+          <div className="hidden sm:block">
+            <StatusCards applications={searchFilteredApplications} />
+          </div>
+          <div className="sm:hidden">
+            <MobileStatusCards applications={searchFilteredApplications} />
           </div>
 
           {/* Applications Table */}
