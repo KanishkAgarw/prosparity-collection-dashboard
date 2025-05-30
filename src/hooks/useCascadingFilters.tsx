@@ -6,6 +6,8 @@ interface CascadingFiltersProps {
   applications: any[];
 }
 
+type LastMonthBounceCategory = 'Not paid' | 'Paid on time' | '1-5 days late' | '6-15 days late' | '15+ days late';
+
 interface FilterState {
   branch: string[];
   teamLead: string[];
@@ -26,7 +28,7 @@ const formatRepayment = (repayment: string | undefined) => {
 };
 
 // Helper function to categorize last month bounce
-const categorizeLastMonthBounce = (bounce: number | null | undefined): 'Not paid' | 'Paid on time' | '1-5 days late' | '6-15 days late' | '15+ days late' => {
+const categorizeLastMonthBounce = (bounce: number | null | undefined): LastMonthBounceCategory => {
   if (bounce === null || bounce === undefined) return 'Not paid';
   if (bounce === 0) return 'Paid on time';
   if (bounce >= 1 && bounce <= 5) return '1-5 days late';
