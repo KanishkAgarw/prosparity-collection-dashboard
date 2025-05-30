@@ -1,3 +1,4 @@
+
 import { useState, useMemo } from "react";
 import { useApplications } from "@/hooks/useApplications";
 import { useCascadingFilters } from "@/hooks/useCascadingFilters";
@@ -10,6 +11,8 @@ import AppHeader from "@/components/layout/AppHeader";
 import FiltersSection from "@/components/layout/FiltersSection";
 import MainContent from "@/components/layout/MainContent";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import StatusCards from "@/components/StatusCards";
+import SearchBar from "@/components/SearchBar";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
