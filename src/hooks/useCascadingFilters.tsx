@@ -17,7 +17,7 @@ interface FilterState {
   status: string[];
   emiMonth: string[];
   repayment: string[];
-  lastMonthBounce: string[];
+  lastMonthBounce: LastMonthBounceCategory[];
 }
 
 // Helper function to format repayment values
@@ -35,6 +35,18 @@ const categorizeLastMonthBounce = (bounce: number | null | undefined): LastMonth
   if (bounce >= 6 && bounce <= 15) return '6-15 days late';
   if (bounce > 15) return '15+ days late';
   return 'Not paid';
+};
+
+// Type guard to check if a string is a valid LastMonthBounceCategory
+const isValidLastMonthBounceCategory = (value: string): value is LastMonthBounceCategory => {
+  const validCategories: LastMonthBounceCategory[] = [
+    'Not paid', 
+    'Paid on time', 
+    '1-5 days late', 
+    '6-15 days late', 
+    '15+ days late'
+  ];
+  return validCategories.includes(value as LastMonthBounceCategory);
 };
 
 export function useCascadingFilters({ applications }: CascadingFiltersProps) {
@@ -128,7 +140,13 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
   }, [availableOptions]);
 
   const handleFilterChange = (key: keyof FilterState, values: string[]) => {
-    setFilters(prev => ({ ...prev, [key]: values }));
+    if (key === 'lastMonthBounce') {
+      // Type-safe handling for lastMonthBounce filter
+      const validValues = values.filter(isValidLastMonthBounceCategory);
+      setFilters(prev => ({ ...prev, [key]: validValues }));
+    } else {
+      setFilters(prev => ({ ...prev, [key]: values }));
+    }
   };
 
   return {
