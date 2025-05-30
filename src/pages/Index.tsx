@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { User, Mail, LogOut, Menu } from "lucide-react";
@@ -9,6 +8,7 @@ import SearchBar from "@/components/SearchBar";
 import ApplicationsTable from "@/components/ApplicationsTable";
 import ApplicationDetailsPanel from "@/components/ApplicationDetailsPanel";
 import UploadApplicationDialog from "@/components/UploadApplicationDialog";
+import AdminUserManagement from "@/components/AdminUserManagement";
 import { useAuth } from "@/hooks/useAuth";
 import { useApplications } from "@/hooks/useApplications";
 import { useCascadingFilters } from "@/hooks/useCascadingFilters";
@@ -171,6 +171,8 @@ const Index = () => {
     return <Navigate to="/auth" replace />;
   }
 
+  const isAdmin = user?.email === 'kanishk@prosparity.in';
+
   const handleRowClick = (application: any) => {
     setSelectedApplication(application);
   };
@@ -216,6 +218,7 @@ const Index = () => {
             </div>
             <div className="flex items-center space-x-1 sm:space-x-4">
               <UploadApplicationDialog onApplicationAdded={refetch} />
+              <AdminUserManagement isAdmin={isAdmin} />
               
               {/* Mobile Menu */}
               {isMobile ? (

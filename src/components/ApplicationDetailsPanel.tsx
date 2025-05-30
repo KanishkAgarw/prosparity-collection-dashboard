@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { X, Calendar, User, FileText, DollarSign, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -186,7 +185,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
           </Button>
         </div>
 
-        {/* Applicant ID and Name Header */}
+        {/* Applicant Name and EMI Month Header */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
@@ -194,7 +193,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="font-semibold text-lg text-blue-900 truncate">{application.applicantName}</h3>
-              <p className="text-sm text-blue-700 truncate">ID: {application.applicationId}</p>
+              <p className="text-sm text-blue-700 truncate">EMI Month: {application.demandMonth}</p>
               <p className="text-sm text-blue-600 mt-1">EMI Due: {formatCurrency(application.emiDue)}</p>
             </div>
           </div>

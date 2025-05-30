@@ -98,12 +98,7 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="min-w-[100px]">EMI Month</TableHead>
-            <TableHead className="min-w-[120px]">Application ID</TableHead>
-            <TableHead className="min-w-[150px]">Applicant</TableHead>
-            <TableHead className="min-w-[100px]">Branch</TableHead>
-            <TableHead className="min-w-[120px]">Team Lead</TableHead>
-            <TableHead className="min-w-[100px]">RM</TableHead>
+            <TableHead className="min-w-[280px]">Details</TableHead>
             <TableHead className="min-w-[100px]">Dealer</TableHead>
             <TableHead className="min-w-[100px]">Lender</TableHead>
             <TableHead className="min-w-[100px]">EMI Due</TableHead>
@@ -123,12 +118,22 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
               }`}
               onClick={() => onRowClick(app)}
             >
-              <TableCell className="font-medium">{app.demandMonth}</TableCell>
-              <TableCell>{app.applicationId}</TableCell>
-              <TableCell>{app.applicantName}</TableCell>
-              <TableCell>{app.branch}</TableCell>
-              <TableCell>{app.teamLead}</TableCell>
-              <TableCell>{app.rm}</TableCell>
+              <TableCell className="py-3">
+                <div className="space-y-1">
+                  <div className="font-semibold text-blue-900">{app.applicantName}</div>
+                  <div className="text-sm text-gray-600">
+                    <span className="font-medium">ID:</span> {app.applicationId}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    <span className="font-medium">EMI:</span> {app.demandMonth} | 
+                    <span className="font-medium"> Branch:</span> {app.branch}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    <span className="font-medium">TL:</span> {app.teamLead} | 
+                    <span className="font-medium"> RM:</span> {app.rm}
+                  </div>
+                </div>
+              </TableCell>
               <TableCell>{app.dealer}</TableCell>
               <TableCell>{app.lender}</TableCell>
               <TableCell className="font-medium text-blue-600">{formatCurrency(app.emiDue)}</TableCell>
