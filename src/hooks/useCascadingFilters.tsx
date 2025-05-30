@@ -26,13 +26,13 @@ const formatRepayment = (repayment: string | undefined) => {
 };
 
 // Helper function to categorize last month bounce
-const categorizeLastMonthBounce = (bounce: number | null | undefined) => {
+const categorizeLastMonthBounce = (bounce: number | null | undefined): 'Not paid' | 'Paid on time' | '1-5 days late' | '6-15 days late' | '15+ days late' => {
   if (bounce === null || bounce === undefined) return 'Not paid';
   if (bounce === 0) return 'Paid on time';
   if (bounce >= 1 && bounce <= 5) return '1-5 days late';
   if (bounce >= 6 && bounce <= 15) return '6-15 days late';
   if (bounce > 15) return '15+ days late';
-  return 'Unknown';
+  return 'Not paid';
 };
 
 export function useCascadingFilters({ applications }: CascadingFiltersProps) {
@@ -82,7 +82,7 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
       .sort((a, b) => parseInt(a) - parseInt(b));
 
     // Get unique last month bounce categories
-    const lastMonthBounceCategories = [...new Set(safeApplications
+    const lastMonthBounceCategories: ('Not paid' | 'Paid on time' | '1-5 days late' | '6-15 days late' | '15+ days late')[] = [...new Set(safeApplications
       .map(app => categorizeLastMonthBounce(app.last_month_bounce)))]
       .sort();
     

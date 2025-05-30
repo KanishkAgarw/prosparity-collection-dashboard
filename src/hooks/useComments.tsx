@@ -28,12 +28,7 @@ export const useComments = (applicationId?: string) => {
       
       const { data, error } = await supabase
         .from('comments')
-        .select(`
-          *,
-          profiles!comments_user_id_fkey (
-            full_name
-          )
-        `)
+        .select('*')
         .eq('application_id', applicationId)
         .order('created_at', { ascending: true });
 
@@ -41,9 +36,19 @@ export const useComments = (applicationId?: string) => {
         console.error('Error fetching comments:', error);
       } else {
         console.log('Fetched comments:', data);
+        
+        // Fetch user names separately
+        const userIds = [...new Set(data?.map(comment => comment.user_id) || [])];
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', userIds);
+
+        const profileMap = new Map(profiles?.map(p => [p.id, p.full_name]) || []);
+        
         const commentsWithNames = data?.map(comment => ({
           ...comment,
-          user_name: comment.profiles?.full_name || comment.user_email || 'Unknown User'
+          user_name: profileMap.get(comment.user_id) || comment.user_email || 'Unknown User'
         })) || [];
         setComments(commentsWithNames);
       }
