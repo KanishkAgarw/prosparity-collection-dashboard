@@ -1,7 +1,7 @@
 
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { LogOut, Download } from "lucide-react";
+import { LogOut, Download, Menu } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -54,12 +54,13 @@ const AppHeader = ({ onExport, onApplicationAdded }: AppHeaderProps) => {
             className="h-8 w-auto"
           />
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Collection Dashboard</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Collection Dashboard</h1>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          {/* Admin buttons and Export - hidden on mobile */}
-          <div className="hidden sm:flex items-center gap-2">
+        
+        {/* Desktop Actions */}
+        <div className="hidden sm:flex items-center gap-4">
+          <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={onExport}>
               <Download className="h-4 w-4 mr-2" />
               Export to Excel
@@ -80,14 +81,35 @@ const AppHeader = ({ onExport, onApplicationAdded }: AppHeaderProps) => {
             </Button>
           </div>
         </div>
+
+        {/* Mobile User Info */}
+        <div className="sm:hidden flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <span className="font-medium truncate max-w-[150px]">{userDisplayName}</span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSignOut}
+            className="text-gray-600 hover:text-gray-900"
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
-      {/* Mobile Export Button */}
-      <div className="sm:hidden">
+      {/* Mobile Actions */}
+      <div className="sm:hidden space-y-2">
         <Button variant="outline" size="sm" className="w-full" onClick={onExport}>
           <Download className="h-4 w-4 mr-2" />
           Export to Excel
         </Button>
+        {isAdmin && (
+          <div className="flex gap-2">
+            <UploadApplicationDialog onApplicationAdded={onApplicationAdded} />
+            <AdminUserManagement isAdmin={isAdmin} />
+          </div>
+        )}
       </div>
     </>
   );

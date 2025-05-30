@@ -9,6 +9,7 @@ import ApplicationDetailsPanel from "@/components/ApplicationDetailsPanel";
 import AppHeader from "@/components/layout/AppHeader";
 import FiltersSection from "@/components/layout/FiltersSection";
 import MainContent from "@/components/layout/MainContent";
+import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -47,7 +48,7 @@ const Index = () => {
         app.applicant_name.toLowerCase().includes(lowerSearchTerm) ||
         app.applicant_id.toLowerCase().includes(lowerSearchTerm) ||
         app.dealer_name.toLowerCase().includes(lowerSearchTerm) ||
-        app.lender_name.toLowerCase().includes(lowerSearchTerm) ||
+        (app.lender_name === 'Vivriti Capital Limited' ? 'vivriti' : app.lender_name.toLowerCase()).includes(lowerSearchTerm) ||
         app.rm_name.toLowerCase().includes(lowerSearchTerm) ||
         app.team_lead.toLowerCase().includes(lowerSearchTerm)
       );
@@ -91,7 +92,11 @@ const Index = () => {
 
   // Show loading screen while auth is loading
   if (authLoading) {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
   }
 
   // Redirect to auth if not authenticated
@@ -102,7 +107,14 @@ const Index = () => {
 
   // Show loading for applications
   if (appsLoading) {
-    return <div className="flex items-center justify-center h-screen">Loading applications...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="space-y-4 text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="text-gray-600">Loading applications...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -135,6 +147,9 @@ const Index = () => {
           />
         </div>
       </div>
+
+      {/* PWA Install Prompt */}
+      <PWAInstallPrompt />
 
       {/* Application Details Panel */}
       {selectedApplication && (

@@ -7,6 +7,7 @@ import { CallingLog } from "@/hooks/useCallingLogs";
 import { format } from "date-fns";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import ContactCard from "./ContactCard";
+import { useContactCallingStatus } from "@/hooks/useContactCallingStatus";
 
 interface ContactsTabProps {
   application: Application;
@@ -16,6 +17,7 @@ interface ContactsTabProps {
 
 const ContactsTab = ({ application, callingLogs, onCallingStatusChange }: ContactsTabProps) => {
   const [showAllCallHistory, setShowAllCallHistory] = useState(false);
+  const { getStatusForContact } = useContactCallingStatus(application.applicant_id);
 
   const formatDateTime = (dateStr: string) => {
     try {
@@ -32,32 +34,36 @@ const ContactsTab = ({ application, callingLogs, onCallingStatusChange }: Contac
 
   const contacts = [
     {
-      type: "Applicant",
+      type: "applicant",
+      displayType: "Applicant",
       name: application.applicant_name,
       mobile: application.applicant_mobile,
       address: application.applicant_address,
-      callingStatus: application.applicant_calling_status
+      callingStatus: getStatusForContact('applicant')
     },
     ...(application.co_applicant_name ? [{
-      type: "Co-Applicant",
+      type: "co_applicant",
+      displayType: "Co-Applicant",
       name: application.co_applicant_name,
       mobile: application.co_applicant_mobile,
       address: application.co_applicant_address,
-      callingStatus: application.co_applicant_calling_status
+      callingStatus: getStatusForContact('co_applicant')
     }] : []),
     ...(application.guarantor_name ? [{
-      type: "Guarantor",
+      type: "guarantor",
+      displayType: "Guarantor",
       name: application.guarantor_name,
       mobile: application.guarantor_mobile,
       address: application.guarantor_address,
-      callingStatus: application.guarantor_calling_status
+      callingStatus: getStatusForContact('guarantor')
     }] : []),
     ...(application.reference_name ? [{
-      type: "Reference",
+      type: "reference",
+      displayType: "Reference",
       name: application.reference_name,
       mobile: application.reference_mobile,
       address: application.reference_address,
-      callingStatus: application.reference_calling_status
+      callingStatus: getStatusForContact('reference')
     }] : [])
   ];
 
@@ -68,7 +74,7 @@ const ContactsTab = ({ application, callingLogs, onCallingStatusChange }: Contac
         {contacts.map((contact, index) => (
           <ContactCard
             key={index}
-            title={contact.type}
+            title={contact.displayType}
             name={contact.name}
             mobile={contact.mobile}
             currentStatus={contact.callingStatus}
@@ -82,7 +88,7 @@ const ContactsTab = ({ application, callingLogs, onCallingStatusChange }: Contac
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center justify-between">
-              Call History
+              Call Activity
               {hasMoreCallLogs && (
                 <Button
                   variant="ghost"
@@ -108,7 +114,7 @@ const ContactsTab = ({ application, callingLogs, onCallingStatusChange }: Contac
               {displayedCallLogs.map((log) => (
                 <div key={log.id} className="border rounded-lg p-3 bg-gray-50 text-sm">
                   <div className="flex justify-between items-start mb-2">
-                    <span className="font-medium text-blue-700">{log.contact_type}</span>
+                    <span className="font-medium text-blue-700 capitalize">{log.contact_type}</span>
                     <span className="text-xs text-gray-500">
                       {formatDateTime(log.created_at)}
                     </span>

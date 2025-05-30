@@ -1,13 +1,14 @@
 
 import { Application } from "@/types/application";
-import StatusCards from "@/components/StatusCards";
-import MobileStatusCards from "@/components/MobileStatusCards";
+import { useIsMobile } from "@/hooks/use-mobile";
 import ApplicationsTable from "@/components/ApplicationsTable";
+import MobileOptimizedTable from "@/components/MobileOptimizedTable";
+import StatusCards from "@/components/StatusCards";
 import PaginationControls from "@/components/PaginationControls";
 
 interface MainContentProps {
   applications: Application[];
-  onRowClick: (app: Application) => void;
+  onRowClick: (application: Application) => void;
   onApplicationDeleted: () => void;
   selectedApplicationId?: string;
   currentPage: number;
@@ -28,37 +29,52 @@ const MainContent = ({
   totalCount,
   pageSize
 }: MainContentProps) => {
+  const isMobile = useIsMobile();
+
   return (
-    <>
+    <div className="space-y-6">
       {/* Status Cards */}
-      <div className="hidden sm:block">
-        <StatusCards applications={applications} />
-      </div>
-      <div className="sm:hidden">
-        <MobileStatusCards applications={applications} />
+      <StatusCards applications={applications} />
+
+      {/* Results Summary */}
+      <div className="flex items-center justify-between text-sm text-gray-600">
+        <span>
+          Showing {applications.length} of {totalCount} applications
+        </span>
+        <span>
+          Page {currentPage} of {totalPages}
+        </span>
       </div>
 
-      {/* Applications Table */}
-      <div className="bg-white rounded-lg shadow">
-        <ApplicationsTable
-          applications={applications}
-          onRowClick={onRowClick}
-          onApplicationDeleted={onApplicationDeleted}
-          selectedApplicationId={selectedApplicationId}
-        />
-        
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <PaginationControls
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={onPageChange}
-            totalCount={totalCount}
-            pageSize={pageSize}
+      {/* Table/List */}
+      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+        {isMobile ? (
+          <div className="p-4">
+            <MobileOptimizedTable
+              applications={applications}
+              onRowClick={onRowClick}
+              selectedApplicationId={selectedApplicationId}
+            />
+          </div>
+        ) : (
+          <ApplicationsTable
+            applications={applications}
+            onRowClick={onRowClick}
+            onApplicationDeleted={onApplicationDeleted}
+            selectedApplicationId={selectedApplicationId}
           />
         )}
       </div>
-    </>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={onPageChange}
+        />
+      )}
+    </div>
   );
 };
 

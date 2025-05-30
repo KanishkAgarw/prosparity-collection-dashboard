@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Application } from "@/types/application";
+import { useContactCallingStatus } from "@/hooks/useContactCallingStatus";
 
 export const useApplicationHandlers = (
   application: Application | null,
@@ -10,6 +11,8 @@ export const useApplicationHandlers = (
   addCallingLog: (contactType: string, previousStatus: string, newStatus: string) => Promise<void>,
   onSave: (updatedApp: Application) => void
 ) => {
+  const { updateCallingStatus } = useContactCallingStatus(application?.applicant_id);
+
   const handleStatusChange = async (newStatus: string) => {
     if (!user || !application || newStatus === application.status) return;
     
@@ -88,43 +91,18 @@ export const useApplicationHandlers = (
     const previousStatus = currentStatus || "Not Called";
     
     try {
-      const fieldMap = {
-        'Applicant': 'applicant_calling_status',
-        'Co-Applicant': 'co_applicant_calling_status', 
-        'Guarantor': 'guarantor_calling_status',
-        'Reference': 'reference_calling_status'
-      };
-
-      const fieldName = fieldMap[contactType as keyof typeof fieldMap];
+      // Update the contact calling status table
+      const success = await updateCallingStatus(contactType, newStatus);
       
-      const updateData = {
-        [fieldName]: newStatus,
-        latest_calling_status: newStatus,
-        updated_at: new Date().toISOString()
-      };
-
-      const { error } = await supabase
-        .from('applications')
-        .update(updateData)
-        .eq('applicant_id', application.applicant_id);
-
-      if (error) {
-        console.error('Error updating calling status:', error);
+      if (!success) {
         toast.error('Failed to update calling status');
         return;
       }
 
+      // Add calling log and audit log
       await addCallingLog(contactType, previousStatus, newStatus);
       await addAuditLog(`${contactType} Calling Status`, previousStatus, newStatus);
 
-      const updatedApp = {
-        ...application,
-        [fieldName]: newStatus,
-        latest_calling_status: newStatus,
-        updated_at: new Date().toISOString()
-      };
-      
-      onSave(updatedApp);
       toast.success('Calling status updated successfully');
     } catch (error) {
       console.error('Error updating calling status:', error);

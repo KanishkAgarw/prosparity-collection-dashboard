@@ -41,47 +41,60 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
   };
 
   return (
-    <div className="fixed right-0 top-0 h-full w-full sm:w-[500px] md:w-[600px] bg-white shadow-lg border-l z-50 overflow-y-auto">
-      <div className="p-3 sm:p-6">
+    <div className="fixed right-0 top-0 h-full w-full sm:w-[500px] md:w-[600px] bg-white shadow-xl border-l z-50 overflow-hidden flex flex-col">
+      {/* Header */}
+      <div className="flex-shrink-0 p-3 sm:p-6 border-b bg-white">
         <div className="flex items-center justify-between mb-4 sm:mb-6">
           <h2 className="text-lg sm:text-xl font-semibold">Application Details</h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={onClose}
+            className="hover:bg-gray-100 rounded-full h-8 w-8 p-0"
+          >
             <X className="h-4 w-4" />
           </Button>
         </div>
 
         <ApplicationHeader application={application} />
+      </div>
 
-        <Tabs defaultValue="contacts" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 text-xs sm:text-sm mb-4">
-            <TabsTrigger value="contacts" className="px-1 py-2 sm:px-3">Contacts</TabsTrigger>
-            <TabsTrigger value="status" className="px-1 py-2 sm:px-3">Status</TabsTrigger>
-            <TabsTrigger value="comments" className="px-1 py-2 sm:px-3">Comments</TabsTrigger>
-          </TabsList>
+      {/* Content */}
+      <div className="flex-1 overflow-hidden">
+        <Tabs defaultValue="contacts" className="h-full flex flex-col">
+          <div className="flex-shrink-0 px-3 sm:px-6 pt-4">
+            <TabsList className="grid w-full grid-cols-3 text-xs sm:text-sm">
+              <TabsTrigger value="contacts" className="px-1 py-2 sm:px-3">Contacts</TabsTrigger>
+              <TabsTrigger value="status" className="px-1 py-2 sm:px-3">Status</TabsTrigger>
+              <TabsTrigger value="comments" className="px-1 py-2 sm:px-3">Comments</TabsTrigger>
+            </TabsList>
+          </div>
           
-          <TabsContent value="contacts" className="space-y-4 mt-4">
-            <ContactsTab 
-              application={application}
-              callingLogs={callingLogs}
-              onCallingStatusChange={handleCallingStatusChange}
-            />
-          </TabsContent>
+          <div className="flex-1 overflow-y-auto">
+            <TabsContent value="contacts" className="space-y-4 p-3 sm:p-6 pt-4 m-0">
+              <ContactsTab 
+                application={application}
+                callingLogs={callingLogs}
+                onCallingStatusChange={handleCallingStatusChange}
+              />
+            </TabsContent>
 
-          <TabsContent value="status" className="space-y-4 mt-4">
-            <StatusTab 
-              application={application}
-              auditLogs={auditLogs}
-              onStatusChange={handleStatusChange}
-              onPtpDateChange={handlePtpDateChange}
-            />
-          </TabsContent>
+            <TabsContent value="status" className="space-y-4 p-3 sm:p-6 pt-4 m-0">
+              <StatusTab 
+                application={application}
+                auditLogs={auditLogs}
+                onStatusChange={handleStatusChange}
+                onPtpDateChange={handlePtpDateChange}
+              />
+            </TabsContent>
 
-          <TabsContent value="comments" className="space-y-4 mt-4">
-            <CommentsTab 
-              comments={comments}
-              onAddComment={handleAddComment}
-            />
-          </TabsContent>
+            <TabsContent value="comments" className="space-y-4 p-3 sm:p-6 pt-4 m-0">
+              <CommentsTab 
+                comments={comments}
+                onAddComment={handleAddComment}
+              />
+            </TabsContent>
+          </div>
         </Tabs>
       </div>
     </div>
