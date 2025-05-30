@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -38,6 +38,11 @@ export interface Application {
   fi_location?: string;
   repayment?: string;
   last_month_bounce?: number;
+  applicant_calling_status?: string;
+  co_applicant_calling_status?: string;
+  guarantor_calling_status?: string;
+  reference_calling_status?: string;
+  latest_calling_status?: string;
 }
 
 export const useApplications = () => {
@@ -45,7 +50,7 @@ export const useApplications = () => {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchApplications = async () => {
+  const fetchApplications = useCallback(async () => {
     if (!user) return;
     
     setLoading(true);
@@ -69,13 +74,13 @@ export const useApplications = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     if (user) {
       fetchApplications();
     }
-  }, [user]);
+  }, [user, fetchApplications]);
 
   return {
     applications,

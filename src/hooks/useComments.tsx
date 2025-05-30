@@ -1,7 +1,8 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserProfiles } from '@/hooks/useUserProfiles';
 
 export interface Comment {
   id: string;
@@ -16,7 +17,8 @@ export interface Comment {
 
 export const useComments = (applicationId?: string) => {
   const { user } = useAuth();
-  const [comments, setComments] = useState<Comment[]>([]);
+  const { fetchProfiles, getUserName } = useUserProfiles();
+  const [rawComments, setRawComments] = useState<Omit<Comment, 'user_name'>[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchComments = async () => {
@@ -36,21 +38,13 @@ export const useComments = (applicationId?: string) => {
         console.error('Error fetching comments:', error);
       } else {
         console.log('Fetched comments:', data);
+        setRawComments(data || []);
         
-        // Fetch user names separately
+        // Fetch profiles for all unique user IDs
         const userIds = [...new Set(data?.map(comment => comment.user_id) || [])];
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', userIds);
-
-        const profileMap = new Map(profiles?.map(p => [p.id, p.full_name]) || []);
-        
-        const commentsWithNames = data?.map(comment => ({
-          ...comment,
-          user_name: profileMap.get(comment.user_id) || comment.user_email || 'Unknown User'
-        })) || [];
-        setComments(commentsWithNames);
+        if (userIds.length > 0) {
+          await fetchProfiles(userIds);
+        }
       }
     } catch (error) {
       console.error('Error fetching comments:', error);
@@ -58,6 +52,14 @@ export const useComments = (applicationId?: string) => {
       setLoading(false);
     }
   };
+
+  // Memoize comments with user names to prevent unnecessary re-renders
+  const comments = useMemo(() => {
+    return rawComments.map(comment => ({
+      ...comment,
+      user_name: getUserName(comment.user_id, comment.user_email)
+    }));
+  }, [rawComments, getUserName]);
 
   const addComment = async (content: string) => {
     if (!applicationId || !user || !content.trim()) return;

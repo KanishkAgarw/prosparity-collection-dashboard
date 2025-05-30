@@ -1,7 +1,8 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserProfiles } from '@/hooks/useUserProfiles';
 
 export interface AuditLog {
   id: string;
@@ -17,7 +18,8 @@ export interface AuditLog {
 
 export const useAuditLogs = (applicationId?: string) => {
   const { user } = useAuth();
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const { fetchProfiles, getUserName } = useUserProfiles();
+  const [rawAuditLogs, setRawAuditLogs] = useState<Omit<AuditLog, 'user_name'>[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchAuditLogs = async () => {
@@ -37,21 +39,13 @@ export const useAuditLogs = (applicationId?: string) => {
         console.error('Error fetching audit logs:', error);
       } else {
         console.log('Fetched audit logs:', data);
+        setRawAuditLogs(data || []);
         
-        // Fetch user names separately
+        // Fetch profiles for all unique user IDs
         const userIds = [...new Set(data?.map(log => log.user_id) || [])];
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', userIds);
-
-        const profileMap = new Map(profiles?.map(p => [p.id, p.full_name]) || []);
-        
-        const logsWithNames = data?.map(log => ({
-          ...log,
-          user_name: profileMap.get(log.user_id) || log.user_email || 'Unknown User'
-        })) || [];
-        setAuditLogs(logsWithNames);
+        if (userIds.length > 0) {
+          await fetchProfiles(userIds);
+        }
       }
     } catch (error) {
       console.error('Error fetching audit logs:', error);
@@ -59,6 +53,14 @@ export const useAuditLogs = (applicationId?: string) => {
       setLoading(false);
     }
   };
+
+  // Memoize audit logs with user names to prevent unnecessary re-renders
+  const auditLogs = useMemo(() => {
+    return rawAuditLogs.map(log => ({
+      ...log,
+      user_name: getUserName(log.user_id, log.user_email)
+    }));
+  }, [rawAuditLogs, getUserName]);
 
   const addAuditLog = async (field: string, previousValue: string | null, newValue: string | null) => {
     if (!applicationId || !user) return;
