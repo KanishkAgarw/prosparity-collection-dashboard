@@ -4,9 +4,17 @@ import { format } from "date-fns";
 export const formatEmiMonth = (dateStr?: string) => {
   if (!dateStr) return "NA";
   try {
-    // Handle different date formats
     let date: Date;
-    if (dateStr.includes('-') && dateStr.length === 7) {
+    
+    // Check if it's an Excel serial number (numeric string)
+    const numericValue = parseFloat(dateStr);
+    if (!isNaN(numericValue) && numericValue > 40000 && numericValue < 50000) {
+      // Excel serial date: days since January 1, 1900
+      // Excel incorrectly treats 1900 as a leap year, so we need to adjust
+      const excelEpoch = new Date(1900, 0, 1);
+      const adjustedDays = numericValue - 2; // Adjust for Excel's leap year bug
+      date = new Date(excelEpoch.getTime() + adjustedDays * 24 * 60 * 60 * 1000);
+    } else if (dateStr.includes('-') && dateStr.length === 7) {
       // Format like "2024-01" -> convert to "2024-01-01"
       date = new Date(`${dateStr}-01`);
     } else if (dateStr.includes('-') && dateStr.length === 10) {
@@ -50,4 +58,10 @@ export const formatPtpDate = (ptpDate?: string) => {
   } catch {
     return "NA";
   }
+};
+
+export const formatMapLink = (address?: string) => {
+  if (!address) return null;
+  const encodedAddress = encodeURIComponent(address);
+  return `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
 };

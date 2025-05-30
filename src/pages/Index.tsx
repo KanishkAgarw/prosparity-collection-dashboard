@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import { useApplications } from "@/hooks/useApplications";
 import { useCascadingFilters } from "@/hooks/useCascadingFilters";

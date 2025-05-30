@@ -1,8 +1,5 @@
 
-import { useState } from "react";
-import { ChevronDown, ChevronUp, Filter } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { FilterOptions } from "@/types/application";
 import CustomMultiSelectFilter from "./CustomMultiSelectFilter";
 
 interface MobileFilterBarProps {
@@ -13,136 +10,74 @@ interface MobileFilterBarProps {
     lender: string[];
     status: string[];
     emiMonth: string[];
+    rmName: string[];
   };
+  availableOptions: FilterOptions & { rmNames: string[] };
   onFilterChange: (key: string, values: string[]) => void;
-  availableOptions: {
-    branches: string[];
-    teamLeads: string[];
-    dealers: string[];
-    lenders: string[];
-    statuses: string[];
-    emiMonths: string[];
-  };
 }
 
-const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFilterBarProps) => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  // Ensure all filter options have default empty arrays
-  const safeFilterOptions = {
-    branches: availableOptions?.branches || [],
-    teamLeads: availableOptions?.teamLeads || [],
-    dealers: availableOptions?.dealers || [],
-    lenders: availableOptions?.lenders || [],
-    statuses: availableOptions?.statuses || [],
-    emiMonths: availableOptions?.emiMonths || [],
-  };
-
-  // Ensure all filters have default empty arrays
-  const safeFilters = {
-    branch: filters?.branch || [],
-    teamLead: filters?.teamLead || [],
-    dealer: filters?.dealer || [],
-    lender: filters?.lender || [],
-    status: filters?.status || [],
-    emiMonth: filters?.emiMonth || [],
-  };
-
-  // Count active filters
-  const activeFilterCount = Object.values(safeFilters).reduce(
-    (count, filterArray) => count + filterArray.length, 
-    0
-  );
-
+const MobileFilterBar = ({ filters, availableOptions, onFilterChange }: MobileFilterBarProps) => {
   return (
-    <div className="bg-white rounded-lg shadow-sm border">
-      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-        <CollapsibleTrigger asChild>
-          <Button 
-            variant="outline" 
-            className="w-full flex items-center justify-between p-4 hover:bg-gray-50"
-          >
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4" />
-              <span>Filters</span>
-              {activeFilterCount > 0 && (
-                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                  {activeFilterCount}
-                </span>
-              )}
-            </div>
-            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </Button>
-        </CollapsibleTrigger>
+    <div className="bg-white p-4 rounded-lg shadow border">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">Filters</h3>
+      
+      <div className="space-y-3">
+        <CustomMultiSelectFilter
+          label="Branch"
+          options={availableOptions.branches}
+          selectedValues={filters.branch}
+          onSelectionChange={(values) => onFilterChange('branch', values)}
+          placeholder="Select branches..."
+        />
         
-        <CollapsibleContent>
-          <div className="p-4 space-y-4 border-t">
-            <h3 className="font-medium text-gray-900 text-sm">Filter Applications</h3>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">EMI Months</label>
-                <CustomMultiSelectFilter
-                  label="EMI Months"
-                  options={safeFilterOptions.emiMonths}
-                  selected={safeFilters.emiMonth}
-                  onSelectionChange={(values) => onFilterChange('emiMonth', values)}
-                />
-              </div>
+        <CustomMultiSelectFilter
+          label="Team Lead"
+          options={availableOptions.teamLeads}
+          selectedValues={filters.teamLead}
+          onSelectionChange={(values) => onFilterChange('teamLead', values)}
+          placeholder="Select team leads..."
+        />
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Branches</label>
-                <CustomMultiSelectFilter
-                  label="Branches"
-                  options={safeFilterOptions.branches}
-                  selected={safeFilters.branch}
-                  onSelectionChange={(values) => onFilterChange('branch', values)}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Team Leads</label>
-                <CustomMultiSelectFilter
-                  label="Team Leads"
-                  options={safeFilterOptions.teamLeads}
-                  selected={safeFilters.teamLead}
-                  onSelectionChange={(values) => onFilterChange('teamLead', values)}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Dealers</label>
-                <CustomMultiSelectFilter
-                  label="Dealers"
-                  options={safeFilterOptions.dealers}
-                  selected={safeFilters.dealer}
-                  onSelectionChange={(values) => onFilterChange('dealer', values)}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Lenders</label>
-                <CustomMultiSelectFilter
-                  label="Lenders"
-                  options={safeFilterOptions.lenders}
-                  selected={safeFilters.lender}
-                  onSelectionChange={(values) => onFilterChange('lender', values)}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Status</label>
-                <CustomMultiSelectFilter
-                  label="Status"
-                  options={safeFilterOptions.statuses}
-                  selected={safeFilters.status}
-                  onSelectionChange={(values) => onFilterChange('status', values)}
-                />
-              </div>
-            </div>
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
+        <CustomMultiSelectFilter
+          label="RM Name"
+          options={availableOptions.rmNames}
+          selectedValues={filters.rmName}
+          onSelectionChange={(values) => onFilterChange('rmName', values)}
+          placeholder="Select RM names..."
+        />
+        
+        <CustomMultiSelectFilter
+          label="Dealer"
+          options={availableOptions.dealers}
+          selectedValues={filters.dealer}
+          onSelectionChange={(values) => onFilterChange('dealer', values)}
+          placeholder="Select dealers..."
+        />
+        
+        <CustomMultiSelectFilter
+          label="Lender"
+          options={availableOptions.lenders}
+          selectedValues={filters.lender}
+          onSelectionChange={(values) => onFilterChange('lender', values)}
+          placeholder="Select lenders..."
+        />
+        
+        <CustomMultiSelectFilter
+          label="Status"
+          options={availableOptions.statuses}
+          selectedValues={filters.status}
+          onSelectionChange={(values) => onFilterChange('status', values)}
+          placeholder="Select statuses..."
+        />
+        
+        <CustomMultiSelectFilter
+          label="EMI Month"
+          options={availableOptions.emiMonths}
+          selectedValues={filters.emiMonth}
+          onSelectionChange={(values) => onFilterChange('emiMonth', values)}
+          placeholder="Select EMI months..."
+        />
+      </div>
     </div>
   );
 };
