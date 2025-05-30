@@ -1,6 +1,9 @@
 
-import { FilterOptions } from "@/types/application";
+import { useState } from "react";
 import CustomMultiSelectFilter from "./CustomMultiSelectFilter";
+import { Button } from "@/components/ui/button";
+import { Filter } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface FilterBarProps {
   filters: {
@@ -10,74 +13,108 @@ interface FilterBarProps {
     lender: string[];
     status: string[];
     emiMonth: string[];
-    rmName: string[];
   };
-  availableOptions: FilterOptions & { rmNames: string[] };
   onFilterChange: (key: string, values: string[]) => void;
+  availableOptions: {
+    branches: string[];
+    teamLeads: string[];
+    dealers: string[];
+    lenders: string[];
+    statuses: string[];
+    emiMonths: string[];
+  };
 }
 
-const FilterBar = ({ filters, availableOptions, onFilterChange }: FilterBarProps) => {
-  return (
-    <div className="bg-white p-4 rounded-lg shadow border space-y-4">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Filters</h3>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        <CustomMultiSelectFilter
-          label="Branch"
-          options={availableOptions.branches}
-          selectedValues={filters.branch}
-          onSelectionChange={(values) => onFilterChange('branch', values)}
-          placeholder="Select branches..."
-        />
-        
-        <CustomMultiSelectFilter
-          label="Team Lead"
-          options={availableOptions.teamLeads}
-          selectedValues={filters.teamLead}
-          onSelectionChange={(values) => onFilterChange('teamLead', values)}
-          placeholder="Select team leads..."
-        />
+const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps) => {
+  const [open, setOpen] = useState(false);
 
-        <CustomMultiSelectFilter
-          label="RM Name"
-          options={availableOptions.rmNames}
-          selectedValues={filters.rmName}
-          onSelectionChange={(values) => onFilterChange('rmName', values)}
-          placeholder="Select RM names..."
-        />
-        
-        <CustomMultiSelectFilter
-          label="Dealer"
-          options={availableOptions.dealers}
-          selectedValues={filters.dealer}
-          onSelectionChange={(values) => onFilterChange('dealer', values)}
-          placeholder="Select dealers..."
-        />
-        
-        <CustomMultiSelectFilter
-          label="Lender"
-          options={availableOptions.lenders}
-          selectedValues={filters.lender}
-          onSelectionChange={(values) => onFilterChange('lender', values)}
-          placeholder="Select lenders..."
-        />
-        
-        <CustomMultiSelectFilter
-          label="Status"
-          options={availableOptions.statuses}
-          selectedValues={filters.status}
-          onSelectionChange={(values) => onFilterChange('status', values)}
-          placeholder="Select statuses..."
-        />
-        
-        <CustomMultiSelectFilter
-          label="EMI Month"
-          options={availableOptions.emiMonths}
-          selectedValues={filters.emiMonth}
-          onSelectionChange={(values) => onFilterChange('emiMonth', values)}
-          placeholder="Select EMI months..."
-        />
-      </div>
+  // Ensure all filter options have default empty arrays
+  const safeFilterOptions = {
+    branches: availableOptions?.branches || [],
+    teamLeads: availableOptions?.teamLeads || [],
+    dealers: availableOptions?.dealers || [],
+    lenders: availableOptions?.lenders || [],
+    statuses: availableOptions?.statuses || [],
+    emiMonths: availableOptions?.emiMonths || [],
+  };
+
+  // Ensure all filters have default empty arrays
+  const safeFilters = {
+    branch: filters?.branch || [],
+    teamLead: filters?.teamLead || [],
+    dealer: filters?.dealer || [],
+    lender: filters?.lender || [],
+    status: filters?.status || [],
+    emiMonth: filters?.emiMonth || [],
+  };
+
+  // Count total active filters
+  const activeFilterCount = Object.values(safeFilters).reduce((count, filterArray) => count + filterArray.length, 0);
+
+  return (
+    <div className="bg-white p-4 rounded-lg shadow-sm border">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className="gap-2">
+            <Filter className="h-4 w-4" />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                {activeFilterCount}
+              </span>
+            )}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[800px] p-4" align="start">
+          <div className="space-y-4">
+            <h3 className="font-medium text-gray-900 mb-3">Filter Applications</h3>
+            
+            <div className="grid grid-cols-3 gap-4">
+              <CustomMultiSelectFilter
+                label="EMI Months"
+                options={safeFilterOptions.emiMonths}
+                selected={safeFilters.emiMonth}
+                onSelectionChange={(values) => onFilterChange('emiMonth', values)}
+              />
+
+              <CustomMultiSelectFilter
+                label="Branches"
+                options={safeFilterOptions.branches}
+                selected={safeFilters.branch}
+                onSelectionChange={(values) => onFilterChange('branch', values)}
+              />
+
+              <CustomMultiSelectFilter
+                label="Team Leads"
+                options={safeFilterOptions.teamLeads}
+                selected={safeFilters.teamLead}
+                onSelectionChange={(values) => onFilterChange('teamLead', values)}
+              />
+
+              <CustomMultiSelectFilter
+                label="Dealers"
+                options={safeFilterOptions.dealers}
+                selected={safeFilters.dealer}
+                onSelectionChange={(values) => onFilterChange('dealer', values)}
+              />
+
+              <CustomMultiSelectFilter
+                label="Lenders"
+                options={safeFilterOptions.lenders}
+                selected={safeFilters.lender}
+                onSelectionChange={(values) => onFilterChange('lender', values)}
+              />
+
+              <CustomMultiSelectFilter
+                label="Status"
+                options={safeFilterOptions.statuses}
+                selected={safeFilters.status}
+                onSelectionChange={(values) => onFilterChange('status', values)}
+              />
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 };

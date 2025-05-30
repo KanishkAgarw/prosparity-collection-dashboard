@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { formatEmiMonth, formatCurrency } from "@/utils/formatters";
+import CallButton from "./CallButton";
 
 interface Application {
   id: string;
@@ -27,7 +28,6 @@ interface Application {
   co_applicant_mobile?: string;
   guarantor_name?: string;
   guarantor_mobile?: string;
-  latest_calling_status?: string;
 }
 
 interface ApplicationsTableProps {
@@ -46,24 +46,6 @@ const getStatusBadge = (status: string) => {
   
   return (
     <Badge className={`${variants[status as keyof typeof variants] || 'bg-gray-100 text-gray-800 border-gray-200'} border`}>
-      {status}
-    </Badge>
-  );
-};
-
-const getCallingStatusBadge = (status?: string) => {
-  if (!status) return <span className="text-gray-400 text-xs">No Status</span>;
-  
-  const variants = {
-    'Called': 'bg-green-100 text-green-800 border-green-200',
-    'Not Called': 'bg-gray-100 text-gray-800 border-gray-200',
-    'No Response': 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    'Busy': 'bg-orange-100 text-orange-800 border-orange-200',
-    'Disconnected': 'bg-red-100 text-red-800 border-red-200'
-  };
-  
-  return (
-    <Badge className={`${variants[status as keyof typeof variants] || 'bg-gray-100 text-gray-800 border-gray-200'} border text-xs`}>
       {status}
     </Badge>
   );
@@ -117,8 +99,8 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
               <TableHead className="min-w-[320px]">Details</TableHead>
               <TableHead className="min-w-[120px]">EMI Due</TableHead>
               <TableHead className="min-w-[120px]">Status</TableHead>
-              <TableHead className="min-w-[140px]">Latest Calling Status</TableHead>
               <TableHead className="min-w-[100px]">PTP Date</TableHead>
+              <TableHead className="min-w-[150px]">Contacts</TableHead>
               {isAdmin && <TableHead className="min-w-[80px]">Actions</TableHead>}
             </TableRow>
           </TableHeader>
@@ -155,9 +137,28 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
                 </TableCell>
                 <TableCell className="font-medium text-blue-600">{formatCurrency(app.emi_amount)}</TableCell>
                 <TableCell>{getStatusBadge(app.status)}</TableCell>
-                <TableCell>{getCallingStatusBadge(app.latest_calling_status)}</TableCell>
                 <TableCell className={`${app.ptp_date ? 'text-blue-600 font-medium' : 'text-gray-400'} whitespace-nowrap`}>
                   {formatPtpDate(app.ptp_date)}
+                </TableCell>
+                <TableCell>
+                  <div className="space-y-1">
+                    <CallButton 
+                      name="Applicant" 
+                      phone={app.applicant_mobile}
+                    />
+                    {app.co_applicant_name && (
+                      <CallButton 
+                        name="Co-Applicant" 
+                        phone={app.co_applicant_mobile}
+                      />
+                    )}
+                    {app.guarantor_name && (
+                      <CallButton 
+                        name="Guarantor" 
+                        phone={app.guarantor_mobile}
+                      />
+                    )}
+                  </div>
                 </TableCell>
                 {isAdmin && (
                   <TableCell>

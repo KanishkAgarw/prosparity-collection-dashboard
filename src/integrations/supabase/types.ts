@@ -12,13 +12,11 @@ export type Database = {
       applications: {
         Row: {
           applicant_address: string | null
-          applicant_calling_status: string | null
           applicant_id: string
           applicant_mobile: string | null
           applicant_name: string
           branch_name: string
           co_applicant_address: string | null
-          co_applicant_calling_status: string | null
           co_applicant_mobile: string | null
           co_applicant_name: string | null
           created_at: string | null
@@ -27,20 +25,17 @@ export type Database = {
           emi_amount: number
           fi_location: string | null
           guarantor_address: string | null
-          guarantor_calling_status: string | null
           guarantor_mobile: string | null
           guarantor_name: string | null
           house_ownership: string | null
           id: string
           interest_due: number | null
           last_month_bounce: number | null
-          latest_calling_status: string | null
           lender_name: string
           paid_date: string | null
           principle_due: number | null
           ptp_date: string | null
           reference_address: string | null
-          reference_calling_status: string | null
           reference_mobile: string | null
           reference_name: string | null
           repayment: string | null
@@ -53,13 +48,11 @@ export type Database = {
         }
         Insert: {
           applicant_address?: string | null
-          applicant_calling_status?: string | null
           applicant_id: string
           applicant_mobile?: string | null
           applicant_name: string
           branch_name: string
           co_applicant_address?: string | null
-          co_applicant_calling_status?: string | null
           co_applicant_mobile?: string | null
           co_applicant_name?: string | null
           created_at?: string | null
@@ -68,20 +61,17 @@ export type Database = {
           emi_amount?: number
           fi_location?: string | null
           guarantor_address?: string | null
-          guarantor_calling_status?: string | null
           guarantor_mobile?: string | null
           guarantor_name?: string | null
           house_ownership?: string | null
           id?: string
           interest_due?: number | null
           last_month_bounce?: number | null
-          latest_calling_status?: string | null
           lender_name: string
           paid_date?: string | null
           principle_due?: number | null
           ptp_date?: string | null
           reference_address?: string | null
-          reference_calling_status?: string | null
           reference_mobile?: string | null
           reference_name?: string | null
           repayment?: string | null
@@ -94,13 +84,11 @@ export type Database = {
         }
         Update: {
           applicant_address?: string | null
-          applicant_calling_status?: string | null
           applicant_id?: string
           applicant_mobile?: string | null
           applicant_name?: string
           branch_name?: string
           co_applicant_address?: string | null
-          co_applicant_calling_status?: string | null
           co_applicant_mobile?: string | null
           co_applicant_name?: string | null
           created_at?: string | null
@@ -109,20 +97,17 @@ export type Database = {
           emi_amount?: number
           fi_location?: string | null
           guarantor_address?: string | null
-          guarantor_calling_status?: string | null
           guarantor_mobile?: string | null
           guarantor_name?: string | null
           house_ownership?: string | null
           id?: string
           interest_due?: number | null
           last_month_bounce?: number | null
-          latest_calling_status?: string | null
           lender_name?: string
           paid_date?: string | null
           principle_due?: number | null
           ptp_date?: string | null
           reference_address?: string | null
-          reference_calling_status?: string | null
           reference_mobile?: string | null
           reference_name?: string | null
           repayment?: string | null
@@ -165,42 +150,6 @@ export type Database = {
           previous_value?: string | null
           user_email?: string | null
           user_id?: string
-        }
-        Relationships: []
-      }
-      calling_logs: {
-        Row: {
-          application_id: string
-          contact_type: string
-          created_at: string
-          id: string
-          new_status: string
-          previous_status: string | null
-          user_email: string | null
-          user_id: string
-          user_name: string | null
-        }
-        Insert: {
-          application_id: string
-          contact_type: string
-          created_at?: string
-          id?: string
-          new_status: string
-          previous_status?: string | null
-          user_email?: string | null
-          user_id: string
-          user_name?: string | null
-        }
-        Update: {
-          application_id?: string
-          contact_type?: string
-          created_at?: string
-          id?: string
-          new_status?: string
-          previous_status?: string | null
-          user_email?: string | null
-          user_id?: string
-          user_name?: string | null
         }
         Relationships: []
       }
