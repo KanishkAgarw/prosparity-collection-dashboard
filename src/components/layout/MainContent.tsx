@@ -3,7 +3,6 @@ import { Application } from "@/types/application";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ApplicationsTable from "@/components/ApplicationsTable";
 import MobileOptimizedTable from "@/components/MobileOptimizedTable";
-import StatusCards from "@/components/StatusCards";
 import PaginationControls from "@/components/PaginationControls";
 
 interface MainContentProps {
@@ -33,9 +32,6 @@ const MainContent = ({
 
   return (
     <div className="space-y-6">
-      {/* Status Cards */}
-      <StatusCards applications={applications} />
-
       {/* Results Summary */}
       <div className="flex items-center justify-between text-sm text-gray-600">
         <span>

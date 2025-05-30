@@ -137,8 +137,10 @@ const Index = () => {
             onFilterChange={handleFilterChange}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
-            applications={applications}
           />
+
+          {/* Status Cards */}
+          <StatusCards applications={applications} />
 
           <MainContent
             applications={sortedAndSearchFilteredApplications}

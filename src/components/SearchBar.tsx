@@ -10,14 +10,14 @@ interface SearchBarProps {
 
 const SearchBar = ({ value, onChange, placeholder = "Search by name, ID, dealer, lender, RM..." }: SearchBarProps) => {
   return (
-    <div className="relative flex-1 max-w-md">
-      <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+    <div className="relative w-full">
+      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
       <Input
         type="text"
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="pl-8 h-9 text-sm"
+        className="pl-10 h-10 text-sm w-full"
       />
     </div>
   );

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -63,31 +64,31 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
   const activeFilterCount = Object.values(safeFilters).reduce((count, filterArray) => count + filterArray.length, 0);
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200">
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <CollapsibleTrigger asChild>
           <Button 
             variant="outline" 
-            className="w-full flex items-center justify-between p-4 hover:bg-gray-50 border-0 rounded-lg"
+            className="w-full flex items-center justify-between p-4 hover:bg-gray-50 border-0 rounded-xl h-auto"
           >
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4" />
-              <span className="font-medium text-gray-900">Filter Applications</span>
+            <div className="flex items-center gap-3">
+              <Filter className="h-5 w-5 text-gray-600" />
+              <span className="font-medium text-gray-900 text-base">Filter Applications</span>
               {activeFilterCount > 0 && (
-                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                <span className="bg-blue-100 text-blue-800 text-sm px-3 py-1 rounded-full font-medium">
                   {activeFilterCount} active
                 </span>
               )}
             </div>
-            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            {isOpen ? <ChevronUp className="h-5 w-5 text-gray-600" /> : <ChevronDown className="h-5 w-5 text-gray-600" />}
           </Button>
         </CollapsibleTrigger>
         
         <CollapsibleContent>
-          <div className="p-4 border-t">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">EMI Months</label>
+          <div className="p-6 border-t border-gray-100">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">EMI Months</label>
                 <CustomMultiSelectFilter
                   label="EMI Months"
                   options={safeFilterOptions.emiMonths}
@@ -96,8 +97,8 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">Branches</label>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Branches</label>
                 <CustomMultiSelectFilter
                   label="Branches"
                   options={safeFilterOptions.branches}
@@ -106,8 +107,8 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">Team Leads</label>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Team Leads</label>
                 <CustomMultiSelectFilter
                   label="Team Leads"
                   options={safeFilterOptions.teamLeads}
@@ -116,8 +117,8 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">RMs</label>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">RMs</label>
                 <CustomMultiSelectFilter
                   label="RMs"
                   options={safeFilterOptions.rms}
@@ -126,8 +127,8 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">Dealers</label>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Dealers</label>
                 <CustomMultiSelectFilter
                   label="Dealers"
                   options={safeFilterOptions.dealers}
@@ -136,8 +137,8 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">Lenders</label>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Lenders</label>
                 <CustomMultiSelectFilter
                   label="Lenders"
                   options={safeFilterOptions.lenders}
@@ -146,8 +147,8 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">Status</label>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Status</label>
                 <CustomMultiSelectFilter
                   label="Status"
                   options={safeFilterOptions.statuses}
@@ -156,8 +157,8 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">Repayment</label>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Repayment</label>
                 <CustomMultiSelectFilter
                   label="Repayment"
                   options={safeFilterOptions.repayments}
@@ -166,8 +167,8 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">Last Month Status</label>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Last Month Status</label>
                 <CustomMultiSelectFilter
                   label="Last Month Status"
                   options={safeFilterOptions.lastMonthBounce}
