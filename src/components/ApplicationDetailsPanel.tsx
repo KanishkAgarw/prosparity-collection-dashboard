@@ -30,9 +30,7 @@ interface ApplicationDetailsPanelProps {
 
 const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDetailsPanelProps) => {
   const { user } = useAuth();
-  const [editedApp, setEditedApp] = useState<Application | null>(null);
   const [newComment, setNewComment] = useState("");
-  const [saving, setSaving] = useState(false);
 
   const { comments, addComment } = useComments(application?.applicant_id);
   const { auditLogs, addAuditLog } = useAuditLogs(application?.applicant_id);
@@ -40,7 +38,81 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
 
   if (!application) return null;
 
-  const currentApp = editedApp || application;
+  const handleStatusChange = async (newStatus: string) => {
+    if (!user || newStatus === application.status) return;
+    
+    try {
+      const updateData = {
+        status: newStatus,
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('applications')
+        .update(updateData)
+        .eq('applicant_id', application.applicant_id);
+
+      if (error) {
+        console.error('Error updating status:', error);
+        toast.error('Failed to update status');
+        return;
+      }
+
+      // Add audit log
+      await addAuditLog('Status', application.status, newStatus);
+
+      // Optimistic update
+      const updatedApp = {
+        ...application,
+        status: newStatus,
+        updated_at: new Date().toISOString()
+      };
+      
+      onSave(updatedApp);
+      toast.success('Status updated successfully');
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error('Failed to update status');
+    }
+  };
+
+  const handlePtpDateChange = async (newDate: string) => {
+    if (!user || newDate === application.ptp_date) return;
+    
+    try {
+      const updateData = {
+        ptp_date: newDate || null,
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('applications')
+        .update(updateData)
+        .eq('applicant_id', application.applicant_id);
+
+      if (error) {
+        console.error('Error updating PTP date:', error);
+        toast.error('Failed to update PTP date');
+        return;
+      }
+
+      // Add audit log
+      await addAuditLog('PTP Date', application.ptp_date || 'Not set', newDate || 'Not set');
+
+      // Optimistic update
+      const updatedApp = {
+        ...application,
+        ptp_date: newDate || null,
+        updated_at: new Date().toISOString()
+      };
+      
+      onSave(updatedApp);
+      toast.success('PTP date updated successfully');
+    } catch (error) {
+      console.error('Error updating PTP date:', error);
+      toast.error('Failed to update PTP date');
+    }
+  };
 
   const handleCallingStatusChange = async (contactType: string, newStatus: string, currentStatus?: string) => {
     if (!user) return;
@@ -83,67 +155,17 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
 
       // Optimistic update - update local state and notify parent
       const updatedApp = {
-        ...(editedApp || application),
+        ...application,
         [fieldName]: newStatus,
-        latest_calling_status: newStatus
+        latest_calling_status: newStatus,
+        updated_at: new Date().toISOString()
       };
       
-      setEditedApp(updatedApp);
       onSave(updatedApp);
-
       toast.success('Calling status updated successfully');
     } catch (error) {
       console.error('Error updating calling status:', error);
       toast.error('Failed to update calling status');
-    }
-  };
-
-  const handleSave = async () => {
-    if (!editedApp || !user) return;
-    
-    setSaving(true);
-    try {
-      console.log('Saving application changes:', editedApp);
-
-      // Prepare update data
-      const updateData: any = {
-        status: editedApp.status,
-        ptp_date: editedApp.ptp_date || null,
-        updated_at: new Date().toISOString()
-      };
-
-      // Update the application in the database
-      const { error } = await supabase
-        .from('applications')
-        .update(updateData)
-        .eq('applicant_id', editedApp.applicant_id);
-
-      if (error) {
-        console.error('Error updating application:', error);
-        toast.error('Failed to save changes');
-        return;
-      }
-
-      // Create audit logs for changes
-      if (editedApp.status !== application.status) {
-        await addAuditLog('Status', application.status, editedApp.status);
-      }
-
-      if (editedApp.ptp_date !== application.ptp_date) {
-        await addAuditLog('PTP Date', application.ptp_date || 'Not set', editedApp.ptp_date || 'Not set');
-      }
-
-      console.log('Application saved successfully');
-      toast.success('Changes saved successfully');
-      
-      // Notify parent with updated application for optimistic update
-      onSave(editedApp);
-      setEditedApp(null);
-    } catch (error) {
-      console.error('Error saving application:', error);
-      toast.error('Failed to save changes');
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -153,13 +175,6 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
       setNewComment("");
       toast.success('Comment added successfully');
     }
-  };
-
-  const updateField = (field: keyof Application, value: any) => {
-    setEditedApp(prev => ({
-      ...(prev || application),
-      [field]: value
-    }));
   };
 
   // Format datetime with DD-MMM-YY date
@@ -230,123 +245,14 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
           </div>
         </div>
 
-        {/* Tabbed Interface with better mobile layout */}
-        <Tabs defaultValue="status" className="w-full">
+        {/* Tabbed Interface with reordered tabs */}
+        <Tabs defaultValue="contacts" className="w-full">
           <TabsList className="grid w-full grid-cols-3 text-xs sm:text-sm mb-4">
-            <TabsTrigger value="status" className="px-1 py-2 sm:px-3">Status</TabsTrigger>
             <TabsTrigger value="contacts" className="px-1 py-2 sm:px-3">Contacts</TabsTrigger>
+            <TabsTrigger value="status" className="px-1 py-2 sm:px-3">Status</TabsTrigger>
             <TabsTrigger value="comments" className="px-1 py-2 sm:px-3">Comments</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="status" className="space-y-4 mt-4">
-            {/* Status Section with improved mobile layout */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <CardTitle className="text-sm">Status & Payment</CardTitle>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">{statusAndPtpLogs.length} logs</span>
-                    {statusAndPtpLogs.length > 0 && (
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="ghost" size="sm" className="text-xs">
-                            View Logs
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[80vh] overflow-y-auto">
-                          <DialogHeader>
-                            <DialogTitle className="text-sm sm:text-base">Audit Trail ({statusAndPtpLogs.length} entries)</DialogTitle>
-                          </DialogHeader>
-                          <div className="space-y-3">
-                            {statusAndPtpLogs.map((log) => (
-                              <div key={log.id} className="border rounded-lg p-3 bg-gray-50">
-                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-                                  <div className="flex items-center gap-2">
-                                    <User className="h-4 w-4 text-gray-500" />
-                                    <span className="font-medium text-sm">{log.user_name || 'Unknown User'}</span>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <Clock className="h-3 w-3 text-gray-400" />
-                                    <span className="text-xs text-gray-500">{formatDateTime(log.created_at)}</span>
-                                  </div>
-                                </div>
-                                <div className="text-sm">
-                                  <span className="font-medium">{log.field}</span> changed
-                                  <div className="mt-1 text-xs text-gray-600">
-                                    From: <span className="bg-red-100 px-1 rounded break-all">{formatAuditValue(log.previous_value, log.field)}</span>
-                                    {" → "}
-                                    To: <span className="bg-green-100 px-1 rounded break-all">{formatAuditValue(log.new_value, log.field)}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0 space-y-4">
-                <div>
-                  <Label htmlFor="status">Status</Label>
-                  <Select value={currentApp.status} onValueChange={(value) => updateField('status', value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Paid">Paid</SelectItem>
-                      <SelectItem value="Unpaid">Unpaid</SelectItem>
-                      <SelectItem value="Partially Paid">Partially Paid</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="ptpDate">Promise to Pay Date</Label>
-                  <Input
-                    id="ptpDate"
-                    type="date"
-                    value={currentApp.ptp_date || ''}
-                    onChange={(e) => updateField('ptp_date', e.target.value)}
-                  />
-                  {currentApp.ptp_date && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      Formatted: {formatPtpDate(currentApp.ptp_date)}
-                    </p>
-                  )}
-                </div>
-
-                {/* Recent Changes with better mobile layout */}
-                {statusAndPtpLogs.length > 0 && (
-                  <div className="border-t pt-3">
-                    <p className="text-xs text-gray-500 mb-2">Recent Changes:</p>
-                    <div className="space-y-2">
-                      {statusAndPtpLogs.slice(0, 2).map((log) => (
-                        <div key={log.id} className="text-xs border-l-2 border-blue-200 pl-2 py-1 bg-blue-50">
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-1">
-                            <span className="font-medium">{log.field}</span>
-                            <span className="text-gray-500">by {log.user_name || 'Unknown User'}</span>
-                          </div>
-                          <div className="text-gray-400">{formatDateTime(log.created_at)}</div>
-                          <div className="text-xs mt-1 break-words">
-                            <span className="bg-red-100 px-1 rounded">{formatAuditValue(log.previous_value, log.field)}</span>
-                            {" → "}
-                            <span className="bg-green-100 px-1 rounded">{formatAuditValue(log.new_value, log.field)}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {statusAndPtpLogs.length === 0 && (
-                  <div className="text-xs text-gray-400 italic">No changes recorded yet</div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
           <TabsContent value="contacts" className="space-y-4 mt-4">
             {/* Contact Information Section with improved mobile layout */}
             <Card>
@@ -416,8 +322,8 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs text-gray-500">Status:</span>
                     <CallStatusSelector
-                      currentStatus={currentApp.applicant_calling_status}
-                      onStatusChange={(status) => handleCallingStatusChange('Applicant', status, currentApp.applicant_calling_status)}
+                      currentStatus={application.applicant_calling_status}
+                      onStatusChange={(status) => handleCallingStatusChange('Applicant', status, application.applicant_calling_status)}
                     />
                   </div>
                 </div>
@@ -442,8 +348,8 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs text-gray-500">Status:</span>
                       <CallStatusSelector
-                        currentStatus={currentApp.co_applicant_calling_status}
-                        onStatusChange={(status) => handleCallingStatusChange('Co-Applicant', status, currentApp.co_applicant_calling_status)}
+                        currentStatus={application.co_applicant_calling_status}
+                        onStatusChange={(status) => handleCallingStatusChange('Co-Applicant', status, application.co_applicant_calling_status)}
                       />
                     </div>
                   </div>
@@ -469,8 +375,8 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs text-gray-500">Status:</span>
                       <CallStatusSelector
-                        currentStatus={currentApp.guarantor_calling_status}
-                        onStatusChange={(status) => handleCallingStatusChange('Guarantor', status, currentApp.guarantor_calling_status)}
+                        currentStatus={application.guarantor_calling_status}
+                        onStatusChange={(status) => handleCallingStatusChange('Guarantor', status, application.guarantor_calling_status)}
                       />
                     </div>
                   </div>
@@ -496,8 +402,8 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs text-gray-500">Status:</span>
                       <CallStatusSelector
-                        currentStatus={currentApp.reference_calling_status}
-                        onStatusChange={(status) => handleCallingStatusChange('Reference', status, currentApp.reference_calling_status)}
+                        currentStatus={application.reference_calling_status}
+                        onStatusChange={(status) => handleCallingStatusChange('Reference', status, application.reference_calling_status)}
                       />
                     </div>
                   </div>
@@ -543,6 +449,115 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                   <div className="text-center py-4 text-gray-500 text-sm">
                     No additional contacts available
                   </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="status" className="space-y-4 mt-4">
+            {/* Status Section with auto-save */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <CardTitle className="text-sm">Status & Payment</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">{statusAndPtpLogs.length} logs</span>
+                    {statusAndPtpLogs.length > 0 && (
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="text-xs">
+                            View Logs
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle className="text-sm sm:text-base">Audit Trail ({statusAndPtpLogs.length} entries)</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-3">
+                            {statusAndPtpLogs.map((log) => (
+                              <div key={log.id} className="border rounded-lg p-3 bg-gray-50">
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <User className="h-4 w-4 text-gray-500" />
+                                    <span className="font-medium text-sm">{log.user_name || 'Unknown User'}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Clock className="h-3 w-3 text-gray-400" />
+                                    <span className="text-xs text-gray-500">{formatDateTime(log.created_at)}</span>
+                                  </div>
+                                </div>
+                                <div className="text-sm">
+                                  <span className="font-medium">{log.field}</span> changed
+                                  <div className="mt-1 text-xs text-gray-600">
+                                    From: <span className="bg-red-100 px-1 rounded break-all">{formatAuditValue(log.previous_value, log.field)}</span>
+                                    {" → "}
+                                    To: <span className="bg-green-100 px-1 rounded break-all">{formatAuditValue(log.new_value, log.field)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0 space-y-4">
+                <div>
+                  <Label htmlFor="status">Status</Label>
+                  <Select value={application.status} onValueChange={handleStatusChange}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Paid">Paid</SelectItem>
+                      <SelectItem value="Unpaid">Unpaid</SelectItem>
+                      <SelectItem value="Partially Paid">Partially Paid</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="ptpDate">Promise to Pay Date</Label>
+                  <Input
+                    id="ptpDate"
+                    type="date"
+                    value={application.ptp_date || ''}
+                    onChange={(e) => handlePtpDateChange(e.target.value)}
+                  />
+                  {application.ptp_date && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Formatted: {formatPtpDate(application.ptp_date)}
+                    </p>
+                  )}
+                </div>
+
+                {/* Recent Changes with better mobile layout */}
+                {statusAndPtpLogs.length > 0 && (
+                  <div className="border-t pt-3">
+                    <p className="text-xs text-gray-500 mb-2">Recent Changes:</p>
+                    <div className="space-y-2">
+                      {statusAndPtpLogs.slice(0, 2).map((log) => (
+                        <div key={log.id} className="text-xs border-l-2 border-blue-200 pl-2 py-1 bg-blue-50">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-1">
+                            <span className="font-medium">{log.field}</span>
+                            <span className="text-gray-500">by {log.user_name || 'Unknown User'}</span>
+                          </div>
+                          <div className="text-gray-400">{formatDateTime(log.created_at)}</div>
+                          <div className="text-xs mt-1 break-words">
+                            <span className="bg-red-100 px-1 rounded">{formatAuditValue(log.previous_value, log.field)}</span>
+                            {" → "}
+                            <span className="bg-green-100 px-1 rounded">{formatAuditValue(log.new_value, log.field)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {statusAndPtpLogs.length === 0 && (
+                  <div className="text-xs text-gray-400 italic">No changes recorded yet</div>
                 )}
               </CardContent>
             </Card>
@@ -611,15 +626,6 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
             </Card>
           </TabsContent>
         </Tabs>
-
-        {/* Save Button */}
-        <Button 
-          onClick={handleSave} 
-          className="w-full mt-4 sm:mt-6"
-          disabled={!editedApp || saving}
-        >
-          {saving ? 'Saving...' : 'Save Changes'}
-        </Button>
       </div>
     </div>
   );

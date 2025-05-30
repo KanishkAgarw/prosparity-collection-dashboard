@@ -40,25 +40,35 @@ export const useUserProfiles = () => {
       }
 
       // Update cache with new profiles
-      const newCache = new Map(profilesCache);
-      profiles?.forEach(profile => {
-        newCache.set(profile.id, profile);
+      setProfilesCache(prevCache => {
+        const newCache = new Map(prevCache);
+        profiles?.forEach(profile => {
+          newCache.set(profile.id, profile);
+        });
+        return newCache;
       });
-      setProfilesCache(newCache);
 
-      // Return all requested profiles (cached + newly fetched)
-      return userIds.map(id => newCache.get(id)).filter(Boolean) as UserProfile[];
+      // Return all requested profiles
+      const updatedCache = new Map(profilesCache);
+      profiles?.forEach(profile => {
+        updatedCache.set(profile.id, profile);
+      });
+      
+      return userIds.map(id => updatedCache.get(id)).filter(Boolean) as UserProfile[];
     } catch (error) {
       console.error('Error fetching user profiles:', error);
       return [];
     } finally {
       setLoading(false);
     }
-  }, [user, profilesCache]);
+  }, [user]);
 
   const getUserName = useCallback((userId: string, fallbackEmail?: string): string => {
     const profile = profilesCache.get(userId);
-    return profile?.full_name || profile?.email || fallbackEmail || 'Unknown User';
+    if (profile?.full_name) return profile.full_name;
+    if (profile?.email) return profile.email;
+    if (fallbackEmail) return fallbackEmail;
+    return 'Unknown User';
   }, [profilesCache]);
 
   const clearCache = useCallback(() => {

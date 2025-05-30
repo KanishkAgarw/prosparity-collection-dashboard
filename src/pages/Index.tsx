@@ -2,6 +2,10 @@
 import { useState, useMemo } from "react";
 import { useApplications } from "@/hooks/useApplications";
 import { useCascadingFilters } from "@/hooks/useCascadingFilters";
+import { useComments } from "@/hooks/useComments";
+import { useAuditLogs } from "@/hooks/useAuditLogs";
+import { useCallingLogs } from "@/hooks/useCallingLogs";
+import { useExport } from "@/hooks/useExport";
 import { Application } from "@/types/application";
 import ApplicationsTable from "@/components/ApplicationsTable";
 import ApplicationDetailsPanel from "@/components/ApplicationDetailsPanel";
@@ -14,7 +18,8 @@ import UploadApplicationDialog from "@/components/UploadApplicationDialog";
 import AdminUserManagement from "@/components/AdminUserManagement";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, Download, FileSpreadsheet } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -25,6 +30,7 @@ const Index = () => {
   const { applications, loading: appsLoading, refetch } = useApplications();
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const { exportToExcel, exportToCSV } = useExport();
 
   const {
     filters,
@@ -82,6 +88,52 @@ const Index = () => {
     }
   };
 
+  const handleExport = async (format: 'excel' | 'csv') => {
+    try {
+      toast.loading('Preparing export...', { id: 'export' });
+      
+      // Gather all data for export
+      const appIds = sortedAndSearchFilteredApplications.map(app => app.applicant_id);
+      
+      // Fetch all audit logs, comments, and calling logs for visible applications
+      const [auditLogsData, commentsData, callingLogsData] = await Promise.all([
+        supabase
+          .from('audit_logs')
+          .select('*')
+          .in('application_id', appIds)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('comments')
+          .select('*')
+          .in('application_id', appIds)
+          .order('created_at', { ascending: true }),
+        supabase
+          .from('calling_logs')
+          .select('*')
+          .in('application_id', appIds)
+          .order('created_at', { ascending: false })
+      ]);
+
+      const exportData = {
+        applications: sortedAndSearchFilteredApplications,
+        auditLogs: auditLogsData.data || [],
+        comments: commentsData.data || [],
+        callingLogs: callingLogsData.data || []
+      };
+
+      if (format === 'excel') {
+        exportToExcel(exportData, 'collection-dashboard-report');
+      } else {
+        exportToCSV(exportData, 'collection-dashboard-summary');
+      }
+
+      toast.success('Export completed successfully!', { id: 'export' });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export data', { id: 'export' });
+    }
+  };
+
   // Show loading screen while auth is loading
   if (authLoading) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>;
@@ -117,8 +169,26 @@ const Index = () => {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              {/* Admin buttons - hidden on mobile */}
+              {/* Admin buttons and Export - hidden on mobile */}
               <div className="hidden sm:flex items-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Download className="h-4 w-4 mr-2" />
+                      Export
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => handleExport('excel')}>
+                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                      Export to Excel
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExport('csv')}>
+                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                      Export to CSV
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <UploadApplicationDialog onApplicationAdded={refetch} />
                 {isAdmin && <AdminUserManagement isAdmin={isAdmin} />}
               </div>
@@ -135,6 +205,28 @@ const Index = () => {
                 </Button>
               </div>
             </div>
+          </div>
+
+          {/* Mobile Export Button */}
+          <div className="sm:hidden">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="w-full">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export Data
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-full">
+                <DropdownMenuItem onClick={() => handleExport('excel')}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Export to Excel
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('csv')}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Export to CSV
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* Filters */}
