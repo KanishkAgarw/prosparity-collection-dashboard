@@ -18,14 +18,14 @@ interface FilterBarProps {
 
 const FilterBar = ({ filters, availableOptions, onFilterChange }: FilterBarProps) => {
   return (
-    <div className="bg-white p-4 rounded-lg shadow border">
+    <div className="bg-white p-4 rounded-lg shadow border space-y-4">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">Filters</h3>
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         <CustomMultiSelectFilter
           label="Branch"
           options={availableOptions.branches}
-          selected={filters.branch}
+          selectedValues={filters.branch}
           onSelectionChange={(values) => onFilterChange('branch', values)}
           placeholder="Select branches..."
         />
@@ -33,7 +33,7 @@ const FilterBar = ({ filters, availableOptions, onFilterChange }: FilterBarProps
         <CustomMultiSelectFilter
           label="Team Lead"
           options={availableOptions.teamLeads}
-          selected={filters.teamLead}
+          selectedValues={filters.teamLead}
           onSelectionChange={(values) => onFilterChange('teamLead', values)}
           placeholder="Select team leads..."
         />
@@ -41,7 +41,7 @@ const FilterBar = ({ filters, availableOptions, onFilterChange }: FilterBarProps
         <CustomMultiSelectFilter
           label="RM Name"
           options={availableOptions.rmNames}
-          selected={filters.rmName}
+          selectedValues={filters.rmName}
           onSelectionChange={(values) => onFilterChange('rmName', values)}
           placeholder="Select RM names..."
         />
@@ -49,7 +49,7 @@ const FilterBar = ({ filters, availableOptions, onFilterChange }: FilterBarProps
         <CustomMultiSelectFilter
           label="Dealer"
           options={availableOptions.dealers}
-          selected={filters.dealer}
+          selectedValues={filters.dealer}
           onSelectionChange={(values) => onFilterChange('dealer', values)}
           placeholder="Select dealers..."
         />
@@ -57,7 +57,7 @@ const FilterBar = ({ filters, availableOptions, onFilterChange }: FilterBarProps
         <CustomMultiSelectFilter
           label="Lender"
           options={availableOptions.lenders}
-          selected={filters.lender}
+          selectedValues={filters.lender}
           onSelectionChange={(values) => onFilterChange('lender', values)}
           placeholder="Select lenders..."
         />
@@ -65,7 +65,7 @@ const FilterBar = ({ filters, availableOptions, onFilterChange }: FilterBarProps
         <CustomMultiSelectFilter
           label="Status"
           options={availableOptions.statuses}
-          selected={filters.status}
+          selectedValues={filters.status}
           onSelectionChange={(values) => onFilterChange('status', values)}
           placeholder="Select statuses..."
         />
@@ -73,7 +73,7 @@ const FilterBar = ({ filters, availableOptions, onFilterChange }: FilterBarProps
         <CustomMultiSelectFilter
           label="EMI Month"
           options={availableOptions.emiMonths}
-          selected={filters.emiMonth}
+          selectedValues={filters.emiMonth}
           onSelectionChange={(values) => onFilterChange('emiMonth', values)}
           placeholder="Select EMI months..."
         />
