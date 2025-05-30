@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Application } from "@/types/application";
 import { CallingLog } from "@/hooks/useCallingLogs";
 import { format } from "date-fns";
-import { ChevronDown, ChevronUp, Activity } from "lucide-react";
+import { Activity } from "lucide-react";
 import ContactCard from "./ContactCard";
 import { useContactCallingStatus } from "@/hooks/useContactCallingStatus";
+import LogDialog from "./LogDialog";
 
 interface ContactsTabProps {
   application: Application;
@@ -16,12 +17,8 @@ interface ContactsTabProps {
 }
 
 const ContactsTab = ({ application, callingLogs, onCallingStatusChange }: ContactsTabProps) => {
-  const [showAllCallHistory, setShowAllCallHistory] = useState(false);
+  const [showLogDialog, setShowLogDialog] = useState(false);
   const { getStatusForContact } = useContactCallingStatus(application.applicant_id);
-
-  console.log('ContactsTab - Application ID:', application.applicant_id);
-  console.log('ContactsTab - Calling logs:', callingLogs);
-  console.log('ContactsTab - Calling logs length:', callingLogs.length);
 
   const formatDateTime = (dateStr: string) => {
     try {
@@ -32,9 +29,8 @@ const ContactsTab = ({ application, callingLogs, onCallingStatusChange }: Contac
     }
   };
 
-  // Show only top 2 call history entries by default
-  const displayedCallLogs = showAllCallHistory ? callingLogs : callingLogs.slice(0, 2);
-  const hasMoreCallLogs = callingLogs.length > 2;
+  // Show only recent 2 calling logs
+  const recentCallLogs = callingLogs.slice(0, 2);
 
   const contacts = [
     {
@@ -87,62 +83,48 @@ const ContactsTab = ({ application, callingLogs, onCallingStatusChange }: Contac
         ))}
       </div>
 
-      {/* Recent Call Activity */}
+      {/* Recent Call Activity - Compact View */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Activity className="h-4 w-4" />
               Recent Call Activity
-              <span className="text-xs text-gray-500">({callingLogs.length} total)</span>
             </div>
-            {hasMoreCallLogs && (
+            {callingLogs.length > 0 && (
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                onClick={() => setShowAllCallHistory(!showAllCallHistory)}
-                className="text-xs h-6"
+                onClick={() => setShowLogDialog(true)}
+                className="text-xs h-7"
               >
-                {showAllCallHistory ? (
-                  <>
-                    Show Recent <ChevronUp className="h-3 w-3 ml-1" />
-                  </>
-                ) : (
-                  <>
-                    Show All ({callingLogs.length}) <ChevronDown className="h-3 w-3 ml-1" />
-                  </>
-                )}
+                Log ({callingLogs.length})
               </Button>
             )}
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
-          {callingLogs.length === 0 ? (
-            <div className="text-sm text-gray-500 text-center py-4">
+          {recentCallLogs.length === 0 ? (
+            <div className="text-sm text-gray-500 text-center py-3">
               No call activity recorded yet
             </div>
           ) : (
-            <div className="space-y-3 max-h-60 overflow-y-auto">
-              {displayedCallLogs.map((log) => (
-                <div key={log.id} className="border rounded-lg p-3 bg-gray-50 text-sm">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="font-medium text-blue-700 capitalize">{log.contact_type.replace('_', ' ')}</span>
-                    <span className="text-xs text-gray-500">
-                      {formatDateTime(log.created_at)}
+            <div className="space-y-2">
+              {recentCallLogs.map((log) => (
+                <div key={log.id} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
+                  <div className="flex-1">
+                    <span className="font-medium text-blue-700 capitalize">
+                      {log.contact_type.replace('_', ' ')}
                     </span>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="text-xs">
-                      <span className="text-gray-600">From:</span>{' '}
+                    <div className="text-xs text-gray-600">
                       <span className="text-red-600">{log.previous_status || 'Not Called'}</span>
-                    </div>
-                    <div className="text-xs">
-                      <span className="text-gray-600">To:</span>{' '}
+                      {' → '}
                       <span className="text-green-600">{log.new_status}</span>
                     </div>
-                    <div className="text-xs text-gray-500">
-                      Updated by: {log.user_name || 'Unknown User'}
-                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500 text-right">
+                    <div>{formatDateTime(log.created_at)}</div>
+                    <div>by {log.user_name || 'Unknown'}</div>
                   </div>
                 </div>
               ))}
@@ -150,6 +132,15 @@ const ContactsTab = ({ application, callingLogs, onCallingStatusChange }: Contac
           )}
         </CardContent>
       </Card>
+
+      {/* Log Dialog */}
+      <LogDialog
+        open={showLogDialog}
+        onClose={() => setShowLogDialog(false)}
+        logs={callingLogs}
+        title="Call Activity History"
+        type="calling"
+      />
     </div>
   );
 };

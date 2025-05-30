@@ -69,7 +69,7 @@ const StatusCards = ({ applications }: StatusCardsProps) => {
     fetchTotalCounts();
   }, [user, applications.length]);
 
-  // Reordered cards: Total → Paid → Partially Paid → Unpaid
+  // Updated card order: Total → Paid → Unpaid → Partially Paid
   const cards = [
     {
       title: "Total",
@@ -82,28 +82,28 @@ const StatusCards = ({ applications }: StatusCardsProps) => {
       className: "bg-green-50 border-green-200"
     },
     {
-      title: "Partially Paid",
-      value: totalCounts.partiallyPaid,
-      className: "bg-yellow-50 border-yellow-200"
-    },
-    {
       title: "Unpaid",
       value: totalCounts.unpaid,
       className: "bg-red-50 border-red-200"
+    },
+    {
+      title: "Partially Paid",
+      value: totalCounts.partiallyPaid,
+      className: "bg-yellow-50 border-yellow-200"
     }
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
       {cards.map((card, index) => (
-        <Card key={index} className={`${card.className} border`}>
-          <CardHeader className="pb-2 pt-4 px-4">
-            <CardTitle className="text-sm font-medium text-gray-600">
+        <Card key={index} className={`${card.className} border-2 shadow-lg`}>
+          <CardHeader className="pb-3 pt-6 px-6">
+            <CardTitle className="text-lg font-semibold text-gray-700">
               {card.title}
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-0 pb-4 px-4">
-            <div className="text-2xl font-bold">{card.value}</div>
+          <CardContent className="pt-0 pb-6 px-6">
+            <div className="text-4xl font-bold text-gray-800">{card.value}</div>
           </CardContent>
         </Card>
       ))}

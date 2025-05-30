@@ -26,32 +26,36 @@ const FiltersSection = ({
   const isMobile = useIsMobile();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Status Cards */}
       <StatusCards applications={applications} />
 
       {/* Search and Filters */}
-      <div className="bg-white rounded-lg shadow-sm border p-4">
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-          <SearchBar
-            value={searchTerm}
-            onChange={onSearchChange}
-            placeholder="Search applications..."
-          />
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+          <div className="flex-1 min-w-0">
+            <SearchBar
+              value={searchTerm}
+              onChange={onSearchChange}
+              placeholder="Search applications..."
+            />
+          </div>
           
-          {isMobile ? (
-            <MobileFilterBar
-              filters={filters}
-              availableOptions={availableOptions}
-              onFilterChange={onFilterChange}
-            />
-          ) : (
-            <FilterBar
-              filters={filters}
-              availableOptions={availableOptions}
-              onFilterChange={onFilterChange}
-            />
-          )}
+          <div className="w-full lg:w-auto">
+            {isMobile ? (
+              <MobileFilterBar
+                filters={filters}
+                availableOptions={availableOptions}
+                onFilterChange={onFilterChange}
+              />
+            ) : (
+              <FilterBar
+                filters={filters}
+                availableOptions={availableOptions}
+                onFilterChange={onFilterChange}
+              />
+            )}
+          </div>
         </div>
       </div>
     </div>

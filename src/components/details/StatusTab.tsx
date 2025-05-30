@@ -9,7 +9,9 @@ import { Application } from "@/types/application";
 import { AuditLog } from "@/hooks/useAuditLogs";
 import { format } from "date-fns";
 import { formatPtpDate } from "@/utils/formatters";
-import { ChevronDown, ChevronUp, History } from "lucide-react";
+import { History } from "lucide-react";
+import { useFilteredAuditLogs } from "@/hooks/useFilteredAuditLogs";
+import LogDialog from "./LogDialog";
 
 interface StatusTabProps {
   application: Application;
@@ -20,11 +22,10 @@ interface StatusTabProps {
 
 const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: StatusTabProps) => {
   const [ptpDate, setPtpDate] = useState(application.ptp_date ? application.ptp_date.split('T')[0] : '');
-  const [showAllHistory, setShowAllHistory] = useState(false);
-
-  console.log('StatusTab - Application ID:', application.applicant_id);
-  console.log('StatusTab - Audit logs:', auditLogs);
-  console.log('StatusTab - Audit logs length:', auditLogs.length);
+  const [showLogDialog, setShowLogDialog] = useState(false);
+  
+  // Filter audit logs to only show status-related changes
+  const statusOnlyLogs = useFilteredAuditLogs(auditLogs);
 
   const handlePtpDateChange = (value: string) => {
     setPtpDate(value);
@@ -40,9 +41,8 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
     }
   };
 
-  // Show only top 2 entries by default
-  const displayedLogs = showAllHistory ? auditLogs : auditLogs.slice(0, 2);
-  const hasMoreLogs = auditLogs.length > 2;
+  // Show only recent 2 status changes
+  const recentStatusLogs = statusOnlyLogs.slice(0, 2);
 
   return (
     <div className="space-y-4">
@@ -85,61 +85,46 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
         </CardContent>
       </Card>
 
+      {/* Recent Status Changes - Compact View */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center justify-between">
             <div className="flex items-center gap-2">
               <History className="h-4 w-4" />
               Recent Status Changes
-              <span className="text-xs text-gray-500">({auditLogs.length} total)</span>
             </div>
-            {hasMoreLogs && (
+            {statusOnlyLogs.length > 0 && (
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                onClick={() => setShowAllHistory(!showAllHistory)}
-                className="text-xs h-6"
+                onClick={() => setShowLogDialog(true)}
+                className="text-xs h-7"
               >
-                {showAllHistory ? (
-                  <>
-                    Show Recent <ChevronUp className="h-3 w-3 ml-1" />
-                  </>
-                ) : (
-                  <>
-                    Show All ({auditLogs.length}) <ChevronDown className="h-3 w-3 ml-1" />
-                  </>
-                )}
+                Log ({statusOnlyLogs.length})
               </Button>
             )}
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
-          {auditLogs.length === 0 ? (
-            <div className="text-sm text-gray-500 text-center py-4">
+          {recentStatusLogs.length === 0 ? (
+            <div className="text-sm text-gray-500 text-center py-3">
               No status changes recorded yet
             </div>
           ) : (
-            <div className="space-y-3 max-h-60 overflow-y-auto">
-              {displayedLogs.map((log) => (
-                <div key={log.id} className="border rounded-lg p-3 bg-gray-50 text-sm">
-                  <div className="flex justify-between items-start mb-2">
+            <div className="space-y-2">
+              {recentStatusLogs.map((log) => (
+                <div key={log.id} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
+                  <div className="flex-1">
                     <span className="font-medium text-blue-700">{log.field}</span>
-                    <span className="text-xs text-gray-500">
-                      {formatDateTime(log.created_at)}
-                    </span>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="text-xs">
-                      <span className="text-gray-600">From:</span>{' '}
+                    <div className="text-xs text-gray-600">
                       <span className="text-red-600">{log.previous_value || 'Not Set'}</span>
-                    </div>
-                    <div className="text-xs">
-                      <span className="text-gray-600">To:</span>{' '}
+                      {' → '}
                       <span className="text-green-600">{log.new_value || 'Not Set'}</span>
                     </div>
-                    <div className="text-xs text-gray-500">
-                      Changed by: {log.user_name || 'Unknown User'}
-                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500 text-right">
+                    <div>{formatDateTime(log.created_at)}</div>
+                    <div>by {log.user_name || 'Unknown'}</div>
                   </div>
                 </div>
               ))}
@@ -147,6 +132,15 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
           )}
         </CardContent>
       </Card>
+
+      {/* Log Dialog */}
+      <LogDialog
+        open={showLogDialog}
+        onClose={() => setShowLogDialog(false)}
+        logs={statusOnlyLogs}
+        title="Status Change History"
+        type="audit"
+      />
     </div>
   );
 };
