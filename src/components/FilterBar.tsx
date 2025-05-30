@@ -65,11 +65,11 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-96 p-4" align="start">
+        <PopoverContent className="w-[800px] p-4" align="start">
           <div className="space-y-4">
             <h3 className="font-medium text-gray-900 mb-3">Filter Applications</h3>
             
-            <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-4">
               <CustomMultiSelectFilter
                 label="EMI Months"
                 options={safeFilterOptions.emiMonths}
