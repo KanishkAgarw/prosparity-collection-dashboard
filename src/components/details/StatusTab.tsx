@@ -22,6 +22,10 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
   const [ptpDate, setPtpDate] = useState(application.ptp_date ? application.ptp_date.split('T')[0] : '');
   const [showAllHistory, setShowAllHistory] = useState(false);
 
+  console.log('StatusTab - Application ID:', application.applicant_id);
+  console.log('StatusTab - Audit logs:', auditLogs);
+  console.log('StatusTab - Audit logs length:', auditLogs.length);
+
   const handlePtpDateChange = (value: string) => {
     setPtpDate(value);
     onPtpDateChange(value);
@@ -81,35 +85,40 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
         </CardContent>
       </Card>
 
-      {auditLogs.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <History className="h-4 w-4" />
-                Recent Status Changes
-              </div>
-              {hasMoreLogs && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowAllHistory(!showAllHistory)}
-                  className="text-xs h-6"
-                >
-                  {showAllHistory ? (
-                    <>
-                      Show Less <ChevronUp className="h-3 w-3 ml-1" />
-                    </>
-                  ) : (
-                    <>
-                      Show All ({auditLogs.length}) <ChevronDown className="h-3 w-3 ml-1" />
-                    </>
-                  )}
-                </Button>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <History className="h-4 w-4" />
+              Recent Status Changes
+              <span className="text-xs text-gray-500">({auditLogs.length} total)</span>
+            </div>
+            {hasMoreLogs && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAllHistory(!showAllHistory)}
+                className="text-xs h-6"
+              >
+                {showAllHistory ? (
+                  <>
+                    Show Recent <ChevronUp className="h-3 w-3 ml-1" />
+                  </>
+                ) : (
+                  <>
+                    Show All ({auditLogs.length}) <ChevronDown className="h-3 w-3 ml-1" />
+                  </>
+                )}
+              </Button>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {auditLogs.length === 0 ? (
+            <div className="text-sm text-gray-500 text-center py-4">
+              No status changes recorded yet
+            </div>
+          ) : (
             <div className="space-y-3 max-h-60 overflow-y-auto">
               {displayedLogs.map((log) => (
                 <div key={log.id} className="border rounded-lg p-3 bg-gray-50 text-sm">
@@ -135,9 +144,9 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

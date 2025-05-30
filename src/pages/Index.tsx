@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import { useApplications } from "@/hooks/useApplications";
 import { useCascadingFilters } from "@/hooks/useCascadingFilters";
@@ -125,8 +124,8 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto py-2 px-2 sm:py-3 sm:px-4 lg:px-6 max-w-7xl">
-        <div className="space-y-3">
+      <div className="container mx-auto py-4 px-4 sm:py-6 sm:px-6 lg:px-8 max-w-7xl">
+        <div className="space-y-6">
           <AppHeader 
             onExport={handleExport}
             onApplicationAdded={refetch}

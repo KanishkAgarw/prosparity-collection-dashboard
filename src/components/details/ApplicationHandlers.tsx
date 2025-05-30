@@ -16,6 +16,12 @@ export const useApplicationHandlers = (
   const handleStatusChange = async (newStatus: string) => {
     if (!user || !application || newStatus === application.status) return;
     
+    console.log('Handling status change:', { 
+      applicationId: application.applicant_id, 
+      oldStatus: application.status, 
+      newStatus 
+    });
+    
     try {
       const updateData = {
         status: newStatus,
@@ -33,6 +39,8 @@ export const useApplicationHandlers = (
         return;
       }
 
+      // Add audit log
+      console.log('Adding audit log for status change');
       await addAuditLog('Status', application.status, newStatus);
 
       const updatedApp = {
@@ -52,6 +60,12 @@ export const useApplicationHandlers = (
   const handlePtpDateChange = async (newDate: string) => {
     if (!user || !application || newDate === application.ptp_date) return;
     
+    console.log('Handling PTP date change:', { 
+      applicationId: application.applicant_id, 
+      oldDate: application.ptp_date, 
+      newDate 
+    });
+    
     try {
       const updateData = {
         ptp_date: newDate || null,
@@ -69,6 +83,8 @@ export const useApplicationHandlers = (
         return;
       }
 
+      // Add audit log
+      console.log('Adding audit log for PTP date change');
       await addAuditLog('PTP Date', application.ptp_date || 'Not set', newDate || 'Not set');
 
       const updatedApp = {
@@ -90,6 +106,13 @@ export const useApplicationHandlers = (
     
     const previousStatus = currentStatus || "Not Called";
     
+    console.log('Handling calling status change:', { 
+      applicationId: application.applicant_id, 
+      contactType, 
+      previousStatus, 
+      newStatus 
+    });
+    
     try {
       // Update the contact calling status table
       const success = await updateCallingStatus(contactType, newStatus);
@@ -99,9 +122,13 @@ export const useApplicationHandlers = (
         return;
       }
 
-      // Add calling log and audit log
+      // Add calling log
+      console.log('Adding calling log');
       await addCallingLog(contactType, previousStatus, newStatus);
-      await addAuditLog(`${contactType} Calling Status`, previousStatus, newStatus);
+      
+      // Add audit log for the calling status change
+      console.log('Adding audit log for calling status change');
+      await addAuditLog(`${contactType.replace('_', ' ')} Calling Status`, previousStatus, newStatus);
 
       toast.success('Calling status updated successfully');
     } catch (error) {

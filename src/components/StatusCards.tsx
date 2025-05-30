@@ -67,7 +67,7 @@ const StatusCards = ({ applications }: StatusCardsProps) => {
     };
 
     fetchTotalCounts();
-  }, [user, applications.length]); // Refresh when applications change
+  }, [user, applications.length]);
 
   // Reordered cards: Total → Paid → Partially Paid → Unpaid
   const cards = [
@@ -94,16 +94,16 @@ const StatusCards = ({ applications }: StatusCardsProps) => {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       {cards.map((card, index) => (
         <Card key={index} className={`${card.className} border`}>
-          <CardHeader className="pb-1 pt-3 px-3">
-            <CardTitle className="text-xs font-medium text-gray-600">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="text-sm font-medium text-gray-600">
               {card.title}
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-0 pb-3 px-3">
-            <div className="text-lg font-bold">{card.value}</div>
+          <CardContent className="pt-0 pb-4 px-4">
+            <div className="text-2xl font-bold">{card.value}</div>
           </CardContent>
         </Card>
       ))}

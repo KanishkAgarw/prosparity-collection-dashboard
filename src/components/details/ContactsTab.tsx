@@ -19,6 +19,10 @@ const ContactsTab = ({ application, callingLogs, onCallingStatusChange }: Contac
   const [showAllCallHistory, setShowAllCallHistory] = useState(false);
   const { getStatusForContact } = useContactCallingStatus(application.applicant_id);
 
+  console.log('ContactsTab - Application ID:', application.applicant_id);
+  console.log('ContactsTab - Calling logs:', callingLogs);
+  console.log('ContactsTab - Calling logs length:', callingLogs.length);
+
   const formatDateTime = (dateStr: string) => {
     try {
       const date = new Date(dateStr);
@@ -84,35 +88,40 @@ const ContactsTab = ({ application, callingLogs, onCallingStatusChange }: Contac
       </div>
 
       {/* Recent Call Activity */}
-      {callingLogs.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Activity className="h-4 w-4" />
-                Recent Call Activity
-              </div>
-              {hasMoreCallLogs && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowAllCallHistory(!showAllCallHistory)}
-                  className="text-xs h-6"
-                >
-                  {showAllCallHistory ? (
-                    <>
-                      Show Less <ChevronUp className="h-3 w-3 ml-1" />
-                    </>
-                  ) : (
-                    <>
-                      Show All ({callingLogs.length}) <ChevronDown className="h-3 w-3 ml-1" />
-                    </>
-                  )}
-                </Button>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              Recent Call Activity
+              <span className="text-xs text-gray-500">({callingLogs.length} total)</span>
+            </div>
+            {hasMoreCallLogs && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAllCallHistory(!showAllCallHistory)}
+                className="text-xs h-6"
+              >
+                {showAllCallHistory ? (
+                  <>
+                    Show Recent <ChevronUp className="h-3 w-3 ml-1" />
+                  </>
+                ) : (
+                  <>
+                    Show All ({callingLogs.length}) <ChevronDown className="h-3 w-3 ml-1" />
+                  </>
+                )}
+              </Button>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {callingLogs.length === 0 ? (
+            <div className="text-sm text-gray-500 text-center py-4">
+              No call activity recorded yet
+            </div>
+          ) : (
             <div className="space-y-3 max-h-60 overflow-y-auto">
               {displayedCallLogs.map((log) => (
                 <div key={log.id} className="border rounded-lg p-3 bg-gray-50 text-sm">
@@ -138,9 +147,9 @@ const ContactsTab = ({ application, callingLogs, onCallingStatusChange }: Contac
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
