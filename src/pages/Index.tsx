@@ -17,10 +17,12 @@ import { Button } from "@/components/ui/button";
 import { LogOut, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
-  const { user } = useAuth();
-  const { applications, loading, refetch } = useApplications();
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+  const { applications, loading: appsLoading, refetch } = useApplications();
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -59,9 +61,11 @@ const Index = () => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {
+        console.error("Sign out error:", error);
         toast.error("Error signing out");
       } else {
         toast.success("Signed out successfully");
+        navigate('/auth');
       }
     } catch (error) {
       console.error("Error signing out:", error);
@@ -69,10 +73,22 @@ const Index = () => {
     }
   };
 
+  // Show loading screen while auth is loading
+  if (authLoading) {
+    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+  }
+
+  // Redirect to auth if not authenticated
+  if (!user) {
+    navigate('/auth');
+    return null;
+  }
+
   const isAdmin = user?.email === 'kanishk@prosparity.in';
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+  // Show loading for applications
+  if (appsLoading) {
+    return <div className="flex items-center justify-center h-screen">Loading applications...</div>;
   }
 
   return (
