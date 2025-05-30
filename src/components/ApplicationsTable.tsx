@@ -9,19 +9,19 @@ import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 
 interface Application {
-  applicationId: string;
-  applicantName: string;
-  branch: string;
-  teamLead: string;
-  rm: string;
-  dealer: string;
-  lender: string;
+  id: string;
+  applicant_id: string;
+  applicant_name: string;
+  branch_name: string;
+  team_lead: string;
+  rm_name: string;
+  dealer_name: string;
+  lender_name: string;
   status: string;
-  emiDue: number;
-  demandMonth: string;
-  paidDate?: string;
-  ptpDate?: string;
-  rmComments?: string;
+  emi_amount: number;
+  demand_date?: string;
+  ptp_date?: string;
+  rm_comments?: string;
 }
 
 interface ApplicationsTableProps {
@@ -78,7 +78,7 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
       const { error } = await supabase
         .from('applications')
         .delete()
-        .eq('application_id', applicationId);
+        .eq('applicant_id', applicationId);
 
       if (error) {
         console.error('Error deleting application:', error);
@@ -94,69 +94,71 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
   };
 
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="min-w-[280px]">Details</TableHead>
-            <TableHead className="min-w-[100px]">Dealer</TableHead>
-            <TableHead className="min-w-[100px]">Lender</TableHead>
-            <TableHead className="min-w-[100px]">EMI Due</TableHead>
-            <TableHead className="min-w-[120px]">Status</TableHead>
-            <TableHead className="min-w-[100px]">PTP Date</TableHead>
-            {isAdmin && <TableHead className="min-w-[80px]">Actions</TableHead>}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {applications.map((app) => (
-            <TableRow 
-              key={app.applicationId} 
-              className={`cursor-pointer transition-colors ${
-                selectedApplicationId === app.applicationId 
-                  ? 'bg-blue-50 border-l-4 border-l-blue-500 hover:bg-blue-100' 
-                  : 'hover:bg-gray-50'
-              }`}
-              onClick={() => onRowClick(app)}
-            >
-              <TableCell className="py-3">
-                <div className="space-y-1">
-                  <div className="font-semibold text-blue-900">{app.applicantName}</div>
-                  <div className="text-sm text-gray-600">
-                    <span className="font-medium">ID:</span> {app.applicationId}
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    <span className="font-medium">EMI:</span> {app.demandMonth} | 
-                    <span className="font-medium"> Branch:</span> {app.branch}
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    <span className="font-medium">TL:</span> {app.teamLead} | 
-                    <span className="font-medium"> RM:</span> {app.rm}
-                  </div>
-                </div>
-              </TableCell>
-              <TableCell>{app.dealer}</TableCell>
-              <TableCell>{app.lender}</TableCell>
-              <TableCell className="font-medium text-blue-600">{formatCurrency(app.emiDue)}</TableCell>
-              <TableCell>{getStatusBadge(app.status)}</TableCell>
-              <TableCell className={`${app.ptpDate ? 'text-blue-600 font-medium' : 'text-gray-400'} whitespace-nowrap`}>
-                {formatPtpDate(app.ptpDate)}
-              </TableCell>
-              {isAdmin && (
-                <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => handleDelete(app.applicationId, e)}
-                    className="text-red-600 hover:text-red-800 hover:bg-red-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </TableCell>
-              )}
+    <div className="px-4 sm:px-6 lg:px-8">
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="min-w-[320px]">Details</TableHead>
+              <TableHead className="min-w-[120px]">EMI Due</TableHead>
+              <TableHead className="min-w-[120px]">Status</TableHead>
+              <TableHead className="min-w-[100px]">PTP Date</TableHead>
+              {isAdmin && <TableHead className="min-w-[80px]">Actions</TableHead>}
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {applications.map((app) => (
+              <TableRow 
+                key={app.id} 
+                className={`cursor-pointer transition-colors ${
+                  selectedApplicationId === app.id 
+                    ? 'bg-blue-50 border-l-4 border-l-blue-500 hover:bg-blue-100' 
+                    : 'hover:bg-gray-50'
+                }`}
+                onClick={() => onRowClick(app)}
+              >
+                <TableCell className="py-3">
+                  <div className="space-y-1">
+                    <div className="font-semibold text-blue-900">{app.applicant_name}</div>
+                    <div className="text-sm text-gray-600">
+                      <span className="font-medium">ID:</span> {app.applicant_id}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      <span className="font-medium">EMI Month:</span> {app.demand_date} | 
+                      <span className="font-medium"> Branch:</span> {app.branch_name}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      <span className="font-medium">TL:</span> {app.team_lead} | 
+                      <span className="font-medium"> RM:</span> {app.rm_name}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      <span className="font-medium">Dealer:</span> {app.dealer_name} | 
+                      <span className="font-medium"> Lender:</span> {app.lender_name}
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell className="font-medium text-blue-600">{formatCurrency(app.emi_amount)}</TableCell>
+                <TableCell>{getStatusBadge(app.status)}</TableCell>
+                <TableCell className={`${app.ptp_date ? 'text-blue-600 font-medium' : 'text-gray-400'} whitespace-nowrap`}>
+                  {formatPtpDate(app.ptp_date)}
+                </TableCell>
+                {isAdmin && (
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => handleDelete(app.applicant_id, e)}
+                      className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                )}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 };

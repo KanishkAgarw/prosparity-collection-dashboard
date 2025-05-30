@@ -15,16 +15,33 @@ interface UploadApplicationDialogProps {
 }
 
 interface ExcelRowData {
-  'Application ID': string;
+  'Applicant ID': string;
+  'Branch Name': string;
+  'RM Name': string;
+  'Dealer Name': string;
   'Applicant Name': string;
-  'Branch': string;
-  'Team Lead': string;
-  'RM': string;
-  'Dealer': string;
-  'Lender': string;
-  'EMI Due': number;
-  'EMI Month': string;
+  'Applicant Mobile Number': string;
+  'Applicant Current Address': string;
+  'House Ownership': string;
+  'Co-Applicant Name': string;
+  'Coapplicant Mobile Number': string;
+  'Coapplicant Current Address': string;
+  'Guarantor Name': string;
+  'Guarantor Mobile Number': string;
+  'Guarantor Current Address': string;
+  'Reference Name': string;
+  'Reference Mobile Number': string;
+  'Reference Address': string;
+  'FI Submission Location': string;
+  'Demand Date': string;
+  'Repayment': string;
+  'Principle Due': number;
+  'Interest Due': number;
+  'EMI': number;
+  'Last Month Bounce': number;
+  'Lender Name': string;
   'Status': string;
+  'Team Lead': string;
 }
 
 const UploadApplicationDialog = ({ onApplicationAdded }: UploadApplicationDialogProps) => {
@@ -49,16 +66,33 @@ const UploadApplicationDialog = ({ onApplicationAdded }: UploadApplicationDialog
   const downloadTemplate = () => {
     const templateData = [
       {
-        'Application ID': 'APP001',
-        'Applicant Name': 'John Doe',
-        'Branch': 'Mumbai',
-        'Team Lead': 'Manager Name',
-        'RM': 'RM Name',
-        'Dealer': 'Dealer Name',
-        'Lender': 'Bank Name',
-        'EMI Due': 25000,
-        'EMI Month': 'Jan 2024',
-        'Status': 'Unpaid'
+        'Applicant ID': 'PROSAPP250225000011',
+        'Branch Name': 'Bhopal',
+        'RM Name': 'Imtiyaz Ali',
+        'Dealer Name': 'Maa Bhawani Automobiles',
+        'Applicant Name': 'Ravindra Deshraj',
+        'Applicant Mobile Number': '9131299920',
+        'Applicant Current Address': 'SANT ASHARAM NAGAR PHASE-3 KI JUGGI BAG MUNGALIYA Bhopal Huzur BHOPAL 462043 Madhya Pradesh',
+        'House Ownership': 'Owned',
+        'Co-Applicant Name': 'Raj Kumar',
+        'Coapplicant Mobile Number': '7909466931',
+        'Coapplicant Current Address': '',
+        'Guarantor Name': '',
+        'Guarantor Mobile Number': '',
+        'Guarantor Current Address': '',
+        'Reference Name': 'Aftab Khan',
+        'Reference Mobile Number': '7869498395',
+        'Reference Address': 'H No 1071Mother India Colony Idgah Hills 462001',
+        'FI Submission Location': 'FI_PENDING 23.2337937 77.4502460',
+        'Demand Date': '45813',
+        'Repayment': '2nd',
+        'Principle Due': 4114,
+        'Interest Due': 3542,
+        'EMI': 7656,
+        'Last Month Bounce': 0,
+        'Lender Name': 'Namdev',
+        'Status': 'Paid',
+        'Team Lead': 'Hemant Joshi'
       }
     ];
 
@@ -68,16 +102,33 @@ const UploadApplicationDialog = ({ onApplicationAdded }: UploadApplicationDialog
     
     // Set column widths
     const wscols = [
-      { wch: 15 }, // Application ID
+      { wch: 20 }, // Applicant ID
+      { wch: 15 }, // Branch Name
+      { wch: 15 }, // RM Name
+      { wch: 20 }, // Dealer Name
       { wch: 20 }, // Applicant Name
-      { wch: 15 }, // Branch
-      { wch: 15 }, // Team Lead
-      { wch: 15 }, // RM
-      { wch: 15 }, // Dealer
-      { wch: 15 }, // Lender
-      { wch: 12 }, // EMI Due
-      { wch: 12 }, // EMI Month
-      { wch: 15 }  // Status
+      { wch: 15 }, // Mobile
+      { wch: 40 }, // Address
+      { wch: 12 }, // House Ownership
+      { wch: 15 }, // Co-Applicant Name
+      { wch: 15 }, // Co-Applicant Mobile
+      { wch: 30 }, // Co-Applicant Address
+      { wch: 15 }, // Guarantor Name
+      { wch: 15 }, // Guarantor Mobile
+      { wch: 30 }, // Guarantor Address
+      { wch: 15 }, // Reference Name
+      { wch: 15 }, // Reference Mobile
+      { wch: 30 }, // Reference Address
+      { wch: 25 }, // FI Location
+      { wch: 12 }, // Demand Date
+      { wch: 10 }, // Repayment
+      { wch: 12 }, // Principle Due
+      { wch: 12 }, // Interest Due
+      { wch: 10 }, // EMI
+      { wch: 15 }, // Last Month Bounce
+      { wch: 15 }, // Lender Name
+      { wch: 12 }, // Status
+      { wch: 15 }  // Team Lead
     ];
     ws['!cols'] = wscols;
 
@@ -105,16 +156,14 @@ const UploadApplicationDialog = ({ onApplicationAdded }: UploadApplicationDialog
 
       // Validate required columns
       const requiredColumns = [
-        'Application ID',
-        'Applicant Name', 
-        'Branch',
-        'Team Lead',
-        'RM',
-        'Dealer',
-        'Lender',
-        'EMI Due',
-        'EMI Month',
-        'Status'
+        'Applicant ID',
+        'Branch Name',
+        'RM Name',
+        'Dealer Name',
+        'Applicant Name',
+        'Lender Name',
+        'Status',
+        'Team Lead'
       ];
 
       const firstRow = jsonData[0];
@@ -127,16 +176,33 @@ const UploadApplicationDialog = ({ onApplicationAdded }: UploadApplicationDialog
 
       // Process and insert data
       const applicationsToInsert = jsonData.map(row => ({
-        application_id: String(row['Application ID']),
+        applicant_id: String(row['Applicant ID']),
+        branch_name: String(row['Branch Name']),
+        rm_name: String(row['RM Name']),
+        dealer_name: String(row['Dealer Name']),
         applicant_name: String(row['Applicant Name']),
-        branch: String(row['Branch']),
-        team_lead: String(row['Team Lead']),
-        rm: String(row['RM']),
-        dealer: String(row['Dealer']),
-        lender: String(row['Lender']),
-        emi_due: Number(row['EMI Due']),
-        emi_month: String(row['EMI Month']),
+        applicant_mobile: row['Applicant Mobile Number'] ? String(row['Applicant Mobile Number']) : null,
+        applicant_address: row['Applicant Current Address'] ? String(row['Applicant Current Address']) : null,
+        house_ownership: row['House Ownership'] ? String(row['House Ownership']) : null,
+        co_applicant_name: row['Co-Applicant Name'] ? String(row['Co-Applicant Name']) : null,
+        co_applicant_mobile: row['Coapplicant Mobile Number'] ? String(row['Coapplicant Mobile Number']) : null,
+        co_applicant_address: row['Coapplicant Current Address'] ? String(row['Coapplicant Current Address']) : null,
+        guarantor_name: row['Guarantor Name'] ? String(row['Guarantor Name']) : null,
+        guarantor_mobile: row['Guarantor Mobile Number'] ? String(row['Guarantor Mobile Number']) : null,
+        guarantor_address: row['Guarantor Current Address'] ? String(row['Guarantor Current Address']) : null,
+        reference_name: row['Reference Name'] ? String(row['Reference Name']) : null,
+        reference_mobile: row['Reference Mobile Number'] ? String(row['Reference Mobile Number']) : null,
+        reference_address: row['Reference Address'] ? String(row['Reference Address']) : null,
+        fi_location: row['FI Submission Location'] ? String(row['FI Submission Location']) : null,
+        demand_date: row['Demand Date'] ? String(row['Demand Date']) : null,
+        repayment: row['Repayment'] ? String(row['Repayment']) : null,
+        principle_due: row['Principle Due'] ? Number(row['Principle Due']) : 0,
+        interest_due: row['Interest Due'] ? Number(row['Interest Due']) : 0,
+        emi_amount: Number(row['EMI']),
+        last_month_bounce: row['Last Month Bounce'] ? Number(row['Last Month Bounce']) : 0,
+        lender_name: String(row['Lender Name']),
         status: String(row['Status']),
+        team_lead: String(row['Team Lead']),
         user_id: user.id
       }));
 

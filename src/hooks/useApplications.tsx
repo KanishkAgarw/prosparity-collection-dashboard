@@ -5,23 +5,39 @@ import { useAuth } from '@/hooks/useAuth';
 
 export interface Application {
   id: string;
-  application_id: string;
+  applicant_id: string;
   applicant_name: string;
-  branch: string;
+  branch_name: string;
   team_lead: string;
-  rm: string;
-  dealer: string;
-  lender: string;
+  rm_name: string;
+  dealer_name: string;
+  lender_name: string;
   status: string;
-  emi_due: number;
-  amount_paid: number;
-  emi_month: string;
+  emi_amount: number;
+  principle_due: number;
+  interest_due: number;
+  demand_date?: string;
   paid_date?: string;
   ptp_date?: string;
   rm_comments?: string;
   user_id: string;
   created_at: string;
   updated_at: string;
+  applicant_mobile?: string;
+  applicant_address?: string;
+  house_ownership?: string;
+  co_applicant_name?: string;
+  co_applicant_mobile?: string;
+  co_applicant_address?: string;
+  guarantor_name?: string;
+  guarantor_mobile?: string;
+  guarantor_address?: string;
+  reference_name?: string;
+  reference_mobile?: string;
+  reference_address?: string;
+  fi_location?: string;
+  repayment?: string;
+  last_month_bounce?: number;
 }
 
 export const useApplications = () => {

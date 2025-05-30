@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { X, Calendar, User, FileText, DollarSign, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,11 +27,10 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
   const { user } = useAuth();
   const [editedApp, setEditedApp] = useState<Application | null>(null);
   const [newComment, setNewComment] = useState("");
-  const [amountPaid, setAmountPaid] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const { comments, addComment } = useComments(application?.applicationId);
-  const { auditLogs, addAuditLog } = useAuditLogs(application?.applicationId);
+  const { comments, addComment } = useComments(application?.applicant_id);
+  const { auditLogs, addAuditLog } = useAuditLogs(application?.applicant_id);
 
   if (!application) return null;
 
@@ -46,20 +46,15 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
       // Prepare update data
       const updateData: any = {
         status: editedApp.status,
-        ptp_date: editedApp.ptpDate || null,
+        ptp_date: editedApp.ptp_date || null,
         updated_at: new Date().toISOString()
       };
-
-      // Add amount paid if it was entered
-      if (amountPaid && !isNaN(Number(amountPaid))) {
-        updateData.amount_paid = Number(amountPaid);
-      }
 
       // Update the application in the database
       const { error } = await supabase
         .from('applications')
         .update(updateData)
-        .eq('application_id', editedApp.applicationId);
+        .eq('applicant_id', editedApp.applicant_id);
 
       if (error) {
         console.error('Error updating application:', error);
@@ -72,20 +67,13 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
         await addAuditLog('Status', application.status, editedApp.status);
       }
 
-      if (editedApp.ptpDate !== application.ptpDate) {
-        await addAuditLog('PTP Date', application.ptpDate || 'Not set', editedApp.ptpDate || 'Not set');
-      }
-
-      if (amountPaid && !isNaN(Number(amountPaid))) {
-        const previousAmount = application.amountPaid || 0;
-        const newAmount = Number(amountPaid);
-        await addAuditLog('Amount Paid', `₹${previousAmount.toLocaleString('en-IN')}`, `₹${newAmount.toLocaleString('en-IN')}`);
+      if (editedApp.ptp_date !== application.ptp_date) {
+        await addAuditLog('PTP Date', application.ptp_date || 'Not set', editedApp.ptp_date || 'Not set');
       }
 
       console.log('Application saved successfully');
       toast.success('Changes saved successfully');
       setEditedApp(null);
-      setAmountPaid("");
       onSave();
     } catch (error) {
       console.error('Error saving application:', error);
@@ -192,9 +180,9 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
               <User className="h-5 w-5 text-white" />
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className="font-semibold text-lg text-blue-900 truncate">{application.applicantName}</h3>
-              <p className="text-sm text-blue-700 truncate">EMI Month: {application.demandMonth}</p>
-              <p className="text-sm text-blue-600 mt-1">EMI Due: {formatCurrency(application.emiDue)}</p>
+              <h3 className="font-semibold text-lg text-blue-900 truncate">{application.applicant_name}</h3>
+              <p className="text-sm text-blue-700 truncate">EMI Month: {application.demand_date}</p>
+              <p className="text-sm text-blue-600 mt-1">EMI Due: {formatCurrency(application.emi_amount)}</p>
             </div>
           </div>
         </div>
@@ -267,34 +255,16 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                 </div>
 
                 <div>
-                  <Label htmlFor="amountPaid">Amount Paid (₹)</Label>
-                  <Input
-                    id="amountPaid"
-                    type="number"
-                    placeholder="Enter amount paid"
-                    value={amountPaid}
-                    onChange={(e) => setAmountPaid(e.target.value)}
-                    min="0"
-                    step="1"
-                  />
-                  {application.amountPaid && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      Previous: {formatCurrency(application.amountPaid || 0)}
-                    </p>
-                  )}
-                </div>
-
-                <div>
                   <Label htmlFor="ptpDate">Promise to Pay Date</Label>
                   <Input
                     id="ptpDate"
                     type="date"
-                    value={currentApp.ptpDate || ''}
-                    onChange={(e) => updateField('ptpDate', e.target.value)}
+                    value={currentApp.ptp_date || ''}
+                    onChange={(e) => updateField('ptp_date', e.target.value)}
                   />
-                  {currentApp.ptpDate && (
+                  {currentApp.ptp_date && (
                     <p className="text-xs text-gray-500 mt-1">
-                      Formatted: {formatPtpDate(currentApp.ptpDate)}
+                      Formatted: {formatPtpDate(currentApp.ptp_date)}
                     </p>
                   )}
                 </div>

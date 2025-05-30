@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Settings, UserPlus, Users, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,6 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import BulkUserUpload from './BulkUserUpload';
 
 interface AdminUserManagementProps {
   isAdmin: boolean;
@@ -87,113 +87,116 @@ const AdminUserManagement = ({ isAdmin }: AdminUserManagementProps) => {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Users className="h-4 w-4 mr-2" />
-          Manage Users
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <UserPlus className="h-5 w-5" />
-            User Management
-          </DialogTitle>
-          <DialogDescription>
-            Create new users and manage existing accounts. Users will receive login credentials.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleCreateUser} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="fullName">Full Name *</Label>
-            <Input
-              id="fullName"
-              type="text"
-              placeholder="Enter full name"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              required
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="email">Email (User ID) *</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="Enter email address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password *</Label>
-              <Button 
-                type="button" 
-                variant="ghost" 
-                size="sm" 
-                onClick={generatePassword}
-                className="text-xs"
-              >
-                Generate
-              </Button>
-            </div>
-            <div className="relative">
+    <div className="flex gap-2">
+      <BulkUserUpload />
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm">
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add User
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              User Management
+            </DialogTitle>
+            <DialogDescription>
+              Create new users and manage existing accounts. Users will receive login credentials.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateUser} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="fullName">Full Name *</Label>
               <Input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                placeholder="Enter password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                id="fullName"
+                type="text"
+                placeholder="Enter full name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
                 required
-                minLength={6}
               />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="email">Email (User ID) *</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Enter email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password *</Label>
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={generatePassword}
+                  className="text-xs"
+                >
+                  Generate
+                </Button>
+              </div>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="resetPassword" 
+                checked={resetPassword}
+                onCheckedChange={(checked) => setResetPassword(checked as boolean)}
+              />
+              <Label 
+                htmlFor="resetPassword" 
+                className="text-sm font-normal cursor-pointer"
+              >
+                Send password reset email after creation
+              </Label>
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-4">
               <Button
                 type="button"
-                variant="ghost"
-                size="sm"
-                className="absolute right-0 top-0 h-full px-3"
-                onClick={() => setShowPassword(!showPassword)}
+                variant="outline"
+                onClick={() => setOpen(false)}
+                disabled={loading}
               >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                Cancel
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? 'Creating...' : 'Create User'}
               </Button>
             </div>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="resetPassword" 
-              checked={resetPassword}
-              onCheckedChange={(checked) => setResetPassword(checked as boolean)}
-            />
-            <Label 
-              htmlFor="resetPassword" 
-              className="text-sm font-normal cursor-pointer"
-            >
-              Send password reset email after creation
-            </Label>
-          </div>
-
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Creating...' : 'Create User'}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };
 

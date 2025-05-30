@@ -1,20 +1,37 @@
 
 export interface Application {
-  applicationId: string;
-  applicantName: string;
-  branch: string;
-  teamLead: string;
-  rm: string;
-  dealer: string;
-  lender: string;
+  id: string;
+  applicant_id: string;
+  applicant_name: string;
+  branch_name: string;
+  team_lead: string;
+  rm_name: string;
+  dealer_name: string;
+  lender_name: string;
   status: string;
-  emiDue: number;
-  amountPaid?: number;
-  paidDate?: string;
-  ptpDate?: string;
-  demandMonth: string;
-  rmComments?: string;
+  emi_amount: number;
+  principle_due?: number;
+  interest_due?: number;
+  ptp_date?: string;
+  paid_date?: string;
+  demand_date?: string;
+  rm_comments?: string;
   auditLogs?: AuditLog[];
+  applicant_mobile?: string;
+  applicant_address?: string;
+  house_ownership?: string;
+  co_applicant_name?: string;
+  co_applicant_mobile?: string;
+  co_applicant_address?: string;
+  guarantor_name?: string;
+  guarantor_mobile?: string;
+  guarantor_address?: string;
+  reference_name?: string;
+  reference_mobile?: string;
+  reference_address?: string;
+  fi_location?: string;
+  repayment?: string;
+  last_month_bounce?: number;
 }
 
 export interface AuditLog {
