@@ -234,6 +234,39 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_calling_status: {
+        Row: {
+          application_id: string
+          contact_type: string
+          created_at: string | null
+          id: string
+          status: string
+          updated_at: string | null
+          user_email: string | null
+          user_id: string
+        }
+        Insert: {
+          application_id: string
+          contact_type: string
+          created_at?: string | null
+          id?: string
+          status?: string
+          updated_at?: string | null
+          user_email?: string | null
+          user_id: string
+        }
+        Update: {
+          application_id?: string
+          contact_type?: string
+          created_at?: string | null
+          id?: string
+          status?: string
+          updated_at?: string | null
+          user_email?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string | null

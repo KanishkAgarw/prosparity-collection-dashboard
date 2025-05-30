@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import { useApplications } from "@/hooks/useApplications";
 import { useCascadingFilters } from "@/hooks/useCascadingFilters";
@@ -34,7 +33,7 @@ const Index = () => {
   });
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const { exportToExcel, exportToCSV } = useExport();
+  const { exportToExcel } = useExport();
 
   const {
     filters,
@@ -106,7 +105,7 @@ const Index = () => {
     }
   };
 
-  const handleExport = async (format: 'excel' | 'csv') => {
+  const handleExport = async () => {
     try {
       toast.loading('Preparing export...', { id: 'export' });
       
@@ -114,12 +113,7 @@ const Index = () => {
         applications: sortedAndSearchFilteredApplications
       };
 
-      if (format === 'excel') {
-        exportToExcel(exportData, 'collection-monitoring-report');
-      } else {
-        exportToCSV(exportData, 'collection-summary');
-      }
-
+      exportToExcel(exportData, 'collection-monitoring-report');
       toast.success('Export completed successfully!', { id: 'export' });
     } catch (error) {
       console.error('Export error:', error);
@@ -164,24 +158,10 @@ const Index = () => {
             <div className="flex items-center gap-4">
               {/* Admin buttons and Export - hidden on mobile */}
               <div className="hidden sm:flex items-center gap-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <Download className="h-4 w-4 mr-2" />
-                      Export
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => handleExport('excel')}>
-                      <FileSpreadsheet className="h-4 w-4 mr-2" />
-                      Export to Excel
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleExport('csv')}>
-                      <FileSpreadsheet className="h-4 w-4 mr-2" />
-                      Export to CSV
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <Button variant="outline" size="sm" onClick={handleExport}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export to Excel
+                </Button>
                 {isAdmin && <UploadApplicationDialog onApplicationAdded={refetch} />}
                 {isAdmin && <AdminUserManagement isAdmin={isAdmin} />}
               </div>
@@ -202,24 +182,10 @@ const Index = () => {
 
           {/* Mobile Export Button */}
           <div className="sm:hidden">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="w-full">
-                  <Download className="h-4 w-4 mr-2" />
-                  Export Data
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-full">
-                <DropdownMenuItem onClick={() => handleExport('excel')}>
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />
-                  Export to Excel
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport('csv')}>
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />
-                  Export to CSV
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button variant="outline" size="sm" className="w-full" onClick={handleExport}>
+              <Download className="h-4 w-4 mr-2" />
+              Export to Excel
+            </Button>
           </div>
 
           {/* Filters */}

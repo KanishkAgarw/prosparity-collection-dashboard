@@ -4,10 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Application } from "@/types/application";
 import { AuditLog } from "@/hooks/useAuditLogs";
 import { format } from "date-fns";
 import { formatPtpDate } from "@/utils/formatters";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 interface StatusTabProps {
   application: Application;
@@ -18,6 +20,7 @@ interface StatusTabProps {
 
 const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: StatusTabProps) => {
   const [ptpDate, setPtpDate] = useState(application.ptp_date ? application.ptp_date.split('T')[0] : '');
+  const [showAllHistory, setShowAllHistory] = useState(false);
 
   const handlePtpDateChange = (value: string) => {
     setPtpDate(value);
@@ -32,6 +35,10 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
       return dateStr;
     }
   };
+
+  // Show only top 2 entries by default
+  const displayedLogs = showAllHistory ? auditLogs : auditLogs.slice(0, 2);
+  const hasMoreLogs = auditLogs.length > 2;
 
   return (
     <div className="space-y-4">
@@ -77,11 +84,31 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
       {auditLogs.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Change History</CardTitle>
+            <CardTitle className="text-sm flex items-center justify-between">
+              Status History
+              {hasMoreLogs && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAllHistory(!showAllHistory)}
+                  className="text-xs"
+                >
+                  {showAllHistory ? (
+                    <>
+                      Show Less <ChevronUp className="h-3 w-3 ml-1" />
+                    </>
+                  ) : (
+                    <>
+                      Show All ({auditLogs.length}) <ChevronDown className="h-3 w-3 ml-1" />
+                    </>
+                  )}
+                </Button>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="space-y-3 max-h-60 overflow-y-auto">
-              {auditLogs.map((log) => (
+              {displayedLogs.map((log) => (
                 <div key={log.id} className="border rounded-lg p-3 bg-gray-50 text-sm">
                   <div className="flex justify-between items-start mb-2">
                     <span className="font-medium text-blue-700">{log.field}</span>

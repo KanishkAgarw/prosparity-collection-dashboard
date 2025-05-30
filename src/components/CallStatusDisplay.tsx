@@ -37,8 +37,6 @@ const CallStatusDisplay = ({ application }: CallStatusDisplayProps) => {
     }] : [])
   ];
 
-  const calledContacts = contacts.filter(contact => contact.status && contact.status !== 'Not Called');
-
   return (
     <div className="space-y-1">
       {contacts.map((contact, index) => (
@@ -53,11 +51,6 @@ const CallStatusDisplay = ({ application }: CallStatusDisplayProps) => {
           )}
         </div>
       ))}
-      {calledContacts.length > 0 && (
-        <div className={`text-xs font-medium ${calledContacts.some(c => c.status === 'Called - Answered') ? 'text-green-600' : 'text-red-600'}`}>
-          {calledContacts.length}/{contacts.length} called
-        </div>
-      )}
     </div>
   );
 };

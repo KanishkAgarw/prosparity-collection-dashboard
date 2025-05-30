@@ -1,4 +1,3 @@
-
 import { format } from "date-fns";
 
 export const formatEmiMonth = (dateStr?: string) => {
@@ -51,12 +50,15 @@ export const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
-export const formatPtpDate = (ptpDate?: string) => {
-  if (!ptpDate) return "NA";
+export const formatPtpDate = (dateStr?: string | null): string => {
+  if (!dateStr) return 'Not Set';
+  
   try {
-    return format(new Date(ptpDate), 'dd-MMM-yy');
+    const date = new Date(dateStr);
+    // Format as DD-MMM-YYYY (e.g., 04-Jun-2025)
+    return format(date, 'dd-MMM-yyyy');
   } catch {
-    return "NA";
+    return 'Invalid Date';
   }
 };
 
