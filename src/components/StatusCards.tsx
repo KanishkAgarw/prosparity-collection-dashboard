@@ -2,15 +2,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface StatusCardsProps {
-  data: {
-    totalEMIs: number;
-    fullyPaid: number;
-    partiallyPaid: number;
-    unpaid: number;
-  };
+  applications: any[];
 }
 
-const StatusCards = ({ data }: StatusCardsProps) => {
+const StatusCards = ({ applications }: StatusCardsProps) => {
+  const data = {
+    totalEMIs: applications.length,
+    fullyPaid: applications.filter(app => app.status === "Paid").length,
+    partiallyPaid: applications.filter(app => app.status === "Partially Paid").length,
+    unpaid: applications.filter(app => app.status === "Unpaid").length
+  };
+
   const cards = [
     {
       title: "Total Applications",

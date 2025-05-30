@@ -20,7 +20,7 @@ export function useFilteredOptions({ teamLeads, selectedTeamLead }: FilteredOpti
       try {
         const { data, error } = await supabase
           .from('applications')
-          .select('team_lead, dealer')
+          .select('team_lead, dealer_name')
           .in('team_lead', teamLeads);
 
         if (error) {
@@ -31,12 +31,12 @@ export function useFilteredOptions({ teamLeads, selectedTeamLead }: FilteredOpti
         // Build mapping of team lead to dealers
         const mapping: Record<string, Set<string>> = {};
         data?.forEach(item => {
-          if (!item.team_lead || !item.dealer) return;
+          if (!item.team_lead || !item.dealer_name) return;
           
           if (!mapping[item.team_lead]) {
             mapping[item.team_lead] = new Set();
           }
-          mapping[item.team_lead].add(item.dealer);
+          mapping[item.team_lead].add(item.dealer_name);
         });
 
         // Convert sets to arrays

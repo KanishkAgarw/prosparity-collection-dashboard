@@ -22,31 +22,12 @@ const Index = () => {
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Transform applications to match expected interface
-  const transformedApplications = useMemo(() => {
-    return applications.map(app => ({
-      applicationId: app.applicant_id,
-      applicantName: app.applicant_name,
-      branch: app.branch_name,
-      teamLead: app.team_lead,
-      rm: app.rm_name,
-      dealer: app.dealer_name,
-      lender: app.lender_name,
-      status: app.status,
-      emiDue: app.emi_amount,
-      demandMonth: app.demand_date || '',
-      ptpDate: app.ptp_date,
-      rmComments: app.rm_comments,
-      ...app
-    }));
-  }, [applications]);
-
   const {
     filters,
     filteredApplications,
     availableOptions,
     handleFilterChange
-  } = useCascadingFilters({ applications: transformedApplications });
+  } = useCascadingFilters({ applications });
 
   // Apply search filter
   const searchFilteredApplications = useMemo(() => {
@@ -54,12 +35,12 @@ const Index = () => {
     
     const lowerSearchTerm = searchTerm.toLowerCase();
     return filteredApplications.filter(app =>
-      app.applicantName.toLowerCase().includes(lowerSearchTerm) ||
-      app.applicationId.toLowerCase().includes(lowerSearchTerm) ||
-      app.dealer.toLowerCase().includes(lowerSearchTerm) ||
-      app.lender.toLowerCase().includes(lowerSearchTerm) ||
-      app.rm.toLowerCase().includes(lowerSearchTerm) ||
-      app.teamLead.toLowerCase().includes(lowerSearchTerm)
+      app.applicant_name.toLowerCase().includes(lowerSearchTerm) ||
+      app.applicant_id.toLowerCase().includes(lowerSearchTerm) ||
+      app.dealer_name.toLowerCase().includes(lowerSearchTerm) ||
+      app.lender_name.toLowerCase().includes(lowerSearchTerm) ||
+      app.rm_name.toLowerCase().includes(lowerSearchTerm) ||
+      app.team_lead.toLowerCase().includes(lowerSearchTerm)
     );
   }, [filteredApplications, searchTerm]);
 

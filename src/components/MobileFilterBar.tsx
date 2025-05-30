@@ -15,7 +15,7 @@ interface MobileFilterBarProps {
     emiMonth: string[];
   };
   onFilterChange: (key: string, values: string[]) => void;
-  filterOptions: {
+  availableOptions: {
     branches: string[];
     teamLeads: string[];
     dealers: string[];
@@ -25,17 +25,17 @@ interface MobileFilterBarProps {
   };
 }
 
-const MobileFilterBar = ({ filters, onFilterChange, filterOptions }: MobileFilterBarProps) => {
+const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFilterBarProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
   // Ensure all filter options have default empty arrays
   const safeFilterOptions = {
-    branches: filterOptions?.branches || [],
-    teamLeads: filterOptions?.teamLeads || [],
-    dealers: filterOptions?.dealers || [],
-    lenders: filterOptions?.lenders || [],
-    statuses: filterOptions?.statuses || [],
-    emiMonths: filterOptions?.emiMonths || [],
+    branches: availableOptions?.branches || [],
+    teamLeads: availableOptions?.teamLeads || [],
+    dealers: availableOptions?.dealers || [],
+    lenders: availableOptions?.lenders || [],
+    statuses: availableOptions?.statuses || [],
+    emiMonths: availableOptions?.emiMonths || [],
   };
 
   // Ensure all filters have default empty arrays

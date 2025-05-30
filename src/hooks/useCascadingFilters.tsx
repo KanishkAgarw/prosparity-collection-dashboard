@@ -1,6 +1,5 @@
 
 import { useState, useEffect, useMemo } from "react";
-import { supabase } from "@/integrations/supabase/client";
 
 interface CascadingFiltersProps {
   applications: any[];
@@ -29,12 +28,12 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
   const filteredApplications = useMemo(() => {
     return applications.filter(app => {
       return (
-        (filters.branch.length === 0 || filters.branch.includes(app.branch)) &&
-        (filters.teamLead.length === 0 || filters.teamLead.includes(app.teamLead)) &&
-        (filters.dealer.length === 0 || filters.dealer.includes(app.dealer)) &&
-        (filters.lender.length === 0 || filters.lender.includes(app.lender)) &&
+        (filters.branch.length === 0 || filters.branch.includes(app.branch_name)) &&
+        (filters.teamLead.length === 0 || filters.teamLead.includes(app.team_lead)) &&
+        (filters.dealer.length === 0 || filters.dealer.includes(app.dealer_name)) &&
+        (filters.lender.length === 0 || filters.lender.includes(app.lender_name)) &&
         (filters.status.length === 0 || filters.status.includes(app.status)) &&
-        (filters.emiMonth.length === 0 || filters.emiMonth.includes(app.demandMonth))
+        (filters.emiMonth.length === 0 || filters.emiMonth.includes(app.demand_date))
       );
     });
   }, [applications, filters]);
@@ -44,12 +43,12 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
     const safeApplications = filteredApplications || [];
     
     return {
-      branches: [...new Set(safeApplications.map(app => app.branch).filter(Boolean))],
-      teamLeads: [...new Set(safeApplications.map(app => app.teamLead).filter(Boolean))],
-      dealers: [...new Set(safeApplications.map(app => app.dealer).filter(Boolean))],
-      lenders: [...new Set(safeApplications.map(app => app.lender).filter(Boolean))],
+      branches: [...new Set(safeApplications.map(app => app.branch_name).filter(Boolean))],
+      teamLeads: [...new Set(safeApplications.map(app => app.team_lead).filter(Boolean))],
+      dealers: [...new Set(safeApplications.map(app => app.dealer_name).filter(Boolean))],
+      lenders: [...new Set(safeApplications.map(app => app.lender_name).filter(Boolean))],
       statuses: [...new Set(safeApplications.map(app => app.status).filter(Boolean))],
-      emiMonths: [...new Set(safeApplications.map(app => app.demandMonth).filter(Boolean))]
+      emiMonths: [...new Set(safeApplications.map(app => app.demand_date).filter(Boolean))]
     };
   }, [filteredApplications]);
 
