@@ -43,11 +43,18 @@ export interface Application {
   guarantor_calling_status?: string;
   reference_calling_status?: string;
   latest_calling_status?: string;
+  recent_comments?: string[];
 }
 
-export const useApplications = () => {
+interface UseApplicationsProps {
+  page?: number;
+  pageSize?: number;
+}
+
+export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProps = {}) => {
   const { user } = useAuth();
   const [applications, setApplications] = useState<Application[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const fetchApplications = useCallback(async () => {
@@ -55,26 +62,67 @@ export const useApplications = () => {
     
     setLoading(true);
     try {
-      console.log('Fetching all applications (shared across users)');
+      console.log(`Fetching applications page ${page} (${pageSize} per page)`);
       
-      const { data, error } = await supabase
+      // Get total count
+      const { count } = await supabase
+        .from('applications')
+        .select('*', { count: 'exact', head: true });
+
+      setTotalCount(count || 0);
+
+      // Get paginated applications with recent comments
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
+      const { data: appsData, error: appsError } = await supabase
         .from('applications')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(from, to);
 
-      if (error) {
-        console.error('Error fetching applications:', error);
-      } else {
-        console.log('Fetched applications:', data);
-        console.log('Sample application data:', data?.[0]);
-        setApplications(data || []);
+      if (appsError) {
+        console.error('Error fetching applications:', appsError);
+        return;
       }
+
+      // Fetch recent comments for all applications
+      const appIds = appsData?.map(app => app.applicant_id) || [];
+      
+      let applicationsWithComments = appsData || [];
+      
+      if (appIds.length > 0) {
+        const { data: commentsData } = await supabase
+          .from('comments')
+          .select('application_id, content, created_at')
+          .in('application_id', appIds)
+          .order('created_at', { ascending: false });
+
+        // Group comments by application and get last 3
+        const commentsByApp = (commentsData || []).reduce((acc, comment) => {
+          if (!acc[comment.application_id]) {
+            acc[comment.application_id] = [];
+          }
+          if (acc[comment.application_id].length < 3) {
+            acc[comment.application_id].push(comment.content);
+          }
+          return acc;
+        }, {} as Record<string, string[]>);
+
+        applicationsWithComments = appsData.map(app => ({
+          ...app,
+          recent_comments: commentsByApp[app.applicant_id] || []
+        }));
+      }
+
+      console.log('Fetched applications with comments:', applicationsWithComments);
+      setApplications(applicationsWithComments);
     } catch (error) {
       console.error('Error fetching applications:', error);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, page, pageSize]);
 
   useEffect(() => {
     if (user) {
@@ -84,6 +132,9 @@ export const useApplications = () => {
 
   return {
     applications,
+    totalCount,
+    totalPages: Math.ceil(totalCount / pageSize),
+    currentPage: page,
     loading,
     refetch: fetchApplications
   };

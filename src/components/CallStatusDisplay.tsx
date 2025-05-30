@@ -6,6 +6,13 @@ interface CallStatusDisplayProps {
   application: Application;
 }
 
+const getStatusColor = (status?: string) => {
+  if (!status || status === 'Not Called') return 'text-gray-500';
+  if (status === 'Called - Answered') return 'text-green-600';
+  if (status === 'Called - Unsuccessful') return 'text-red-600';
+  return 'text-gray-500';
+};
+
 const CallStatusDisplay = ({ application }: CallStatusDisplayProps) => {
   const contacts = [
     {
@@ -40,14 +47,14 @@ const CallStatusDisplay = ({ application }: CallStatusDisplayProps) => {
             {contact.name}
           </span>
           {contact.status && contact.status !== 'Not Called' ? (
-            <Check className="h-3 w-3 text-green-600 flex-shrink-0" />
+            <Check className={`h-3 w-3 flex-shrink-0 ${contact.status === 'Called - Answered' ? 'text-green-600' : 'text-red-600'}`} />
           ) : (
             <div className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" />
           )}
         </div>
       ))}
       {calledContacts.length > 0 && (
-        <div className="text-xs text-green-600 font-medium">
+        <div className={`text-xs font-medium ${calledContacts.some(c => c.status === 'Called - Answered') ? 'text-green-600' : 'text-red-600'}`}>
           {calledContacts.length}/{contacts.length} called
         </div>
       )}

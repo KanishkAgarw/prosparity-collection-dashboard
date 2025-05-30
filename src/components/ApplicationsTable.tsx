@@ -6,7 +6,7 @@ import { Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { formatEmiMonth, formatCurrency } from "@/utils/formatters";
+import { formatEmiMonth, formatCurrency, formatPtpDate } from "@/utils/formatters";
 import CallStatusDisplay from "./CallStatusDisplay";
 
 interface Application {
@@ -34,6 +34,7 @@ interface Application {
   guarantor_calling_status?: string;
   reference_calling_status?: string;
   reference_name?: string;
+  recent_comments?: string[];
 }
 
 interface ApplicationsTableProps {
@@ -55,15 +56,6 @@ const getStatusBadge = (status: string) => {
       {status}
     </Badge>
   );
-};
-
-const formatPtpDate = (ptpDate?: string) => {
-  if (!ptpDate) return "NA";
-  try {
-    return formatEmiMonth(ptpDate);
-  } catch {
-    return "NA";
-  }
 };
 
 const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, selectedApplicationId }: ApplicationsTableProps) => {
@@ -107,6 +99,7 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
               <TableHead className="min-w-[120px]">Status</TableHead>
               <TableHead className="min-w-[100px]">PTP Date</TableHead>
               <TableHead className="min-w-[150px]">Call Status</TableHead>
+              <TableHead className="min-w-[200px]">Recent Comments</TableHead>
               {isAdmin && <TableHead className="min-w-[80px]">Actions</TableHead>}
             </TableRow>
           </TableHeader>
@@ -148,6 +141,19 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
                 </TableCell>
                 <TableCell className="text-sm">
                   <CallStatusDisplay application={app} />
+                </TableCell>
+                <TableCell className="max-w-[200px]">
+                  <div className="space-y-1">
+                    {app.recent_comments && app.recent_comments.length > 0 ? (
+                      app.recent_comments.map((comment, index) => (
+                        <div key={index} className="text-xs text-gray-600 truncate bg-gray-50 p-1 rounded">
+                          {comment}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-xs text-gray-400 italic">No comments</div>
+                    )}
+                  </div>
                 </TableCell>
                 {isAdmin && (
                   <TableCell>

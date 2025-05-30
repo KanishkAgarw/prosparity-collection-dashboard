@@ -48,24 +48,26 @@ export const useUserProfiles = () => {
         return newCache;
       });
 
-      // Return all requested profiles
-      const updatedCache = new Map(profilesCache);
-      profiles?.forEach(profile => {
-        updatedCache.set(profile.id, profile);
-      });
+      // Return all requested profiles (including newly fetched)
+      const allProfiles = userIds.map(id => {
+        const cached = profilesCache.get(id);
+        if (cached) return cached;
+        return profiles?.find(p => p.id === id);
+      }).filter(Boolean) as UserProfile[];
       
-      return userIds.map(id => updatedCache.get(id)).filter(Boolean) as UserProfile[];
+      return allProfiles;
     } catch (error) {
       console.error('Error fetching user profiles:', error);
       return [];
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, profilesCache]);
 
   const getUserName = useCallback((userId: string, fallbackEmail?: string): string => {
     const profile = profilesCache.get(userId);
-    if (profile?.full_name) return profile.full_name;
+    // Prioritize full_name over email
+    if (profile?.full_name && profile.full_name.trim()) return profile.full_name;
     if (profile?.email) return profile.email;
     if (fallbackEmail) return fallbackEmail;
     return 'Unknown User';

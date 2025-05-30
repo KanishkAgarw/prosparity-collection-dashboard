@@ -2,10 +2,8 @@
 import { useState, useMemo } from "react";
 import { useApplications } from "@/hooks/useApplications";
 import { useCascadingFilters } from "@/hooks/useCascadingFilters";
-import { useComments } from "@/hooks/useComments";
-import { useAuditLogs } from "@/hooks/useAuditLogs";
-import { useCallingLogs } from "@/hooks/useCallingLogs";
 import { useExport } from "@/hooks/useExport";
+import { useUserProfiles } from "@/hooks/useUserProfiles";
 import { Application } from "@/types/application";
 import ApplicationsTable from "@/components/ApplicationsTable";
 import ApplicationDetailsPanel from "@/components/ApplicationDetailsPanel";
@@ -14,11 +12,12 @@ import MobileFilterBar from "@/components/MobileFilterBar";
 import SearchBar from "@/components/SearchBar";
 import StatusCards from "@/components/StatusCards";
 import MobileStatusCards from "@/components/MobileStatusCards";
+import PaginationControls from "@/components/PaginationControls";
 import UploadApplicationDialog from "@/components/UploadApplicationDialog";
 import AdminUserManagement from "@/components/AdminUserManagement";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { LogOut, User, Download, FileSpreadsheet } from "lucide-react";
+import { LogOut, Download, FileSpreadsheet } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -27,7 +26,12 @@ import { useNavigate } from "react-router-dom";
 const Index = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { applications, loading: appsLoading, refetch } = useApplications();
+  const { getUserName, fetchProfiles } = useUserProfiles();
+  const [currentPage, setCurrentPage] = useState(1);
+  const { applications, loading: appsLoading, refetch, totalCount, totalPages } = useApplications({ 
+    page: currentPage, 
+    pageSize: 50 
+  });
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const { exportToExcel, exportToCSV } = useExport();
@@ -38,6 +42,12 @@ const Index = () => {
     availableOptions,
     handleFilterChange
   } = useCascadingFilters({ applications });
+
+  // Get user full name for display
+  const userDisplayName = useMemo(() => {
+    if (!user) return '';
+    return getUserName(user.id, user.email || '');
+  }, [user, getUserName]);
 
   // Sort applications by applicant name and apply search filter
   const sortedAndSearchFilteredApplications = useMemo(() => {
@@ -61,6 +71,14 @@ const Index = () => {
     
     return result;
   }, [filteredApplications, searchTerm]);
+
+  // Load user profiles for comments/logs when component mounts
+  useMemo(() => {
+    if (user && applications.length > 0) {
+      const userIds = [...new Set([user.id])];
+      fetchProfiles(userIds);
+    }
+  }, [user, applications, fetchProfiles]);
 
   const handleApplicationDeleted = () => {
     refetch();
@@ -92,55 +110,14 @@ const Index = () => {
     try {
       toast.loading('Preparing export...', { id: 'export' });
       
-      // Gather all data for export
-      const appIds = sortedAndSearchFilteredApplications.map(app => app.applicant_id);
-      
-      // Fetch all audit logs, comments, and calling logs for visible applications
-      const [auditLogsData, commentsData, callingLogsData] = await Promise.all([
-        supabase
-          .from('audit_logs')
-          .select('*')
-          .in('application_id', appIds)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('comments')
-          .select('*')
-          .in('application_id', appIds)
-          .order('created_at', { ascending: true }),
-        supabase
-          .from('calling_logs')
-          .select('*')
-          .in('application_id', appIds)
-          .order('created_at', { ascending: false })
-      ]);
-
-      // Transform the data to match expected types
-      const transformedAuditLogs = (auditLogsData.data || []).map(log => ({
-        ...log,
-        user_name: log.user_email || 'Unknown User' // Use email as fallback for user_name
-      }));
-
-      const transformedCallingLogs = (callingLogsData.data || []).map(log => ({
-        ...log,
-        user_name: log.user_email || 'Unknown User' // Use email as fallback for user_name
-      }));
-
-      const transformedComments = (commentsData.data || []).map(comment => ({
-        ...comment,
-        user_name: comment.user_email || 'Unknown User' // Use email as fallback for user_name
-      }));
-
       const exportData = {
-        applications: sortedAndSearchFilteredApplications,
-        auditLogs: transformedAuditLogs,
-        comments: transformedComments,
-        callingLogs: transformedCallingLogs
+        applications: sortedAndSearchFilteredApplications
       };
 
       if (format === 'excel') {
-        exportToExcel(exportData, 'collection-dashboard-report');
+        exportToExcel(exportData, 'collection-monitoring-report');
       } else {
-        exportToCSV(exportData, 'collection-dashboard-summary');
+        exportToCSV(exportData, 'collection-summary');
       }
 
       toast.success('Export completed successfully!', { id: 'export' });
@@ -205,19 +182,19 @@ const Index = () => {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <UploadApplicationDialog onApplicationAdded={refetch} />
+                {isAdmin && <UploadApplicationDialog onApplicationAdded={refetch} />}
                 {isAdmin && <AdminUserManagement isAdmin={isAdmin} />}
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
-                <User className="h-4 w-4" />
-                <span className="hidden sm:inline">{user?.email}</span>
+                <span className="hidden sm:inline font-medium">{userDisplayName}</span>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={handleSignOut}
                   className="text-gray-600 hover:text-gray-900"
                 >
-                  <LogOut className="h-4 w-4" />
+                  <LogOut className="h-4 w-4 mr-1" />
+                  Sign Out
                 </Button>
               </div>
             </div>
@@ -287,6 +264,17 @@ const Index = () => {
               onApplicationDeleted={handleApplicationDeleted}
               selectedApplicationId={selectedApplication?.id}
             />
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <PaginationControls
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                totalCount={totalCount}
+                pageSize={50}
+              />
+            )}
           </div>
         </div>
       </div>
