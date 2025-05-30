@@ -3,7 +3,7 @@ import { Application } from "@/types/application";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Phone, MapPin, Eye } from "lucide-react";
-import { formatCurrency, formatDate, formatPtpDate } from "@/utils/formatters";
+import { formatCurrency, formatPtpDate } from "@/utils/formatters";
 import CallButton from "./CallButton";
 import CallStatusDisplay from "./CallStatusDisplay";
 
@@ -129,11 +129,11 @@ const MobileOptimizedTable = ({
             </div>
 
             {/* Recent Comments */}
-            {app.recent_comments && app.recent_comments.length > 0 && (
+            {app.rm_comments && (
               <div className="mt-3 pt-3 border-t">
-                <span className="text-xs text-gray-400">Recent:</span>
+                <span className="text-xs text-gray-400">Comments:</span>
                 <p className="text-xs text-gray-600 mt-1 line-clamp-2">
-                  {app.recent_comments[0]}
+                  {app.rm_comments}
                 </p>
               </div>
             )}

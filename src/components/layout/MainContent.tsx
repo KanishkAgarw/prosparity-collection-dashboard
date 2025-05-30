@@ -72,6 +72,8 @@ const MainContent = ({
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={onPageChange}
+          totalCount={totalCount}
+          pageSize={pageSize}
         />
       )}
     </div>
