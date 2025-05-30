@@ -41,11 +41,13 @@ export interface Application {
 
 export interface AuditLog {
   id: string;
-  timestamp: string;
-  user: string;
   field: string;
-  previousValue: string;
-  newValue: string;
+  previous_value: string | null;
+  new_value: string | null;
+  user_id: string;
+  user_email: string | null;
+  application_id: string;
+  created_at: string;
 }
 
 export interface FilterOptions {
