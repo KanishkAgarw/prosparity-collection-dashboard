@@ -97,7 +97,7 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
       .sort((a, b) => parseInt(a) - parseInt(b));
 
     // Get unique last month bounce categories
-    const lastMonthBounceCategories = [...new Set(safeApplications
+    const lastMonthBounceCategories: LastMonthBounceCategory[] = [...new Set(safeApplications
       .map(app => categorizeLastMonthBounce(app.last_month_bounce)))]
       .sort();
     
@@ -132,7 +132,12 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
       // Only update if there are actual changes
       const hasChanges = Object.keys(cleanedFilters).some(key => 
         cleanedFilters[key as keyof FilterState].length !== prevFilters[key as keyof FilterState].length ||
-        !cleanedFilters[key as keyof FilterState].every(item => prevFilters[key as keyof FilterState].includes(item))
+        !cleanedFilters[key as keyof FilterState].every(item => {
+          if (key === 'lastMonthBounce') {
+            return prevFilters.lastMonthBounce.includes(item as LastMonthBounceCategory);
+          }
+          return (prevFilters[key as keyof FilterState] as string[]).includes(item as string);
+        })
       );
 
       return hasChanges ? cleanedFilters : prevFilters;
