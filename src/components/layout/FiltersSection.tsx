@@ -1,74 +1,59 @@
 
+import { useIsMobile } from "@/hooks/use-mobile";
 import FilterBar from "@/components/FilterBar";
 import MobileFilterBar from "@/components/MobileFilterBar";
 import SearchBar from "@/components/SearchBar";
-
-interface FilterState {
-  branch: string[];
-  teamLead: string[];
-  rm: string[];
-  dealer: string[];
-  lender: string[];
-  status: string[];
-  emiMonth: string[];
-  repayment: string[];
-  lastMonthBounce: string[];
-}
-
-interface FilterOptions {
-  branches: string[];
-  teamLeads: string[];
-  rms: string[];
-  dealers: string[];
-  lenders: string[];
-  statuses: string[];
-  emiMonths: string[];
-  repayments: string[];
-  lastMonthBounce: string[];
-}
+import StatusCards from "@/components/StatusCards";
+import { Application } from "@/types/application";
 
 interface FiltersSectionProps {
-  filters: FilterState;
-  availableOptions: FilterOptions;
-  onFilterChange: (key: keyof FilterState, values: string[]) => void;
+  filters: any;
+  availableOptions: any;
+  onFilterChange: (key: string, value: string) => void;
   searchTerm: string;
-  onSearchChange: (term: string) => void;
+  onSearchChange: (value: string) => void;
+  applications: Application[];
 }
 
-const FiltersSection = ({ 
-  filters, 
-  availableOptions, 
-  onFilterChange, 
-  searchTerm, 
-  onSearchChange 
+const FiltersSection = ({
+  filters,
+  availableOptions,
+  onFilterChange,
+  searchTerm,
+  onSearchChange,
+  applications
 }: FiltersSectionProps) => {
+  const isMobile = useIsMobile();
+
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <div className="space-y-4">
-        <div className="hidden lg:block">
-          <FilterBar
-            filters={filters}
-            availableOptions={availableOptions}
-            onFilterChange={onFilterChange}
+      {/* Status Cards */}
+      <StatusCards applications={applications} />
+
+      {/* Search and Filters */}
+      <div className="bg-white rounded-lg shadow-sm border p-3">
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+          <SearchBar
+            value={searchTerm}
+            onChange={onSearchChange}
+            placeholder="Search applications..."
           />
-        </div>
-        
-        <div className="lg:hidden">
-          <MobileFilterBar
-            filters={filters}
-            availableOptions={availableOptions}
-            onFilterChange={onFilterChange}
-          />
+          
+          {isMobile ? (
+            <MobileFilterBar
+              filters={filters}
+              availableOptions={availableOptions}
+              onFilterChange={onFilterChange}
+            />
+          ) : (
+            <FilterBar
+              filters={filters}
+              availableOptions={availableOptions}
+              onFilterChange={onFilterChange}
+            />
+          )}
         </div>
       </div>
-
-      {/* Search */}
-      <SearchBar 
-        searchTerm={searchTerm} 
-        onSearchChange={onSearchChange}
-        placeholder="Search by name, ID, dealer, lender, RM, or team lead..."
-      />
     </div>
   );
 };

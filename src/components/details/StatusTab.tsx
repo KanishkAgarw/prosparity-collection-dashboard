@@ -9,7 +9,7 @@ import { Application } from "@/types/application";
 import { AuditLog } from "@/hooks/useAuditLogs";
 import { format } from "date-fns";
 import { formatPtpDate } from "@/utils/formatters";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, History } from "lucide-react";
 
 interface StatusTabProps {
   application: Application;
@@ -85,13 +85,16 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center justify-between">
-              Status History
+              <div className="flex items-center gap-2">
+                <History className="h-4 w-4" />
+                Recent Status Changes
+              </div>
               {hasMoreLogs && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowAllHistory(!showAllHistory)}
-                  className="text-xs"
+                  className="text-xs h-6"
                 >
                   {showAllHistory ? (
                     <>

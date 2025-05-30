@@ -6,6 +6,7 @@ import { Application } from "@/types/application";
 import { useComments } from "@/hooks/useComments";
 import { useAuditLogs } from "@/hooks/useAuditLogs";
 import { useCallingLogs } from "@/hooks/useCallingLogs";
+import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import ApplicationHeader from "./details/ApplicationHeader";
@@ -23,9 +24,16 @@ interface ApplicationDetailsPanelProps {
 const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDetailsPanelProps) => {
   const { user } = useAuth();
 
-  const { comments, addComment } = useComments(application?.applicant_id);
-  const { auditLogs, addAuditLog } = useAuditLogs(application?.applicant_id);
-  const { callingLogs, addCallingLog } = useCallingLogs(application?.applicant_id);
+  const { comments, addComment, refetch: refetchComments } = useComments(application?.applicant_id);
+  const { auditLogs, addAuditLog, refetch: refetchAuditLogs } = useAuditLogs(application?.applicant_id);
+  const { callingLogs, addCallingLog, refetch: refetchCallingLogs } = useCallingLogs(application?.applicant_id);
+
+  // Set up real-time updates
+  useRealtimeUpdates({
+    onCallingLogUpdate: refetchCallingLogs,
+    onAuditLogUpdate: refetchAuditLogs,
+    onCommentUpdate: refetchComments
+  });
 
   const {
     handleStatusChange,

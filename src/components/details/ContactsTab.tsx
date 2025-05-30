@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Application } from "@/types/application";
 import { CallingLog } from "@/hooks/useCallingLogs";
 import { format } from "date-fns";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Activity } from "lucide-react";
 import ContactCard from "./ContactCard";
 import { useContactCallingStatus } from "@/hooks/useContactCallingStatus";
 
@@ -83,18 +83,21 @@ const ContactsTab = ({ application, callingLogs, onCallingStatusChange }: Contac
         ))}
       </div>
 
-      {/* Call History */}
+      {/* Recent Call Activity */}
       {callingLogs.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center justify-between">
-              Call Activity
+              <div className="flex items-center gap-2">
+                <Activity className="h-4 w-4" />
+                Recent Call Activity
+              </div>
               {hasMoreCallLogs && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowAllCallHistory(!showAllCallHistory)}
-                  className="text-xs"
+                  className="text-xs h-6"
                 >
                   {showAllCallHistory ? (
                     <>
@@ -114,7 +117,7 @@ const ContactsTab = ({ application, callingLogs, onCallingStatusChange }: Contac
               {displayedCallLogs.map((log) => (
                 <div key={log.id} className="border rounded-lg p-3 bg-gray-50 text-sm">
                   <div className="flex justify-between items-start mb-2">
-                    <span className="font-medium text-blue-700 capitalize">{log.contact_type}</span>
+                    <span className="font-medium text-blue-700 capitalize">{log.contact_type.replace('_', ' ')}</span>
                     <span className="text-xs text-gray-500">
                       {formatDateTime(log.created_at)}
                     </span>
