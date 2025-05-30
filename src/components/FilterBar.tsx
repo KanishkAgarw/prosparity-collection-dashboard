@@ -1,14 +1,11 @@
 
-import { useState } from "react";
 import CustomMultiSelectFilter from "./CustomMultiSelectFilter";
-import { Button } from "@/components/ui/button";
-import { Filter } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface FilterBarProps {
   filters: {
     branch: string[];
     teamLead: string[];
+    rm: string[];
     dealer: string[];
     lender: string[];
     status: string[];
@@ -18,6 +15,7 @@ interface FilterBarProps {
   availableOptions: {
     branches: string[];
     teamLeads: string[];
+    rms: string[];
     dealers: string[];
     lenders: string[];
     statuses: string[];
@@ -26,12 +24,11 @@ interface FilterBarProps {
 }
 
 const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps) => {
-  const [open, setOpen] = useState(false);
-
   // Ensure all filter options have default empty arrays
   const safeFilterOptions = {
     branches: availableOptions?.branches || [],
     teamLeads: availableOptions?.teamLeads || [],
+    rms: availableOptions?.rms || [],
     dealers: availableOptions?.dealers || [],
     lenders: availableOptions?.lenders || [],
     statuses: availableOptions?.statuses || [],
@@ -42,6 +39,7 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
   const safeFilters = {
     branch: filters?.branch || [],
     teamLead: filters?.teamLead || [],
+    rm: filters?.rm || [],
     dealer: filters?.dealer || [],
     lender: filters?.lender || [],
     status: filters?.status || [],
@@ -53,68 +51,65 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
 
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm border">
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button variant="outline" className="gap-2">
-            <Filter className="h-4 w-4" />
-            Filters
-            {activeFilterCount > 0 && (
-              <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                {activeFilterCount}
-              </span>
-            )}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-[800px] p-4" align="start">
-          <div className="space-y-4">
-            <h3 className="font-medium text-gray-900 mb-3">Filter Applications</h3>
-            
-            <div className="grid grid-cols-3 gap-4">
-              <CustomMultiSelectFilter
-                label="EMI Months"
-                options={safeFilterOptions.emiMonths}
-                selected={safeFilters.emiMonth}
-                onSelectionChange={(values) => onFilterChange('emiMonth', values)}
-              />
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-medium text-gray-900">Filter Applications</h3>
+        {activeFilterCount > 0 && (
+          <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+            {activeFilterCount} active
+          </span>
+        )}
+      </div>
+      
+      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+        <CustomMultiSelectFilter
+          label="EMI Months"
+          options={safeFilterOptions.emiMonths}
+          selected={safeFilters.emiMonth}
+          onSelectionChange={(values) => onFilterChange('emiMonth', values)}
+        />
 
-              <CustomMultiSelectFilter
-                label="Branches"
-                options={safeFilterOptions.branches}
-                selected={safeFilters.branch}
-                onSelectionChange={(values) => onFilterChange('branch', values)}
-              />
+        <CustomMultiSelectFilter
+          label="Branches"
+          options={safeFilterOptions.branches}
+          selected={safeFilters.branch}
+          onSelectionChange={(values) => onFilterChange('branch', values)}
+        />
 
-              <CustomMultiSelectFilter
-                label="Team Leads"
-                options={safeFilterOptions.teamLeads}
-                selected={safeFilters.teamLead}
-                onSelectionChange={(values) => onFilterChange('teamLead', values)}
-              />
+        <CustomMultiSelectFilter
+          label="Team Leads"
+          options={safeFilterOptions.teamLeads}
+          selected={safeFilters.teamLead}
+          onSelectionChange={(values) => onFilterChange('teamLead', values)}
+        />
 
-              <CustomMultiSelectFilter
-                label="Dealers"
-                options={safeFilterOptions.dealers}
-                selected={safeFilters.dealer}
-                onSelectionChange={(values) => onFilterChange('dealer', values)}
-              />
+        <CustomMultiSelectFilter
+          label="RMs"
+          options={safeFilterOptions.rms}
+          selected={safeFilters.rm}
+          onSelectionChange={(values) => onFilterChange('rm', values)}
+        />
 
-              <CustomMultiSelectFilter
-                label="Lenders"
-                options={safeFilterOptions.lenders}
-                selected={safeFilters.lender}
-                onSelectionChange={(values) => onFilterChange('lender', values)}
-              />
+        <CustomMultiSelectFilter
+          label="Dealers"
+          options={safeFilterOptions.dealers}
+          selected={safeFilters.dealer}
+          onSelectionChange={(values) => onFilterChange('dealer', values)}
+        />
 
-              <CustomMultiSelectFilter
-                label="Status"
-                options={safeFilterOptions.statuses}
-                selected={safeFilters.status}
-                onSelectionChange={(values) => onFilterChange('status', values)}
-              />
-            </div>
-          </div>
-        </PopoverContent>
-      </Popover>
+        <CustomMultiSelectFilter
+          label="Lenders"
+          options={safeFilterOptions.lenders}
+          selected={safeFilters.lender}
+          onSelectionChange={(values) => onFilterChange('lender', values)}
+        />
+
+        <CustomMultiSelectFilter
+          label="Status"
+          options={safeFilterOptions.statuses}
+          selected={safeFilters.status}
+          onSelectionChange={(values) => onFilterChange('status', values)}
+        />
+      </div>
     </div>
   );
 };

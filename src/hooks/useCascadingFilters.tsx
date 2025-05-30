@@ -9,6 +9,7 @@ interface CascadingFiltersProps {
 interface FilterState {
   branch: string[];
   teamLead: string[];
+  rm: string[];
   dealer: string[];
   lender: string[];
   status: string[];
@@ -19,6 +20,7 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
   const [filters, setFilters] = useState<FilterState>({
     branch: [],
     teamLead: [],
+    rm: [],
     dealer: [],
     lender: [],
     status: [],
@@ -31,6 +33,7 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
       return (
         (filters.branch.length === 0 || filters.branch.includes(app.branch_name)) &&
         (filters.teamLead.length === 0 || filters.teamLead.includes(app.team_lead)) &&
+        (filters.rm.length === 0 || filters.rm.includes(app.rm_name)) &&
         (filters.dealer.length === 0 || filters.dealer.includes(app.dealer_name)) &&
         (filters.lender.length === 0 || filters.lender.includes(app.lender_name)) &&
         (filters.status.length === 0 || filters.status.includes(app.status)) &&
@@ -46,6 +49,7 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
     return {
       branches: [...new Set(safeApplications.map(app => app.branch_name).filter(Boolean))],
       teamLeads: [...new Set(safeApplications.map(app => app.team_lead).filter(Boolean))],
+      rms: [...new Set(safeApplications.map(app => app.rm_name).filter(Boolean))],
       dealers: [...new Set(safeApplications.map(app => app.dealer_name).filter(Boolean))],
       lenders: [...new Set(safeApplications.map(app => app.lender_name).filter(Boolean))],
       statuses: [...new Set(safeApplications.map(app => app.status).filter(Boolean))],
@@ -59,6 +63,7 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
       const cleanedFilters = {
         branch: prevFilters.branch.filter(item => availableOptions.branches.includes(item)),
         teamLead: prevFilters.teamLead.filter(item => availableOptions.teamLeads.includes(item)),
+        rm: prevFilters.rm.filter(item => availableOptions.rms.includes(item)),
         dealer: prevFilters.dealer.filter(item => availableOptions.dealers.includes(item)),
         lender: prevFilters.lender.filter(item => availableOptions.lenders.includes(item)),
         status: prevFilters.status.filter(item => availableOptions.statuses.includes(item)),

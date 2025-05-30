@@ -7,7 +7,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { formatEmiMonth, formatCurrency } from "@/utils/formatters";
-import CallButton from "./CallButton";
 
 interface Application {
   id: string;
@@ -28,6 +27,7 @@ interface Application {
   co_applicant_mobile?: string;
   guarantor_name?: string;
   guarantor_mobile?: string;
+  latest_calling_status?: string;
 }
 
 interface ApplicationsTableProps {
@@ -100,7 +100,7 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
               <TableHead className="min-w-[120px]">EMI Due</TableHead>
               <TableHead className="min-w-[120px]">Status</TableHead>
               <TableHead className="min-w-[100px]">PTP Date</TableHead>
-              <TableHead className="min-w-[150px]">Contacts</TableHead>
+              <TableHead className="min-w-[120px]">Latest Call</TableHead>
               {isAdmin && <TableHead className="min-w-[80px]">Actions</TableHead>}
             </TableRow>
           </TableHeader>
@@ -140,25 +140,14 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
                 <TableCell className={`${app.ptp_date ? 'text-blue-600 font-medium' : 'text-gray-400'} whitespace-nowrap`}>
                   {formatPtpDate(app.ptp_date)}
                 </TableCell>
-                <TableCell>
-                  <div className="space-y-1">
-                    <CallButton 
-                      name="Applicant" 
-                      phone={app.applicant_mobile}
-                    />
-                    {app.co_applicant_name && (
-                      <CallButton 
-                        name="Co-Applicant" 
-                        phone={app.co_applicant_mobile}
-                      />
-                    )}
-                    {app.guarantor_name && (
-                      <CallButton 
-                        name="Guarantor" 
-                        phone={app.guarantor_mobile}
-                      />
-                    )}
-                  </div>
+                <TableCell className="text-sm">
+                  {app.latest_calling_status ? (
+                    <Badge variant="outline" className="text-xs">
+                      {app.latest_calling_status}
+                    </Badge>
+                  ) : (
+                    <span className="text-gray-400">No calls</span>
+                  )}
                 </TableCell>
                 {isAdmin && (
                   <TableCell>

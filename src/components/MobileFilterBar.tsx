@@ -9,6 +9,7 @@ interface MobileFilterBarProps {
   filters: {
     branch: string[];
     teamLead: string[];
+    rm: string[];
     dealer: string[];
     lender: string[];
     status: string[];
@@ -18,6 +19,7 @@ interface MobileFilterBarProps {
   availableOptions: {
     branches: string[];
     teamLeads: string[];
+    rms: string[];
     dealers: string[];
     lenders: string[];
     statuses: string[];
@@ -32,6 +34,7 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
   const safeFilterOptions = {
     branches: availableOptions?.branches || [],
     teamLeads: availableOptions?.teamLeads || [],
+    rms: availableOptions?.rms || [],
     dealers: availableOptions?.dealers || [],
     lenders: availableOptions?.lenders || [],
     statuses: availableOptions?.statuses || [],
@@ -42,6 +45,7 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
   const safeFilters = {
     branch: filters?.branch || [],
     teamLead: filters?.teamLead || [],
+    rm: filters?.rm || [],
     dealer: filters?.dealer || [],
     lender: filters?.lender || [],
     status: filters?.status || [],
@@ -107,6 +111,16 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
                   options={safeFilterOptions.teamLeads}
                   selected={safeFilters.teamLead}
                   onSelectionChange={(values) => onFilterChange('teamLead', values)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-2">RMs</label>
+                <CustomMultiSelectFilter
+                  label="RMs"
+                  options={safeFilterOptions.rms}
+                  selected={safeFilters.rm}
+                  onSelectionChange={(values) => onFilterChange('rm', values)}
                 />
               </div>
 

@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { formatEmiMonth, formatCurrency, formatPtpDate } from "@/utils/formatters";
 import CallButton from "./CallButton";
+import FiLocationButton from "./FiLocationButton";
 
 interface ApplicationDetailsPanelProps {
   application: Application | null;
@@ -108,24 +109,6 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
     } catch {
       return dateStr;
     }
-  };
-
-  const formatPtpDate = (ptpDate?: string) => {
-    if (!ptpDate) return "NA";
-    try {
-      return format(new Date(ptpDate), 'dd-MMM-yy');
-    } catch {
-      return "NA";
-    }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
   };
 
   // Format audit log values, especially for PTP dates and amounts
@@ -367,7 +350,40 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                   </div>
                 )}
 
-                {!application.co_applicant_name && !application.guarantor_name && (
+                {/* Reference Contact */}
+                {application.reference_name && (
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-medium text-gray-900">Reference</h4>
+                        <p className="text-sm text-gray-600">{application.reference_name}</p>
+                        {application.reference_mobile && (
+                          <p className="text-sm text-gray-500">{application.reference_mobile}</p>
+                        )}
+                      </div>
+                      <CallButton 
+                        name="Call" 
+                        phone={application.reference_mobile}
+                        variant="outline"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* FI Location */}
+                {application.fi_location && (
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-medium text-gray-900">FI Submission Location</h4>
+                        <p className="text-sm text-gray-600">View location on map</p>
+                      </div>
+                      <FiLocationButton fiLocation={application.fi_location} />
+                    </div>
+                  </div>
+                )}
+
+                {!application.co_applicant_name && !application.guarantor_name && !application.reference_name && !application.fi_location && (
                   <div className="text-center py-4 text-gray-500 text-sm">
                     No additional contacts available
                   </div>
