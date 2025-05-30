@@ -25,7 +25,7 @@ const MobileFilterBar = ({ filters, availableOptions, onFilterChange }: MobileFi
         <CustomMultiSelectFilter
           label="Branch"
           options={availableOptions.branches}
-          selectedValues={filters.branch}
+          selected={filters.branch}
           onSelectionChange={(values) => onFilterChange('branch', values)}
           placeholder="Select branches..."
         />
@@ -33,7 +33,7 @@ const MobileFilterBar = ({ filters, availableOptions, onFilterChange }: MobileFi
         <CustomMultiSelectFilter
           label="Team Lead"
           options={availableOptions.teamLeads}
-          selectedValues={filters.teamLead}
+          selected={filters.teamLead}
           onSelectionChange={(values) => onFilterChange('teamLead', values)}
           placeholder="Select team leads..."
         />
@@ -41,7 +41,7 @@ const MobileFilterBar = ({ filters, availableOptions, onFilterChange }: MobileFi
         <CustomMultiSelectFilter
           label="RM Name"
           options={availableOptions.rmNames}
-          selectedValues={filters.rmName}
+          selected={filters.rmName}
           onSelectionChange={(values) => onFilterChange('rmName', values)}
           placeholder="Select RM names..."
         />
@@ -49,7 +49,7 @@ const MobileFilterBar = ({ filters, availableOptions, onFilterChange }: MobileFi
         <CustomMultiSelectFilter
           label="Dealer"
           options={availableOptions.dealers}
-          selectedValues={filters.dealer}
+          selected={filters.dealer}
           onSelectionChange={(values) => onFilterChange('dealer', values)}
           placeholder="Select dealers..."
         />
@@ -57,7 +57,7 @@ const MobileFilterBar = ({ filters, availableOptions, onFilterChange }: MobileFi
         <CustomMultiSelectFilter
           label="Lender"
           options={availableOptions.lenders}
-          selectedValues={filters.lender}
+          selected={filters.lender}
           onSelectionChange={(values) => onFilterChange('lender', values)}
           placeholder="Select lenders..."
         />
@@ -65,7 +65,7 @@ const MobileFilterBar = ({ filters, availableOptions, onFilterChange }: MobileFi
         <CustomMultiSelectFilter
           label="Status"
           options={availableOptions.statuses}
-          selectedValues={filters.status}
+          selected={filters.status}
           onSelectionChange={(values) => onFilterChange('status', values)}
           placeholder="Select statuses..."
         />
@@ -73,7 +73,7 @@ const MobileFilterBar = ({ filters, availableOptions, onFilterChange }: MobileFi
         <CustomMultiSelectFilter
           label="EMI Month"
           options={availableOptions.emiMonths}
-          selectedValues={filters.emiMonth}
+          selected={filters.emiMonth}
           onSelectionChange={(values) => onFilterChange('emiMonth', values)}
           placeholder="Select EMI months..."
         />
