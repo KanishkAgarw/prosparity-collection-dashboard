@@ -114,11 +114,27 @@ const Index = () => {
           .order('created_at', { ascending: false })
       ]);
 
+      // Transform the data to match expected types
+      const transformedAuditLogs = (auditLogsData.data || []).map(log => ({
+        ...log,
+        user_name: log.user_email || 'Unknown User' // Use email as fallback for user_name
+      }));
+
+      const transformedCallingLogs = (callingLogsData.data || []).map(log => ({
+        ...log,
+        user_name: log.user_email || 'Unknown User' // Use email as fallback for user_name
+      }));
+
+      const transformedComments = (commentsData.data || []).map(comment => ({
+        ...comment,
+        user_name: comment.user_email || 'Unknown User' // Use email as fallback for user_name
+      }));
+
       const exportData = {
         applications: sortedAndSearchFilteredApplications,
-        auditLogs: auditLogsData.data || [],
-        comments: commentsData.data || [],
-        callingLogs: callingLogsData.data || []
+        auditLogs: transformedAuditLogs,
+        comments: transformedComments,
+        callingLogs: transformedCallingLogs
       };
 
       if (format === 'excel') {
