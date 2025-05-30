@@ -8,6 +8,7 @@ export interface Comment {
   content: string;
   user_id: string;
   user_email?: string;
+  user_name?: string;
   application_id: string;
   created_at: string;
   updated_at: string;
@@ -27,7 +28,12 @@ export const useComments = (applicationId?: string) => {
       
       const { data, error } = await supabase
         .from('comments')
-        .select('*')
+        .select(`
+          *,
+          profiles!comments_user_id_fkey (
+            full_name
+          )
+        `)
         .eq('application_id', applicationId)
         .order('created_at', { ascending: true });
 
@@ -35,7 +41,11 @@ export const useComments = (applicationId?: string) => {
         console.error('Error fetching comments:', error);
       } else {
         console.log('Fetched comments:', data);
-        setComments(data || []);
+        const commentsWithNames = data?.map(comment => ({
+          ...comment,
+          user_name: comment.profiles?.full_name || comment.user_email || 'Unknown User'
+        })) || [];
+        setComments(commentsWithNames);
       }
     } catch (error) {
       console.error('Error fetching comments:', error);

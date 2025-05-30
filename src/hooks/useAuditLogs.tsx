@@ -10,6 +10,7 @@ export interface AuditLog {
   new_value: string | null;
   user_id: string;
   user_email: string | null;
+  user_name: string | null;
   application_id: string;
   created_at: string;
 }
@@ -28,7 +29,12 @@ export const useAuditLogs = (applicationId?: string) => {
       
       const { data, error } = await supabase
         .from('audit_logs')
-        .select('*')
+        .select(`
+          *,
+          profiles!audit_logs_user_id_fkey (
+            full_name
+          )
+        `)
         .eq('application_id', applicationId)
         .order('created_at', { ascending: false });
 
@@ -36,7 +42,11 @@ export const useAuditLogs = (applicationId?: string) => {
         console.error('Error fetching audit logs:', error);
       } else {
         console.log('Fetched audit logs:', data);
-        setAuditLogs(data || []);
+        const logsWithNames = data?.map(log => ({
+          ...log,
+          user_name: log.profiles?.full_name || log.user_email || 'Unknown User'
+        })) || [];
+        setAuditLogs(logsWithNames);
       }
     } catch (error) {
       console.error('Error fetching audit logs:', error);

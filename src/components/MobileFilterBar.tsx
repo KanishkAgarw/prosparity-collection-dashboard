@@ -14,6 +14,8 @@ interface MobileFilterBarProps {
     lender: string[];
     status: string[];
     emiMonth: string[];
+    repayment: string[];
+    lastMonthBounce: string[];
   };
   onFilterChange: (key: string, values: string[]) => void;
   availableOptions: {
@@ -24,6 +26,8 @@ interface MobileFilterBarProps {
     lenders: string[];
     statuses: string[];
     emiMonths: string[];
+    repayments: string[];
+    lastMonthBounce: string[];
   };
 }
 
@@ -39,6 +43,8 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
     lenders: availableOptions?.lenders || [],
     statuses: availableOptions?.statuses || [],
     emiMonths: availableOptions?.emiMonths || [],
+    repayments: availableOptions?.repayments || [],
+    lastMonthBounce: availableOptions?.lastMonthBounce || [],
   };
 
   // Ensure all filters have default empty arrays
@@ -50,6 +56,8 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
     lender: filters?.lender || [],
     status: filters?.status || [],
     emiMonth: filters?.emiMonth || [],
+    repayment: filters?.repayment || [],
+    lastMonthBounce: filters?.lastMonthBounce || [],
   };
 
   // Count active filters
@@ -151,6 +159,26 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
                   options={safeFilterOptions.statuses}
                   selected={safeFilters.status}
                   onSelectionChange={(values) => onFilterChange('status', values)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-2">Repayment</label>
+                <CustomMultiSelectFilter
+                  label="Repayment"
+                  options={safeFilterOptions.repayments}
+                  selected={safeFilters.repayment}
+                  onSelectionChange={(values) => onFilterChange('repayment', values)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-2">Last Month Status</label>
+                <CustomMultiSelectFilter
+                  label="Last Month Status"
+                  options={safeFilterOptions.lastMonthBounce}
+                  selected={safeFilters.lastMonthBounce}
+                  onSelectionChange={(values) => onFilterChange('lastMonthBounce', values)}
                 />
               </div>
             </div>

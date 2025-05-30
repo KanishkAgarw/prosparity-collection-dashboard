@@ -14,7 +14,26 @@ interface FilterState {
   lender: string[];
   status: string[];
   emiMonth: string[];
+  repayment: string[];
+  lastMonthBounce: string[];
 }
+
+// Helper function to format repayment values
+const formatRepayment = (repayment: string | undefined) => {
+  if (!repayment) return '';
+  // Convert "1st" to "1", "2nd" to "2", etc.
+  return repayment.replace(/(\d+)(st|nd|rd|th)/, '$1');
+};
+
+// Helper function to categorize last month bounce
+const categorizeLastMonthBounce = (bounce: number | null | undefined) => {
+  if (bounce === null || bounce === undefined) return 'Not paid';
+  if (bounce === 0) return 'Paid on time';
+  if (bounce >= 1 && bounce <= 5) return '1-5 days late';
+  if (bounce >= 6 && bounce <= 15) return '6-15 days late';
+  if (bounce > 15) return '15+ days late';
+  return 'Unknown';
+};
 
 export function useCascadingFilters({ applications }: CascadingFiltersProps) {
   const [filters, setFilters] = useState<FilterState>({
@@ -24,12 +43,20 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
     dealer: [],
     lender: [],
     status: [],
-    emiMonth: []
+    emiMonth: [],
+    repayment: [],
+    lastMonthBounce: []
   });
 
   // Get the currently filtered applications based on active filters
   const filteredApplications = useMemo(() => {
     return applications.filter(app => {
+      const repaymentMatch = filters.repayment.length === 0 || 
+        filters.repayment.includes(formatRepayment(app.repayment));
+      
+      const lastMonthBounceMatch = filters.lastMonthBounce.length === 0 || 
+        filters.lastMonthBounce.includes(categorizeLastMonthBounce(app.last_month_bounce));
+
       return (
         (filters.branch.length === 0 || filters.branch.includes(app.branch_name)) &&
         (filters.teamLead.length === 0 || filters.teamLead.includes(app.team_lead)) &&
@@ -37,7 +64,9 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
         (filters.dealer.length === 0 || filters.dealer.includes(app.dealer_name)) &&
         (filters.lender.length === 0 || filters.lender.includes(app.lender_name)) &&
         (filters.status.length === 0 || filters.status.includes(app.status)) &&
-        (filters.emiMonth.length === 0 || filters.emiMonth.includes(formatEmiMonth(app.demand_date)))
+        (filters.emiMonth.length === 0 || filters.emiMonth.includes(formatEmiMonth(app.demand_date))) &&
+        repaymentMatch &&
+        lastMonthBounceMatch
       );
     });
   }, [applications, filters]);
@@ -46,6 +75,17 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
   const availableOptions = useMemo(() => {
     const safeApplications = filteredApplications || [];
     
+    // Get unique repayment values and format them
+    const repayments = [...new Set(safeApplications
+      .map(app => formatRepayment(app.repayment))
+      .filter(Boolean))]
+      .sort((a, b) => parseInt(a) - parseInt(b));
+
+    // Get unique last month bounce categories
+    const lastMonthBounceCategories = [...new Set(safeApplications
+      .map(app => categorizeLastMonthBounce(app.last_month_bounce)))]
+      .sort();
+    
     return {
       branches: [...new Set(safeApplications.map(app => app.branch_name).filter(Boolean))],
       teamLeads: [...new Set(safeApplications.map(app => app.team_lead).filter(Boolean))],
@@ -53,7 +93,9 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
       dealers: [...new Set(safeApplications.map(app => app.dealer_name).filter(Boolean))],
       lenders: [...new Set(safeApplications.map(app => app.lender_name).filter(Boolean))],
       statuses: [...new Set(safeApplications.map(app => app.status).filter(Boolean))],
-      emiMonths: [...new Set(safeApplications.map(app => formatEmiMonth(app.demand_date)).filter(Boolean))]
+      emiMonths: [...new Set(safeApplications.map(app => formatEmiMonth(app.demand_date)).filter(Boolean))],
+      repayments,
+      lastMonthBounce: lastMonthBounceCategories
     };
   }, [filteredApplications]);
 
@@ -67,7 +109,9 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
         dealer: prevFilters.dealer.filter(item => availableOptions.dealers.includes(item)),
         lender: prevFilters.lender.filter(item => availableOptions.lenders.includes(item)),
         status: prevFilters.status.filter(item => availableOptions.statuses.includes(item)),
-        emiMonth: prevFilters.emiMonth.filter(item => availableOptions.emiMonths.includes(item))
+        emiMonth: prevFilters.emiMonth.filter(item => availableOptions.emiMonths.includes(item)),
+        repayment: prevFilters.repayment.filter(item => availableOptions.repayments.includes(item)),
+        lastMonthBounce: prevFilters.lastMonthBounce.filter(item => availableOptions.lastMonthBounce.includes(item))
       };
 
       // Only update if there are actual changes

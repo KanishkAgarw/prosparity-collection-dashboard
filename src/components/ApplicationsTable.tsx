@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { formatEmiMonth, formatCurrency } from "@/utils/formatters";
+import CallStatusDisplay from "./CallStatusDisplay";
 
 interface Application {
   id: string;
@@ -28,6 +29,11 @@ interface Application {
   guarantor_name?: string;
   guarantor_mobile?: string;
   latest_calling_status?: string;
+  applicant_calling_status?: string;
+  co_applicant_calling_status?: string;
+  guarantor_calling_status?: string;
+  reference_calling_status?: string;
+  reference_name?: string;
 }
 
 interface ApplicationsTableProps {
@@ -100,7 +106,7 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
               <TableHead className="min-w-[120px]">EMI Due</TableHead>
               <TableHead className="min-w-[120px]">Status</TableHead>
               <TableHead className="min-w-[100px]">PTP Date</TableHead>
-              <TableHead className="min-w-[120px]">Call Status</TableHead>
+              <TableHead className="min-w-[150px]">Call Status</TableHead>
               {isAdmin && <TableHead className="min-w-[80px]">Actions</TableHead>}
             </TableRow>
           </TableHeader>
@@ -141,13 +147,7 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
                   {formatPtpDate(app.ptp_date)}
                 </TableCell>
                 <TableCell className="text-sm">
-                  {app.latest_calling_status && app.latest_calling_status !== 'Not Called' ? (
-                    <Badge variant="outline" className="text-xs">
-                      {app.latest_calling_status}
-                    </Badge>
-                  ) : (
-                    <span className="text-gray-400">Not Called</span>
-                  )}
+                  <CallStatusDisplay application={app} />
                 </TableCell>
                 {isAdmin && (
                   <TableCell>

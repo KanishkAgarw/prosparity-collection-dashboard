@@ -260,7 +260,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                               <div key={log.id} className="border rounded-lg p-3 bg-gray-50">
                                 <div className="flex items-center gap-2 mb-2">
                                   <User className="h-4 w-4 text-gray-500" />
-                                  <span className="font-medium text-sm">{log.user_email || 'Unknown User'}</span>
+                                  <span className="font-medium text-sm">{log.user_name || 'Unknown User'}</span>
                                   <Clock className="h-3 w-3 text-gray-400" />
                                   <span className="text-xs text-gray-500">{formatDateTime(log.created_at)}</span>
                                 </div>
@@ -320,7 +320,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                         <div key={log.id} className="text-xs border-l-2 border-blue-200 pl-2 py-1 bg-blue-50">
                           <div className="flex items-center gap-1">
                             <span className="font-medium">{log.field}</span>
-                            <span className="text-gray-500">by {log.user_email || 'Unknown User'}</span>
+                            <span className="text-gray-500">by {log.user_name || 'Unknown User'}</span>
                           </div>
                           <div className="text-gray-400">{formatDateTime(log.created_at)}</div>
                           <div className="text-xs mt-1">
@@ -365,7 +365,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                               <div key={log.id} className="border rounded-lg p-3 bg-gray-50">
                                 <div className="flex items-center gap-2 mb-2">
                                   <User className="h-4 w-4 text-gray-500" />
-                                  <span className="font-medium text-sm">{log.user_email || 'Unknown User'}</span>
+                                  <span className="font-medium text-sm">{log.user_name || 'Unknown User'}</span>
                                   <Clock className="h-3 w-3 text-gray-400" />
                                   <span className="text-xs text-gray-500">{formatDateTime(log.created_at)}</span>
                                 </div>
@@ -515,7 +515,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                         <div key={log.id} className="text-xs border-l-2 border-green-200 pl-2 py-1 bg-green-50">
                           <div className="flex items-center gap-1">
                             <span className="font-medium">{log.contact_type}</span>
-                            <span className="text-gray-500">by {log.user_email || 'Unknown User'}</span>
+                            <span className="text-gray-500">by {log.user_name || 'Unknown User'}</span>
                           </div>
                           <div className="text-gray-400">{formatDateTime(log.created_at)}</div>
                           <div className="text-xs mt-1">
@@ -577,7 +577,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-2">
                                   <span className="font-medium text-xs sm:text-sm text-blue-700">
-                                    {comment.user_email || 'Unknown User'}
+                                    {comment.user_name || 'Unknown User'}
                                   </span>
                                   <span className="text-xs text-gray-500">
                                     {formatDateTime(comment.created_at)}

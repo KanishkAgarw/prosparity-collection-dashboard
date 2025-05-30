@@ -46,6 +46,7 @@ export interface AuditLog {
   new_value: string | null;
   user_id: string;
   user_email: string | null;
+  user_name?: string | null;
   application_id: string;
   created_at: string;
 }
@@ -57,4 +58,6 @@ export interface FilterOptions {
   lenders: string[];
   statuses: string[];
   emiMonths: string[];
+  repayments: string[];
+  lastMonthBounce: string[];
 }

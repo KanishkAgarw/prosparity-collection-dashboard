@@ -10,6 +10,8 @@ interface FilterBarProps {
     lender: string[];
     status: string[];
     emiMonth: string[];
+    repayment: string[];
+    lastMonthBounce: string[];
   };
   onFilterChange: (key: string, values: string[]) => void;
   availableOptions: {
@@ -20,6 +22,8 @@ interface FilterBarProps {
     lenders: string[];
     statuses: string[];
     emiMonths: string[];
+    repayments: string[];
+    lastMonthBounce: string[];
   };
 }
 
@@ -33,6 +37,8 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
     lenders: availableOptions?.lenders || [],
     statuses: availableOptions?.statuses || [],
     emiMonths: availableOptions?.emiMonths || [],
+    repayments: availableOptions?.repayments || [],
+    lastMonthBounce: availableOptions?.lastMonthBounce || [],
   };
 
   // Ensure all filters have default empty arrays
@@ -44,6 +50,8 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
     lender: filters?.lender || [],
     status: filters?.status || [],
     emiMonth: filters?.emiMonth || [],
+    repayment: filters?.repayment || [],
+    lastMonthBounce: filters?.lastMonthBounce || [],
   };
 
   // Count total active filters
@@ -60,7 +68,7 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
         )}
       </div>
       
-      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-9 gap-4">
         <CustomMultiSelectFilter
           label="EMI Months"
           options={safeFilterOptions.emiMonths}
@@ -108,6 +116,20 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
           options={safeFilterOptions.statuses}
           selected={safeFilters.status}
           onSelectionChange={(values) => onFilterChange('status', values)}
+        />
+
+        <CustomMultiSelectFilter
+          label="Repayment"
+          options={safeFilterOptions.repayments}
+          selected={safeFilters.repayment}
+          onSelectionChange={(values) => onFilterChange('repayment', values)}
+        />
+
+        <CustomMultiSelectFilter
+          label="Last Month Status"
+          options={safeFilterOptions.lastMonthBounce}
+          selected={safeFilters.lastMonthBounce}
+          onSelectionChange={(values) => onFilterChange('lastMonthBounce', values)}
         />
       </div>
     </div>

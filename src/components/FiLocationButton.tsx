@@ -9,10 +9,13 @@ interface FiLocationButtonProps {
 }
 
 const FiLocationButton = ({ fiLocation }: FiLocationButtonProps) => {
-  const handleOpenMap = () => {
+  const handleOpenMap = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     const mapUrl = formatMapLocation(fiLocation);
     if (mapUrl) {
-      window.open(mapUrl, '_blank');
+      window.open(mapUrl, '_blank', 'noopener,noreferrer');
     } else {
       toast.error('No location available');
     }
