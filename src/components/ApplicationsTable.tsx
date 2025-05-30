@@ -60,15 +60,6 @@ const formatPtpDate = (ptpDate?: string) => {
   }
 };
 
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-};
-
 const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, selectedApplicationId }: ApplicationsTableProps) => {
   const { user } = useAuth();
   const isAdmin = user?.email === 'kanishk@prosparity.in';
