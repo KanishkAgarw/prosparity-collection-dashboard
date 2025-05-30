@@ -33,19 +33,27 @@ const Index = () => {
     handleFilterChange
   } = useCascadingFilters({ applications });
 
-  // Apply search filter
-  const searchFilteredApplications = useMemo(() => {
-    if (!searchTerm.trim()) return filteredApplications;
+  // Sort applications by applicant name and apply search filter
+  const sortedAndSearchFilteredApplications = useMemo(() => {
+    let result = [...filteredApplications];
     
-    const lowerSearchTerm = searchTerm.toLowerCase();
-    return filteredApplications.filter(app =>
-      app.applicant_name.toLowerCase().includes(lowerSearchTerm) ||
-      app.applicant_id.toLowerCase().includes(lowerSearchTerm) ||
-      app.dealer_name.toLowerCase().includes(lowerSearchTerm) ||
-      app.lender_name.toLowerCase().includes(lowerSearchTerm) ||
-      app.rm_name.toLowerCase().includes(lowerSearchTerm) ||
-      app.team_lead.toLowerCase().includes(lowerSearchTerm)
-    );
+    // Sort by applicant name
+    result.sort((a, b) => a.applicant_name.localeCompare(b.applicant_name));
+    
+    // Apply search filter
+    if (searchTerm.trim()) {
+      const lowerSearchTerm = searchTerm.toLowerCase();
+      result = result.filter(app =>
+        app.applicant_name.toLowerCase().includes(lowerSearchTerm) ||
+        app.applicant_id.toLowerCase().includes(lowerSearchTerm) ||
+        app.dealer_name.toLowerCase().includes(lowerSearchTerm) ||
+        app.lender_name.toLowerCase().includes(lowerSearchTerm) ||
+        app.rm_name.toLowerCase().includes(lowerSearchTerm) ||
+        app.team_lead.toLowerCase().includes(lowerSearchTerm)
+      );
+    }
+    
+    return result;
   }, [filteredApplications, searchTerm]);
 
   const handleApplicationDeleted = () => {
@@ -53,8 +61,9 @@ const Index = () => {
     setSelectedApplication(null);
   };
 
-  const handleSaveApplication = () => {
-    refetch();
+  const handleApplicationUpdated = (updatedApp: Application) => {
+    // Optimistic update - update the selected application without full refetch
+    setSelectedApplication(updatedApp);
   };
 
   const handleSignOut = async () => {
@@ -108,13 +117,14 @@ const Index = () => {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
+              {/* Admin buttons - hidden on mobile */}
+              <div className="hidden sm:flex items-center gap-2">
                 <UploadApplicationDialog onApplicationAdded={refetch} />
                 {isAdmin && <AdminUserManagement isAdmin={isAdmin} />}
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <User className="h-4 w-4" />
-                <span>{user?.email}</span>
+                <span className="hidden sm:inline">{user?.email}</span>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -155,16 +165,16 @@ const Index = () => {
 
           {/* Status Cards */}
           <div className="hidden sm:block">
-            <StatusCards applications={searchFilteredApplications} />
+            <StatusCards applications={sortedAndSearchFilteredApplications} />
           </div>
           <div className="sm:hidden">
-            <MobileStatusCards applications={searchFilteredApplications} />
+            <MobileStatusCards applications={sortedAndSearchFilteredApplications} />
           </div>
 
           {/* Applications Table */}
           <div className="bg-white rounded-lg shadow">
             <ApplicationsTable
-              applications={searchFilteredApplications}
+              applications={sortedAndSearchFilteredApplications}
               onRowClick={setSelectedApplication}
               onApplicationDeleted={handleApplicationDeleted}
               selectedApplicationId={selectedApplication?.id}
@@ -178,7 +188,7 @@ const Index = () => {
         <ApplicationDetailsPanel
           application={selectedApplication}
           onClose={() => setSelectedApplication(null)}
-          onSave={handleSaveApplication}
+          onSave={handleApplicationUpdated}
         />
       )}
     </div>

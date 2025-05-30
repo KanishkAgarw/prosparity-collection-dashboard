@@ -88,12 +88,12 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
         </CollapsibleTrigger>
         
         <CollapsibleContent>
-          <div className="p-4 space-y-4 border-t">
+          <div className="p-4 space-y-6 border-t">
             <h3 className="font-medium text-gray-900 text-sm">Filter Applications</h3>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">EMI Months</label>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-gray-700">EMI Months</label>
                 <CustomMultiSelectFilter
                   label="EMI Months"
                   options={safeFilterOptions.emiMonths}
@@ -102,8 +102,8 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Branches</label>
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-gray-700">Branches</label>
                 <CustomMultiSelectFilter
                   label="Branches"
                   options={safeFilterOptions.branches}
@@ -112,8 +112,8 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Team Leads</label>
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-gray-700">Team Leads</label>
                 <CustomMultiSelectFilter
                   label="Team Leads"
                   options={safeFilterOptions.teamLeads}
@@ -122,8 +122,8 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">RMs</label>
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-gray-700">RMs</label>
                 <CustomMultiSelectFilter
                   label="RMs"
                   options={safeFilterOptions.rms}
@@ -132,8 +132,8 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Dealers</label>
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-gray-700">Dealers</label>
                 <CustomMultiSelectFilter
                   label="Dealers"
                   options={safeFilterOptions.dealers}
@@ -142,8 +142,8 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Lenders</label>
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-gray-700">Lenders</label>
                 <CustomMultiSelectFilter
                   label="Lenders"
                   options={safeFilterOptions.lenders}
@@ -152,8 +152,8 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Status</label>
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-gray-700">Status</label>
                 <CustomMultiSelectFilter
                   label="Status"
                   options={safeFilterOptions.statuses}
@@ -162,8 +162,8 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Repayment</label>
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-gray-700">Repayment</label>
                 <CustomMultiSelectFilter
                   label="Repayment"
                   options={safeFilterOptions.repayments}
@@ -172,8 +172,8 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Last Month Status</label>
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-gray-700">Last Month Status</label>
                 <CustomMultiSelectFilter
                   label="Last Month Status"
                   options={safeFilterOptions.lastMonthBounce}

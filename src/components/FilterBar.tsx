@@ -58,8 +58,8 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
   const activeFilterCount = Object.values(safeFilters).reduce((count, filterArray) => count + filterArray.length, 0);
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow-sm border">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-white p-6 rounded-lg shadow-sm border">
+      <div className="flex items-center justify-between mb-6">
         <h3 className="font-medium text-gray-900">Filter Applications</h3>
         {activeFilterCount > 0 && (
           <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
@@ -68,69 +68,96 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
         )}
       </div>
       
-      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-9 gap-4">
-        <CustomMultiSelectFilter
-          label="EMI Months"
-          options={safeFilterOptions.emiMonths}
-          selected={safeFilters.emiMonth}
-          onSelectionChange={(values) => onFilterChange('emiMonth', values)}
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">EMI Months</label>
+          <CustomMultiSelectFilter
+            label="EMI Months"
+            options={safeFilterOptions.emiMonths}
+            selected={safeFilters.emiMonth}
+            onSelectionChange={(values) => onFilterChange('emiMonth', values)}
+          />
+        </div>
 
-        <CustomMultiSelectFilter
-          label="Branches"
-          options={safeFilterOptions.branches}
-          selected={safeFilters.branch}
-          onSelectionChange={(values) => onFilterChange('branch', values)}
-        />
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Branches</label>
+          <CustomMultiSelectFilter
+            label="Branches"
+            options={safeFilterOptions.branches}
+            selected={safeFilters.branch}
+            onSelectionChange={(values) => onFilterChange('branch', values)}
+          />
+        </div>
 
-        <CustomMultiSelectFilter
-          label="Team Leads"
-          options={safeFilterOptions.teamLeads}
-          selected={safeFilters.teamLead}
-          onSelectionChange={(values) => onFilterChange('teamLead', values)}
-        />
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Team Leads</label>
+          <CustomMultiSelectFilter
+            label="Team Leads"
+            options={safeFilterOptions.teamLeads}
+            selected={safeFilters.teamLead}
+            onSelectionChange={(values) => onFilterChange('teamLead', values)}
+          />
+        </div>
 
-        <CustomMultiSelectFilter
-          label="RMs"
-          options={safeFilterOptions.rms}
-          selected={safeFilters.rm}
-          onSelectionChange={(values) => onFilterChange('rm', values)}
-        />
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">RMs</label>
+          <CustomMultiSelectFilter
+            label="RMs"
+            options={safeFilterOptions.rms}
+            selected={safeFilters.rm}
+            onSelectionChange={(values) => onFilterChange('rm', values)}
+          />
+        </div>
 
-        <CustomMultiSelectFilter
-          label="Dealers"
-          options={safeFilterOptions.dealers}
-          selected={safeFilters.dealer}
-          onSelectionChange={(values) => onFilterChange('dealer', values)}
-        />
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Dealers</label>
+          <CustomMultiSelectFilter
+            label="Dealers"
+            options={safeFilterOptions.dealers}
+            selected={safeFilters.dealer}
+            onSelectionChange={(values) => onFilterChange('dealer', values)}
+          />
+        </div>
 
-        <CustomMultiSelectFilter
-          label="Lenders"
-          options={safeFilterOptions.lenders}
-          selected={safeFilters.lender}
-          onSelectionChange={(values) => onFilterChange('lender', values)}
-        />
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Lenders</label>
+          <CustomMultiSelectFilter
+            label="Lenders"
+            options={safeFilterOptions.lenders}
+            selected={safeFilters.lender}
+            onSelectionChange={(values) => onFilterChange('lender', values)}
+          />
+        </div>
 
-        <CustomMultiSelectFilter
-          label="Status"
-          options={safeFilterOptions.statuses}
-          selected={safeFilters.status}
-          onSelectionChange={(values) => onFilterChange('status', values)}
-        />
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Status</label>
+          <CustomMultiSelectFilter
+            label="Status"
+            options={safeFilterOptions.statuses}
+            selected={safeFilters.status}
+            onSelectionChange={(values) => onFilterChange('status', values)}
+          />
+        </div>
 
-        <CustomMultiSelectFilter
-          label="Repayment"
-          options={safeFilterOptions.repayments}
-          selected={safeFilters.repayment}
-          onSelectionChange={(values) => onFilterChange('repayment', values)}
-        />
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Repayment</label>
+          <CustomMultiSelectFilter
+            label="Repayment"
+            options={safeFilterOptions.repayments}
+            selected={safeFilters.repayment}
+            onSelectionChange={(values) => onFilterChange('repayment', values)}
+          />
+        </div>
 
-        <CustomMultiSelectFilter
-          label="Last Month Status"
-          options={safeFilterOptions.lastMonthBounce}
-          selected={safeFilters.lastMonthBounce}
-          onSelectionChange={(values) => onFilterChange('lastMonthBounce', values)}
-        />
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Last Month Status</label>
+          <CustomMultiSelectFilter
+            label="Last Month Status"
+            options={safeFilterOptions.lastMonthBounce}
+            selected={safeFilters.lastMonthBounce}
+            onSelectionChange={(values) => onFilterChange('lastMonthBounce', values)}
+          />
+        </div>
       </div>
     </div>
   );
