@@ -5,13 +5,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
+import { formatEmiMonth, formatCurrency } from "@/utils/formatters";
+import CallButton from "./CallButton";
 
 interface Application {
   id: string;
   applicant_id: string;
   applicant_name: string;
+  applicant_mobile?: string;
   branch_name: string;
   team_lead: string;
   rm_name: string;
@@ -22,6 +24,10 @@ interface Application {
   demand_date?: string;
   ptp_date?: string;
   rm_comments?: string;
+  co_applicant_name?: string;
+  co_applicant_mobile?: string;
+  guarantor_name?: string;
+  guarantor_mobile?: string;
 }
 
 interface ApplicationsTableProps {
@@ -48,7 +54,7 @@ const getStatusBadge = (status: string) => {
 const formatPtpDate = (ptpDate?: string) => {
   if (!ptpDate) return "NA";
   try {
-    return format(new Date(ptpDate), 'dd-MMM-yy');
+    return formatEmiMonth(ptpDate);
   } catch {
     return "NA";
   }
@@ -103,6 +109,7 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
               <TableHead className="min-w-[120px]">EMI Due</TableHead>
               <TableHead className="min-w-[120px]">Status</TableHead>
               <TableHead className="min-w-[100px]">PTP Date</TableHead>
+              <TableHead className="min-w-[150px]">Contacts</TableHead>
               {isAdmin && <TableHead className="min-w-[80px]">Actions</TableHead>}
             </TableRow>
           </TableHeader>
@@ -124,7 +131,7 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
                       <span className="font-medium">ID:</span> {app.applicant_id}
                     </div>
                     <div className="text-sm text-gray-600">
-                      <span className="font-medium">EMI Month:</span> {app.demand_date} | 
+                      <span className="font-medium">EMI Month:</span> {formatEmiMonth(app.demand_date)} | 
                       <span className="font-medium"> Branch:</span> {app.branch_name}
                     </div>
                     <div className="text-sm text-gray-600">
@@ -141,6 +148,26 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
                 <TableCell>{getStatusBadge(app.status)}</TableCell>
                 <TableCell className={`${app.ptp_date ? 'text-blue-600 font-medium' : 'text-gray-400'} whitespace-nowrap`}>
                   {formatPtpDate(app.ptp_date)}
+                </TableCell>
+                <TableCell>
+                  <div className="space-y-1">
+                    <CallButton 
+                      name="Applicant" 
+                      phone={app.applicant_mobile}
+                    />
+                    {app.co_applicant_name && (
+                      <CallButton 
+                        name="Co-Applicant" 
+                        phone={app.co_applicant_mobile}
+                      />
+                    )}
+                    {app.guarantor_name && (
+                      <CallButton 
+                        name="Guarantor" 
+                        phone={app.guarantor_mobile}
+                      />
+                    )}
+                  </div>
                 </TableCell>
                 {isAdmin && (
                   <TableCell>

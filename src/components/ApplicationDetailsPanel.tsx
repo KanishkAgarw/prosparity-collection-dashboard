@@ -16,6 +16,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { formatEmiMonth, formatCurrency, formatPtpDate } from "@/utils/formatters";
+import CallButton from "./CallButton";
 
 interface ApplicationDetailsPanelProps {
   application: Application | null;
@@ -181,7 +183,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="font-semibold text-lg text-blue-900 truncate">{application.applicant_name}</h3>
-              <p className="text-sm text-blue-700 truncate">EMI Month: {application.demand_date}</p>
+              <p className="text-sm text-blue-700 truncate">EMI Month: {formatEmiMonth(application.demand_date)}</p>
               <p className="text-sm text-blue-600 mt-1">EMI Due: {formatCurrency(application.emi_amount)}</p>
             </div>
           </div>
@@ -189,8 +191,9 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
 
         {/* Tabbed Interface */}
         <Tabs defaultValue="status" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="status">Status & Payment</TabsTrigger>
+            <TabsTrigger value="contacts">Contacts</TabsTrigger>
             <TabsTrigger value="comments">Comments</TabsTrigger>
           </TabsList>
           
@@ -294,6 +297,80 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                 
                 {statusAndPtpLogs.length === 0 && (
                   <div className="text-xs text-gray-400 italic">No changes recorded yet</div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="contacts" className="space-y-4">
+            {/* Contact Information Section */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Contact Information</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0 space-y-4">
+                {/* Applicant Contact */}
+                <div className="border rounded-lg p-3 bg-gray-50">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium text-gray-900">Applicant</h4>
+                      <p className="text-sm text-gray-600">{application.applicant_name}</p>
+                      {application.applicant_mobile && (
+                        <p className="text-sm text-gray-500">{application.applicant_mobile}</p>
+                      )}
+                    </div>
+                    <CallButton 
+                      name="Call" 
+                      phone={application.applicant_mobile}
+                      variant="outline"
+                    />
+                  </div>
+                </div>
+
+                {/* Co-Applicant Contact */}
+                {application.co_applicant_name && (
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-medium text-gray-900">Co-Applicant</h4>
+                        <p className="text-sm text-gray-600">{application.co_applicant_name}</p>
+                        {application.co_applicant_mobile && (
+                          <p className="text-sm text-gray-500">{application.co_applicant_mobile}</p>
+                        )}
+                      </div>
+                      <CallButton 
+                        name="Call" 
+                        phone={application.co_applicant_mobile}
+                        variant="outline"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Guarantor Contact */}
+                {application.guarantor_name && (
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-medium text-gray-900">Guarantor</h4>
+                        <p className="text-sm text-gray-600">{application.guarantor_name}</p>
+                        {application.guarantor_mobile && (
+                          <p className="text-sm text-gray-500">{application.guarantor_mobile}</p>
+                        )}
+                      </div>
+                      <CallButton 
+                        name="Call" 
+                        phone={application.guarantor_mobile}
+                        variant="outline"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {!application.co_applicant_name && !application.guarantor_name && (
+                  <div className="text-center py-4 text-gray-500 text-sm">
+                    No additional contacts available
+                  </div>
                 )}
               </CardContent>
             </Card>

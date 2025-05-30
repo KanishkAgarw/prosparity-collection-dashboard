@@ -55,18 +55,18 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
   );
 
   return (
-    <div className="mb-6">
+    <div className="bg-white rounded-lg shadow-sm border">
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <CollapsibleTrigger asChild>
           <Button 
             variant="outline" 
-            className="w-full md:w-auto flex items-center justify-between p-4 mb-4"
+            className="w-full flex items-center justify-between p-4 hover:bg-gray-50"
           >
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-2">
               <Filter className="h-4 w-4" />
               <span>Filters</span>
               {activeFilterCount > 0 && (
-                <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
                   {activeFilterCount}
                 </span>
               )}
@@ -76,65 +76,69 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
         </CollapsibleTrigger>
         
         <CollapsibleContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 p-4 bg-gray-50 rounded-lg">
-            <div className="w-full">
-              <label className="block text-sm font-medium text-gray-700 mb-2">EMI Months</label>
-              <CustomMultiSelectFilter
-                label="EMI Months"
-                options={safeFilterOptions.emiMonths}
-                selected={safeFilters.emiMonth}
-                onSelectionChange={(values) => onFilterChange('emiMonth', values)}
-              />
-            </div>
+          <div className="p-4 space-y-4 border-t">
+            <h3 className="font-medium text-gray-900 text-sm">Filter Applications</h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-2">EMI Months</label>
+                <CustomMultiSelectFilter
+                  label="EMI Months"
+                  options={safeFilterOptions.emiMonths}
+                  selected={safeFilters.emiMonth}
+                  onSelectionChange={(values) => onFilterChange('emiMonth', values)}
+                />
+              </div>
 
-            <div className="w-full">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Branches</label>
-              <CustomMultiSelectFilter
-                label="Branches"
-                options={safeFilterOptions.branches}
-                selected={safeFilters.branch}
-                onSelectionChange={(values) => onFilterChange('branch', values)}
-              />
-            </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-2">Branches</label>
+                <CustomMultiSelectFilter
+                  label="Branches"
+                  options={safeFilterOptions.branches}
+                  selected={safeFilters.branch}
+                  onSelectionChange={(values) => onFilterChange('branch', values)}
+                />
+              </div>
 
-            <div className="w-full">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Team Leads</label>
-              <CustomMultiSelectFilter
-                label="Team Leads"
-                options={safeFilterOptions.teamLeads}
-                selected={safeFilters.teamLead}
-                onSelectionChange={(values) => onFilterChange('teamLead', values)}
-              />
-            </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-2">Team Leads</label>
+                <CustomMultiSelectFilter
+                  label="Team Leads"
+                  options={safeFilterOptions.teamLeads}
+                  selected={safeFilters.teamLead}
+                  onSelectionChange={(values) => onFilterChange('teamLead', values)}
+                />
+              </div>
 
-            <div className="w-full">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Dealers</label>
-              <CustomMultiSelectFilter
-                label="Dealers"
-                options={safeFilterOptions.dealers}
-                selected={safeFilters.dealer}
-                onSelectionChange={(values) => onFilterChange('dealer', values)}
-              />
-            </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-2">Dealers</label>
+                <CustomMultiSelectFilter
+                  label="Dealers"
+                  options={safeFilterOptions.dealers}
+                  selected={safeFilters.dealer}
+                  onSelectionChange={(values) => onFilterChange('dealer', values)}
+                />
+              </div>
 
-            <div className="w-full">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Lenders</label>
-              <CustomMultiSelectFilter
-                label="Lenders"
-                options={safeFilterOptions.lenders}
-                selected={safeFilters.lender}
-                onSelectionChange={(values) => onFilterChange('lender', values)}
-              />
-            </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-2">Lenders</label>
+                <CustomMultiSelectFilter
+                  label="Lenders"
+                  options={safeFilterOptions.lenders}
+                  selected={safeFilters.lender}
+                  onSelectionChange={(values) => onFilterChange('lender', values)}
+                />
+              </div>
 
-            <div className="w-full">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-              <CustomMultiSelectFilter
-                label="Status"
-                options={safeFilterOptions.statuses}
-                selected={safeFilters.status}
-                onSelectionChange={(values) => onFilterChange('status', values)}
-              />
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-2">Status</label>
+                <CustomMultiSelectFilter
+                  label="Status"
+                  options={safeFilterOptions.statuses}
+                  selected={safeFilters.status}
+                  onSelectionChange={(values) => onFilterChange('status', values)}
+                />
+              </div>
             </div>
           </div>
         </CollapsibleContent>

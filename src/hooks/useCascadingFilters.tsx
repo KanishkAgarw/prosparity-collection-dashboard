@@ -1,5 +1,6 @@
 
 import { useState, useEffect, useMemo } from "react";
+import { formatEmiMonth } from "@/utils/formatters";
 
 interface CascadingFiltersProps {
   applications: any[];
@@ -33,7 +34,7 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
         (filters.dealer.length === 0 || filters.dealer.includes(app.dealer_name)) &&
         (filters.lender.length === 0 || filters.lender.includes(app.lender_name)) &&
         (filters.status.length === 0 || filters.status.includes(app.status)) &&
-        (filters.emiMonth.length === 0 || filters.emiMonth.includes(app.demand_date))
+        (filters.emiMonth.length === 0 || filters.emiMonth.includes(formatEmiMonth(app.demand_date)))
       );
     });
   }, [applications, filters]);
@@ -48,7 +49,7 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
       dealers: [...new Set(safeApplications.map(app => app.dealer_name).filter(Boolean))],
       lenders: [...new Set(safeApplications.map(app => app.lender_name).filter(Boolean))],
       statuses: [...new Set(safeApplications.map(app => app.status).filter(Boolean))],
-      emiMonths: [...new Set(safeApplications.map(app => app.demand_date).filter(Boolean))]
+      emiMonths: [...new Set(safeApplications.map(app => formatEmiMonth(app.demand_date)).filter(Boolean))]
     };
   }, [filteredApplications]);
 
