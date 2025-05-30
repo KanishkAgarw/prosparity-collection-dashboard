@@ -32,6 +32,11 @@ export interface Application {
   fi_location?: string;
   repayment?: string;
   last_month_bounce?: number;
+  applicant_calling_status?: string;
+  co_applicant_calling_status?: string;
+  guarantor_calling_status?: string;
+  reference_calling_status?: string;
+  latest_calling_status?: string;
 }
 
 export interface AuditLog {

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { X, Calendar, User, FileText, DollarSign, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Application } from "@/types/application";
 import { useComments } from "@/hooks/useComments";
 import { useAuditLogs } from "@/hooks/useAuditLogs";
+import { useCallingLogs } from "@/hooks/useCallingLogs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -19,6 +19,7 @@ import { format } from "date-fns";
 import { formatEmiMonth, formatCurrency, formatPtpDate } from "@/utils/formatters";
 import CallButton from "./CallButton";
 import FiLocationButton from "./FiLocationButton";
+import CallStatusSelector from "./CallStatusSelector";
 
 interface ApplicationDetailsPanelProps {
   application: Application | null;
@@ -34,10 +35,65 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
 
   const { comments, addComment } = useComments(application?.applicant_id);
   const { auditLogs, addAuditLog } = useAuditLogs(application?.applicant_id);
+  const { callingLogs, addCallingLog } = useCallingLogs(application?.applicant_id);
 
   if (!application) return null;
 
   const currentApp = editedApp || application;
+
+  const handleCallingStatusChange = async (contactType: string, newStatus: string, currentStatus?: string) => {
+    if (!user) return;
+    
+    const previousStatus = currentStatus || "Not Called";
+    
+    try {
+      // Update the specific calling status field in the database
+      const fieldMap = {
+        'Applicant': 'applicant_calling_status',
+        'Co-Applicant': 'co_applicant_calling_status', 
+        'Guarantor': 'guarantor_calling_status',
+        'Reference': 'reference_calling_status'
+      };
+
+      const fieldName = fieldMap[contactType as keyof typeof fieldMap];
+      
+      const updateData = {
+        [fieldName]: newStatus,
+        latest_calling_status: newStatus,
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('applications')
+        .update(updateData)
+        .eq('applicant_id', application.applicant_id);
+
+      if (error) {
+        console.error('Error updating calling status:', error);
+        toast.error('Failed to update calling status');
+        return;
+      }
+
+      // Add calling log
+      await addCallingLog(contactType, previousStatus, newStatus);
+      
+      // Add audit log
+      await addAuditLog(`${contactType} Calling Status`, previousStatus, newStatus);
+
+      // Update local state
+      setEditedApp(prev => ({
+        ...(prev || application),
+        [fieldName]: newStatus,
+        latest_calling_status: newStatus
+      }));
+
+      toast.success('Calling status updated successfully');
+      onSave(); // Refresh the main table
+    } catch (error) {
+      console.error('Error updating calling status:', error);
+      toast.error('Failed to update calling status');
+    }
+  };
 
   const handleSave = async () => {
     if (!editedApp || !user) return;
@@ -136,7 +192,8 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
 
   const getLogsForSection = (section: string) => {
     const sectionFields = {
-      'Status and PTP': ['Status', 'PTP Date', 'Amount Paid']
+      'Status and PTP': ['Status', 'PTP Date', 'Amount Paid'],
+      'Calling Status': ['Applicant Calling Status', 'Co-Applicant Calling Status', 'Guarantor Calling Status', 'Reference Calling Status']
     };
     
     const logs = auditLogs.filter(log => 
@@ -147,6 +204,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
   };
 
   const statusAndPtpLogs = getLogsForSection('Status and PTP');
+  const callingStatusLogs = getLogsForSection('Calling Status');
 
   return (
     <div className="fixed right-0 top-0 h-full w-full sm:w-[500px] bg-white shadow-lg border-l z-50 overflow-y-auto">
@@ -283,6 +341,76 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                 )}
               </CardContent>
             </Card>
+
+            {/* Calling Status Section */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm">Calling Status</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">{callingLogs.length} calls</span>
+                    {callingLogs.length > 0 && (
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="text-xs">
+                            View All Calls
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Calling History ({callingLogs.length} entries)</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-3">
+                            {callingLogs.map((log) => (
+                              <div key={log.id} className="border rounded-lg p-3 bg-gray-50">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <User className="h-4 w-4 text-gray-500" />
+                                  <span className="font-medium text-sm">{log.user_name}</span>
+                                  <Clock className="h-3 w-3 text-gray-400" />
+                                  <span className="text-xs text-gray-500">{formatDateTime(log.created_at)}</span>
+                                </div>
+                                <div className="text-sm">
+                                  <span className="font-medium">{log.contact_type}</span> calling status changed
+                                  <div className="mt-1 text-xs text-gray-600">
+                                    From: <span className="bg-red-100 px-1 rounded">{log.previous_status || 'Not Called'}</span>
+                                    {" → "}
+                                    To: <span className="bg-green-100 px-1 rounded">{log.new_status}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {/* Recent Calling Logs */}
+                {callingLogs.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-xs text-gray-500 mb-2">Recent Calls:</p>
+                    {callingLogs.slice(0, 3).map((log) => (
+                      <div key={log.id} className="text-xs border-l-2 border-green-200 pl-2 py-1 bg-green-50">
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">{log.contact_type}</span>
+                          <span className="text-gray-500">by {log.user_name}</span>
+                        </div>
+                        <div className="text-gray-400">{formatDateTime(log.created_at)}</div>
+                        <div className="text-xs mt-1">
+                          <span className="bg-red-100 px-1 rounded">{log.previous_status || 'Not Called'}</span>
+                          {" → "}
+                          <span className="bg-green-100 px-1 rounded">{log.new_status}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-xs text-gray-400 italic">No calls recorded yet</div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="contacts" className="space-y-4">
@@ -294,7 +422,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
               <CardContent className="pt-0 space-y-4">
                 {/* Applicant Contact */}
                 <div className="border rounded-lg p-3 bg-gray-50">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-2">
                     <div>
                       <h4 className="font-medium text-gray-900">Applicant</h4>
                       <p className="text-sm text-gray-600">{application.applicant_name}</p>
@@ -308,12 +436,19 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                       variant="outline"
                     />
                   </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Status:</span>
+                    <CallStatusSelector
+                      currentStatus={currentApp.applicant_calling_status}
+                      onStatusChange={(status) => handleCallingStatusChange('Applicant', status, currentApp.applicant_calling_status)}
+                    />
+                  </div>
                 </div>
 
                 {/* Co-Applicant Contact */}
                 {application.co_applicant_name && (
                   <div className="border rounded-lg p-3 bg-gray-50">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-2">
                       <div>
                         <h4 className="font-medium text-gray-900">Co-Applicant</h4>
                         <p className="text-sm text-gray-600">{application.co_applicant_name}</p>
@@ -327,13 +462,20 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                         variant="outline"
                       />
                     </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">Status:</span>
+                      <CallStatusSelector
+                        currentStatus={currentApp.co_applicant_calling_status}
+                        onStatusChange={(status) => handleCallingStatusChange('Co-Applicant', status, currentApp.co_applicant_calling_status)}
+                      />
+                    </div>
                   </div>
                 )}
 
                 {/* Guarantor Contact */}
                 {application.guarantor_name && (
                   <div className="border rounded-lg p-3 bg-gray-50">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-2">
                       <div>
                         <h4 className="font-medium text-gray-900">Guarantor</h4>
                         <p className="text-sm text-gray-600">{application.guarantor_name}</p>
@@ -347,13 +489,20 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                         variant="outline"
                       />
                     </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">Status:</span>
+                      <CallStatusSelector
+                        currentStatus={currentApp.guarantor_calling_status}
+                        onStatusChange={(status) => handleCallingStatusChange('Guarantor', status, currentApp.guarantor_calling_status)}
+                      />
+                    </div>
                   </div>
                 )}
 
                 {/* Reference Contact */}
                 {application.reference_name && (
                   <div className="border rounded-lg p-3 bg-gray-50">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-2">
                       <div>
                         <h4 className="font-medium text-gray-900">Reference</h4>
                         <p className="text-sm text-gray-600">{application.reference_name}</p>
@@ -365,6 +514,13 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                         name="Call" 
                         phone={application.reference_mobile}
                         variant="outline"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">Status:</span>
+                      <CallStatusSelector
+                        currentStatus={currentApp.reference_calling_status}
+                        onStatusChange={(status) => handleCallingStatusChange('Reference', status, currentApp.reference_calling_status)}
                       />
                     </div>
                   </div>
