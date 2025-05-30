@@ -81,9 +81,15 @@ const Index = () => {
         <div className="space-y-6">
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Applications Dashboard</h1>
-              <p className="text-gray-600">Manage and track all applications</p>
+            <div className="flex items-center gap-4">
+              <img 
+                src="/lovable-uploads/879123ce-9339-4aec-90c9-3857e3b77417.png" 
+                alt="Prosparity Logo" 
+                className="h-8 w-auto"
+              />
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Collection Dashboard</h1>
+              </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
