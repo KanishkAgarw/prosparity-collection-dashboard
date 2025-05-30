@@ -100,7 +100,7 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
               <TableHead className="min-w-[120px]">EMI Due</TableHead>
               <TableHead className="min-w-[120px]">Status</TableHead>
               <TableHead className="min-w-[100px]">PTP Date</TableHead>
-              <TableHead className="min-w-[120px]">Latest Call</TableHead>
+              <TableHead className="min-w-[120px]">Call Status</TableHead>
               {isAdmin && <TableHead className="min-w-[80px]">Actions</TableHead>}
             </TableRow>
           </TableHeader>
@@ -141,12 +141,12 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
                   {formatPtpDate(app.ptp_date)}
                 </TableCell>
                 <TableCell className="text-sm">
-                  {app.latest_calling_status ? (
+                  {app.latest_calling_status && app.latest_calling_status !== 'Not Called' ? (
                     <Badge variant="outline" className="text-xs">
                       {app.latest_calling_status}
                     </Badge>
                   ) : (
-                    <span className="text-gray-400">No calls</span>
+                    <span className="text-gray-400">Not Called</span>
                   )}
                 </TableCell>
                 {isAdmin && (

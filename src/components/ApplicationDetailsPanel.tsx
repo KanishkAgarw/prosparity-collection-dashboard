@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { X, Calendar, User, FileText, DollarSign, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -80,7 +81,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
       // Add audit log
       await addAuditLog(`${contactType} Calling Status`, previousStatus, newStatus);
 
-      // Update local state
+      // Update local state only - don't call onSave() to prevent full reload
       setEditedApp(prev => ({
         ...(prev || application),
         [fieldName]: newStatus,
@@ -88,7 +89,6 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
       }));
 
       toast.success('Calling status updated successfully');
-      onSave(); // Refresh the main table
     } catch (error) {
       console.error('Error updating calling status:', error);
       toast.error('Failed to update calling status');
@@ -192,8 +192,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
 
   const getLogsForSection = (section: string) => {
     const sectionFields = {
-      'Status and PTP': ['Status', 'PTP Date', 'Amount Paid'],
-      'Calling Status': ['Applicant Calling Status', 'Co-Applicant Calling Status', 'Guarantor Calling Status', 'Reference Calling Status']
+      'Status and PTP': ['Status', 'PTP Date', 'Amount Paid']
     };
     
     const logs = auditLogs.filter(log => 
@@ -204,12 +203,11 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
   };
 
   const statusAndPtpLogs = getLogsForSection('Status and PTP');
-  const callingStatusLogs = getLogsForSection('Calling Status');
 
   return (
     <div className="fixed right-0 top-0 h-full w-full sm:w-[500px] bg-white shadow-lg border-l z-50 overflow-y-auto">
-      <div className="p-4 sm:p-6">
-        <div className="flex items-center justify-between mb-6">
+      <div className="p-3 sm:p-6">
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
           <h2 className="text-lg sm:text-xl font-semibold">Application Details</h2>
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="h-4 w-4" />
@@ -217,28 +215,28 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
         </div>
 
         {/* Applicant Name and EMI Month Header */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-              <User className="h-5 w-5 text-white" />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-600 rounded-full flex items-center justify-center">
+              <User className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className="font-semibold text-lg text-blue-900 truncate">{application.applicant_name}</h3>
-              <p className="text-sm text-blue-700 truncate">EMI Month: {formatEmiMonth(application.demand_date)}</p>
-              <p className="text-sm text-blue-600 mt-1">EMI Due: {formatCurrency(application.emi_amount)}</p>
+              <h3 className="font-semibold text-base sm:text-lg text-blue-900 truncate">{application.applicant_name}</h3>
+              <p className="text-xs sm:text-sm text-blue-700 truncate">EMI Month: {formatEmiMonth(application.demand_date)}</p>
+              <p className="text-xs sm:text-sm text-blue-600 mt-1">EMI Due: {formatCurrency(application.emi_amount)}</p>
             </div>
           </div>
         </div>
 
         {/* Tabbed Interface */}
         <Tabs defaultValue="status" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="status">Status & Payment</TabsTrigger>
-            <TabsTrigger value="contacts">Contacts</TabsTrigger>
-            <TabsTrigger value="comments">Comments</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 text-xs sm:text-sm">
+            <TabsTrigger value="status" className="px-2 py-1 sm:px-3 sm:py-2">Status & Payment</TabsTrigger>
+            <TabsTrigger value="contacts" className="px-2 py-1 sm:px-3 sm:py-2">Contacts</TabsTrigger>
+            <TabsTrigger value="comments" className="px-2 py-1 sm:px-3 sm:py-2">Comments</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="status" className="space-y-4">
+          <TabsContent value="status" className="space-y-4 mt-4">
             {/* Status Section */}
             <Card>
               <CardHeader className="pb-3">
@@ -262,7 +260,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                               <div key={log.id} className="border rounded-lg p-3 bg-gray-50">
                                 <div className="flex items-center gap-2 mb-2">
                                   <User className="h-4 w-4 text-gray-500" />
-                                  <span className="font-medium text-sm">{log.user_email || 'Unknown User'}</span>
+                                  <span className="font-medium text-sm">{log.user_name || log.user_email || 'Unknown User'}</span>
                                   <Clock className="h-3 w-3 text-gray-400" />
                                   <span className="text-xs text-gray-500">{formatDateTime(log.created_at)}</span>
                                 </div>
@@ -322,7 +320,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                         <div key={log.id} className="text-xs border-l-2 border-blue-200 pl-2 py-1 bg-blue-50">
                           <div className="flex items-center gap-1">
                             <span className="font-medium">{log.field}</span>
-                            <span className="text-gray-500">by {log.user_email || 'Unknown User'}</span>
+                            <span className="text-gray-500">by {log.user_name || log.user_email || 'Unknown User'}</span>
                           </div>
                           <div className="text-gray-400">{formatDateTime(log.created_at)}</div>
                           <div className="text-xs mt-1">
@@ -341,19 +339,21 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
 
-            {/* Calling Status Section */}
+          <TabsContent value="contacts" className="space-y-4 mt-4">
+            {/* Contact Information Section */}
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm">Calling Status</CardTitle>
+                  <CardTitle className="text-sm">Contact Information</CardTitle>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-gray-500">{callingLogs.length} calls</span>
                     {callingLogs.length > 0 && (
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button variant="ghost" size="sm" className="text-xs">
-                            View All Calls
+                            View Call History
                           </Button>
                         </DialogTrigger>
                         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -365,7 +365,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                               <div key={log.id} className="border rounded-lg p-3 bg-gray-50">
                                 <div className="flex items-center gap-2 mb-2">
                                   <User className="h-4 w-4 text-gray-500" />
-                                  <span className="font-medium text-sm">{log.user_name}</span>
+                                  <span className="font-medium text-sm">{log.user_name || log.user_email || 'Unknown User'}</span>
                                   <Clock className="h-3 w-3 text-gray-400" />
                                   <span className="text-xs text-gray-500">{formatDateTime(log.created_at)}</span>
                                 </div>
@@ -386,48 +386,15 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="pt-0">
-                {/* Recent Calling Logs */}
-                {callingLogs.length > 0 ? (
-                  <div className="space-y-2">
-                    <p className="text-xs text-gray-500 mb-2">Recent Calls:</p>
-                    {callingLogs.slice(0, 3).map((log) => (
-                      <div key={log.id} className="text-xs border-l-2 border-green-200 pl-2 py-1 bg-green-50">
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium">{log.contact_type}</span>
-                          <span className="text-gray-500">by {log.user_name}</span>
-                        </div>
-                        <div className="text-gray-400">{formatDateTime(log.created_at)}</div>
-                        <div className="text-xs mt-1">
-                          <span className="bg-red-100 px-1 rounded">{log.previous_status || 'Not Called'}</span>
-                          {" → "}
-                          <span className="bg-green-100 px-1 rounded">{log.new_status}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-xs text-gray-400 italic">No calls recorded yet</div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="contacts" className="space-y-4">
-            {/* Contact Information Section */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Contact Information</CardTitle>
-              </CardHeader>
               <CardContent className="pt-0 space-y-4">
                 {/* Applicant Contact */}
                 <div className="border rounded-lg p-3 bg-gray-50">
                   <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <h4 className="font-medium text-gray-900">Applicant</h4>
-                      <p className="text-sm text-gray-600">{application.applicant_name}</p>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-gray-900 text-sm">Applicant</h4>
+                      <p className="text-sm text-gray-600 truncate">{application.applicant_name}</p>
                       {application.applicant_mobile && (
-                        <p className="text-sm text-gray-500">{application.applicant_mobile}</p>
+                        <p className="text-xs text-gray-500">{application.applicant_mobile}</p>
                       )}
                     </div>
                     <CallButton 
@@ -436,7 +403,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                       variant="outline"
                     />
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs text-gray-500">Status:</span>
                     <CallStatusSelector
                       currentStatus={currentApp.applicant_calling_status}
@@ -449,11 +416,11 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                 {application.co_applicant_name && (
                   <div className="border rounded-lg p-3 bg-gray-50">
                     <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <h4 className="font-medium text-gray-900">Co-Applicant</h4>
-                        <p className="text-sm text-gray-600">{application.co_applicant_name}</p>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-gray-900 text-sm">Co-Applicant</h4>
+                        <p className="text-sm text-gray-600 truncate">{application.co_applicant_name}</p>
                         {application.co_applicant_mobile && (
-                          <p className="text-sm text-gray-500">{application.co_applicant_mobile}</p>
+                          <p className="text-xs text-gray-500">{application.co_applicant_mobile}</p>
                         )}
                       </div>
                       <CallButton 
@@ -462,7 +429,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                         variant="outline"
                       />
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs text-gray-500">Status:</span>
                       <CallStatusSelector
                         currentStatus={currentApp.co_applicant_calling_status}
@@ -476,11 +443,11 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                 {application.guarantor_name && (
                   <div className="border rounded-lg p-3 bg-gray-50">
                     <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <h4 className="font-medium text-gray-900">Guarantor</h4>
-                        <p className="text-sm text-gray-600">{application.guarantor_name}</p>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-gray-900 text-sm">Guarantor</h4>
+                        <p className="text-sm text-gray-600 truncate">{application.guarantor_name}</p>
                         {application.guarantor_mobile && (
-                          <p className="text-sm text-gray-500">{application.guarantor_mobile}</p>
+                          <p className="text-xs text-gray-500">{application.guarantor_mobile}</p>
                         )}
                       </div>
                       <CallButton 
@@ -489,7 +456,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                         variant="outline"
                       />
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs text-gray-500">Status:</span>
                       <CallStatusSelector
                         currentStatus={currentApp.guarantor_calling_status}
@@ -503,11 +470,11 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                 {application.reference_name && (
                   <div className="border rounded-lg p-3 bg-gray-50">
                     <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <h4 className="font-medium text-gray-900">Reference</h4>
-                        <p className="text-sm text-gray-600">{application.reference_name}</p>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-gray-900 text-sm">Reference</h4>
+                        <p className="text-sm text-gray-600 truncate">{application.reference_name}</p>
                         {application.reference_mobile && (
-                          <p className="text-sm text-gray-500">{application.reference_mobile}</p>
+                          <p className="text-xs text-gray-500">{application.reference_mobile}</p>
                         )}
                       </div>
                       <CallButton 
@@ -516,7 +483,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                         variant="outline"
                       />
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs text-gray-500">Status:</span>
                       <CallStatusSelector
                         currentStatus={currentApp.reference_calling_status}
@@ -530,11 +497,34 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                 {application.fi_location && (
                   <div className="border rounded-lg p-3 bg-gray-50">
                     <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-medium text-gray-900">FI Submission Location</h4>
-                        <p className="text-sm text-gray-600">View location on map</p>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-gray-900 text-sm">FI Submission Location</h4>
+                        <p className="text-xs text-gray-600">View location on map</p>
                       </div>
                       <FiLocationButton fiLocation={application.fi_location} />
+                    </div>
+                  </div>
+                )}
+
+                {/* Recent Calling Activity */}
+                {callingLogs.length > 0 && (
+                  <div className="border-t pt-3">
+                    <p className="text-xs text-gray-500 mb-2">Recent Calling Activity:</p>
+                    <div className="space-y-2">
+                      {callingLogs.slice(0, 3).map((log) => (
+                        <div key={log.id} className="text-xs border-l-2 border-green-200 pl-2 py-1 bg-green-50">
+                          <div className="flex items-center gap-1">
+                            <span className="font-medium">{log.contact_type}</span>
+                            <span className="text-gray-500">by {log.user_name || log.user_email || 'Unknown User'}</span>
+                          </div>
+                          <div className="text-gray-400">{formatDateTime(log.created_at)}</div>
+                          <div className="text-xs mt-1">
+                            <span className="bg-red-100 px-1 rounded">{log.previous_status || 'Not Called'}</span>
+                            {" → "}
+                            <span className="bg-green-100 px-1 rounded">{log.new_status}</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -548,7 +538,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
             </Card>
           </TabsContent>
 
-          <TabsContent value="comments" className="space-y-4">
+          <TabsContent value="comments" className="space-y-4 mt-4">
             {/* Comments Section */}
             <Card>
               <CardHeader className="pb-3">
@@ -563,7 +553,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
                       placeholder="Add your comment here..."
-                      className="min-h-[100px] resize-none"
+                      className="min-h-[80px] resize-none text-sm"
                     />
                     <Button 
                       onClick={handleAddComment} 
@@ -577,23 +567,23 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
                   {comments.length > 0 && (
                     <div className="border-t pt-4">
                       <p className="text-sm font-medium text-gray-700 mb-3">All Comments ({comments.length}):</p>
-                      <div className="space-y-4 max-h-60 overflow-y-auto">
+                      <div className="space-y-3 max-h-60 overflow-y-auto">
                         {comments.map((comment) => (
-                          <div key={comment.id} className="border rounded-lg p-4 bg-gray-50 hover:bg-gray-100 transition-colors">
+                          <div key={comment.id} className="border rounded-lg p-3 bg-gray-50 hover:bg-gray-100 transition-colors">
                             <div className="flex items-start gap-3">
-                              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                                <User className="h-4 w-4 text-white" />
+                              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                                <User className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-2">
-                                  <span className="font-medium text-sm text-blue-700">
+                                  <span className="font-medium text-xs sm:text-sm text-blue-700">
                                     {comment.user_email || 'Unknown User'}
                                   </span>
                                   <span className="text-xs text-gray-500">
                                     {formatDateTime(comment.created_at)}
                                   </span>
                                 </div>
-                                <div className="text-sm text-gray-800 leading-relaxed break-words">
+                                <div className="text-xs sm:text-sm text-gray-800 leading-relaxed break-words">
                                   {comment.content}
                                 </div>
                               </div>
@@ -615,7 +605,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
         {/* Save Button */}
         <Button 
           onClick={handleSave} 
-          className="w-full mt-6"
+          className="w-full mt-4 sm:mt-6"
           disabled={!editedApp || saving}
         >
           {saving ? 'Saving...' : 'Save Changes'}
