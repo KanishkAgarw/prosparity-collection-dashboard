@@ -1,3 +1,4 @@
+
 import { useState, useMemo, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { User, Mail, LogOut, Menu } from "lucide-react";
@@ -10,7 +11,7 @@ import ApplicationDetailsPanel from "@/components/ApplicationDetailsPanel";
 import UploadApplicationDialog from "@/components/UploadApplicationDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useApplications } from "@/hooks/useApplications";
-import { useFilteredOptions } from "@/hooks/useFilteredOptions";
+import { useCascadingFilters } from "@/hooks/useCascadingFilters";
 import { format, parse, isValid } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -30,14 +31,6 @@ const Index = () => {
   const { applications, loading: appsLoading, refetch } = useApplications();
   const [selectedApplication, setSelectedApplication] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filters, setFilters] = useState({
-    branch: [] as string[],
-    teamLead: [] as string[],
-    dealer: [] as string[],
-    lender: [] as string[],
-    status: [] as string[],
-    emiMonth: [] as string[]
-  });
   const isMobile = useIsMobile();
 
   // Format EMI month to MMM-YY format properly
@@ -118,81 +111,32 @@ const Index = () => {
     });
   }, [applications]);
 
-  const filterOptions = useMemo(() => {
-    // Add safety checks to prevent undefined iteration errors
-    const safeApplications = formattedApplications || [];
-    
-    const branches = [...new Set(safeApplications.map(app => app.branch).filter(Boolean))];
-    const teamLeads = [...new Set(safeApplications.map(app => app.teamLead).filter(Boolean))];
-    const dealers = [...new Set(safeApplications.map(app => app.dealer).filter(Boolean))];
-    const lenders = [...new Set(safeApplications.map(app => app.lender).filter(Boolean))];
-    const statuses = [...new Set(safeApplications.map(app => app.status).filter(Boolean))];
-    const emiMonths = [...new Set(safeApplications.map(app => app.demandMonth).filter(Boolean))];
+  // Use the new cascading filter system
+  const {
+    filters,
+    filteredApplications: cascadeFilteredApplications,
+    availableOptions,
+    handleFilterChange
+  } = useCascadingFilters({ applications: formattedApplications });
 
-    return {
-      branches,
-      teamLeads,
-      dealers,
-      lenders,
-      statuses,
-      emiMonths
-    };
-  }, [formattedApplications]);
-
-  // Use the new useFilteredOptions hook to get filtered dealers
-  const { filteredDealers } = useFilteredOptions({
-    teamLeads: filterOptions.teamLeads,
-    selectedTeamLead: filters.teamLead
-  });
-
-  // Update dealer filter options based on selected team leads
-  useEffect(() => {
-    // If team leads are selected, update filter options with filtered dealers
-    const updatedFilterOptions = {
-      ...filterOptions,
-      dealers: filters.teamLead.length > 0 ? filteredDealers : filterOptions.dealers
-    };
-    
-    // If any currently selected dealers are no longer in the filtered list, remove them
-    if (filters.teamLead.length > 0) {
-      const validDealers = filters.dealer.filter(dealer => 
-        filteredDealers.includes(dealer)
-      );
-      
-      if (validDealers.length !== filters.dealer.length) {
-        setFilters(prev => ({ ...prev, dealer: validDealers }));
-      }
-    }
-  }, [filters.teamLead, filteredDealers]);
-
-  const filteredApplications = useMemo(() => {
-    return formattedApplications.filter(app => {
-      // Apply search filter
+  // Apply search filter on top of cascade filtered applications
+  const finalFilteredApplications = useMemo(() => {
+    return cascadeFilteredApplications.filter(app => {
       const matchesSearch = searchTerm === "" || 
         app.applicationId.toLowerCase().includes(searchTerm.toLowerCase()) ||
         app.applicantName.toLowerCase().includes(searchTerm.toLowerCase());
 
-      // Apply other filters
-      const matchesFilters = (
-        (filters.branch.length === 0 || filters.branch.includes(app.branch)) &&
-        (filters.teamLead.length === 0 || filters.teamLead.includes(app.teamLead)) &&
-        (filters.dealer.length === 0 || filters.dealer.includes(app.dealer)) &&
-        (filters.lender.length === 0 || filters.lender.includes(app.lender)) &&
-        (filters.status.length === 0 || filters.status.includes(app.status)) &&
-        (filters.emiMonth.length === 0 || filters.emiMonth.includes(app.demandMonth))
-      );
-
-      return matchesSearch && matchesFilters;
+      return matchesSearch;
     });
-  }, [formattedApplications, filters, searchTerm]);
+  }, [cascadeFilteredApplications, searchTerm]);
 
   const statusCounts = useMemo(() => {
-    const counts = filteredApplications.reduce((acc, app) => {
+    const counts = finalFilteredApplications.reduce((acc, app) => {
       acc[app.status] = (acc[app.status] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    const totalEMIs = filteredApplications.length;
+    const totalEMIs = finalFilteredApplications.length;
     const fullyPaid = counts['Paid'] || 0;
     const partiallyPaid = counts['Partially Paid'] || 0;
     const unpaid = counts['Unpaid'] || 0;
@@ -205,7 +149,7 @@ const Index = () => {
       partiallyPaid,
       unpaid
     };
-  }, [filteredApplications]);
+  }, [finalFilteredApplications]);
 
   // All hooks are called above this point - now we can do conditional returns
   if (authLoading) {
@@ -226,10 +170,6 @@ const Index = () => {
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
-
-  const handleFilterChange = (key: string, values: string[]) => {
-    setFilters(prev => ({ ...prev, [key]: values }));
-  };
 
   const handleRowClick = (application: any) => {
     setSelectedApplication(application);
@@ -341,10 +281,7 @@ const Index = () => {
         <MobileFilterBar 
           filters={filters} 
           onFilterChange={handleFilterChange}
-          filterOptions={{
-            ...filterOptions,
-            dealers: filters.teamLead.length > 0 ? filteredDealers : filterOptions.dealers
-          }}
+          filterOptions={availableOptions}
         />
         
         <SearchBar 
@@ -357,7 +294,7 @@ const Index = () => {
         <div className="bg-white rounded-lg shadow overflow-hidden">
           {appsLoading ? (
             <div className="p-8 text-center">Loading applications...</div>
-          ) : filteredApplications.length === 0 ? (
+          ) : finalFilteredApplications.length === 0 ? (
             <div className="p-8 text-center">
               {searchTerm || Object.values(filters).some(f => f.length > 0) ? (
                 <p className="text-gray-500">No applications found matching your search criteria.</p>
@@ -368,7 +305,7 @@ const Index = () => {
           ) : (
             <div className="overflow-x-auto">
               <ApplicationsTable 
-                applications={filteredApplications}
+                applications={finalFilteredApplications}
                 onRowClick={handleRowClick}
                 onApplicationDeleted={refetch}
                 selectedApplicationId={selectedApplication?.applicationId}
