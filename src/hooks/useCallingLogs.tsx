@@ -29,10 +29,7 @@ export const useCallingLogs = (applicationId?: string) => {
       
       const { data, error } = await supabase
         .from('calling_logs')
-        .select(`
-          *,
-          profiles!calling_logs_user_id_fkey(full_name)
-        `)
+        .select('*')
         .eq('application_id', applicationId)
         .order('created_at', { ascending: false });
 
@@ -40,11 +37,7 @@ export const useCallingLogs = (applicationId?: string) => {
         console.error('Error fetching calling logs:', error);
       } else {
         console.log('Fetched calling logs:', data);
-        const logsWithUserNames = data?.map(log => ({
-          ...log,
-          user_name: log.profiles?.full_name || log.user_email || 'Unknown User'
-        })) || [];
-        setCallingLogs(logsWithUserNames);
+        setCallingLogs(data || []);
       }
     } catch (error) {
       console.error('Error fetching calling logs:', error);
