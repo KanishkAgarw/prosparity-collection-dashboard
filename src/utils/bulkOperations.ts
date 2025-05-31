@@ -1,60 +1,69 @@
 
-export const sleep = (ms: number): Promise<void> => {
-  return new Promise(resolve => setTimeout(resolve, ms));
-};
+import { supabase } from '@/integrations/supabase/client';
+import { Application } from '@/types/application';
 
-export interface RetryOptions {
-  maxRetries: number;
-  baseDelay: number;
-  maxDelay: number;
-}
-
-export const retryWithBackoff = async <T>(
-  operation: () => Promise<T>,
-  options: RetryOptions
-): Promise<T> => {
-  let lastError: Error;
+export const processBulkApplications = async (applications: any[]) => {
+  console.log('Processing bulk applications:', applications.length);
   
-  for (let attempt = 0; attempt <= options.maxRetries; attempt++) {
+  const results = {
+    successful: 0,
+    failed: 0,
+    updated: 0,
+    errors: [] as string[]
+  };
+
+  for (const app of applications) {
     try {
-      return await operation();
-    } catch (error: any) {
-      lastError = error;
-      
-      // Don't retry if it's a user already exists error (422)
-      if (error.message?.includes('User already registered') || error.status === 422) {
-        throw error;
+      // Check if application already exists
+      const { data: existingApp } = await supabase
+        .from('applications')
+        .select('id, applicant_id')
+        .eq('applicant_id', app.applicant_id)
+        .maybeSingle();
+
+      if (existingApp) {
+        // Update existing application
+        const { error: updateError } = await supabase
+          .from('applications')
+          .update({
+            ...app,
+            updated_at: new Date().toISOString()
+          })
+          .eq('applicant_id', app.applicant_id);
+
+        if (updateError) {
+          console.error('Error updating application:', updateError);
+          results.failed++;
+          results.errors.push(`Failed to update ${app.applicant_id}: ${updateError.message}`);
+        } else {
+          console.log('Updated application:', app.applicant_id);
+          results.updated++;
+        }
+      } else {
+        // Insert new application
+        const { error: insertError } = await supabase
+          .from('applications')
+          .insert([{
+            ...app,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }]);
+
+        if (insertError) {
+          console.error('Error inserting application:', insertError);
+          results.failed++;
+          results.errors.push(`Failed to insert ${app.applicant_id}: ${insertError.message}`);
+        } else {
+          console.log('Inserted application:', app.applicant_id);
+          results.successful++;
+        }
       }
-      
-      // Don't retry if it's not a rate limit error
-      if (!error.message?.includes('rate limit') && !error.message?.includes('429') && error.status !== 429) {
-        throw error;
-      }
-      
-      if (attempt === options.maxRetries) {
-        break;
-      }
-      
-      // Much more aggressive exponential backoff with jitter for rate limits
-      const baseBackoff = options.baseDelay * Math.pow(2, attempt);
-      const jitter = Math.random() * 10000; // Up to 10 seconds of jitter
-      const delay = Math.min(baseBackoff + jitter, options.maxDelay);
-      
-      console.log(`Rate limit hit, waiting ${Math.round(delay/1000)}s before retry (attempt ${attempt + 1}/${options.maxRetries + 1})`);
-      await sleep(delay);
+    } catch (error) {
+      console.error('Unexpected error processing application:', error);
+      results.failed++;
+      results.errors.push(`Unexpected error for ${app.applicant_id}: ${error}`);
     }
   }
-  
-  throw lastError;
+
+  return results;
 };
-
-export interface BulkOperationProgress {
-  current: number;
-  total: number;
-  success: number;
-  failed: number;
-  skipped: number;
-  currentItem?: string;
-}
-
-export type ProgressCallback = (progress: BulkOperationProgress) => void;

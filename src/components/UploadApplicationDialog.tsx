@@ -1,235 +1,106 @@
 
 import { useState } from 'react';
+import { Upload, FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Upload, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { processBulkApplications } from '@/utils/bulkOperations';
+import { useAuth } from '@/hooks/useAuth';
 
 interface UploadApplicationDialogProps {
-  onApplicationAdded: () => void;
+  onApplicationsAdded: () => void;
 }
 
-interface ExcelRowData {
-  'Applicant ID': string;
-  'Branch Name': string;
-  'RM Name': string;
-  'Dealer Name': string;
-  'Applicant Name': string;
-  'Applicant Mobile Number': string;
-  'Applicant Current Address': string;
-  'House Ownership': string;
-  'Co-Applicant Name': string;
-  'Coapplicant Mobile Number': string;
-  'Coapplicant Current Address': string;
-  'Guarantor Name': string;
-  'Guarantor Mobile Number': string;
-  'Guarantor Current Address': string;
-  'Reference Name': string;
-  'Reference Mobile Number': string;
-  'Reference Address': string;
-  'FI Submission Location': string;
-  'Demand Date': string;
-  'Repayment': string;
-  'Principle Due': number;
-  'Interest Due': number;
-  'EMI': number;
-  'Last Month Bounce': number;
-  'Lender Name': string;
-  'Status': string;
-  'Team Lead': string;
-}
-
-const UploadApplicationDialog = ({ onApplicationAdded }: UploadApplicationDialogProps) => {
+const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialogProps) => {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const fileExtension = file.name.split('.').pop()?.toLowerCase();
-      if (fileExtension === 'xlsx' || fileExtension === 'xls') {
-        setSelectedFile(file);
-      } else {
-        toast.error('Please select an Excel file (.xlsx or .xls)');
-        e.target.value = '';
-      }
-    }
-  };
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
 
-  const downloadTemplate = () => {
-    const templateData = [
-      {
-        'Applicant ID': 'PROSAPP250225000011',
-        'Branch Name': 'Bhopal',
-        'RM Name': 'Imtiyaz Ali',
-        'Dealer Name': 'Maa Bhawani Automobiles',
-        'Applicant Name': 'Ravindra Deshraj',
-        'Applicant Mobile Number': '9131299920',
-        'Applicant Current Address': 'SANT ASHARAM NAGAR PHASE-3 KI JUGGI BAG MUNGALIYA Bhopal Huzur BHOPAL 462043 Madhya Pradesh',
-        'House Ownership': 'Owned',
-        'Co-Applicant Name': 'Raj Kumar',
-        'Coapplicant Mobile Number': '7909466931',
-        'Coapplicant Current Address': '',
-        'Guarantor Name': '',
-        'Guarantor Mobile Number': '',
-        'Guarantor Current Address': '',
-        'Reference Name': 'Aftab Khan',
-        'Reference Mobile Number': '7869498395',
-        'Reference Address': 'H No 1071Mother India Colony Idgah Hills 462001',
-        'FI Submission Location': 'FI_PENDING 23.2337937 77.4502460',
-        'Demand Date': '45813',
-        'Repayment': '2nd',
-        'Principle Due': 4114,
-        'Interest Due': 3542,
-        'EMI': 7656,
-        'Last Month Bounce': 0,
-        'Lender Name': 'Namdev',
-        'Status': 'Paid',
-        'Team Lead': 'Hemant Joshi'
-      }
-    ];
+    setUploading(true);
+    toast.loading('Processing file...', { id: 'upload' });
 
-    const ws = XLSX.utils.json_to_sheet(templateData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Applications');
-    
-    // Set column widths
-    const wscols = [
-      { wch: 20 }, // Applicant ID
-      { wch: 15 }, // Branch Name
-      { wch: 15 }, // RM Name
-      { wch: 20 }, // Dealer Name
-      { wch: 20 }, // Applicant Name
-      { wch: 15 }, // Mobile
-      { wch: 40 }, // Address
-      { wch: 12 }, // House Ownership
-      { wch: 15 }, // Co-Applicant Name
-      { wch: 15 }, // Co-Applicant Mobile
-      { wch: 30 }, // Co-Applicant Address
-      { wch: 15 }, // Guarantor Name
-      { wch: 15 }, // Guarantor Mobile
-      { wch: 30 }, // Guarantor Address
-      { wch: 15 }, // Reference Name
-      { wch: 15 }, // Reference Mobile
-      { wch: 30 }, // Reference Address
-      { wch: 25 }, // FI Location
-      { wch: 12 }, // Demand Date
-      { wch: 10 }, // Repayment
-      { wch: 12 }, // Principle Due
-      { wch: 12 }, // Interest Due
-      { wch: 10 }, // EMI
-      { wch: 15 }, // Last Month Bounce
-      { wch: 15 }, // Lender Name
-      { wch: 12 }, // Status
-      { wch: 15 }  // Team Lead
-    ];
-    ws['!cols'] = wscols;
-
-    XLSX.writeFile(wb, 'applications_template.xlsx');
-    toast.success('Template downloaded successfully');
-  };
-
-  const handleExcelUpload = async () => {
-    if (!selectedFile || !user) return;
-    
-    setLoading(true);
     try {
-      const fileBuffer = await selectedFile.arrayBuffer();
-      const workbook = XLSX.read(fileBuffer, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet) as ExcelRowData[];
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      console.log('Parsed Excel data:', jsonData);
+      console.log('Parsed data:', jsonData);
 
       if (jsonData.length === 0) {
-        toast.error('No data found in Excel file');
+        toast.error('No data found in the file', { id: 'upload' });
         return;
       }
 
-      // Validate required columns
-      const requiredColumns = [
-        'Applicant ID',
-        'Branch Name',
-        'RM Name',
-        'Dealer Name',
-        'Applicant Name',
-        'Lender Name',
-        'Status',
-        'Team Lead'
-      ];
-
-      const firstRow = jsonData[0];
-      const missingColumns = requiredColumns.filter(col => !(col in firstRow));
-      
-      if (missingColumns.length > 0) {
-        toast.error(`Missing required columns: ${missingColumns.join(', ')}`);
-        return;
-      }
-
-      // Process and insert data
-      const applicationsToInsert = jsonData.map(row => ({
-        applicant_id: String(row['Applicant ID']),
-        branch_name: String(row['Branch Name']),
-        rm_name: String(row['RM Name']),
-        dealer_name: String(row['Dealer Name']),
-        applicant_name: String(row['Applicant Name']),
-        applicant_mobile: row['Applicant Mobile Number'] ? String(row['Applicant Mobile Number']) : null,
-        applicant_address: row['Applicant Current Address'] ? String(row['Applicant Current Address']) : null,
-        house_ownership: row['House Ownership'] ? String(row['House Ownership']) : null,
-        co_applicant_name: row['Co-Applicant Name'] ? String(row['Co-Applicant Name']) : null,
-        co_applicant_mobile: row['Coapplicant Mobile Number'] ? String(row['Coapplicant Mobile Number']) : null,
-        co_applicant_address: row['Coapplicant Current Address'] ? String(row['Coapplicant Current Address']) : null,
-        guarantor_name: row['Guarantor Name'] ? String(row['Guarantor Name']) : null,
-        guarantor_mobile: row['Guarantor Mobile Number'] ? String(row['Guarantor Mobile Number']) : null,
-        guarantor_address: row['Guarantor Current Address'] ? String(row['Guarantor Current Address']) : null,
-        reference_name: row['Reference Name'] ? String(row['Reference Name']) : null,
-        reference_mobile: row['Reference Mobile Number'] ? String(row['Reference Mobile Number']) : null,
-        reference_address: row['Reference Address'] ? String(row['Reference Address']) : null,
-        fi_location: row['FI Submission Location'] ? String(row['FI Submission Location']) : null,
-        demand_date: row['Demand Date'] ? String(row['Demand Date']) : null,
-        repayment: row['Repayment'] ? String(row['Repayment']) : null,
-        principle_due: row['Principle Due'] ? Number(row['Principle Due']) : 0,
-        interest_due: row['Interest Due'] ? Number(row['Interest Due']) : 0,
-        emi_amount: Number(row['EMI']),
-        last_month_bounce: row['Last Month Bounce'] ? Number(row['Last Month Bounce']) : 0,
-        lender_name: String(row['Lender Name']),
-        status: String(row['Status']),
-        team_lead: String(row['Team Lead']),
-        user_id: user.id
+      // Transform data to match database schema
+      const applications = jsonData.map((row: any) => ({
+        applicant_id: row['Applicant ID'] || row['applicant_id'],
+        applicant_name: row['Applicant Name'] || row['applicant_name'],
+        branch_name: row['Branch'] || row['branch_name'],
+        team_lead: row['Team Lead'] || row['team_lead'],
+        rm_name: row['RM Name'] || row['rm_name'],
+        dealer_name: row['Dealer'] || row['dealer_name'],
+        lender_name: row['Lender'] || row['lender_name'],
+        status: row['Status'] || row['status'] || 'Unpaid',
+        emi_amount: parseFloat(row['EMI Amount'] || row['emi_amount'] || '0'),
+        principle_due: parseFloat(row['Principle Due'] || row['principle_due'] || '0'),
+        interest_due: parseFloat(row['Interest Due'] || row['interest_due'] || '0'),
+        demand_date: row['Demand Date'] || row['demand_date'],
+        ptp_date: row['PTP Date'] || row['ptp_date'] || null,
+        paid_date: row['Paid Date'] || row['paid_date'] || null,
+        user_id: user.id,
+        // Additional fields
+        applicant_mobile: row['Applicant Mobile'] || row['applicant_mobile'],
+        applicant_address: row['Applicant Address'] || row['applicant_address'],
+        house_ownership: row['House Ownership'] || row['house_ownership'],
+        co_applicant_name: row['Co-Applicant Name'] || row['co_applicant_name'],
+        co_applicant_mobile: row['Co-Applicant Mobile'] || row['co_applicant_mobile'],
+        co_applicant_address: row['Co-Applicant Address'] || row['co_applicant_address'],
+        guarantor_name: row['Guarantor Name'] || row['guarantor_name'],
+        guarantor_mobile: row['Guarantor Mobile'] || row['guarantor_mobile'],
+        guarantor_address: row['Guarantor Address'] || row['guarantor_address'],
+        reference_name: row['Reference Name'] || row['reference_name'],
+        reference_mobile: row['Reference Mobile'] || row['reference_mobile'],
+        reference_address: row['Reference Address'] || row['reference_address'],
+        fi_location: row['FI Location'] || row['fi_location'],
+        repayment: row['Repayment'] || row['repayment'],
+        last_month_bounce: parseFloat(row['Last Month Bounce'] || row['last_month_bounce'] || '0'),
+        rm_comments: row['RM Comments'] || row['rm_comments']
       }));
 
-      console.log('Applications to insert:', applicationsToInsert);
+      console.log('Transformed applications:', applications);
 
-      const { error } = await supabase
-        .from('applications')
-        .insert(applicationsToInsert);
+      const results = await processBulkApplications(applications);
 
-      if (error) {
-        console.error('Database error:', error);
-        if (error.code === '23505') {
-          toast.error('Some application IDs already exist');
-        } else {
-          toast.error('Failed to upload applications');
-        }
+      if (results.errors.length > 0) {
+        console.error('Upload errors:', results.errors);
+        toast.error(`Upload completed with errors. ${results.successful} successful, ${results.updated} updated, ${results.failed} failed.`, { id: 'upload' });
       } else {
-        toast.success(`Successfully uploaded ${applicationsToInsert.length} applications!`);
-        setSelectedFile(null);
-        setOpen(false);
-        onApplicationAdded();
+        toast.success(`Upload successful! ${results.successful} new applications added, ${results.updated} applications updated.`, { id: 'upload' });
       }
+
+      onApplicationsAdded();
+      setOpen(false);
     } catch (error) {
-      console.error('Excel processing error:', error);
-      toast.error('Failed to process Excel file. Please check the format.');
+      console.error('Error processing file:', error);
+      toast.error('Failed to process file', { id: 'upload' });
     } finally {
-      setLoading(false);
+      setUploading(false);
+      // Reset file input
+      event.target.value = '';
     }
   };
 
@@ -241,50 +112,32 @@ const UploadApplicationDialog = ({ onApplicationAdded }: UploadApplicationDialog
           Upload Applications
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Upload Applications via Excel</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <FileSpreadsheet className="h-5 w-5" />
+            Upload Applications
+          </DialogTitle>
           <DialogDescription>
-            Upload multiple applications using an Excel file. Download the template to get started.
+            Upload Excel/CSV files containing application data. The system will automatically update existing applications or add new ones.
           </DialogDescription>
         </DialogHeader>
-        
         <div className="space-y-4">
-          <div className="flex justify-center">
-            <Button onClick={downloadTemplate} variant="outline" className="w-full">
-              <Download className="h-4 w-4 mr-2" />
-              Download Excel Template
-            </Button>
+          <div className="space-y-2">
+            <label htmlFor="file-upload" className="text-sm font-medium">
+              Select File (Excel/CSV)
+            </label>
+            <Input
+              id="file-upload"
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={handleFileUpload}
+              disabled={uploading}
+            />
           </div>
-          
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="excel-file">Select Excel File</Label>
-              <Input
-                id="excel-file"
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={handleFileSelect}
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                Supported formats: .xlsx, .xls
-              </p>
-            </div>
-            
-            {selectedFile && (
-              <div className="p-3 bg-gray-50 rounded-md">
-                <p className="text-sm">Selected file: {selectedFile.name}</p>
-                <p className="text-xs text-gray-500">Size: {(selectedFile.size / 1024).toFixed(1)} KB</p>
-              </div>
-            )}
-            
-            <Button 
-              onClick={handleExcelUpload}
-              disabled={!selectedFile || loading}
-              className="w-full"
-            >
-              {loading ? 'Processing...' : 'Upload Excel File'}
-            </Button>
+          <div className="text-xs text-gray-500">
+            <p>Supported formats: Excel (.xlsx, .xls) and CSV (.csv)</p>
+            <p>The system will update existing applications based on Applicant ID and add new ones.</p>
           </div>
         </div>
       </DialogContent>
