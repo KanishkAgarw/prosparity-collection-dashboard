@@ -40,7 +40,12 @@ const Index = () => {
     handleFilterChange
   } = useCascadingFilters({ applications: allApplications });
 
-  const { handleExport } = useExport();
+  const { exportToExcel } = useExport();
+
+  // Create handleExport function that uses exportToExcel
+  const handleExport = () => {
+    exportToExcel({ applications: searchedApplications }, 'collection-report');
+  };
 
   // Search functionality
   const searchedApplications = useMemo(() => {
