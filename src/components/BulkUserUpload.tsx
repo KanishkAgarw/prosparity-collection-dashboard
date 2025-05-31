@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Upload, Download, Users, Pause, Play, X } from 'lucide-react';
+import { Upload, Download, Users, Pause, Play, X, AlertTriangle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { sleep, retryWithBackoff, BulkOperationProgress, ProgressCallback } from '@/utils/bulkOperations';
 
@@ -27,10 +28,12 @@ const BulkUserUpload = () => {
     current: 0,
     total: 0,
     success: 0,
-    failed: 0
+    failed: 0,
+    skipped: 0
   });
-  const [delayBetweenRequests, setDelayBetweenRequests] = useState(1500); // 1.5 seconds default
-  const [batchSize, setBatchSize] = useState(5); // Process 5 users at a time
+  const [delayBetweenRequests, setDelayBetweenRequests] = useState(8000); // 8 seconds default
+  const [batchSize, setBatchSize] = useState(2); // Process 2 users at a time
+  const [maxUsersPerSession, setMaxUsersPerSession] = useState(10); // Maximum 10 users per session
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -39,7 +42,7 @@ const BulkUserUpload = () => {
       if (fileExtension === 'xlsx' || fileExtension === 'xls') {
         setSelectedFile(file);
         // Reset progress when new file is selected
-        setProgress({ current: 0, total: 0, success: 0, failed: 0 });
+        setProgress({ current: 0, total: 0, success: 0, failed: 0, skipped: 0 });
       } else {
         toast.error('Please select an Excel file (.xlsx or .xls)');
         e.target.value = '';
@@ -95,15 +98,19 @@ const BulkUserUpload = () => {
         });
 
         if (error) {
-          throw new Error(`Failed to create user ${userData['Email (User ID)']}: ${error.message}`);
+          // Create a more detailed error object
+          const enhancedError = new Error(`Failed to create user ${userData['Email (User ID)']}: ${error.message}`);
+          (enhancedError as any).status = error.status;
+          (enhancedError as any).originalError = error;
+          throw enhancedError;
         }
 
         return data;
       },
       {
-        maxRetries: 3,
-        baseDelay: 2000,
-        maxDelay: 10000
+        maxRetries: 2, // Reduced retries
+        baseDelay: 30000, // Start with 30 second delay
+        maxDelay: 120000 // Maximum 2 minute delay
       }
     );
   };
@@ -143,26 +150,34 @@ const BulkUserUpload = () => {
         return;
       }
 
+      // Limit users per session
+      const usersToProcess = jsonData.slice(0, maxUsersPerSession);
+      if (jsonData.length > maxUsersPerSession) {
+        toast.info(`Processing first ${maxUsersPerSession} users. Upload remaining users in separate sessions.`);
+      }
+
       // Initialize progress
-      const totalUsers = jsonData.length;
+      const totalUsers = usersToProcess.length;
       setProgress({
         current: 0,
         total: totalUsers,
         success: 0,
-        failed: 0
+        failed: 0,
+        skipped: 0
       });
 
       let successCount = 0;
       let errorCount = 0;
+      let skippedCount = 0;
 
-      // Process users in batches
-      for (let i = 0; i < jsonData.length; i += batchSize) {
+      // Process users in smaller batches with longer delays
+      for (let i = 0; i < usersToProcess.length; i += batchSize) {
         if (paused) {
           console.log('Bulk upload paused by user');
           break;
         }
 
-        const batch = jsonData.slice(i, Math.min(i + batchSize, jsonData.length));
+        const batch = usersToProcess.slice(i, Math.min(i + batchSize, usersToProcess.length));
         
         // Process batch sequentially with delays
         for (const userData of batch) {
@@ -185,25 +200,36 @@ const BulkUserUpload = () => {
 
             console.log(`User created successfully: ${userData['Email (User ID)']}`);
             
-            // Add delay between requests to avoid rate limiting
-            if (i + batch.indexOf(userData) < jsonData.length - 1) {
+            // Much longer delay between requests
+            if (i + batch.indexOf(userData) < usersToProcess.length - 1) {
               await sleep(delayBetweenRequests);
             }
             
           } catch (error: any) {
             console.error(`Error creating user ${userData['Email (User ID)']}:`, error);
-            errorCount++;
             
-            setProgress(prev => ({
-              ...prev,
-              failed: errorCount
-            }));
+            // Check if user already exists
+            if (error.message?.includes('User already registered') || error.status === 422) {
+              skippedCount++;
+              setProgress(prev => ({
+                ...prev,
+                skipped: skippedCount
+              }));
+              console.log(`User already exists, skipping: ${userData['Email (User ID)']}`);
+            } else {
+              errorCount++;
+              setProgress(prev => ({
+                ...prev,
+                failed: errorCount
+              }));
+            }
           }
         }
 
-        // Pause between batches
-        if (i + batchSize < jsonData.length && !paused) {
-          await sleep(delayBetweenRequests * 2); // Longer pause between batches
+        // Much longer pause between batches (60 seconds)
+        if (i + batchSize < usersToProcess.length && !paused) {
+          console.log('Waiting 60 seconds between batches to avoid rate limits...');
+          await sleep(60000);
         }
       }
 
@@ -211,6 +237,9 @@ const BulkUserUpload = () => {
       if (!paused) {
         if (successCount > 0) {
           toast.success(`Successfully created ${successCount} users!`);
+        }
+        if (skippedCount > 0) {
+          toast.info(`Skipped ${skippedCount} users (already exist)`);
         }
         if (errorCount > 0) {
           toast.error(`Failed to create ${errorCount} users. Check console for details.`);
@@ -242,7 +271,7 @@ const BulkUserUpload = () => {
   const handleCancel = () => {
     setPaused(true);
     setLoading(false);
-    setProgress({ current: 0, total: 0, success: 0, failed: 0 });
+    setProgress({ current: 0, total: 0, success: 0, failed: 0, skipped: 0 });
     toast.info('Bulk upload cancelled');
   };
 
@@ -260,11 +289,19 @@ const BulkUserUpload = () => {
         <DialogHeader>
           <DialogTitle>Bulk Upload Users via Excel</DialogTitle>
           <DialogDescription>
-            Upload multiple users using an Excel file. The system will handle rate limits automatically with delays and retries.
+            Upload multiple users using an Excel file. The system uses conservative rate limiting to avoid errors.
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Rate Limit Protection:</strong> This tool processes users slowly to avoid Supabase rate limits. 
+              Maximum {maxUsersPerSession} users per session with {delayBetweenRequests/1000}s delays between requests.
+            </AlertDescription>
+          </Alert>
+
           <div className="flex justify-center">
             <Button onClick={downloadTemplate} variant="outline" className="w-full">
               <Download className="h-4 w-4 mr-2" />
@@ -272,7 +309,7 @@ const BulkUserUpload = () => {
             </Button>
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <Label htmlFor="delay">Delay Between Requests (ms)</Label>
               <Input
@@ -280,12 +317,12 @@ const BulkUserUpload = () => {
                 type="number"
                 value={delayBetweenRequests}
                 onChange={(e) => setDelayBetweenRequests(Number(e.target.value))}
-                min={500}
-                max={10000}
+                min={5000}
+                max={30000}
                 disabled={loading}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Recommended: 1000-2000ms
+                Min: 5s, Recommended: 8-10s
               </p>
             </div>
             <div>
@@ -296,11 +333,26 @@ const BulkUserUpload = () => {
                 value={batchSize}
                 onChange={(e) => setBatchSize(Number(e.target.value))}
                 min={1}
+                max={5}
+                disabled={loading}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Max: 5 users per batch
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="maxUsers">Max Users per Session</Label>
+              <Input
+                id="maxUsers"
+                type="number"
+                value={maxUsersPerSession}
+                onChange={(e) => setMaxUsersPerSession(Number(e.target.value))}
+                min={1}
                 max={20}
                 disabled={loading}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Users per batch
+                Recommended: 10
               </p>
             </div>
           </div>
@@ -331,7 +383,7 @@ const BulkUserUpload = () => {
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span>Progress: {progress.current} / {progress.total}</span>
-                  <span>Success: {progress.success} | Failed: {progress.failed}</span>
+                  <span>Success: {progress.success} | Failed: {progress.failed} | Skipped: {progress.skipped}</span>
                 </div>
                 <Progress value={progressPercentage} className="w-full" />
                 {progress.currentItem && (
@@ -369,7 +421,7 @@ const BulkUserUpload = () => {
                 className="w-full"
               >
                 <Upload className="h-4 w-4 mr-2" />
-                Start Bulk Upload
+                Start Conservative Bulk Upload
               </Button>
             )}
           </div>
