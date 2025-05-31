@@ -16,6 +16,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import BulkUserUpload from './BulkUserUpload';
 
 interface AdminUserManagementProps {
   isAdmin: boolean;
@@ -123,6 +124,11 @@ const AdminUserManagement = ({ isAdmin }: AdminUserManagementProps) => {
     toast.success('Template downloaded successfully!');
   };
 
+  const handleUsersAdded = () => {
+    // Refresh or callback when users are added via bulk upload
+    console.log('Users added via bulk upload');
+  };
+
   return (
     <div className="flex gap-2">
       <Button 
@@ -134,6 +140,8 @@ const AdminUserManagement = ({ isAdmin }: AdminUserManagementProps) => {
         <Download className="h-4 w-4 mr-2" />
         Download Template
       </Button>
+      
+      <BulkUserUpload onUsersAdded={handleUsersAdded} />
       
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
