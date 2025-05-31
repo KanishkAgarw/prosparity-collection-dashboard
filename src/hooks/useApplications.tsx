@@ -63,7 +63,7 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
       let allApplicationsWithComments = allAppsData || [];
       
       if (allAppIds.length > 0) {
-        console.log('=== FIXING USER MAPPING ISSUE ===');
+        console.log('=== CRITICAL FIX: USER MAPPING ISSUE ===');
         console.log('Fetching comments for application IDs count:', allAppIds.length);
         
         // Get comments for ALL applications
@@ -86,7 +86,7 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
         let userProfilesMap: Record<string, { full_name?: string; email?: string }> = {};
         
         if (allUserIds.length > 0) {
-          console.log('=== CRITICAL: FETCHING USER PROFILES ===');
+          console.log('=== CRITICAL: FETCHING USER PROFILES FOR MAPPING ===');
           console.log('Fetching profiles for user IDs:', allUserIds);
           
           const { data: profilesData, error: profilesError } = await supabase
@@ -101,54 +101,60 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
           if (profilesError) {
             console.error('CRITICAL: Profiles fetch error:', profilesError);
           } else if (profilesData && profilesData.length > 0) {
-            // FIXED: Create the profiles map correctly
-            userProfilesMap = {};
+            // CRITICAL FIX: Create the profiles map correctly
             profilesData.forEach(profile => {
               userProfilesMap[profile.id] = { 
                 full_name: profile.full_name, 
                 email: profile.email 
               };
             });
-            console.log('=== FIXED: Created user profiles map ===');
+            console.log('=== CRITICAL FIX: Created user profiles map ===');
             console.log('User profiles map:', userProfilesMap);
-            console.log('Sample mapping check for user b9349a7e-2a5b-4350-89b1-774ade89f418:', 
-              userProfilesMap['b9349a7e-2a5b-4350-89b1-774ade89f418']);
+            
+            // Test specific mappings
+            console.log('Manish mapping test:', userProfilesMap['5c44a519-bdad-45b1-ad24-612fabd4a4a8']);
+            console.log('Kanishk mapping test:', userProfilesMap['af7d3361-f65d-4c17-8f33-61973795aa19']);
           } else {
             console.log('No profiles data returned or empty array');
           }
         }
 
-        // FIXED: Group comments by application with CORRECT user name resolution
+        // CRITICAL FIX: Group comments by application with CORRECT user name resolution
         const commentsByApp = (commentsData || []).reduce((acc, comment) => {
           if (!acc[comment.application_id]) {
             acc[comment.application_id] = [];
           }
           if (acc[comment.application_id].length < 3) {
             const userProfile = userProfilesMap[comment.user_id];
-            console.log(`=== FIXED USER NAME RESOLUTION ===`);
+            console.log(`=== CRITICAL FIX: USER NAME RESOLUTION ===`);
             console.log(`Comment user ID: ${comment.user_id}`);
             console.log(`User profile found:`, userProfile);
             
-            // FIXED: Proper user name resolution logic
+            // CRITICAL FIX: Robust user name resolution logic
             let resolvedUserName = 'Unknown User';
+            
             if (userProfile) {
               console.log(`Profile full_name: "${userProfile.full_name}"`);
               console.log(`Profile email: "${userProfile.email}"`);
               
-              // FIXED: Better null/empty checking
+              // Check full_name first
               if (userProfile.full_name && 
-                  String(userProfile.full_name).trim() !== '' && 
-                  String(userProfile.full_name).toLowerCase() !== 'null') {
-                resolvedUserName = String(userProfile.full_name).trim();
+                  userProfile.full_name.trim() !== '' && 
+                  userProfile.full_name.toLowerCase() !== 'null' &&
+                  userProfile.full_name !== null) {
+                resolvedUserName = userProfile.full_name.trim();
                 console.log(`Using full_name: "${resolvedUserName}"`);
-              } else if (userProfile.email && 
-                        String(userProfile.email).trim() !== '' && 
-                        String(userProfile.email).toLowerCase() !== 'null') {
-                resolvedUserName = String(userProfile.email).trim();
+              } 
+              // Fallback to email if full_name is not available
+              else if (userProfile.email && 
+                       userProfile.email.trim() !== '' && 
+                       userProfile.email.toLowerCase() !== 'null' &&
+                       userProfile.email !== null) {
+                resolvedUserName = userProfile.email.trim();
                 console.log(`Using email: "${resolvedUserName}"`);
               }
             } else {
-              console.log(`No profile found for user ${comment.user_id}`);
+              console.log(`No profile found for user ${comment.user_id} in map:`, Object.keys(userProfilesMap));
             }
             
             console.log(`=== FINAL RESOLVED USER NAME: "${resolvedUserName}" ===`);

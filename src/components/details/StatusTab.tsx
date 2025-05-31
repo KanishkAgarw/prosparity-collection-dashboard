@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -23,17 +24,19 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
   const [ptpDate, setPtpDate] = useState('');
   const [showLogDialog, setShowLogDialog] = useState(false);
   
-  // FIXED: Better PTP date synchronization
+  // CRITICAL FIX: Better PTP date synchronization with detailed logging
   useEffect(() => {
-    console.log('=== FIXED PTP DATE SYNC ===');
+    console.log('=== CRITICAL PTP DATE SYNC EFFECT ===');
+    console.log('Application:', application.applicant_name);
     console.log('Application PTP date:', application.ptp_date);
-    console.log('Type:', typeof application.ptp_date);
+    console.log('Type of PTP date:', typeof application.ptp_date);
+    console.log('Application ID:', application.applicant_id);
     
     if (application.ptp_date) {
       try {
         let inputValue = '';
         
-        // FIXED: Handle all possible date formats from database
+        // CRITICAL FIX: Handle all possible date formats from database
         if (typeof application.ptp_date === 'string') {
           let parsedDate: Date;
           
@@ -41,25 +44,29 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
           if (application.ptp_date.includes('T') || application.ptp_date.includes('Z')) {
             // ISO string format
             parsedDate = new Date(application.ptp_date);
+            console.log('Parsed as ISO string:', parsedDate);
           } else if (application.ptp_date.match(/^\d{4}-\d{2}-\d{2}$/)) {
             // YYYY-MM-DD format
             parsedDate = new Date(application.ptp_date + 'T00:00:00.000Z');
+            console.log('Parsed as YYYY-MM-DD:', parsedDate);
           } else {
             // Try parsing as timestamp or other format
             parsedDate = new Date(application.ptp_date);
+            console.log('Parsed as generic date:', parsedDate);
           }
           
-          console.log('Parsed date:', parsedDate);
-          console.log('Is valid:', !isNaN(parsedDate.getTime()));
+          console.log('Final parsed date:', parsedDate);
+          console.log('Is valid date:', !isNaN(parsedDate.getTime()));
           
           if (!isNaN(parsedDate.getTime())) {
-            // FIXED: Always format for HTML date input (YYYY-MM-DD)
+            // CRITICAL FIX: Always format for HTML date input (YYYY-MM-DD)
             inputValue = parsedDate.toISOString().split('T')[0];
             console.log('Setting input value:', inputValue);
           }
         }
         
         setPtpDate(inputValue);
+        console.log('PTP date state set to:', inputValue);
       } catch (error) {
         console.error('Error parsing PTP date:', error);
         setPtpDate('');
@@ -68,13 +75,14 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
       console.log('No PTP date, clearing input');
       setPtpDate('');
     }
-  }, [application.ptp_date, application.applicant_id]); // FIXED: Add applicant_id as dependency
+  }, [application.ptp_date, application.applicant_id, application.applicant_name]); // Added applicant_name for better tracking
   
   // Filter audit logs to only show status-related changes
   const statusOnlyLogs = useFilteredAuditLogs(auditLogs);
 
   const handlePtpDateChange = (value: string) => {
     console.log('=== PTP DATE INPUT CHANGE ===');
+    console.log('Application:', application.applicant_name);
     console.log('Input value:', value);
     setPtpDate(value);
     onPtpDateChange(value);
