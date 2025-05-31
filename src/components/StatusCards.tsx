@@ -9,9 +9,11 @@ interface StatusCardsProps {
 
 interface StatusCounts {
   total: number;
-  paid: number;
   unpaid: number;
   partiallyPaid: number;
+  cashCollected: number;
+  customerDeposited: number;
+  paid: number;
 }
 
 const StatusCards = ({ applications }: StatusCardsProps) => {
@@ -20,33 +22,34 @@ const StatusCards = ({ applications }: StatusCardsProps) => {
     const counts = applications.reduce((acc, app) => {
       acc.total++;
       switch (app.status) {
-        case 'Paid':
-          acc.paid++;
-          break;
         case 'Unpaid':
           acc.unpaid++;
           break;
         case 'Partially Paid':
           acc.partiallyPaid++;
           break;
+        case 'Cash Collected from Customer':
+          acc.cashCollected++;
+          break;
+        case 'Customer Deposited to Bank':
+          acc.customerDeposited++;
+          break;
+        case 'Paid':
+          acc.paid++;
+          break;
       }
       return acc;
-    }, { total: 0, paid: 0, unpaid: 0, partiallyPaid: 0 });
+    }, { total: 0, unpaid: 0, partiallyPaid: 0, cashCollected: 0, customerDeposited: 0, paid: 0 });
 
     return counts;
   }, [applications]);
 
-  // Updated card order: Total → Paid → Unpaid → Partially Paid
+  // Logical arrangement: Total → Unpaid → Partially Paid → Cash Collected → Customer Deposited → Paid
   const cards = [
     {
       title: "Total",
       value: statusCounts.total,
       className: "bg-blue-50 border-blue-200"
-    },
-    {
-      title: "Paid",
-      value: statusCounts.paid,
-      className: "bg-green-50 border-green-200"
     },
     {
       title: "Unpaid",
@@ -57,11 +60,26 @@ const StatusCards = ({ applications }: StatusCardsProps) => {
       title: "Partially Paid",
       value: statusCounts.partiallyPaid,
       className: "bg-yellow-50 border-yellow-200"
+    },
+    {
+      title: "Cash Collected",
+      value: statusCounts.cashCollected,
+      className: "bg-orange-50 border-orange-200"
+    },
+    {
+      title: "Customer Deposited",
+      value: statusCounts.customerDeposited,
+      className: "bg-indigo-50 border-indigo-200"
+    },
+    {
+      title: "Paid",
+      value: statusCounts.paid,
+      className: "bg-green-50 border-green-200"
     }
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-3">
       {cards.map((card, index) => (
         <Card key={index} className={`${card.className} border shadow-sm`}>
           <CardHeader className="pb-1 pt-2 px-2 md:pb-2 md:pt-3 md:px-3">

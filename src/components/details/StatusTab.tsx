@@ -59,9 +59,11 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Paid">Paid</SelectItem>
                   <SelectItem value="Unpaid">Unpaid</SelectItem>
                   <SelectItem value="Partially Paid">Partially Paid</SelectItem>
+                  <SelectItem value="Cash Collected from Customer">Cash Collected from Customer</SelectItem>
+                  <SelectItem value="Customer Deposited to Bank">Customer Deposited to Bank</SelectItem>
+                  <SelectItem value="Paid">Paid</SelectItem>
                 </SelectContent>
               </Select>
             </div>
