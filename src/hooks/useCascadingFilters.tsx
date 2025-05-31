@@ -72,6 +72,9 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
       const lastMonthBounceMatch = filters.lastMonthBounce.length === 0 || 
         filters.lastMonthBounce.includes(appLastMonthBounceCategory);
 
+      const emiMonthMatch = filters.emiMonth.length === 0 || 
+        filters.emiMonth.includes(formatEmiMonth(app.demand_date));
+
       return (
         (filters.branch.length === 0 || filters.branch.includes(app.branch_name)) &&
         (filters.teamLead.length === 0 || filters.teamLead.includes(app.team_lead)) &&
@@ -79,7 +82,7 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
         (filters.dealer.length === 0 || filters.dealer.includes(app.dealer_name)) &&
         (filters.lender.length === 0 || filters.lender.includes(app.lender_name)) &&
         (filters.status.length === 0 || filters.status.includes(app.status)) &&
-        (filters.emiMonth.length === 0 || filters.emiMonth.includes(formatEmiMonth(app.demand_date))) &&
+        emiMonthMatch &&
         repaymentMatch &&
         lastMonthBounceMatch
       );

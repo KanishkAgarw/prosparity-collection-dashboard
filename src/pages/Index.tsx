@@ -12,7 +12,6 @@ import FiltersSection from "@/components/layout/FiltersSection";
 import MainContent from "@/components/layout/MainContent";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import StatusCards from "@/components/StatusCards";
-import SearchBar from "@/components/SearchBar";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -35,7 +34,7 @@ const Index = () => {
     onApplicationUpdate: refetch
   });
 
-  // Use allApplications for filter generation instead of paginated applications
+  // Use allApplications for filter generation and get filtered results
   const {
     filters,
     filteredApplications,
@@ -43,53 +42,33 @@ const Index = () => {
     handleFilterChange
   } = useCascadingFilters({ applications: allApplications });
 
-  // Apply search filter to the already filtered applications from the current page
-  const searchFilteredApplications = useMemo(() => {
-    let result = [...applications];
-    
-    // Apply search filter
-    if (searchTerm.trim()) {
-      const lowerSearchTerm = searchTerm.toLowerCase();
-      result = result.filter(app =>
-        app.applicant_name.toLowerCase().includes(lowerSearchTerm) ||
-        app.applicant_id.toLowerCase().includes(lowerSearchTerm) ||
-        app.dealer_name.toLowerCase().includes(lowerSearchTerm) ||
-        (app.lender_name === 'Vivriti Capital Limited' ? 'vivriti' : app.lender_name.toLowerCase()).includes(lowerSearchTerm) ||
-        app.rm_name.toLowerCase().includes(lowerSearchTerm) ||
-        app.team_lead.toLowerCase().includes(lowerSearchTerm)
-      );
+  // Apply search filter to the filtered applications
+  const finalFilteredApplications = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return filteredApplications;
     }
     
-    // Apply filters from cascading filters
-    return result.filter(app => {
-      const repaymentMatch = filters.repayment.length === 0 || 
-        filters.repayment.includes(app.repayment?.replace(/(\d+)(st|nd|rd|th)/, '$1') || '');
-      
-      const categorizeLastMonthBounce = (bounce: number | null | undefined) => {
-        if (bounce === null || bounce === undefined) return 'Not paid';
-        if (bounce === 0) return 'Paid on time';
-        if (bounce >= 1 && bounce <= 5) return '1-5 days late';
-        if (bounce >= 6 && bounce <= 15) return '6-15 days late';
-        if (bounce > 15) return '15+ days late';
-        return 'Not paid';
-      };
-      
-      const appLastMonthBounceCategory = categorizeLastMonthBounce(app.last_month_bounce);
-      const lastMonthBounceMatch = filters.lastMonthBounce.length === 0 || 
-        filters.lastMonthBounce.includes(appLastMonthBounceCategory);
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    return filteredApplications.filter(app =>
+      app.applicant_name.toLowerCase().includes(lowerSearchTerm) ||
+      app.applicant_id.toLowerCase().includes(lowerSearchTerm) ||
+      app.dealer_name.toLowerCase().includes(lowerSearchTerm) ||
+      (app.lender_name === 'Vivriti Capital Limited' ? 'vivriti' : app.lender_name.toLowerCase()).includes(lowerSearchTerm) ||
+      app.rm_name.toLowerCase().includes(lowerSearchTerm) ||
+      app.team_lead.toLowerCase().includes(lowerSearchTerm)
+    );
+  }, [filteredApplications, searchTerm]);
 
-      return (
-        (filters.branch.length === 0 || filters.branch.includes(app.branch_name)) &&
-        (filters.teamLead.length === 0 || filters.teamLead.includes(app.team_lead)) &&
-        (filters.rm.length === 0 || filters.rm.includes(app.rm_name)) &&
-        (filters.dealer.length === 0 || filters.dealer.includes(app.dealer_name)) &&
-        (filters.lender.length === 0 || filters.lender.includes(app.lender_name)) &&
-        (filters.status.length === 0 || filters.status.includes(app.status)) &&
-        repaymentMatch &&
-        lastMonthBounceMatch
-      );
-    });
-  }, [applications, searchTerm, filters]);
+  // For pagination, we need to slice the filtered results to match current page
+  const paginatedFilteredApplications = useMemo(() => {
+    const startIndex = (currentPage - 1) * 50;
+    const endIndex = startIndex + 50;
+    return finalFilteredApplications.slice(startIndex, endIndex);
+  }, [finalFilteredApplications, currentPage]);
+
+  // Calculate pagination info based on filtered results
+  const filteredTotalCount = finalFilteredApplications.length;
+  const filteredTotalPages = Math.ceil(filteredTotalCount / 50);
 
   // Load user profiles for comments/logs when component mounts
   useMemo(() => {
@@ -113,7 +92,7 @@ const Index = () => {
       toast.loading('Preparing export...', { id: 'export' });
       
       const exportData = {
-        applications: searchFilteredApplications
+        applications: finalFilteredApplications
       };
 
       exportToExcel(exportData, 'collection-monitoring-report');
@@ -168,18 +147,18 @@ const Index = () => {
             onSearchChange={setSearchTerm}
           />
 
-          {/* Status Cards */}
-          <StatusCards applications={allApplications} />
+          {/* Status Cards - now using filtered applications */}
+          <StatusCards applications={finalFilteredApplications} />
 
           <MainContent
-            applications={searchFilteredApplications}
+            applications={paginatedFilteredApplications}
             onRowClick={setSelectedApplication}
             onApplicationDeleted={handleApplicationDeleted}
             selectedApplicationId={selectedApplication?.id}
             currentPage={currentPage}
-            totalPages={totalPages}
+            totalPages={filteredTotalPages}
             onPageChange={setCurrentPage}
-            totalCount={totalCount}
+            totalCount={filteredTotalCount}
             pageSize={50}
           />
         </div>
