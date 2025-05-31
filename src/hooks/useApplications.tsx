@@ -63,6 +63,7 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
       let allApplicationsWithComments = allAppsData || [];
       
       if (allAppIds.length > 0) {
+        console.log('=== COMMENTS DEBUG ===');
         console.log('Fetching comments for all application IDs:', allAppIds.length);
         
         // Get comments for ALL applications
@@ -119,19 +120,24 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
           }
           if (acc[comment.application_id].length < 3) {
             const profile = profilesMap[comment.user_id];
-            console.log(`Mapping user ${comment.user_id}:`, profile);
+            console.log(`=== USER MAPPING DEBUG ===`);
+            console.log(`Comment user ID: ${comment.user_id}`);
+            console.log(`Profile found:`, profile);
             
-            // Improved user name resolution logic
+            // Fixed user name resolution logic
             let userName = 'Unknown User';
             if (profile) {
-              if (profile.full_name && profile.full_name.trim() && profile.full_name !== 'null') {
+              // Check full_name first (prioritize it)
+              if (profile.full_name && profile.full_name.trim() && profile.full_name !== 'null' && profile.full_name !== null) {
                 userName = profile.full_name.trim();
-              } else if (profile.email && profile.email.trim() && profile.email !== 'null') {
+              } 
+              // Fallback to email if full_name is not available
+              else if (profile.email && profile.email.trim() && profile.email !== 'null' && profile.email !== null) {
                 userName = profile.email.trim();
               }
             }
             
-            console.log(`Final user name for ${comment.user_id}:`, userName);
+            console.log(`Final resolved user name: "${userName}"`);
             
             acc[comment.application_id].push({
               content: comment.content,

@@ -26,17 +26,19 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
   
   // Update local state when application changes
   useEffect(() => {
-    console.log('StatusTab: Application PTP date changed:', application.ptp_date);
+    console.log('=== STATUS TAB PTP DATE SYNC ===');
+    console.log('Application PTP date:', application.ptp_date);
+    
     if (application.ptp_date) {
       try {
         // Parse the date and format for input (YYYY-MM-DD)
         const parsedDate = new Date(application.ptp_date);
         if (!isNaN(parsedDate.getTime())) {
           const dateOnly = parsedDate.toISOString().split('T')[0];
-          console.log('StatusTab: Setting PTP date to:', dateOnly);
+          console.log('Setting PTP date input to:', dateOnly);
           setPtpDate(dateOnly);
         } else {
-          console.log('StatusTab: Invalid date, clearing');
+          console.log('Invalid date, clearing input');
           setPtpDate('');
         }
       } catch (error) {
@@ -44,7 +46,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
         setPtpDate('');
       }
     } else {
-      console.log('StatusTab: No PTP date, clearing');
+      console.log('No PTP date, clearing input');
       setPtpDate('');
     }
   }, [application.ptp_date]);
@@ -53,7 +55,8 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
   const statusOnlyLogs = useFilteredAuditLogs(auditLogs);
 
   const handlePtpDateChange = (value: string) => {
-    console.log('StatusTab: Local PTP date change:', value);
+    console.log('=== STATUS TAB DATE CHANGE ===');
+    console.log('Input value:', value);
     setPtpDate(value);
     onPtpDateChange(value);
   };
@@ -61,7 +64,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
   const formatDateTime = (dateStr: string) => {
     try {
       const date = new Date(dateStr);
-      return `${format(date, 'dd-MMM-yy')} at ${format(date, 'HH:mm')}`;
+      return `${format(date, 'dd-MMM-yyyy')} at ${format(date, 'HH:mm')}`;
     } catch {
       return dateStr;
     }

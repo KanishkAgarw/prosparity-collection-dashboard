@@ -56,8 +56,8 @@ export const formatPtpDate = (dateStr?: string | null): string => {
   
   try {
     const date = new Date(dateStr);
-    // Format as DD-MMM-YY (e.g., 04-Jun-25)
-    return format(date, 'dd-MMM-yy');
+    // Format as DD-MMM-YYYY (e.g., 04-Jun-2025)
+    return format(date, 'dd-MMM-yyyy');
   } catch {
     return 'Invalid Date';
   }

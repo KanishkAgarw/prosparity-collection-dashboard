@@ -60,19 +60,25 @@ export const useApplicationHandlers = (
   const handlePtpDateChange = async (newDate: string) => {
     if (!user || !application) return;
     
-    console.log('Handling PTP date change:', { 
-      applicationId: application.applicant_id, 
-      oldDate: application.ptp_date, 
-      newDate
-    });
+    console.log('=== PTP DATE CHANGE DEBUG ===');
+    console.log('Application ID:', application.applicant_id);
+    console.log('Current PTP date:', application.ptp_date);
+    console.log('New date input:', newDate);
     
     try {
-      // Use simple date format for PostgreSQL - just the date string with time set to midnight UTC
+      // Handle the date conversion more carefully
       let ptpValue = null;
       if (newDate && newDate.trim()) {
-        // Format: YYYY-MM-DD becomes YYYY-MM-DD 00:00:00+00
-        ptpValue = newDate + 'T00:00:00.000Z';
-        console.log('Formatted PTP date for database:', ptpValue);
+        // Create a proper date object from the input (YYYY-MM-DD)
+        const dateObj = new Date(newDate + 'T00:00:00.000Z');
+        if (!isNaN(dateObj.getTime())) {
+          ptpValue = dateObj.toISOString();
+          console.log('Converted to ISO string:', ptpValue);
+        } else {
+          console.error('Invalid date format:', newDate);
+          toast.error('Invalid date format');
+          return;
+        }
       }
 
       const updateData = {
@@ -80,13 +86,13 @@ export const useApplicationHandlers = (
         updated_at: new Date().toISOString()
       };
 
-      console.log('Updating application with data:', updateData);
+      console.log('Sending update data to database:', updateData);
 
       const { data, error } = await supabase
         .from('applications')
         .update(updateData)
         .eq('applicant_id', application.applicant_id)
-        .select('ptp_date')
+        .select('ptp_date, updated_at')
         .single();
 
       if (error) {
@@ -106,7 +112,7 @@ export const useApplicationHandlers = (
       const updatedApp = {
         ...application,
         ptp_date: ptpValue,
-        updated_at: new Date().toISOString()
+        updated_at: data.updated_at
       };
       
       console.log('Calling onSave with updated app:', updatedApp);
