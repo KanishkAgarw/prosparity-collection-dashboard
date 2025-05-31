@@ -72,7 +72,7 @@ const AppHeader = ({ onExport, onApplicationAdded }: AppHeaderProps) => {
               <Download className="h-3 w-3 mr-1" />
               Export
             </Button>
-            {isAdmin && <UploadApplicationDialog onApplicationAdded={onApplicationAdded} />}
+            {isAdmin && <UploadApplicationDialog onApplicationsAdded={onApplicationAdded} />}
             {isAdmin && <AdminUserManagement isAdmin={isAdmin} />}
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-600">
