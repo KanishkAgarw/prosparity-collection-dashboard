@@ -78,27 +78,37 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
           console.log('Fetched comments data:', commentsData);
         }
 
-        // Get user profiles for the comment authors
-        const userIds = [...new Set(commentsData?.map(comment => comment.user_id) || [])];
-        console.log('Unique user IDs from comments:', userIds);
+        // Get ALL user IDs from comments to fetch their profiles
+        const allUserIds = [...new Set(commentsData?.map(comment => comment.user_id) || [])];
+        console.log('All unique user IDs from comments:', allUserIds);
         
         let profilesMap: Record<string, { full_name?: string; email?: string }> = {};
         
-        if (userIds.length > 0) {
+        if (allUserIds.length > 0) {
+          console.log('Fetching profiles for user IDs:', allUserIds);
+          
           const { data: profilesData, error: profilesError } = await supabase
             .from('profiles')
             .select('id, full_name, email')
-            .in('id', userIds);
+            .in('id', allUserIds);
 
           console.log('Fetched profiles data:', profilesData);
-          console.log('Profiles error:', profilesError);
+          
+          if (profilesError) {
+            console.error('Profiles fetch error:', profilesError);
+          }
 
-          if (!profilesError && profilesData) {
+          if (profilesData && profilesData.length > 0) {
             profilesMap = profilesData.reduce((acc, profile) => {
-              acc[profile.id] = { full_name: profile.full_name, email: profile.email };
+              acc[profile.id] = { 
+                full_name: profile.full_name, 
+                email: profile.email 
+              };
               return acc;
             }, {} as Record<string, { full_name?: string; email?: string }>);
             console.log('Created profiles map:', profilesMap);
+          } else {
+            console.log('No profiles data returned or empty array');
           }
         }
 
@@ -111,12 +121,14 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
             const profile = profilesMap[comment.user_id];
             console.log(`Mapping user ${comment.user_id}:`, profile);
             
-            // Prioritize full_name, then email, then fallback
+            // Improved user name resolution logic
             let userName = 'Unknown User';
-            if (profile?.full_name && profile.full_name.trim()) {
-              userName = profile.full_name;
-            } else if (profile?.email) {
-              userName = profile.email;
+            if (profile) {
+              if (profile.full_name && profile.full_name.trim() && profile.full_name !== 'null') {
+                userName = profile.full_name.trim();
+              } else if (profile.email && profile.email.trim() && profile.email !== 'null') {
+                userName = profile.email.trim();
+              }
             }
             
             console.log(`Final user name for ${comment.user_id}:`, userName);
@@ -143,8 +155,7 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
         }));
       }
 
-      console.log('Fetched applications with comments:', applicationsWithComments);
-      console.log('Fetched ALL applications with comments:', allApplicationsWithComments);
+      console.log('Final applications with comments (sample):', applicationsWithComments.slice(0, 2));
       setApplications(applicationsWithComments);
       setAllApplications(allApplicationsWithComments);
     } catch (error) {

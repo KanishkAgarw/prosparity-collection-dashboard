@@ -29,15 +29,22 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
     console.log('StatusTab: Application PTP date changed:', application.ptp_date);
     if (application.ptp_date) {
       try {
-        // Format the date for the date input (YYYY-MM-DD)
-        const dateOnly = new Date(application.ptp_date).toISOString().split('T')[0];
-        console.log('StatusTab: Setting PTP date to:', dateOnly);
-        setPtpDate(dateOnly);
+        // Parse the date and format for input (YYYY-MM-DD)
+        const parsedDate = new Date(application.ptp_date);
+        if (!isNaN(parsedDate.getTime())) {
+          const dateOnly = parsedDate.toISOString().split('T')[0];
+          console.log('StatusTab: Setting PTP date to:', dateOnly);
+          setPtpDate(dateOnly);
+        } else {
+          console.log('StatusTab: Invalid date, clearing');
+          setPtpDate('');
+        }
       } catch (error) {
         console.error('Error parsing PTP date:', error);
         setPtpDate('');
       }
     } else {
+      console.log('StatusTab: No PTP date, clearing');
       setPtpDate('');
     }
   }, [application.ptp_date]);
@@ -98,6 +105,11 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
                 onChange={(e) => handlePtpDateChange(e.target.value)}
                 className="mt-1"
               />
+              {ptpDate && (
+                <div className="text-xs text-gray-500 mt-1">
+                  Selected: {formatPtpDate(ptpDate + 'T00:00:00.000Z')}
+                </div>
+              )}
             </div>
           </div>
         </CardContent>

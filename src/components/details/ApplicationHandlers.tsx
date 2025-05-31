@@ -63,48 +63,53 @@ export const useApplicationHandlers = (
     console.log('Handling PTP date change:', { 
       applicationId: application.applicant_id, 
       oldDate: application.ptp_date, 
-      newDate,
-      dateToSave: newDate || null
+      newDate
     });
     
     try {
-      // Convert date string to proper timestamp format for database
-      let ptpTimestamp = null;
+      // Use simple date format for PostgreSQL - just the date string with time set to midnight UTC
+      let ptpValue = null;
       if (newDate && newDate.trim()) {
-        // Create a proper timestamp from the date string
-        ptpTimestamp = new Date(newDate + 'T00:00:00.000Z').toISOString();
-        console.log('Converted date to timestamp:', ptpTimestamp);
+        // Format: YYYY-MM-DD becomes YYYY-MM-DD 00:00:00+00
+        ptpValue = newDate + 'T00:00:00.000Z';
+        console.log('Formatted PTP date for database:', ptpValue);
       }
 
       const updateData = {
-        ptp_date: ptpTimestamp,
+        ptp_date: ptpValue,
         updated_at: new Date().toISOString()
       };
 
-      console.log('Updating with data:', updateData);
+      console.log('Updating application with data:', updateData);
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('applications')
         .update(updateData)
-        .eq('applicant_id', application.applicant_id);
+        .eq('applicant_id', application.applicant_id)
+        .select('ptp_date')
+        .single();
 
       if (error) {
-        console.error('Error updating PTP date:', error);
-        toast.error('Failed to update PTP date');
+        console.error('Database error updating PTP date:', error);
+        toast.error(`Failed to update PTP date: ${error.message}`);
         return;
       }
 
+      console.log('Database update successful, returned data:', data);
+
       // Add audit log
+      const previousValue = application.ptp_date ? new Date(application.ptp_date).toISOString().split('T')[0] : 'Not set';
+      const newValue = newDate || 'Not set';
       console.log('Adding audit log for PTP date change');
-      await addAuditLog('PTP Date', application.ptp_date || 'Not set', newDate || 'Not set');
+      await addAuditLog('PTP Date', previousValue, newValue);
 
       const updatedApp = {
         ...application,
-        ptp_date: ptpTimestamp,
+        ptp_date: ptpValue,
         updated_at: new Date().toISOString()
       };
       
-      console.log('Updated app with new PTP date:', updatedApp);
+      console.log('Calling onSave with updated app:', updatedApp);
       onSave(updatedApp);
       toast.success('PTP date updated successfully');
     } catch (error) {
