@@ -43,7 +43,7 @@ export interface Application {
   guarantor_calling_status?: string;
   reference_calling_status?: string;
   latest_calling_status?: string;
-  recent_comments?: string[];
+  recent_comments?: Array<{content: string; user_name: string}>;
 }
 
 interface UseApplicationsProps {
@@ -54,6 +54,7 @@ interface UseApplicationsProps {
 export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProps = {}) => {
   const { user } = useAuth();
   const [applications, setApplications] = useState<Application[]>([]);
+  const [allApplications, setAllApplications] = useState<Application[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -71,14 +72,25 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
 
       setTotalCount(count || 0);
 
-      // Get paginated applications with recent comments
+      // Fetch ALL applications for filters (sorted by applicant name)
+      const { data: allAppsData, error: allAppsError } = await supabase
+        .from('applications')
+        .select('*')
+        .order('applicant_name', { ascending: true });
+
+      if (allAppsError) {
+        console.error('Error fetching all applications:', allAppsError);
+        return;
+      }
+
+      // Get paginated applications with recent comments (sorted by applicant name)
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
 
       const { data: appsData, error: appsError } = await supabase
         .from('applications')
         .select('*')
-        .order('created_at', { ascending: false })
+        .order('applicant_name', { ascending: true })
         .range(from, to);
 
       if (appsError) {
@@ -86,28 +98,39 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
         return;
       }
 
-      // Fetch recent comments for all applications
+      // Fetch recent comments with user names for paginated applications
       const appIds = appsData?.map(app => app.applicant_id) || [];
       
       let applicationsWithComments = appsData || [];
+      let allApplicationsWithComments = allAppsData || [];
       
       if (appIds.length > 0) {
         const { data: commentsData } = await supabase
           .from('comments')
-          .select('application_id, content, created_at')
+          .select(`
+            application_id, 
+            content, 
+            created_at,
+            user_id,
+            profiles!inner(full_name, email)
+          `)
           .in('application_id', appIds)
           .order('created_at', { ascending: false });
 
-        // Group comments by application and get last 3
+        // Group comments by application and get last 3 with user names
         const commentsByApp = (commentsData || []).reduce((acc, comment) => {
           if (!acc[comment.application_id]) {
             acc[comment.application_id] = [];
           }
           if (acc[comment.application_id].length < 3) {
-            acc[comment.application_id].push(comment.content);
+            const userName = comment.profiles?.full_name || comment.profiles?.email || 'Unknown User';
+            acc[comment.application_id].push({
+              content: comment.content,
+              user_name: userName
+            });
           }
           return acc;
-        }, {} as Record<string, string[]>);
+        }, {} as Record<string, Array<{content: string; user_name: string}>>);
 
         applicationsWithComments = appsData.map(app => ({
           ...app,
@@ -117,6 +140,7 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
 
       console.log('Fetched applications with comments:', applicationsWithComments);
       setApplications(applicationsWithComments);
+      setAllApplications(allApplicationsWithComments);
     } catch (error) {
       console.error('Error fetching applications:', error);
     } finally {
@@ -132,6 +156,7 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
 
   return {
     applications,
+    allApplications, // For filter generation
     totalCount,
     totalPages: Math.ceil(totalCount / pageSize),
     currentPage: page,

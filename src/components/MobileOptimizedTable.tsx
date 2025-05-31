@@ -2,7 +2,7 @@
 import { Application } from "@/types/application";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Phone, MapPin, Eye } from "lucide-react";
+import { Eye, User, Building, MapPin } from "lucide-react";
 import { formatCurrency, formatPtpDate } from "@/utils/formatters";
 import CallButton from "./CallButton";
 import CallStatusDisplay from "./CallStatusDisplay";
@@ -41,18 +41,18 @@ const MobileOptimizedTable = ({
           }`}
           onClick={() => onRowClick(app)}
         >
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             {/* Header Row */}
             <div className="flex items-start justify-between mb-3">
               <div className="flex-1 min-w-0">
-                <h3 className="font-medium text-gray-900 truncate">
+                <h3 className="font-semibold text-base text-gray-900 truncate">
                   {app.applicant_name}
                 </h3>
                 <p className="text-xs text-gray-500 mt-1">
                   ID: {app.applicant_id}
                 </p>
               </div>
-              <div className="flex items-center gap-2 ml-2">
+              <div className="flex items-center gap-2 ml-3">
                 <Badge className={`text-xs px-2 py-1 ${getStatusColor(app.status)}`}>
                   {app.status}
                 </Badge>
@@ -61,80 +61,80 @@ const MobileOptimizedTable = ({
             </div>
 
             {/* Financial Info */}
-            <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
-              <div>
-                <span className="text-gray-500 text-xs">EMI Amount</span>
-                <p className="font-medium">{formatCurrency(app.emi_amount)}</p>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div className="bg-blue-50 p-2 rounded-lg">
+                <span className="text-xs text-blue-600 font-medium">EMI Amount</span>
+                <p className="text-sm font-bold text-blue-800">{formatCurrency(app.emi_amount)}</p>
               </div>
-              <div>
-                <span className="text-gray-500 text-xs">Total Due</span>
-                <p className="font-medium text-red-600">
+              <div className="bg-red-50 p-2 rounded-lg">
+                <span className="text-xs text-red-600 font-medium">Due Amount</span>
+                <p className="text-sm font-bold text-red-800">
                   {formatCurrency((app.principle_due || 0) + (app.interest_due || 0))}
                 </p>
               </div>
             </div>
 
-            {/* Contact Info */}
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Phone className="h-3 w-3" />
-                <span className="truncate">{app.applicant_mobile || 'N/A'}</span>
+            {/* Contact & Action Row */}
+            <div className="flex items-center justify-between mb-3 p-2 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4 text-gray-600" />
+                <CallStatusDisplay application={app} />
               </div>
               {app.applicant_mobile && (
                 <CallButton 
                   name="Call" 
                   phone={app.applicant_mobile}
-                  variant="outline"
+                  variant="default"
                   size="sm"
                 />
               )}
             </div>
 
             {/* Business Info */}
-            <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 mb-3">
-              <div>
-                <span className="text-gray-400">Lender:</span>
-                <p className="truncate">{app.lender_name === 'Vivriti Capital Limited' ? 'Vivriti' : app.lender_name}</p>
+            <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+              <div className="flex items-center gap-1">
+                <Building className="h-3 w-3 text-gray-400" />
+                <div>
+                  <span className="text-gray-500">Lender:</span>
+                  <p className="font-medium truncate">{app.lender_name === 'Vivriti Capital Limited' ? 'Vivriti' : app.lender_name}</p>
+                </div>
               </div>
               <div>
-                <span className="text-gray-400">RM:</span>
-                <p className="truncate">{app.rm_name}</p>
+                <span className="text-gray-500">RM:</span>
+                <p className="font-medium truncate">{app.rm_name}</p>
               </div>
               <div>
-                <span className="text-gray-400">Dealer:</span>
-                <p className="truncate">{truncateText(app.dealer_name, 15)}</p>
+                <span className="text-gray-500">Dealer:</span>
+                <p className="font-medium truncate">{truncateText(app.dealer_name, 15)}</p>
               </div>
               <div>
-                <span className="text-gray-400">Branch:</span>
-                <p className="truncate">{app.branch_name}</p>
+                <span className="text-gray-500">Branch:</span>
+                <p className="font-medium truncate">{app.branch_name}</p>
               </div>
             </div>
 
             {/* PTP Date */}
             {app.ptp_date && (
-              <div className="mb-3">
-                <span className="text-xs text-gray-400">PTP Date:</span>
-                <p className="text-sm font-medium text-blue-600">
+              <div className="mb-3 p-2 bg-yellow-50 rounded-lg border-l-4 border-yellow-400">
+                <span className="text-xs text-yellow-700 font-medium">PTP Date:</span>
+                <p className="text-sm font-bold text-yellow-800">
                   {formatPtpDate(app.ptp_date)}
                 </p>
               </div>
             )}
 
-            {/* Call Status */}
-            <div className="border-t pt-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">Call Status:</span>
-                <CallStatusDisplay application={app} />
-              </div>
-            </div>
-
             {/* Recent Comments */}
-            {app.rm_comments && (
-              <div className="mt-3 pt-3 border-t">
-                <span className="text-xs text-gray-400">Comments:</span>
-                <p className="text-xs text-gray-600 mt-1 line-clamp-2">
-                  {app.rm_comments}
-                </p>
+            {app.recent_comments && app.recent_comments.length > 0 && (
+              <div className="border-t pt-3">
+                <span className="text-xs text-gray-500 font-medium">Recent Comments:</span>
+                <div className="mt-2 space-y-2">
+                  {app.recent_comments.slice(0, 2).map((comment, index) => (
+                    <div key={index} className="bg-blue-50 p-2 rounded border-l-2 border-blue-200">
+                      <div className="text-xs font-medium text-blue-700 mb-1">{comment.user_name}</div>
+                      <p className="text-xs text-gray-700 line-clamp-2">{comment.content}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </CardContent>

@@ -1,11 +1,6 @@
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Trash2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { useAuth } from "@/hooks/useAuth";
 import { formatEmiMonth, formatCurrency, formatPtpDate } from "@/utils/formatters";
 import CallStatusDisplay from "./CallStatusDisplay";
 
@@ -29,7 +24,7 @@ interface Application {
   guarantor_name?: string;
   guarantor_mobile?: string;
   reference_name?: string;
-  recent_comments?: string[];
+  recent_comments?: Array<{content: string; user_name: string}>;
 }
 
 interface ApplicationsTableProps {
@@ -61,36 +56,7 @@ const formatLenderName = (lenderName: string) => {
   return lenderName;
 };
 
-const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, selectedApplicationId }: ApplicationsTableProps) => {
-  const { user } = useAuth();
-  const isAdmin = user?.email === 'kanishk@prosparity.in';
-
-  const handleDelete = async (applicationId: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent row click
-    
-    if (!confirm(`Are you sure you want to delete application ${applicationId}?`)) {
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('applications')
-        .delete()
-        .eq('applicant_id', applicationId);
-
-      if (error) {
-        console.error('Error deleting application:', error);
-        toast.error('Failed to delete application');
-      } else {
-        toast.success('Application deleted successfully');
-        onApplicationDeleted?.();
-      }
-    } catch (error) {
-      console.error('Error deleting application:', error);
-      toast.error('Failed to delete application');
-    }
-  };
-
+const ApplicationsTable = ({ applications, onRowClick, selectedApplicationId }: ApplicationsTableProps) => {
   return (
     <div className="px-4 sm:px-6 lg:px-8">
       <div className="overflow-x-auto">
@@ -103,7 +69,6 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
               <TableHead className="min-w-[100px]">PTP Date</TableHead>
               <TableHead className="min-w-[150px]">Call Status</TableHead>
               <TableHead className="min-w-[200px]">Recent Comments</TableHead>
-              {isAdmin && <TableHead className="min-w-[80px]">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -149,8 +114,9 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
                   <div className="space-y-1">
                     {app.recent_comments && app.recent_comments.length > 0 ? (
                       app.recent_comments.map((comment, index) => (
-                        <div key={index} className="text-xs text-gray-600 truncate bg-gray-50 p-1 rounded">
-                          {comment}
+                        <div key={index} className="text-xs p-2 rounded bg-gray-50 border-l-2 border-blue-200">
+                          <div className="font-medium text-blue-700 mb-1">{comment.user_name}</div>
+                          <div className="text-gray-600 break-words">{comment.content}</div>
                         </div>
                       ))
                     ) : (
@@ -158,18 +124,6 @@ const ApplicationsTable = ({ applications, onRowClick, onApplicationDeleted, sel
                     )}
                   </div>
                 </TableCell>
-                {isAdmin && (
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => handleDelete(app.applicant_id, e)}
-                      className="text-red-600 hover:text-red-800 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                )}
               </TableRow>
             ))}
           </TableBody>

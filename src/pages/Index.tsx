@@ -22,7 +22,7 @@ const Index = () => {
   const { user, loading: authLoading } = useAuth();
   const { fetchProfiles } = useUserProfiles();
   const [currentPage, setCurrentPage] = useState(1);
-  const { applications, loading: appsLoading, refetch, totalCount, totalPages } = useApplications({ 
+  const { applications, allApplications, loading: appsLoading, refetch, totalCount, totalPages } = useApplications({ 
     page: currentPage, 
     pageSize: 50 
   });
@@ -35,19 +35,17 @@ const Index = () => {
     onApplicationUpdate: refetch
   });
 
+  // Use allApplications for filter generation instead of paginated applications
   const {
     filters,
     filteredApplications,
     availableOptions,
     handleFilterChange
-  } = useCascadingFilters({ applications });
+  } = useCascadingFilters({ applications: allApplications });
 
-  // Sort applications by applicant name and apply search filter
-  const sortedAndSearchFilteredApplications = useMemo(() => {
-    let result = [...filteredApplications];
-    
-    // Sort by applicant name
-    result.sort((a, b) => a.applicant_name.localeCompare(b.applicant_name));
+  // Apply search filter to the already filtered applications from the current page
+  const searchFilteredApplications = useMemo(() => {
+    let result = [...applications];
     
     // Apply search filter
     if (searchTerm.trim()) {
@@ -62,8 +60,36 @@ const Index = () => {
       );
     }
     
-    return result;
-  }, [filteredApplications, searchTerm]);
+    // Apply filters from cascading filters
+    return result.filter(app => {
+      const repaymentMatch = filters.repayment.length === 0 || 
+        filters.repayment.includes(app.repayment?.replace(/(\d+)(st|nd|rd|th)/, '$1') || '');
+      
+      const categorizeLastMonthBounce = (bounce: number | null | undefined) => {
+        if (bounce === null || bounce === undefined) return 'Not paid';
+        if (bounce === 0) return 'Paid on time';
+        if (bounce >= 1 && bounce <= 5) return '1-5 days late';
+        if (bounce >= 6 && bounce <= 15) return '6-15 days late';
+        if (bounce > 15) return '15+ days late';
+        return 'Not paid';
+      };
+      
+      const appLastMonthBounceCategory = categorizeLastMonthBounce(app.last_month_bounce);
+      const lastMonthBounceMatch = filters.lastMonthBounce.length === 0 || 
+        filters.lastMonthBounce.includes(appLastMonthBounceCategory);
+
+      return (
+        (filters.branch.length === 0 || filters.branch.includes(app.branch_name)) &&
+        (filters.teamLead.length === 0 || filters.teamLead.includes(app.team_lead)) &&
+        (filters.rm.length === 0 || filters.rm.includes(app.rm_name)) &&
+        (filters.dealer.length === 0 || filters.dealer.includes(app.dealer_name)) &&
+        (filters.lender.length === 0 || filters.lender.includes(app.lender_name)) &&
+        (filters.status.length === 0 || filters.status.includes(app.status)) &&
+        repaymentMatch &&
+        lastMonthBounceMatch
+      );
+    });
+  }, [applications, searchTerm, filters]);
 
   // Load user profiles for comments/logs when component mounts
   useMemo(() => {
@@ -87,7 +113,7 @@ const Index = () => {
       toast.loading('Preparing export...', { id: 'export' });
       
       const exportData = {
-        applications: sortedAndSearchFilteredApplications
+        applications: searchFilteredApplications
       };
 
       exportToExcel(exportData, 'collection-monitoring-report');
@@ -143,10 +169,10 @@ const Index = () => {
           />
 
           {/* Status Cards */}
-          <StatusCards applications={applications} />
+          <StatusCards applications={allApplications} />
 
           <MainContent
-            applications={sortedAndSearchFilteredApplications}
+            applications={searchFilteredApplications}
             onRowClick={setSelectedApplication}
             onApplicationDeleted={handleApplicationDeleted}
             selectedApplicationId={selectedApplication?.id}
