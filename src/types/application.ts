@@ -10,8 +10,8 @@ export interface Application {
   lender_name: string;
   status: string;
   emi_amount: number;
-  principle_due?: number;
-  interest_due?: number;
+  principle_due: number;
+  interest_due: number;
   ptp_date?: string;
   paid_date?: string;
   demand_date?: string;

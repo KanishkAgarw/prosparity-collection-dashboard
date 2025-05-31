@@ -1,31 +1,8 @@
-
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatEmiMonth, formatCurrency, formatPtpDate } from "@/utils/formatters";
+import { Application } from "@/types/application";
 import CallStatusDisplay from "./CallStatusDisplay";
-
-interface Application {
-  id: string;
-  applicant_id: string;
-  applicant_name: string;
-  applicant_mobile?: string;
-  branch_name: string;
-  team_lead: string;
-  rm_name: string;
-  dealer_name: string;
-  lender_name: string;
-  status: string;
-  emi_amount: number;
-  demand_date?: string;
-  ptp_date?: string;
-  rm_comments?: string;
-  co_applicant_name?: string;
-  co_applicant_mobile?: string;
-  guarantor_name?: string;
-  guarantor_mobile?: string;
-  reference_name?: string;
-  recent_comments?: Array<{content: string; user_name: string}>;
-}
 
 interface ApplicationsTableProps {
   applications: Application[];

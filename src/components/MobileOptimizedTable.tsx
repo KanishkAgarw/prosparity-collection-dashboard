@@ -1,5 +1,5 @@
 
-import { Application } from "@/hooks/useApplications";
+import { Application } from "@/types/application";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Eye, User, Building } from "lucide-react";
