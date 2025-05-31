@@ -112,7 +112,7 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
             content, 
             created_at,
             user_id,
-            profiles!inner(full_name, email)
+            profiles(full_name, email)
           `)
           .in('application_id', appIds)
           .order('created_at', { ascending: false });

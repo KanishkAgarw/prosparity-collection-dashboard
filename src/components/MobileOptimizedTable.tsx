@@ -1,8 +1,8 @@
 
-import { Application } from "@/types/application";
+import { Application } from "@/hooks/useApplications";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Eye, User, Building, MapPin } from "lucide-react";
+import { Eye, User, Building } from "lucide-react";
 import { formatCurrency, formatPtpDate } from "@/utils/formatters";
 import CallButton from "./CallButton";
 import CallStatusDisplay from "./CallStatusDisplay";
@@ -41,7 +41,7 @@ const MobileOptimizedTable = ({
           }`}
           onClick={() => onRowClick(app)}
         >
-          <CardContent className="p-3">
+          <CardContent className="p-4">
             {/* Header Row */}
             <div className="flex items-start justify-between mb-3">
               <div className="flex-1 min-w-0">
@@ -60,22 +60,16 @@ const MobileOptimizedTable = ({
               </div>
             </div>
 
-            {/* Financial Info */}
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              <div className="bg-blue-50 p-2 rounded-lg">
+            {/* EMI Amount */}
+            <div className="mb-3">
+              <div className="bg-blue-50 p-3 rounded-lg border-l-4 border-blue-400">
                 <span className="text-xs text-blue-600 font-medium">EMI Amount</span>
-                <p className="text-sm font-bold text-blue-800">{formatCurrency(app.emi_amount)}</p>
-              </div>
-              <div className="bg-red-50 p-2 rounded-lg">
-                <span className="text-xs text-red-600 font-medium">Due Amount</span>
-                <p className="text-sm font-bold text-red-800">
-                  {formatCurrency((app.principle_due || 0) + (app.interest_due || 0))}
-                </p>
+                <p className="text-lg font-bold text-blue-800">{formatCurrency(app.emi_amount)}</p>
               </div>
             </div>
 
             {/* Contact & Action Row */}
-            <div className="flex items-center justify-between mb-3 p-2 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between mb-3 p-3 bg-gray-50 rounded-lg">
               <div className="flex items-center gap-2">
                 <User className="h-4 w-4 text-gray-600" />
                 <CallStatusDisplay application={app} />
@@ -86,36 +80,37 @@ const MobileOptimizedTable = ({
                   phone={app.applicant_mobile}
                   variant="default"
                   size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5"
                 />
               )}
             </div>
 
             {/* Business Info */}
-            <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+            <div className="grid grid-cols-2 gap-3 text-xs mb-3">
               <div className="flex items-center gap-1">
                 <Building className="h-3 w-3 text-gray-400" />
                 <div>
                   <span className="text-gray-500">Lender:</span>
-                  <p className="font-medium truncate">{app.lender_name === 'Vivriti Capital Limited' ? 'Vivriti' : app.lender_name}</p>
+                  <p className="font-medium truncate text-gray-800">{app.lender_name === 'Vivriti Capital Limited' ? 'Vivriti' : app.lender_name}</p>
                 </div>
               </div>
               <div>
                 <span className="text-gray-500">RM:</span>
-                <p className="font-medium truncate">{app.rm_name}</p>
+                <p className="font-medium truncate text-gray-800">{app.rm_name}</p>
               </div>
               <div>
                 <span className="text-gray-500">Dealer:</span>
-                <p className="font-medium truncate">{truncateText(app.dealer_name, 15)}</p>
+                <p className="font-medium truncate text-gray-800">{truncateText(app.dealer_name, 15)}</p>
               </div>
               <div>
                 <span className="text-gray-500">Branch:</span>
-                <p className="font-medium truncate">{app.branch_name}</p>
+                <p className="font-medium truncate text-gray-800">{app.branch_name}</p>
               </div>
             </div>
 
             {/* PTP Date */}
             {app.ptp_date && (
-              <div className="mb-3 p-2 bg-yellow-50 rounded-lg border-l-4 border-yellow-400">
+              <div className="mb-3 p-3 bg-yellow-50 rounded-lg border-l-4 border-yellow-400">
                 <span className="text-xs text-yellow-700 font-medium">PTP Date:</span>
                 <p className="text-sm font-bold text-yellow-800">
                   {formatPtpDate(app.ptp_date)}
@@ -129,9 +124,9 @@ const MobileOptimizedTable = ({
                 <span className="text-xs text-gray-500 font-medium">Recent Comments:</span>
                 <div className="mt-2 space-y-2">
                   {app.recent_comments.slice(0, 2).map((comment, index) => (
-                    <div key={index} className="bg-blue-50 p-2 rounded border-l-2 border-blue-200">
-                      <div className="text-xs font-medium text-blue-700 mb-1">{comment.user_name}</div>
-                      <p className="text-xs text-gray-700 line-clamp-2">{comment.content}</p>
+                    <div key={index} className="bg-blue-50 p-3 rounded-lg border-l-2 border-blue-200">
+                      <div className="text-xs font-semibold text-blue-700 mb-1">{comment.user_name}:</div>
+                      <p className="text-xs text-gray-700 leading-relaxed">{comment.content}</p>
                     </div>
                   ))}
                 </div>
