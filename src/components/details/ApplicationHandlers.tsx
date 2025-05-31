@@ -60,99 +60,124 @@ export const useApplicationHandlers = (
   const handlePtpDateChange = async (newDate: string) => {
     if (!user || !application) return;
     
-    console.log('=== CRITICAL PTP DATE CHANGE DEBUG ===');
-    console.log('Application ID:', application.applicant_id);
-    console.log('Application name:', application.applicant_name);
-    console.log('Current PTP date:', application.ptp_date);
-    console.log('New date input:', newDate);
-    console.log('User ID:', user.id);
-    console.log('User email:', user.email);
+    console.log('=== CRITICAL PTP DATE DEBUG START ===');
+    console.log('User attempting PTP update:', {
+      userId: user.id,
+      userEmail: user.email,
+      applicationId: application.applicant_id,
+      applicantName: application.applicant_name,
+      currentPtpDate: application.ptp_date,
+      newDateInput: newDate
+    });
     
     try {
+      // Step 1: Prepare the PTP value
       let ptpValue = null;
       if (newDate && newDate.trim()) {
-        // Use ISO format for PostgreSQL timestamp with timezone
         ptpValue = new Date(newDate + 'T00:00:00.000Z').toISOString();
         console.log('Converted PTP value:', ptpValue);
       }
 
+      // Step 2: Check if record exists and current user can access it
+      console.log('=== CHECKING RECORD ACCESS ===');
+      const { data: checkData, error: checkError } = await supabase
+        .from('applications')
+        .select('id, applicant_id, applicant_name, ptp_date, user_id')
+        .eq('applicant_id', application.applicant_id)
+        .single();
+
+      console.log('Record check result:', {
+        data: checkData,
+        error: checkError,
+        userCanAccess: checkData?.user_id === user.id
+      });
+
+      if (checkError) {
+        console.error('CRITICAL: Cannot access application record:', checkError);
+        toast.error(`Cannot access application: ${checkError.message}`);
+        return;
+      }
+
+      // Step 3: Attempt the update
+      console.log('=== ATTEMPTING DATABASE UPDATE ===');
       const updateData = {
         ptp_date: ptpValue,
         updated_at: new Date().toISOString()
       };
 
-      console.log('=== DATABASE UPDATE ATTEMPT ===');
-      console.log('Update data:', updateData);
-      console.log('Updating for applicant_id:', application.applicant_id);
+      console.log('Update payload:', updateData);
 
-      // First, let's check if the record exists
-      const { data: existingRecord, error: checkError } = await supabase
-        .from('applications')
-        .select('id, applicant_id, applicant_name, ptp_date')
-        .eq('applicant_id', application.applicant_id)
-        .single();
-
-      console.log('Existing record check:', existingRecord);
-      console.log('Check error:', checkError);
-
-      if (checkError) {
-        console.error('CRITICAL: Cannot find application record:', checkError);
-        toast.error(`Application not found: ${checkError.message}`);
-        return;
-      }
-
-      // Now perform the update
       const { data: updateResult, error: updateError } = await supabase
         .from('applications')
         .update(updateData)
         .eq('applicant_id', application.applicant_id)
-        .select('ptp_date, updated_at, applicant_name')
+        .select('ptp_date, updated_at, applicant_name, user_id')
         .single();
 
       console.log('=== UPDATE RESULT ===');
-      console.log('Update result:', updateResult);
+      console.log('Update data:', updateResult);
       console.log('Update error:', updateError);
 
       if (updateError) {
         console.error('CRITICAL: Database update failed:', updateError);
-        toast.error(`Failed to update PTP date: ${updateError.message}`);
+        toast.error(`Database update failed: ${updateError.message}`);
+        return;
+      }
+
+      if (!updateResult) {
+        console.error('CRITICAL: No data returned from update');
+        toast.error('No data returned from update');
         return;
       }
 
       console.log('SUCCESS: PTP date updated in database');
 
-      // Verify the update by fetching the record again
+      // Step 4: Verify the update worked
+      console.log('=== VERIFICATION QUERY ===');
       const { data: verifyData, error: verifyError } = await supabase
         .from('applications')
-        .select('ptp_date, applicant_name')
+        .select('ptp_date, applicant_name, updated_at')
         .eq('applicant_id', application.applicant_id)
         .single();
 
-      console.log('=== VERIFICATION ===');
-      console.log('Verified data:', verifyData);
-      console.log('Verify error:', verifyError);
+      console.log('Verification result:', {
+        data: verifyData,
+        error: verifyError,
+        ptpDateSaved: verifyData?.ptp_date
+      });
 
-      // Add audit log with proper date formatting for display
+      // Step 5: Add audit log
       const previousValue = application.ptp_date ? 
         new Date(application.ptp_date).toISOString().split('T')[0] : 'Not set';
       const newValue = newDate || 'Not set';
       
-      console.log('Adding audit log for PTP date change');
+      console.log('Adding audit log for PTP date change:', {
+        previousValue,
+        newValue
+      });
+      
       await addAuditLog('PTP Date', previousValue, newValue);
 
+      // Step 6: Update local state
       const updatedApp = {
         ...application,
         ptp_date: ptpValue,
         updated_at: updateResult.updated_at
       };
       
-      console.log('Calling onSave with updated app:', updatedApp);
+      console.log('Calling onSave with updated app:', {
+        ptpDate: updatedApp.ptp_date,
+        updatedAt: updatedApp.updated_at
+      });
+      
       onSave(updatedApp);
       toast.success(`PTP date updated successfully for ${application.applicant_name}`);
       
+      console.log('=== CRITICAL PTP DATE DEBUG END ===');
+      
     } catch (error) {
-      console.error('CRITICAL: Error in handlePtpDateChange:', error);
-      toast.error('Failed to update PTP date');
+      console.error('CRITICAL: Exception in handlePtpDateChange:', error);
+      toast.error(`Failed to update PTP date: ${error.message}`);
     }
   };
 

@@ -63,7 +63,7 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
       let allApplicationsWithComments = allAppsData || [];
       
       if (allAppIds.length > 0) {
-        console.log('=== CRITICAL FIX: USER MAPPING ISSUE ===');
+        console.log('=== CRITICAL USER MAPPING FIX DEBUG ===');
         console.log('Fetching comments for application IDs count:', allAppIds.length);
         
         // Get comments for ALL applications
@@ -76,18 +76,19 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
         if (commentsError) {
           console.error('Error fetching comments:', commentsError);
         } else {
-          console.log('Fetched comments data:', commentsData);
+          console.log('Fetched comments count:', commentsData?.length || 0);
+          console.log('Sample comments:', commentsData?.slice(0, 3));
         }
 
         // Get ALL unique user IDs from comments
         const allUserIds = [...new Set(commentsData?.map(comment => comment.user_id) || [])];
-        console.log('All unique user IDs from comments:', allUserIds);
+        console.log('=== USER IDS FROM COMMENTS ===');
+        console.log('All unique user IDs:', allUserIds);
         
         let userProfilesMap: Record<string, { full_name?: string; email?: string }> = {};
         
         if (allUserIds.length > 0) {
-          console.log('=== CRITICAL: FETCHING USER PROFILES FOR MAPPING ===');
-          console.log('Fetching profiles for user IDs:', allUserIds);
+          console.log('=== FETCHING USER PROFILES ===');
           
           const { data: profilesData, error: profilesError } = await supabase
             .from('profiles')
@@ -95,69 +96,76 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
             .in('id', allUserIds);
 
           console.log('=== PROFILES FETCH RESULT ===');
-          console.log('Profiles data returned:', profilesData);
+          console.log('Profiles data:', profilesData);
           console.log('Profiles error:', profilesError);
           
           if (profilesError) {
             console.error('CRITICAL: Profiles fetch error:', profilesError);
           } else if (profilesData && profilesData.length > 0) {
-            // CRITICAL FIX: Create the profiles map correctly
+            // Create the profiles map
             profilesData.forEach(profile => {
               userProfilesMap[profile.id] = { 
                 full_name: profile.full_name, 
                 email: profile.email 
               };
+              console.log(`Mapped profile: ${profile.id} -> name: "${profile.full_name}", email: "${profile.email}"`);
             });
-            console.log('=== CRITICAL FIX: Created user profiles map ===');
-            console.log('User profiles map:', userProfilesMap);
             
-            // Test specific mappings
-            console.log('Manish mapping test:', userProfilesMap['5c44a519-bdad-45b1-ad24-612fabd4a4a8']);
-            console.log('Kanishk mapping test:', userProfilesMap['af7d3361-f65d-4c17-8f33-61973795aa19']);
+            console.log('=== FINAL USER PROFILES MAP ===');
+            console.log('Complete mapping:', userProfilesMap);
+            
+            // Test specific known user IDs
+            console.log('Manish profile test:', userProfilesMap['5c44a519-bdad-45b1-ad24-612fabd4a4a8']);
+            console.log('Kanishk profile test:', userProfilesMap['af7d3361-f65d-4c17-8f33-61973795aa19']);
           } else {
-            console.log('No profiles data returned or empty array');
+            console.log('No profiles data returned');
           }
         }
 
-        // CRITICAL FIX: Group comments by application with CORRECT user name resolution
+        // Group comments by application with ENHANCED user name resolution
         const commentsByApp = (commentsData || []).reduce((acc, comment) => {
           if (!acc[comment.application_id]) {
             acc[comment.application_id] = [];
           }
           if (acc[comment.application_id].length < 3) {
             const userProfile = userProfilesMap[comment.user_id];
-            console.log(`=== CRITICAL FIX: USER NAME RESOLUTION ===`);
-            console.log(`Comment user ID: ${comment.user_id}`);
-            console.log(`User profile found:`, userProfile);
             
-            // CRITICAL FIX: Robust user name resolution logic
+            console.log(`=== COMMENT USER RESOLUTION ===`);
+            console.log(`Comment ID: ${comment.application_id}`);
+            console.log(`User ID: ${comment.user_id}`);
+            console.log(`Profile found:`, userProfile);
+            
+            // ENHANCED user name resolution
             let resolvedUserName = 'Unknown User';
             
             if (userProfile) {
-              console.log(`Profile full_name: "${userProfile.full_name}"`);
-              console.log(`Profile email: "${userProfile.email}"`);
-              
-              // Check full_name first
+              // Check full_name first (with more robust validation)
               if (userProfile.full_name && 
+                  typeof userProfile.full_name === 'string' &&
                   userProfile.full_name.trim() !== '' && 
                   userProfile.full_name.toLowerCase() !== 'null' &&
+                  userProfile.full_name !== 'null' &&
                   userProfile.full_name !== null) {
                 resolvedUserName = userProfile.full_name.trim();
-                console.log(`Using full_name: "${resolvedUserName}"`);
+                console.log(`✓ Using full_name: "${resolvedUserName}"`);
               } 
-              // Fallback to email if full_name is not available
+              // Fallback to email
               else if (userProfile.email && 
+                       typeof userProfile.email === 'string' &&
                        userProfile.email.trim() !== '' && 
                        userProfile.email.toLowerCase() !== 'null' &&
+                       userProfile.email !== 'null' &&
                        userProfile.email !== null) {
                 resolvedUserName = userProfile.email.trim();
-                console.log(`Using email: "${resolvedUserName}"`);
+                console.log(`✓ Using email: "${resolvedUserName}"`);
+              } else {
+                console.log(`✗ No valid name or email found for user ${comment.user_id}`);
               }
             } else {
-              console.log(`No profile found for user ${comment.user_id} in map:`, Object.keys(userProfilesMap));
+              console.log(`✗ No profile found for user ${comment.user_id}`);
             }
             
-            console.log(`=== FINAL RESOLVED USER NAME: "${resolvedUserName}" ===`);
+            console.log(`✓ FINAL USER NAME: "${resolvedUserName}"`);
             
             acc[comment.application_id].push({
               content: comment.content,
@@ -167,11 +175,10 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
           return acc;
         }, {} as Record<string, Array<{content: string; user_name: string}>>);
 
-        console.log('=== FINAL COMMENTS MAPPING ===');
-        console.log('Comments by app (sample):', Object.keys(commentsByApp).slice(0, 3).reduce((acc, key) => {
-          acc[key] = commentsByApp[key];
-          return acc;
-        }, {} as any));
+        console.log('=== FINAL COMMENTS MAPPING SAMPLE ===');
+        Object.keys(commentsByApp).slice(0, 3).forEach(appId => {
+          console.log(`App ${appId}:`, commentsByApp[appId]);
+        });
 
         // Add comments to both paginated and all applications
         applicationsWithComments = appsData.map(app => ({
@@ -185,8 +192,9 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
         }));
       }
 
-      console.log('=== FINAL RESULT ===');
-      console.log('Sample application with comments:', applicationsWithComments[0]);
+      console.log('=== APPLICATIONS WITH COMMENTS ===');
+      console.log('Sample app with comments:', applicationsWithComments.find(app => app.recent_comments.length > 0));
+      
       setApplications(applicationsWithComments);
       setAllApplications(allApplicationsWithComments);
     } catch (error) {
@@ -204,7 +212,7 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
 
   return {
     applications,
-    allApplications, // For filter generation - now includes comments
+    allApplications,
     totalCount,
     totalPages: Math.ceil(totalCount / pageSize),
     currentPage: page,

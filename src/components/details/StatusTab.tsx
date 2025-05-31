@@ -24,23 +24,22 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
   const [ptpDate, setPtpDate] = useState('');
   const [showLogDialog, setShowLogDialog] = useState(false);
   
-  // CRITICAL FIX: Better PTP date synchronization with detailed logging
+  // ENHANCED PTP date synchronization with comprehensive debugging
   useEffect(() => {
-    console.log('=== CRITICAL PTP DATE SYNC EFFECT ===');
+    console.log('=== PTP DATE SYNC EFFECT (ENHANCED) ===');
     console.log('Application:', application.applicant_name);
-    console.log('Application PTP date:', application.ptp_date);
-    console.log('Type of PTP date:', typeof application.ptp_date);
     console.log('Application ID:', application.applicant_id);
+    console.log('Raw PTP date from application:', application.ptp_date);
+    console.log('Type of PTP date:', typeof application.ptp_date);
     
     if (application.ptp_date) {
       try {
         let inputValue = '';
         
-        // CRITICAL FIX: Handle all possible date formats from database
         if (typeof application.ptp_date === 'string') {
           let parsedDate: Date;
           
-          // Try different parsing approaches
+          // Handle different date formats
           if (application.ptp_date.includes('T') || application.ptp_date.includes('Z')) {
             // ISO string format
             parsedDate = new Date(application.ptp_date);
@@ -50,7 +49,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
             parsedDate = new Date(application.ptp_date + 'T00:00:00.000Z');
             console.log('Parsed as YYYY-MM-DD:', parsedDate);
           } else {
-            // Try parsing as timestamp or other format
+            // Try parsing as generic date
             parsedDate = new Date(application.ptp_date);
             console.log('Parsed as generic date:', parsedDate);
           }
@@ -59,14 +58,17 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
           console.log('Is valid date:', !isNaN(parsedDate.getTime()));
           
           if (!isNaN(parsedDate.getTime())) {
-            // CRITICAL FIX: Always format for HTML date input (YYYY-MM-DD)
+            // Format for HTML date input (YYYY-MM-DD)
             inputValue = parsedDate.toISOString().split('T')[0];
-            console.log('Setting input value:', inputValue);
+            console.log('Setting HTML input value:', inputValue);
+          } else {
+            console.log('Invalid date parsed, clearing input');
+            inputValue = '';
           }
         }
         
         setPtpDate(inputValue);
-        console.log('PTP date state set to:', inputValue);
+        console.log('✓ PTP date state updated to:', inputValue);
       } catch (error) {
         console.error('Error parsing PTP date:', error);
         setPtpDate('');
@@ -75,17 +77,21 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
       console.log('No PTP date, clearing input');
       setPtpDate('');
     }
-  }, [application.ptp_date, application.applicant_id, application.applicant_name]); // Added applicant_name for better tracking
+  }, [application.ptp_date, application.applicant_id, application.applicant_name]);
   
   // Filter audit logs to only show status-related changes
   const statusOnlyLogs = useFilteredAuditLogs(auditLogs);
 
   const handlePtpDateChange = (value: string) => {
-    console.log('=== PTP DATE INPUT CHANGE ===');
+    console.log('=== PTP DATE INPUT CHANGE (ENHANCED) ===');
     console.log('Application:', application.applicant_name);
     console.log('Input value:', value);
+    console.log('Current state value:', ptpDate);
+    
     setPtpDate(value);
     onPtpDateChange(value);
+    
+    console.log('✓ PTP date change handlers called');
   };
 
   const formatDateTime = (dateStr: string) => {
@@ -140,6 +146,9 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
                   Selected: {formatPtpDate(ptpDate + 'T00:00:00.000Z')}
                 </div>
               )}
+              <div className="text-xs text-gray-400 mt-1">
+                Debug - Input value: "{ptpDate}" | DB value: "{application.ptp_date || 'null'}"
+              </div>
             </div>
           </div>
         </CardContent>
