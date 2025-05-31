@@ -83,7 +83,7 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
         return;
       }
 
-      // Get paginated applications with recent comments (sorted by applicant name)
+      // Get paginated applications (sorted by applicant name)
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
 
@@ -98,24 +98,41 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
         return;
       }
 
-      // Fetch recent comments with user names for paginated applications
+      // Fetch recent comments for paginated applications
       const appIds = appsData?.map(app => app.applicant_id) || [];
       
       let applicationsWithComments = appsData || [];
       let allApplicationsWithComments = allAppsData || [];
       
       if (appIds.length > 0) {
-        const { data: commentsData } = await supabase
+        // Get comments first
+        const { data: commentsData, error: commentsError } = await supabase
           .from('comments')
-          .select(`
-            application_id, 
-            content, 
-            created_at,
-            user_id,
-            profiles(full_name, email)
-          `)
+          .select('application_id, content, created_at, user_id')
           .in('application_id', appIds)
           .order('created_at', { ascending: false });
+
+        if (commentsError) {
+          console.error('Error fetching comments:', commentsError);
+        }
+
+        // Get user profiles for the comment authors
+        const userIds = [...new Set(commentsData?.map(comment => comment.user_id) || [])];
+        let profilesMap: Record<string, { full_name?: string; email?: string }> = {};
+        
+        if (userIds.length > 0) {
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, full_name, email')
+            .in('id', userIds);
+
+          if (!profilesError && profilesData) {
+            profilesMap = profilesData.reduce((acc, profile) => {
+              acc[profile.id] = { full_name: profile.full_name, email: profile.email };
+              return acc;
+            }, {} as Record<string, { full_name?: string; email?: string }>);
+          }
+        }
 
         // Group comments by application and get last 3 with user names
         const commentsByApp = (commentsData || []).reduce((acc, comment) => {
@@ -123,7 +140,8 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
             acc[comment.application_id] = [];
           }
           if (acc[comment.application_id].length < 3) {
-            const userName = comment.profiles?.full_name || comment.profiles?.email || 'Unknown User';
+            const profile = profilesMap[comment.user_id];
+            const userName = profile?.full_name || profile?.email || 'Unknown User';
             acc[comment.application_id].push({
               content: comment.content,
               user_name: userName

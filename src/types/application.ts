@@ -16,6 +16,9 @@ export interface Application {
   paid_date?: string;
   demand_date?: string;
   rm_comments?: string;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
   auditLogs?: AuditLog[];
   applicant_mobile?: string;
   applicant_address?: string;
@@ -37,6 +40,7 @@ export interface Application {
   guarantor_calling_status?: string;
   reference_calling_status?: string;
   latest_calling_status?: string;
+  recent_comments?: Array<{content: string; user_name: string}>;
 }
 
 export interface AuditLog {
