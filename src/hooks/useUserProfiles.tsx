@@ -27,7 +27,7 @@ export const useUserProfiles = () => {
 
     setLoading(true);
     try {
-      console.log('=== USER PROFILES FETCH DEBUG ===');
+      console.log('=== USER PROFILES FETCH DEBUG (FIXED) ===');
       console.log('Fetching profiles for user IDs:', uncachedUserIds);
       
       const { data: profiles, error } = await supabase
@@ -40,25 +40,30 @@ export const useUserProfiles = () => {
         return [];
       }
 
-      console.log('Fetched profiles:', profiles);
+      console.log('Fetched profiles (FIXED):', profiles);
 
-      // Update cache with new profiles
-      setProfilesCache(prevCache => {
-        const newCache = new Map(prevCache);
-        profiles?.forEach(profile => {
-          newCache.set(profile.id, profile);
+      // FIXED: Update cache with new profiles
+      if (profiles && profiles.length > 0) {
+        setProfilesCache(prevCache => {
+          const newCache = new Map(prevCache);
+          profiles.forEach(profile => {
+            newCache.set(profile.id, profile);
+          });
+          console.log('Updated profiles cache:', Array.from(newCache.entries()));
+          return newCache;
         });
-        return newCache;
-      });
+      }
 
       // Return all requested profiles (including newly fetched and cached)
       const allProfiles = userIds.map(id => {
+        // Check cache first
         const cached = profilesCache.get(id);
         if (cached) return cached;
+        // Check newly fetched profiles
         return profiles?.find(p => p.id === id);
       }).filter(Boolean) as UserProfile[];
       
-      console.log('Returning all profiles:', allProfiles);
+      console.log('Returning all profiles (FIXED):', allProfiles);
       return allProfiles;
     } catch (error) {
       console.error('Error fetching user profiles:', error);
@@ -70,25 +75,30 @@ export const useUserProfiles = () => {
 
   const getUserName = useCallback((userId: string, fallbackEmail?: string): string => {
     const profile = profilesCache.get(userId);
-    console.log(`=== GET USER NAME DEBUG ===`);
+    console.log(`=== GET USER NAME DEBUG (FIXED) ===`);
     console.log(`User ID: ${userId}`);
     console.log(`Profile from cache:`, profile);
     console.log(`Fallback email: ${fallbackEmail}`);
     
-    // Prioritize full_name over email with proper null/empty checks
-    if (profile?.full_name && profile.full_name.trim() && 
-        profile.full_name !== 'null' && profile.full_name !== null) {
-      console.log(`Returning full_name: ${profile.full_name}`);
-      return profile.full_name.trim();
+    // FIXED: More robust name resolution
+    if (profile?.full_name && 
+        String(profile.full_name).trim() !== '' && 
+        String(profile.full_name).toLowerCase() !== 'null') {
+      const name = String(profile.full_name).trim();
+      console.log(`Returning full_name: ${name}`);
+      return name;
     }
-    if (profile?.email && profile.email.trim() && 
-        profile.email !== 'null' && profile.email !== null) {
-      console.log(`Returning profile email: ${profile.email}`);
-      return profile.email.trim();
+    if (profile?.email && 
+        String(profile.email).trim() !== '' && 
+        String(profile.email).toLowerCase() !== 'null') {
+      const email = String(profile.email).trim();
+      console.log(`Returning profile email: ${email}`);
+      return email;
     }
-    if (fallbackEmail && fallbackEmail.trim()) {
-      console.log(`Returning fallback email: ${fallbackEmail}`);
-      return fallbackEmail.trim();
+    if (fallbackEmail && String(fallbackEmail).trim() !== '') {
+      const fallback = String(fallbackEmail).trim();
+      console.log(`Returning fallback email: ${fallback}`);
+      return fallback;
     }
     console.log(`Returning Unknown User`);
     return 'Unknown User';

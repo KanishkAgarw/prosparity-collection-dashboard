@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Application } from "@/types/application";
@@ -60,25 +59,17 @@ export const useApplicationHandlers = (
   const handlePtpDateChange = async (newDate: string) => {
     if (!user || !application) return;
     
-    console.log('=== PTP DATE CHANGE DEBUG ===');
+    console.log('=== FIXED PTP DATE CHANGE DEBUG ===');
     console.log('Application ID:', application.applicant_id);
     console.log('Current PTP date:', application.ptp_date);
     console.log('New date input:', newDate);
     
     try {
-      // Handle the date conversion more carefully
       let ptpValue = null;
       if (newDate && newDate.trim()) {
-        // Create a proper date object from the input (YYYY-MM-DD)
-        const dateObj = new Date(newDate + 'T00:00:00.000Z');
-        if (!isNaN(dateObj.getTime())) {
-          ptpValue = dateObj.toISOString();
-          console.log('Converted to ISO string:', ptpValue);
-        } else {
-          console.error('Invalid date format:', newDate);
-          toast.error('Invalid date format');
-          return;
-        }
+        // FIXED: Use proper PostgreSQL timestamp format
+        ptpValue = newDate + 'T00:00:00.000Z';
+        console.log('Setting PTP value to:', ptpValue);
       }
 
       const updateData = {
@@ -86,7 +77,9 @@ export const useApplicationHandlers = (
         updated_at: new Date().toISOString()
       };
 
-      console.log('Sending update data to database:', updateData);
+      console.log('=== DATABASE UPDATE ATTEMPT ===');
+      console.log('Update data:', updateData);
+      console.log('Updating application_id:', application.applicant_id);
 
       const { data, error } = await supabase
         .from('applications')
@@ -96,16 +89,18 @@ export const useApplicationHandlers = (
         .single();
 
       if (error) {
-        console.error('Database error updating PTP date:', error);
+        console.error('CRITICAL: Database update failed:', error);
         toast.error(`Failed to update PTP date: ${error.message}`);
         return;
       }
 
-      console.log('Database update successful, returned data:', data);
+      console.log('SUCCESS: Database update successful:', data);
 
-      // Add audit log
-      const previousValue = application.ptp_date ? new Date(application.ptp_date).toISOString().split('T')[0] : 'Not set';
+      // Add audit log with proper date formatting for display
+      const previousValue = application.ptp_date ? 
+        new Date(application.ptp_date).toISOString().split('T')[0] : 'Not set';
       const newValue = newDate || 'Not set';
+      
       console.log('Adding audit log for PTP date change');
       await addAuditLog('PTP Date', previousValue, newValue);
 
@@ -118,8 +113,14 @@ export const useApplicationHandlers = (
       console.log('Calling onSave with updated app:', updatedApp);
       onSave(updatedApp);
       toast.success('PTP date updated successfully');
+      
+      // Force a small delay to ensure the update propagates
+      setTimeout(() => {
+        console.log('PTP date should now be visible in the main table');
+      }, 500);
+      
     } catch (error) {
-      console.error('Error updating PTP date:', error);
+      console.error('CRITICAL: Error in handlePtpDateChange:', error);
       toast.error('Failed to update PTP date');
     }
   };

@@ -63,7 +63,7 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
       let allApplicationsWithComments = allAppsData || [];
       
       if (allAppIds.length > 0) {
-        console.log('=== COMMENTS AND USER MAPPING DEBUG ===');
+        console.log('=== FIXING USER MAPPING ISSUE ===');
         console.log('Fetching comments for application IDs count:', allAppIds.length);
         
         // Get comments for ALL applications
@@ -86,6 +86,7 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
         let userProfilesMap: Record<string, { full_name?: string; email?: string }> = {};
         
         if (allUserIds.length > 0) {
+          console.log('=== CRITICAL: FETCHING USER PROFILES ===');
           console.log('Fetching profiles for user IDs:', allUserIds);
           
           const { data: profilesData, error: profilesError } = await supabase
@@ -93,50 +94,64 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
             .select('id, full_name, email')
             .in('id', allUserIds);
 
-          console.log('Fetched profiles data:', profilesData);
+          console.log('=== PROFILES FETCH RESULT ===');
+          console.log('Profiles data returned:', profilesData);
+          console.log('Profiles error:', profilesError);
           
           if (profilesError) {
-            console.error('Profiles fetch error:', profilesError);
+            console.error('CRITICAL: Profiles fetch error:', profilesError);
           } else if (profilesData && profilesData.length > 0) {
-            // Create the profiles map
-            userProfilesMap = profilesData.reduce((acc, profile) => {
-              acc[profile.id] = { 
+            // FIXED: Create the profiles map correctly
+            userProfilesMap = {};
+            profilesData.forEach(profile => {
+              userProfilesMap[profile.id] = { 
                 full_name: profile.full_name, 
                 email: profile.email 
               };
-              return acc;
-            }, {} as Record<string, { full_name?: string; email?: string }>);
-            console.log('Created user profiles map:', userProfilesMap);
+            });
+            console.log('=== FIXED: Created user profiles map ===');
+            console.log('User profiles map:', userProfilesMap);
+            console.log('Sample mapping check for user b9349a7e-2a5b-4350-89b1-774ade89f418:', 
+              userProfilesMap['b9349a7e-2a5b-4350-89b1-774ade89f418']);
           } else {
             console.log('No profiles data returned or empty array');
           }
         }
 
-        // Group comments by application and get last 3 with CORRECT user names
+        // FIXED: Group comments by application with CORRECT user name resolution
         const commentsByApp = (commentsData || []).reduce((acc, comment) => {
           if (!acc[comment.application_id]) {
             acc[comment.application_id] = [];
           }
           if (acc[comment.application_id].length < 3) {
             const userProfile = userProfilesMap[comment.user_id];
-            console.log(`=== USER NAME RESOLUTION DEBUG ===`);
+            console.log(`=== FIXED USER NAME RESOLUTION ===`);
             console.log(`Comment user ID: ${comment.user_id}`);
             console.log(`User profile found:`, userProfile);
             
             // FIXED: Proper user name resolution logic
             let resolvedUserName = 'Unknown User';
             if (userProfile) {
-              // Prioritize full_name, fallback to email, then Unknown User
-              if (userProfile.full_name && userProfile.full_name.trim() && 
-                  userProfile.full_name !== 'null' && userProfile.full_name !== null) {
-                resolvedUserName = userProfile.full_name.trim();
-              } else if (userProfile.email && userProfile.email.trim() && 
-                        userProfile.email !== 'null' && userProfile.email !== null) {
-                resolvedUserName = userProfile.email.trim();
+              console.log(`Profile full_name: "${userProfile.full_name}"`);
+              console.log(`Profile email: "${userProfile.email}"`);
+              
+              // FIXED: Better null/empty checking
+              if (userProfile.full_name && 
+                  String(userProfile.full_name).trim() !== '' && 
+                  String(userProfile.full_name).toLowerCase() !== 'null') {
+                resolvedUserName = String(userProfile.full_name).trim();
+                console.log(`Using full_name: "${resolvedUserName}"`);
+              } else if (userProfile.email && 
+                        String(userProfile.email).trim() !== '' && 
+                        String(userProfile.email).toLowerCase() !== 'null') {
+                resolvedUserName = String(userProfile.email).trim();
+                console.log(`Using email: "${resolvedUserName}"`);
               }
+            } else {
+              console.log(`No profile found for user ${comment.user_id}`);
             }
             
-            console.log(`Final resolved user name: "${resolvedUserName}"`);
+            console.log(`=== FINAL RESOLVED USER NAME: "${resolvedUserName}" ===`);
             
             acc[comment.application_id].push({
               content: comment.content,
@@ -146,7 +161,8 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
           return acc;
         }, {} as Record<string, Array<{content: string; user_name: string}>>);
 
-        console.log('Final comments by app (sample):', Object.keys(commentsByApp).slice(0, 3).reduce((acc, key) => {
+        console.log('=== FINAL COMMENTS MAPPING ===');
+        console.log('Comments by app (sample):', Object.keys(commentsByApp).slice(0, 3).reduce((acc, key) => {
           acc[key] = commentsByApp[key];
           return acc;
         }, {} as any));
@@ -163,7 +179,8 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
         }));
       }
 
-      console.log('Final applications with comments (first app sample):', applicationsWithComments[0]);
+      console.log('=== FINAL RESULT ===');
+      console.log('Sample application with comments:', applicationsWithComments[0]);
       setApplications(applicationsWithComments);
       setAllApplications(allApplicationsWithComments);
     } catch (error) {
