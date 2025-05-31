@@ -19,9 +19,10 @@ interface ApplicationDetailsPanelProps {
   application: Application | null;
   onClose: () => void;
   onSave: (updatedApp: Application) => void;
+  onDataChanged?: () => void; // New prop to trigger main list refresh
 }
 
-const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDetailsPanelProps) => {
+const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }: ApplicationDetailsPanelProps) => {
   const { user } = useAuth();
 
   const { comments, addComment, refetch: refetchComments } = useComments(application?.applicant_id);
@@ -30,22 +31,38 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
 
   // Set up real-time updates
   useRealtimeUpdates({
-    onCallingLogUpdate: refetchCallingLogs,
-    onAuditLogUpdate: refetchAuditLogs,
-    onCommentUpdate: refetchComments
+    onCallingLogUpdate: () => {
+      refetchCallingLogs();
+      onDataChanged?.(); // Trigger main list refresh
+    },
+    onAuditLogUpdate: () => {
+      refetchAuditLogs();
+      onDataChanged?.(); // Trigger main list refresh
+    },
+    onCommentUpdate: () => {
+      refetchComments();
+      onDataChanged?.(); // Trigger main list refresh
+    },
+    onApplicationUpdate: () => {
+      onDataChanged?.(); // Trigger main list refresh
+    }
   });
 
   const {
     handleStatusChange,
     handlePtpDateChange,
     handleCallingStatusChange
-  } = useApplicationHandlers(application, user, addAuditLog, addCallingLog, onSave);
+  } = useApplicationHandlers(application, user, addAuditLog, addCallingLog, (updatedApp) => {
+    onSave(updatedApp);
+    onDataChanged?.(); // Trigger main list refresh after any update
+  });
 
   if (!application) return null;
 
   const handleAddComment = async (content: string) => {
     await addComment(content);
     toast.success('Comment added successfully');
+    onDataChanged?.(); // Trigger main list refresh after adding comment
   };
 
   return (

@@ -80,12 +80,15 @@ export const useComments = (applicationId?: string) => {
 
       if (error) {
         console.error('Error adding comment:', error);
+        throw error;
       } else {
         console.log('Added comment:', data);
-        await fetchComments(); // Refresh comments
+        // Immediately fetch comments again to get the latest data
+        await fetchComments();
       }
     } catch (error) {
       console.error('Error adding comment:', error);
+      throw error;
     }
   };
 

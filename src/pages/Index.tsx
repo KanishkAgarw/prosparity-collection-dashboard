@@ -31,7 +31,10 @@ const Index = () => {
 
   // Set up real-time updates for the main applications list
   useRealtimeUpdates({
-    onApplicationUpdate: refetch
+    onApplicationUpdate: refetch,
+    onCommentUpdate: refetch, // Refresh when comments are updated
+    onAuditLogUpdate: refetch, // Refresh when audit logs are updated
+    onCallingLogUpdate: refetch // Refresh when calling logs are updated
   });
 
   // Use allApplications for filter generation and get filtered results
@@ -85,6 +88,13 @@ const Index = () => {
 
   const handleApplicationUpdated = (updatedApp: Application) => {
     setSelectedApplication(updatedApp);
+    // Refresh the main list to ensure all data is up to date
+    refetch();
+  };
+
+  // New handler for when data changes in the detail panel
+  const handleDataChanged = () => {
+    refetch(); // Refresh the main applications list
   };
 
   const handleExport = async () => {
@@ -173,6 +183,7 @@ const Index = () => {
           application={selectedApplication}
           onClose={() => setSelectedApplication(null)}
           onSave={handleApplicationUpdated}
+          onDataChanged={handleDataChanged}
         />
       )}
     </div>
