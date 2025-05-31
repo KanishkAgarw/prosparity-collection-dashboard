@@ -14,11 +14,14 @@ import UploadApplicationDialog from '@/components/UploadApplicationDialog';
 import SimpleBulkUserUpload from '@/components/SimpleBulkUserUpload';
 import UserManagementDialog from '@/components/UserManagementDialog';
 import AppHeader from '@/components/layout/AppHeader';
-import { useMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { useExport } from '@/hooks/useExport';
 
 const Index = () => {
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedApplicationId, setSelectedApplicationId] = useState<string>();
   const pageSize = 50;
   
   const {
@@ -31,13 +34,29 @@ const Index = () => {
   } = useApplications({ page: currentPage, pageSize });
 
   const {
-    searchTerm,
-    setSearchTerm,
-    selectedFilters,
-    setSelectedFilters,
+    filters,
     filteredApplications,
-    filterOptions
-  } = useCascadingFilters(applications, allApplications);
+    availableOptions,
+    handleFilterChange
+  } = useCascadingFilters({ applications: allApplications });
+
+  const { handleExport } = useExport();
+
+  // Search functionality
+  const searchedApplications = useMemo(() => {
+    if (!searchTerm.trim()) return filteredApplications;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return filteredApplications.filter(app => 
+      app.applicant_name?.toLowerCase().includes(searchLower) ||
+      app.applicant_id?.toLowerCase().includes(searchLower) ||
+      app.applicant_mobile?.toLowerCase().includes(searchLower) ||
+      app.applicant_address?.toLowerCase().includes(searchLower) ||
+      app.dealer_name?.toLowerCase().includes(searchLower) ||
+      app.lender_name?.toLowerCase().includes(searchLower) ||
+      app.rm_name?.toLowerCase().includes(searchLower)
+    );
+  }, [filteredApplications, searchTerm]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -51,20 +70,24 @@ const Index = () => {
     }
   };
 
+  const handleRowClick = (application: any) => {
+    setSelectedApplicationId(application.id);
+  };
+
   // Memoize status cards data
   const statusData = useMemo(() => {
-    const total = allApplications.length;
-    const paid = allApplications.filter(app => app.status === 'Paid').length;
-    const unpaid = allApplications.filter(app => app.status === 'Unpaid').length;
-    const partial = allApplications.filter(app => app.status === 'Partial').length;
+    const total = searchedApplications.length;
+    const paid = searchedApplications.filter(app => app.status === 'Paid').length;
+    const unpaid = searchedApplications.filter(app => app.status === 'Unpaid').length;
+    const partial = searchedApplications.filter(app => app.status === 'Partial').length;
 
     return { total, paid, unpaid, partial };
-  }, [allApplications]);
+  }, [searchedApplications]);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <AppHeader />
+        <AppHeader onExport={handleExport} onApplicationAdded={handleApplicationAdded} />
         <main className="container mx-auto px-4 py-6">
           <LoadingSkeleton />
         </main>
@@ -74,7 +97,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <AppHeader />
+      <AppHeader onExport={handleExport} onApplicationAdded={handleApplicationAdded} />
       
       <main className="container mx-auto px-4 py-6 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -92,35 +115,44 @@ const Index = () => {
           </div>
         </div>
 
-        <StatusCards data={statusData} />
+        <StatusCards applications={searchedApplications} />
 
         <div className="space-y-4">
           <SearchBar
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
+            value={searchTerm}
+            onChange={setSearchTerm}
             placeholder="Search by applicant name, ID, mobile, or address..."
           />
           
           {isMobile ? (
             <MobileFilterBar
-              selectedFilters={selectedFilters}
-              onFiltersChange={setSelectedFilters}
-              filterOptions={filterOptions}
+              filters={filters}
+              onFilterChange={handleFilterChange}
+              availableOptions={availableOptions}
             />
           ) : (
             <FilterBar
-              selectedFilters={selectedFilters}
-              onFiltersChange={setSelectedFilters}
-              filterOptions={filterOptions}
+              filters={filters}
+              onFilterChange={handleFilterChange}
+              availableOptions={availableOptions}
             />
           )}
         </div>
 
         <div className="bg-white rounded-lg shadow">
           {isMobile ? (
-            <MobileOptimizedTable applications={filteredApplications} />
+            <MobileOptimizedTable 
+              applications={searchedApplications} 
+              onRowClick={handleRowClick}
+              selectedApplicationId={selectedApplicationId}
+            />
           ) : (
-            <ApplicationsTable applications={filteredApplications} />
+            <ApplicationsTable 
+              applications={searchedApplications} 
+              onRowClick={handleRowClick}
+              selectedApplicationId={selectedApplicationId}
+              onApplicationDeleted={refetch}
+            />
           )}
         </div>
 
