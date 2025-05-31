@@ -85,7 +85,7 @@ const ApplicationsTable = ({ applications, onRowClick, selectedApplicationId }: 
                 <TableCell className="font-medium text-blue-600">{formatCurrency(app.emi_amount)}</TableCell>
                 <TableCell>{getStatusBadge(app.status)}</TableCell>
                 <TableCell className={`${app.ptp_date ? 'text-blue-600 font-medium' : 'text-gray-400'} whitespace-nowrap`}>
-                  {formatPtpDate(app.ptp_date)}
+                  {app.ptp_date ? formatPtpDate(app.ptp_date) : 'Not Set'}
                 </TableCell>
                 <TableCell className="text-sm">
                   <CallStatusDisplay application={app} />

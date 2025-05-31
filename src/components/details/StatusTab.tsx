@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -21,8 +20,19 @@ interface StatusTabProps {
 }
 
 const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: StatusTabProps) => {
-  const [ptpDate, setPtpDate] = useState(application.ptp_date ? application.ptp_date.split('T')[0] : '');
+  const [ptpDate, setPtpDate] = useState('');
   const [showLogDialog, setShowLogDialog] = useState(false);
+  
+  // Update local state when application changes
+  useEffect(() => {
+    if (application.ptp_date) {
+      // Format the date for the date input (YYYY-MM-DD)
+      const dateOnly = new Date(application.ptp_date).toISOString().split('T')[0];
+      setPtpDate(dateOnly);
+    } else {
+      setPtpDate('');
+    }
+  }, [application.ptp_date]);
   
   // Filter audit logs to only show status-related changes
   const statusOnlyLogs = useFilteredAuditLogs(auditLogs);
@@ -70,7 +80,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
             
             <div>
               <Label htmlFor="ptpDate">
-                PTP Date {application.ptp_date && `(${formatPtpDate(application.ptp_date)})`}
+                PTP Date {application.ptp_date && `(Current: ${formatPtpDate(application.ptp_date)})`}
               </Label>
               <Input
                 id="ptpDate"

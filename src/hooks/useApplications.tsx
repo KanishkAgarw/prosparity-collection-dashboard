@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -55,18 +56,18 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
         return;
       }
 
-      // Fetch recent comments for paginated applications
-      const appIds = appsData?.map(app => app.applicant_id) || [];
+      // Fetch recent comments for ALL applications, not just current page
+      const allAppIds = allAppsData?.map(app => app.applicant_id) || [];
       
       let applicationsWithComments = appsData || [];
       let allApplicationsWithComments = allAppsData || [];
       
-      if (appIds.length > 0) {
-        // Get comments first
+      if (allAppIds.length > 0) {
+        // Get comments for ALL applications
         const { data: commentsData, error: commentsError } = await supabase
           .from('comments')
           .select('application_id, content, created_at, user_id')
-          .in('application_id', appIds)
+          .in('application_id', allAppIds)
           .order('created_at', { ascending: false });
 
         if (commentsError) {
@@ -107,13 +108,20 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
           return acc;
         }, {} as Record<string, Array<{content: string; user_name: string}>>);
 
+        // Add comments to both paginated and all applications
         applicationsWithComments = appsData.map(app => ({
+          ...app,
+          recent_comments: commentsByApp[app.applicant_id] || []
+        }));
+
+        allApplicationsWithComments = allAppsData.map(app => ({
           ...app,
           recent_comments: commentsByApp[app.applicant_id] || []
         }));
       }
 
       console.log('Fetched applications with comments:', applicationsWithComments);
+      console.log('Fetched ALL applications with comments:', allApplicationsWithComments);
       setApplications(applicationsWithComments);
       setAllApplications(allApplicationsWithComments);
     } catch (error) {
@@ -131,7 +139,7 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
 
   return {
     applications,
-    allApplications, // For filter generation
+    allApplications, // For filter generation - now includes comments
     totalCount,
     totalPages: Math.ceil(totalCount / pageSize),
     currentPage: page,
