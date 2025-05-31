@@ -12,6 +12,7 @@ import FiltersSection from "@/components/layout/FiltersSection";
 import MainContent from "@/components/layout/MainContent";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import StatusCards from "@/components/StatusCards";
+import ManualDatabaseFix from "@/components/ManualDatabaseFix";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -148,6 +149,9 @@ const Index = () => {
             onExport={handleExport}
             onApplicationAdded={refetch}
           />
+
+          {/* Manual Database Fix Component - TEMPORARY */}
+          <ManualDatabaseFix />
 
           <FiltersSection
             filters={filters}
