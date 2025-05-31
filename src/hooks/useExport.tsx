@@ -1,7 +1,7 @@
 
 import { useCallback } from 'react';
 import * as XLSX from 'xlsx';
-import { Application } from '@/hooks/useApplications';
+import { Application } from '@/types/application';
 import { format } from 'date-fns';
 import { formatPtpDate, formatCurrency } from '@/utils/formatters';
 
@@ -26,9 +26,9 @@ export const useExport = () => {
       'Call Status - Guarantor': app.guarantor_calling_status || 'Not Called',
       'Call Status - Reference': app.reference_calling_status || 'Not Called',
       'Overall Call Status': app.latest_calling_status || 'No Calls',
-      'Recent Comment 1': app.recent_comments?.[0] || '',
-      'Recent Comment 2': app.recent_comments?.[1] || '',
-      'Recent Comment 3': app.recent_comments?.[2] || '',
+      'Recent Comment 1': app.recent_comments?.[0]?.content || '',
+      'Recent Comment 2': app.recent_comments?.[1]?.content || '',
+      'Recent Comment 3': app.recent_comments?.[2]?.content || '',
       'Branch': app.branch_name,
       'RM Name': app.rm_name,
       'Team Lead': app.team_lead,
@@ -82,7 +82,7 @@ export const useExport = () => {
       'Status': app.status,
       'PTP Date': formatPtpDate(app.ptp_date),
       'Overall Call Status': app.latest_calling_status || 'No Calls',
-      'Recent Comment': app.recent_comments?.[0] || 'No Comments',
+      'Recent Comment': app.recent_comments?.[0]?.content || 'No Comments',
       'Last Updated': format(new Date(app.updated_at), 'dd-MMM-yy HH:mm')
     }));
 
