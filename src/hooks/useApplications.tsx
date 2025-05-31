@@ -30,14 +30,17 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
 
       setTotalCount(count || 0);
 
-      // Fetch ALL applications for filters with optimized select
+      // Fetch ALL applications for filters with all required fields
       const { data: allAppsData, error: allAppsError } = await supabase
         .from('applications')
         .select(`
-          id, applicant_id, applicant_name, applicant_mobile, 
-          branch_name, team_lead, rm_name, dealer_name, lender_name,
-          status, demand_date, emi_amount, ptp_date, 
-          last_month_bounce, repayment
+          id, applicant_id, applicant_name, applicant_mobile, applicant_address,
+          branch_name, team_lead, rm_name, dealer_name, lender_name, status,
+          demand_date, emi_amount, ptp_date, last_month_bounce, repayment,
+          principle_due, interest_due, user_id, created_at, updated_at,
+          house_ownership, co_applicant_name, co_applicant_mobile, co_applicant_address,
+          guarantor_name, guarantor_mobile, guarantor_address, reference_name,
+          reference_mobile, reference_address, fi_location, paid_date, rm_comments
         `)
         .order('applicant_name', { ascending: true });
 
