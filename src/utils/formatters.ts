@@ -1,3 +1,4 @@
+
 import { format } from "date-fns";
 
 export const formatEmiMonth = (dateStr?: string) => {
@@ -55,8 +56,8 @@ export const formatPtpDate = (dateStr?: string | null): string => {
   
   try {
     const date = new Date(dateStr);
-    // Format as DD-MMM-YYYY (e.g., 04-Jun-2025)
-    return format(date, 'dd-MMM-yyyy');
+    // Format as DD-MMM-YY (e.g., 04-Jun-25)
+    return format(date, 'dd-MMM-yy');
   } catch {
     return 'Invalid Date';
   }

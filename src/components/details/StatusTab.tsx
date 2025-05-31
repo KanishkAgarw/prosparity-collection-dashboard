@@ -67,7 +67,9 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
             </div>
             
             <div>
-              <Label htmlFor="ptpDate">PTP Date</Label>
+              <Label htmlFor="ptpDate">
+                PTP Date {application.ptp_date && `(${formatPtpDate(application.ptp_date)})`}
+              </Label>
               <Input
                 id="ptpDate"
                 type="date"
@@ -75,11 +77,6 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
                 onChange={(e) => handlePtpDateChange(e.target.value)}
                 className="mt-1"
               />
-              {application.ptp_date && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Current: {formatPtpDate(application.ptp_date)}
-                </p>
-              )}
             </div>
           </div>
         </CardContent>

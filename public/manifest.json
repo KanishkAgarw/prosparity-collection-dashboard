@@ -8,6 +8,12 @@
   "background_color": "#f8fafc",
   "theme_color": "#3b82f6",
   "orientation": "portrait-primary",
+  "scope": "/",
+  "prefer_related_applications": false,
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "categories": ["finance", "business", "productivity"],
+  "lang": "en",
+  "dir": "ltr",
   "icons": [
     {
       "src": "/lovable-uploads/879123ce-9339-4aec-90c9-3857e3b77417.png",
@@ -58,15 +64,6 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["finance", "business", "productivity"],
-  "lang": "en",
-  "dir": "ltr",
-  "prefer_related_applications": false,
-  "scope": "/",
-  "display_override": ["window-controls-overlay", "standalone"],
-  "edge_side_panel": {
-    "preferred_width": 400
-  },
   "shortcuts": [
     {
       "name": "View Applications",
@@ -80,5 +77,8 @@
         }
       ]
     }
-  ]
+  ],
+  "edge_side_panel": {
+    "preferred_width": 400
+  }
 }

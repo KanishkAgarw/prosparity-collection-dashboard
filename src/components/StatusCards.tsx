@@ -94,16 +94,16 @@ const StatusCards = ({ applications }: StatusCardsProps) => {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
       {cards.map((card, index) => (
         <Card key={index} className={`${card.className} border shadow-sm`}>
-          <CardHeader className="pb-2 pt-3 px-3">
-            <CardTitle className="text-sm font-medium text-gray-600">
+          <CardHeader className="pb-1 pt-2 px-2 md:pb-2 md:pt-3 md:px-3">
+            <CardTitle className="text-xs md:text-sm font-medium text-gray-600">
               {card.title}
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-0 pb-3 px-3">
-            <div className="text-2xl font-semibold text-gray-800">{card.value}</div>
+          <CardContent className="pt-0 pb-2 px-2 md:pb-3 md:px-3">
+            <div className="text-lg md:text-2xl font-semibold text-gray-800">{card.value}</div>
           </CardContent>
         </Card>
       ))}

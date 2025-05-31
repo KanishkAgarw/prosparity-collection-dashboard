@@ -49,10 +49,10 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
   };
 
   return (
-    <div className="fixed right-0 top-0 h-full w-full sm:w-[500px] md:w-[600px] bg-white shadow-xl border-l z-50 overflow-hidden flex flex-col">
+    <div className="fixed inset-0 sm:right-0 sm:top-0 sm:left-auto h-full w-full sm:w-[500px] md:w-[600px] bg-white shadow-xl border-l z-50 overflow-hidden flex flex-col">
       {/* Header */}
-      <div className="flex-shrink-0 p-3 sm:p-6 border-b bg-white">
-        <div className="flex items-center justify-between mb-4 sm:mb-6">
+      <div className="flex-shrink-0 p-4 sm:p-6 border-b bg-white">
+        <div className="flex items-center justify-between mb-3 sm:mb-6">
           <h2 className="text-lg sm:text-xl font-semibold">Application Details</h2>
           <Button 
             variant="ghost" 
@@ -70,16 +70,16 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
       {/* Content */}
       <div className="flex-1 overflow-hidden">
         <Tabs defaultValue="contacts" className="h-full flex flex-col">
-          <div className="flex-shrink-0 px-3 sm:px-6 pt-4">
-            <TabsList className="grid w-full grid-cols-3 text-xs sm:text-sm">
-              <TabsTrigger value="contacts" className="px-1 py-2 sm:px-3">Contacts</TabsTrigger>
-              <TabsTrigger value="status" className="px-1 py-2 sm:px-3">Status</TabsTrigger>
-              <TabsTrigger value="comments" className="px-1 py-2 sm:px-3">Comments</TabsTrigger>
+          <div className="flex-shrink-0 px-4 sm:px-6 pt-3 sm:pt-4">
+            <TabsList className="grid w-full grid-cols-3 text-xs sm:text-sm h-8 sm:h-10">
+              <TabsTrigger value="contacts" className="px-2 py-1 sm:px-3 sm:py-2">Contacts</TabsTrigger>
+              <TabsTrigger value="status" className="px-2 py-1 sm:px-3 sm:py-2">Status</TabsTrigger>
+              <TabsTrigger value="comments" className="px-2 py-1 sm:px-3 sm:py-2">Comments</TabsTrigger>
             </TabsList>
           </div>
           
           <div className="flex-1 overflow-y-auto">
-            <TabsContent value="contacts" className="space-y-4 p-3 sm:p-6 pt-4 m-0">
+            <TabsContent value="contacts" className="space-y-3 p-4 sm:p-6 pt-3 sm:pt-4 m-0">
               <ContactsTab 
                 application={application}
                 callingLogs={callingLogs}
@@ -87,7 +87,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
               />
             </TabsContent>
 
-            <TabsContent value="status" className="space-y-4 p-3 sm:p-6 pt-4 m-0">
+            <TabsContent value="status" className="space-y-3 p-4 sm:p-6 pt-3 sm:pt-4 m-0">
               <StatusTab 
                 application={application}
                 auditLogs={auditLogs}
@@ -96,7 +96,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave }: ApplicationDe
               />
             </TabsContent>
 
-            <TabsContent value="comments" className="space-y-4 p-3 sm:p-6 pt-4 m-0">
+            <TabsContent value="comments" className="space-y-3 p-4 sm:p-6 pt-3 sm:pt-4 m-0">
               <CommentsTab 
                 comments={comments}
                 onAddComment={handleAddComment}

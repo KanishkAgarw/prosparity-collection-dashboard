@@ -89,7 +89,7 @@ const AppHeader = ({ onExport, onApplicationAdded }: AppHeaderProps) => {
           </div>
         </div>
 
-        {/* Mobile User Info */}
+        {/* Mobile User Info and Log Out */}
         <div className="sm:hidden flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <span className="font-medium truncate max-w-[150px]">{userDisplayName}</span>
@@ -100,23 +100,9 @@ const AppHeader = ({ onExport, onApplicationAdded }: AppHeaderProps) => {
             onClick={handleSignOut}
             className="text-gray-600 hover:text-gray-900 h-8"
           >
-            <LogOut className="h-3 w-3" />
+            Log Out
           </Button>
         </div>
-      </div>
-
-      {/* Mobile Actions */}
-      <div className="sm:hidden space-y-2">
-        <Button variant="outline" size="sm" className="w-full h-8" onClick={onExport}>
-          <Download className="h-3 w-3 mr-2" />
-          Export to Excel
-        </Button>
-        {isAdmin && (
-          <div className="flex gap-2">
-            <UploadApplicationDialog onApplicationAdded={onApplicationAdded} />
-            <AdminUserManagement isAdmin={isAdmin} />
-          </div>
-        )}
       </div>
     </>
   );
