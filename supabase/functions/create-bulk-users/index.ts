@@ -67,14 +67,14 @@ Deno.serve(async (req) => {
 
         console.log('Creating user:', email);
 
-        // Create user using admin client
+        // Create user using admin client with email confirmation enabled
         const { data, error } = await supabaseAdmin.auth.admin.createUser({
           email,
           password,
           user_metadata: {
             full_name: fullName,
           },
-          email_confirm: false // Skip email confirmation for bulk uploads
+          email_confirm: true // Auto-confirm email for bulk uploads
         });
 
         if (error) {
