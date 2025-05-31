@@ -14,6 +14,14 @@
   "categories": ["finance", "business", "productivity"],
   "lang": "en",
   "dir": "ltr",
+  "iarc_rating_id": "",
+  "screenshots": [
+    {
+      "src": "/lovable-uploads/879123ce-9339-4aec-90c9-3857e3b77417.png",
+      "sizes": "640x480",
+      "type": "image/png"
+    }
+  ],
   "icons": [
     {
       "src": "/lovable-uploads/879123ce-9339-4aec-90c9-3857e3b77417.png",

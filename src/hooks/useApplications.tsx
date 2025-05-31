@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Application } from '@/types/application';
@@ -22,17 +23,22 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
     try {
       console.log(`Fetching applications page ${page} (${pageSize} per page)`);
       
-      // Get total count
+      // Get total count with optimized query
       const { count } = await supabase
         .from('applications')
         .select('*', { count: 'exact', head: true });
 
       setTotalCount(count || 0);
 
-      // Fetch ALL applications for filters (sorted by applicant name)
+      // Fetch ALL applications for filters with optimized select
       const { data: allAppsData, error: allAppsError } = await supabase
         .from('applications')
-        .select('*')
+        .select(`
+          id, applicant_id, applicant_name, applicant_mobile, 
+          branch_name, team_lead, rm_name, dealer_name, lender_name,
+          status, demand_date, emi_amount, ptp_date, 
+          last_month_bounce, repayment
+        `)
         .order('applicant_name', { ascending: true });
 
       if (allAppsError) {
@@ -40,7 +46,7 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
         return;
       }
 
-      // Get paginated applications (sorted by applicant name)
+      // Get paginated applications with comments
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
 
@@ -55,25 +61,24 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
         return;
       }
 
-      // Fetch recent comments for paginated applications
       const appIds = appsData?.map(app => app.applicant_id) || [];
       
       let applicationsWithComments = appsData || [];
-      let allApplicationsWithComments = allAppsData || [];
       
+      // Only fetch comments for paginated applications to improve performance
       if (appIds.length > 0) {
-        // Get comments first
         const { data: commentsData, error: commentsError } = await supabase
           .from('comments')
           .select('application_id, content, created_at, user_id')
           .in('application_id', appIds)
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false })
+          .limit(150); // Limit to recent comments
 
         if (commentsError) {
           console.error('Error fetching comments:', commentsError);
         }
 
-        // Get user profiles for the comment authors
+        // Get user profiles for comment authors
         const userIds = [...new Set(commentsData?.map(comment => comment.user_id) || [])];
         let profilesMap: Record<string, { full_name?: string; email?: string }> = {};
         
@@ -91,7 +96,7 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
           }
         }
 
-        // Group comments by application and get last 3 with user names
+        // Group comments by application
         const commentsByApp = (commentsData || []).reduce((acc, comment) => {
           if (!acc[comment.application_id]) {
             acc[comment.application_id] = [];
@@ -113,15 +118,17 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
         }));
       }
 
-      console.log('Fetched applications with comments:', applicationsWithComments);
       setApplications(applicationsWithComments);
-      setAllApplications(allApplicationsWithComments);
+      setAllApplications(allAppsData || []);
     } catch (error) {
       console.error('Error fetching applications:', error);
     } finally {
       setLoading(false);
     }
   }, [user, page, pageSize]);
+
+  // Memoize expensive calculations
+  const memoizedTotalPages = useMemo(() => Math.ceil(totalCount / pageSize), [totalCount, pageSize]);
 
   useEffect(() => {
     if (user) {
@@ -131,9 +138,9 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
 
   return {
     applications,
-    allApplications, // For filter generation
+    allApplications,
     totalCount,
-    totalPages: Math.ceil(totalCount / pageSize),
+    totalPages: memoizedTotalPages,
     currentPage: page,
     loading,
     refetch: fetchApplications

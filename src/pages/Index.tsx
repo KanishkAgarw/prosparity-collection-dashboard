@@ -1,5 +1,5 @@
 
-import { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { useApplications } from "@/hooks/useApplications";
 import { useCascadingFilters } from "@/hooks/useCascadingFilters";
 import { useExport } from "@/hooks/useExport";
@@ -29,12 +29,12 @@ const Index = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const { exportToExcel } = useExport();
 
-  // Set up real-time updates for the main applications list
+  // Set up real-time updates
   useRealtimeUpdates({
     onApplicationUpdate: refetch
   });
 
-  // Use allApplications for filter generation and get filtered results
+  // Memoized cascading filters
   const {
     filters,
     filteredApplications,
@@ -42,7 +42,7 @@ const Index = () => {
     handleFilterChange
   } = useCascadingFilters({ applications: allApplications });
 
-  // Apply search filter to the filtered applications
+  // Memoized search filtering
   const finalFilteredApplications = useMemo(() => {
     if (!searchTerm.trim()) {
       return filteredApplications;
@@ -59,18 +59,20 @@ const Index = () => {
     );
   }, [filteredApplications, searchTerm]);
 
-  // For pagination, we need to slice the filtered results to match current page
+  // Memoized pagination
   const paginatedFilteredApplications = useMemo(() => {
     const startIndex = (currentPage - 1) * 50;
     const endIndex = startIndex + 50;
     return finalFilteredApplications.slice(startIndex, endIndex);
   }, [finalFilteredApplications, currentPage]);
 
-  // Calculate pagination info based on filtered results
-  const filteredTotalCount = finalFilteredApplications.length;
-  const filteredTotalPages = Math.ceil(filteredTotalCount / 50);
+  // Memoized pagination info
+  const paginationInfo = useMemo(() => ({
+    filteredTotalCount: finalFilteredApplications.length,
+    filteredTotalPages: Math.ceil(finalFilteredApplications.length / 50)
+  }), [finalFilteredApplications.length]);
 
-  // Load user profiles for comments/logs when component mounts
+  // Load user profiles when needed
   useMemo(() => {
     if (user && applications.length > 0) {
       const userIds = [...new Set([user.id])];
@@ -78,16 +80,17 @@ const Index = () => {
     }
   }, [user, applications, fetchProfiles]);
 
-  const handleApplicationDeleted = () => {
+  // Memoized callbacks
+  const handleApplicationDeleted = useCallback(() => {
     refetch();
     setSelectedApplication(null);
-  };
+  }, [refetch]);
 
-  const handleApplicationUpdated = (updatedApp: Application) => {
+  const handleApplicationUpdated = useCallback((updatedApp: Application) => {
     setSelectedApplication(updatedApp);
-  };
+  }, []);
 
-  const handleExport = async () => {
+  const handleExport = useCallback(async () => {
     try {
       toast.loading('Preparing export...', { id: 'export' });
       
@@ -101,7 +104,16 @@ const Index = () => {
       console.error('Export error:', error);
       toast.error('Failed to export data', { id: 'export' });
     }
-  };
+  }, [finalFilteredApplications, exportToExcel]);
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1); // Reset to first page when searching
+  }, []);
+
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+  }, []);
 
   // Show loading screen while auth is loading
   if (authLoading) {
@@ -131,7 +143,7 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
       <div className="container mx-auto py-4 px-4 sm:py-6 sm:px-6 lg:px-8 max-w-7xl">
         <div className="space-y-6">
           <AppHeader 
@@ -144,10 +156,9 @@ const Index = () => {
             availableOptions={availableOptions}
             onFilterChange={handleFilterChange}
             searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
+            onSearchChange={handleSearchChange}
           />
 
-          {/* Status Cards - now using filtered applications */}
           <StatusCards applications={finalFilteredApplications} />
 
           <MainContent
@@ -156,18 +167,16 @@ const Index = () => {
             onApplicationDeleted={handleApplicationDeleted}
             selectedApplicationId={selectedApplication?.id}
             currentPage={currentPage}
-            totalPages={filteredTotalPages}
-            onPageChange={setCurrentPage}
-            totalCount={filteredTotalCount}
+            totalPages={paginationInfo.filteredTotalPages}
+            onPageChange={handlePageChange}
+            totalCount={paginationInfo.filteredTotalCount}
             pageSize={50}
           />
         </div>
       </div>
 
-      {/* PWA Install Prompt */}
       <PWAInstallPrompt />
 
-      {/* Application Details Panel */}
       {selectedApplication && (
         <ApplicationDetailsPanel
           application={selectedApplication}

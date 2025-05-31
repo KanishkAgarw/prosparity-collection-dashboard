@@ -1,3 +1,5 @@
+
+import React from 'react';
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatEmiMonth, formatCurrency, formatPtpDate } from "@/utils/formatters";
@@ -19,13 +21,12 @@ const getStatusBadge = (status: string) => {
   };
   
   return (
-    <Badge className={`${variants[status as keyof typeof variants] || 'bg-gray-100 text-gray-800 border-gray-200'} border`}>
+    <Badge className={`${variants[status as keyof typeof variants] || 'bg-gray-100 text-gray-800 border-gray-200'} border text-xs px-1 py-0`}>
       {status}
     </Badge>
   );
 };
 
-// Helper function to display lender name
 const formatLenderName = (lenderName: string) => {
   if (lenderName === 'Vivriti Capital Limited') {
     return 'Vivriti';
@@ -33,67 +34,81 @@ const formatLenderName = (lenderName: string) => {
   return lenderName;
 };
 
-const ApplicationsTable = ({ applications, onRowClick, selectedApplicationId }: ApplicationsTableProps) => {
+const ApplicationsTable = React.memo(({ applications, onRowClick, selectedApplicationId }: ApplicationsTableProps) => {
   return (
-    <div className="px-4 sm:px-6 lg:px-8">
-      <div className="overflow-x-auto">
-        <Table>
+    <div className="w-full overflow-hidden">
+      <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300">
+        <Table className="w-full">
           <TableHeader>
-            <TableRow>
-              <TableHead className="min-w-[320px]">Details</TableHead>
-              <TableHead className="min-w-[120px]">EMI Due</TableHead>
-              <TableHead className="min-w-[120px]">Status</TableHead>
-              <TableHead className="min-w-[100px]">PTP Date</TableHead>
-              <TableHead className="min-w-[150px]">Call Status</TableHead>
-              <TableHead className="min-w-[200px]">Recent Comments</TableHead>
+            <TableRow className="border-b border-gray-200">
+              <TableHead className="w-1/3 px-2 py-3 text-left">Details</TableHead>
+              <TableHead className="w-20 px-2 py-3 text-center">EMI</TableHead>
+              <TableHead className="w-20 px-2 py-3 text-center">Status</TableHead>
+              <TableHead className="w-20 px-2 py-3 text-center">PTP</TableHead>
+              <TableHead className="w-24 px-2 py-3 text-center">Call</TableHead>
+              <TableHead className="w-1/4 px-2 py-3 text-left">Comments</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {applications.map((app) => (
               <TableRow 
                 key={app.id} 
-                className={`cursor-pointer transition-colors ${
+                className={`cursor-pointer transition-colors border-b border-gray-100 ${
                   selectedApplicationId === app.id 
                     ? 'bg-blue-50 border-l-4 border-l-blue-500 hover:bg-blue-100' 
                     : 'hover:bg-gray-50'
                 }`}
                 onClick={() => onRowClick(app)}
               >
-                <TableCell className="py-3">
+                <TableCell className="px-2 py-3 w-1/3">
                   <div className="space-y-1">
-                    <div className="font-semibold text-blue-900">{app.applicant_name}</div>
-                    <div className="text-sm text-gray-600">
+                    <div className="font-semibold text-blue-900 text-sm truncate">{app.applicant_name}</div>
+                    <div className="text-xs text-gray-600 truncate">
                       <span className="font-medium">ID:</span> {app.applicant_id}
                     </div>
-                    <div className="text-sm text-gray-600">
-                      <span className="font-medium">EMI Month:</span> {formatEmiMonth(app.demand_date)} | 
-                      <span className="font-medium"> Branch:</span> {app.branch_name}
+                    <div className="text-xs text-gray-600">
+                      <span className="font-medium">EMI:</span> {formatEmiMonth(app.demand_date)}
                     </div>
-                    <div className="text-sm text-gray-600">
-                      <span className="font-medium">TL:</span> {app.team_lead} | 
-                      <span className="font-medium"> RM:</span> {app.rm_name}
+                    <div className="text-xs text-gray-600 truncate">
+                      <span className="font-medium">Branch:</span> {app.branch_name}
                     </div>
-                    <div className="text-sm text-gray-600">
-                      <span className="font-medium">Dealer:</span> {app.dealer_name} | 
-                      <span className="font-medium"> Lender:</span> {formatLenderName(app.lender_name)}
+                    <div className="text-xs text-gray-600 grid grid-cols-1 gap-1">
+                      <div className="truncate">
+                        <span className="font-medium">TL:</span> {app.team_lead}
+                      </div>
+                      <div className="truncate">
+                        <span className="font-medium">RM:</span> {app.rm_name}
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-600 truncate">
+                      <span className="font-medium">Dealer:</span> {app.dealer_name}
+                    </div>
+                    <div className="text-xs text-gray-600 truncate">
+                      <span className="font-medium">Lender:</span> {formatLenderName(app.lender_name)}
                     </div>
                   </div>
                 </TableCell>
-                <TableCell className="font-medium text-blue-600">{formatCurrency(app.emi_amount)}</TableCell>
-                <TableCell>{getStatusBadge(app.status)}</TableCell>
-                <TableCell className={`${app.ptp_date ? 'text-blue-600 font-medium' : 'text-gray-400'} whitespace-nowrap`}>
-                  {formatPtpDate(app.ptp_date)}
+                <TableCell className="px-2 py-3 w-20 text-center">
+                  <div className="font-medium text-blue-600 text-xs">{formatCurrency(app.emi_amount)}</div>
                 </TableCell>
-                <TableCell className="text-sm">
-                  <CallStatusDisplay application={app} />
+                <TableCell className="px-2 py-3 w-20 text-center">{getStatusBadge(app.status)}</TableCell>
+                <TableCell className="px-2 py-3 w-20 text-center">
+                  <div className={`text-xs ${app.ptp_date ? 'text-blue-600 font-medium' : 'text-gray-400'}`}>
+                    {formatPtpDate(app.ptp_date)}
+                  </div>
                 </TableCell>
-                <TableCell className="max-w-[200px]">
-                  <div className="space-y-1">
+                <TableCell className="px-2 py-3 w-24 text-center">
+                  <div className="text-xs">
+                    <CallStatusDisplay application={app} />
+                  </div>
+                </TableCell>
+                <TableCell className="px-2 py-3 w-1/4">
+                  <div className="space-y-1 max-w-full">
                     {app.recent_comments && app.recent_comments.length > 0 ? (
-                      app.recent_comments.map((comment, index) => (
-                        <div key={index} className="text-xs p-2 rounded bg-gray-50 border-l-2 border-blue-200">
-                          <div className="font-medium text-blue-700 mb-1">{comment.user_name}</div>
-                          <div className="text-gray-600 break-words">{comment.content}</div>
+                      app.recent_comments.slice(0, 2).map((comment, index) => (
+                        <div key={index} className="text-xs p-1 rounded bg-gray-50 border-l-2 border-blue-200">
+                          <div className="font-medium text-blue-700 mb-1 truncate">{comment.user_name}</div>
+                          <div className="text-gray-600 break-words line-clamp-2">{comment.content}</div>
                         </div>
                       ))
                     ) : (
@@ -108,6 +123,8 @@ const ApplicationsTable = ({ applications, onRowClick, selectedApplicationId }: 
       </div>
     </div>
   );
-};
+});
+
+ApplicationsTable.displayName = 'ApplicationsTable';
 
 export default ApplicationsTable;
