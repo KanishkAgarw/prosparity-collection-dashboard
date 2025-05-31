@@ -1,38 +1,40 @@
 
-import React, { useState, useMemo } from 'react';
-import { useApplications } from '@/hooks/useApplications';
-import { useCascadingFilters } from '@/hooks/useCascadingFilters';
-import LoadingSkeleton from '@/components/LoadingSkeleton';
-import StatusCards from '@/components/StatusCards';
-import SearchBar from '@/components/SearchBar';
-import FilterBar from '@/components/FilterBar';
-import MobileFilterBar from '@/components/MobileFilterBar';
-import ApplicationsTable from '@/components/ApplicationsTable';
-import MobileOptimizedTable from '@/components/MobileOptimizedTable';
-import PaginationControls from '@/components/PaginationControls';
-import UploadApplicationDialog from '@/components/UploadApplicationDialog';
-import SimpleBulkUserUpload from '@/components/SimpleBulkUserUpload';
-import UserManagementDialog from '@/components/UserManagementDialog';
-import AppHeader from '@/components/layout/AppHeader';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { useExport } from '@/hooks/useExport';
+import { useState, useMemo } from "react";
+import { useApplications } from "@/hooks/useApplications";
+import { useCascadingFilters } from "@/hooks/useCascadingFilters";
+import { useExport } from "@/hooks/useExport";
+import { useUserProfiles } from "@/hooks/useUserProfiles";
+import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
+import { Application } from "@/types/application";
+import ApplicationDetailsPanel from "@/components/ApplicationDetailsPanel";
+import AppHeader from "@/components/layout/AppHeader";
+import FiltersSection from "@/components/layout/FiltersSection";
+import MainContent from "@/components/layout/MainContent";
+import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import StatusCards from "@/components/StatusCards";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
-  const isMobile = useIsMobile();
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+  const { fetchProfiles } = useUserProfiles();
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedApplicationId, setSelectedApplicationId] = useState<string>();
-  const pageSize = 50;
-  
-  const {
-    applications,
-    allApplications,
-    totalCount,
-    totalPages,
-    loading,
-    refetch
-  } = useApplications({ page: currentPage, pageSize });
+  const { applications, allApplications, loading: appsLoading, refetch, totalCount, totalPages } = useApplications({ 
+    page: currentPage, 
+    pageSize: 50 
+  });
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const { exportToExcel } = useExport();
 
+  // Set up real-time updates for the main applications list
+  useRealtimeUpdates({
+    onApplicationUpdate: refetch
+  });
+
+  // Use allApplications for filter generation and get filtered results
   const {
     filters,
     filteredApplications,
@@ -40,137 +42,139 @@ const Index = () => {
     handleFilterChange
   } = useCascadingFilters({ applications: allApplications });
 
-  const { exportToExcel } = useExport();
-
-  // Create handleExport function that uses exportToExcel
-  const handleExport = () => {
-    exportToExcel({ applications: searchedApplications }, 'collection-report');
-  };
-
-  // Search functionality
-  const searchedApplications = useMemo(() => {
-    if (!searchTerm.trim()) return filteredApplications;
+  // Apply search filter to the filtered applications
+  const finalFilteredApplications = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return filteredApplications;
+    }
     
-    const searchLower = searchTerm.toLowerCase();
-    return filteredApplications.filter(app => 
-      app.applicant_name?.toLowerCase().includes(searchLower) ||
-      app.applicant_id?.toLowerCase().includes(searchLower) ||
-      app.applicant_mobile?.toLowerCase().includes(searchLower) ||
-      app.applicant_address?.toLowerCase().includes(searchLower) ||
-      app.dealer_name?.toLowerCase().includes(searchLower) ||
-      app.lender_name?.toLowerCase().includes(searchLower) ||
-      app.rm_name?.toLowerCase().includes(searchLower)
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    return filteredApplications.filter(app =>
+      app.applicant_name.toLowerCase().includes(lowerSearchTerm) ||
+      app.applicant_id.toLowerCase().includes(lowerSearchTerm) ||
+      app.dealer_name.toLowerCase().includes(lowerSearchTerm) ||
+      (app.lender_name === 'Vivriti Capital Limited' ? 'vivriti' : app.lender_name.toLowerCase()).includes(lowerSearchTerm) ||
+      app.rm_name.toLowerCase().includes(lowerSearchTerm) ||
+      app.team_lead.toLowerCase().includes(lowerSearchTerm)
     );
   }, [filteredApplications, searchTerm]);
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  // For pagination, we need to slice the filtered results to match current page
+  const paginatedFilteredApplications = useMemo(() => {
+    const startIndex = (currentPage - 1) * 50;
+    const endIndex = startIndex + 50;
+    return finalFilteredApplications.slice(startIndex, endIndex);
+  }, [finalFilteredApplications, currentPage]);
+
+  // Calculate pagination info based on filtered results
+  const filteredTotalCount = finalFilteredApplications.length;
+  const filteredTotalPages = Math.ceil(filteredTotalCount / 50);
+
+  // Load user profiles for comments/logs when component mounts
+  useMemo(() => {
+    if (user && applications.length > 0) {
+      const userIds = [...new Set([user.id])];
+      fetchProfiles(userIds);
+    }
+  }, [user, applications, fetchProfiles]);
+
+  const handleApplicationDeleted = () => {
+    refetch();
+    setSelectedApplication(null);
   };
 
-  const handleApplicationAdded = () => {
-    refetch();
-    if (currentPage !== 1) {
-      setCurrentPage(1);
+  const handleApplicationUpdated = (updatedApp: Application) => {
+    setSelectedApplication(updatedApp);
+  };
+
+  const handleExport = async () => {
+    try {
+      toast.loading('Preparing export...', { id: 'export' });
+      
+      const exportData = {
+        applications: finalFilteredApplications
+      };
+
+      exportToExcel(exportData, 'collection-monitoring-report');
+      toast.success('Export completed successfully!', { id: 'export' });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export data', { id: 'export' });
     }
   };
 
-  const handleRowClick = (application: any) => {
-    setSelectedApplicationId(application.id);
-  };
-
-  // Memoize status cards data
-  const statusData = useMemo(() => {
-    const total = searchedApplications.length;
-    const paid = searchedApplications.filter(app => app.status === 'Paid').length;
-    const unpaid = searchedApplications.filter(app => app.status === 'Unpaid').length;
-    const partial = searchedApplications.filter(app => app.status === 'Partial').length;
-
-    return { total, paid, unpaid, partial };
-  }, [searchedApplications]);
-
-  if (loading) {
+  // Show loading screen while auth is loading
+  if (authLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <AppHeader onExport={handleExport} onApplicationAdded={handleApplicationAdded} />
-        <main className="container mx-auto px-4 py-6">
-          <LoadingSkeleton />
-        </main>
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Redirect to auth if not authenticated
+  if (!user) {
+    navigate('/auth');
+    return null;
+  }
+
+  // Show loading for applications
+  if (appsLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="space-y-4 text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="text-gray-600">Loading applications...</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <AppHeader onExport={handleExport} onApplicationAdded={handleApplicationAdded} />
-      
-      <main className="container mx-auto px-4 py-6 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Applications Dashboard</h1>
-            <p className="text-gray-600">
-              Manage and track all loan applications
-            </p>
-          </div>
-          
-          <div className="flex flex-wrap items-center gap-2">
-            <UploadApplicationDialog onApplicationAdded={handleApplicationAdded} />
-            <SimpleBulkUserUpload />
-            <UserManagementDialog />
-          </div>
-        </div>
-
-        <StatusCards applications={searchedApplications} />
-
-        <div className="space-y-4">
-          <SearchBar
-            value={searchTerm}
-            onChange={setSearchTerm}
-            placeholder="Search by applicant name, ID, mobile, or address..."
+      <div className="container mx-auto py-4 px-4 sm:py-6 sm:px-6 lg:px-8 max-w-7xl">
+        <div className="space-y-6">
+          <AppHeader 
+            onExport={handleExport}
+            onApplicationAdded={refetch}
           />
-          
-          {isMobile ? (
-            <MobileFilterBar
-              filters={filters}
-              onFilterChange={handleFilterChange}
-              availableOptions={availableOptions}
-            />
-          ) : (
-            <FilterBar
-              filters={filters}
-              onFilterChange={handleFilterChange}
-              availableOptions={availableOptions}
-            />
-          )}
-        </div>
 
-        <div className="bg-white rounded-lg shadow">
-          {isMobile ? (
-            <MobileOptimizedTable 
-              applications={searchedApplications} 
-              onRowClick={handleRowClick}
-              selectedApplicationId={selectedApplicationId}
-            />
-          ) : (
-            <ApplicationsTable 
-              applications={searchedApplications} 
-              onRowClick={handleRowClick}
-              selectedApplicationId={selectedApplicationId}
-              onApplicationDeleted={refetch}
-            />
-          )}
-        </div>
+          <FiltersSection
+            filters={filters}
+            availableOptions={availableOptions}
+            onFilterChange={handleFilterChange}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+          />
 
-        {totalPages > 1 && (
-          <PaginationControls
+          {/* Status Cards - now using filtered applications */}
+          <StatusCards applications={finalFilteredApplications} />
+
+          <MainContent
+            applications={paginatedFilteredApplications}
+            onRowClick={setSelectedApplication}
+            onApplicationDeleted={handleApplicationDeleted}
+            selectedApplicationId={selectedApplication?.id}
             currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-            totalCount={totalCount}
-            pageSize={pageSize}
+            totalPages={filteredTotalPages}
+            onPageChange={setCurrentPage}
+            totalCount={filteredTotalCount}
+            pageSize={50}
           />
-        )}
-      </main>
+        </div>
+      </div>
+
+      {/* PWA Install Prompt */}
+      <PWAInstallPrompt />
+
+      {/* Application Details Panel */}
+      {selectedApplication && (
+        <ApplicationDetailsPanel
+          application={selectedApplication}
+          onClose={() => setSelectedApplication(null)}
+          onSave={handleApplicationUpdated}
+        />
+      )}
     </div>
   );
 };
