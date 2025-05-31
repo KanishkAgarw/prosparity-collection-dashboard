@@ -55,11 +55,48 @@ export const formatPtpDate = (dateStr?: string | null): string => {
   if (!dateStr) return 'Not Set';
   
   try {
-    const date = new Date(dateStr);
+    console.log('=== PTP DATE FORMATTING DEBUG ===');
+    console.log('Input dateStr:', dateStr);
+    
+    let date: Date;
+    
+    // Handle different date formats more robustly
+    if (typeof dateStr === 'string') {
+      // If it's already an ISO string or timestamp
+      if (dateStr.includes('T') || dateStr.includes('Z')) {
+        date = new Date(dateStr);
+      } 
+      // If it's a YYYY-MM-DD format
+      else if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        date = new Date(dateStr + 'T00:00:00.000Z');
+      }
+      // If it's a timestamp string
+      else if (!isNaN(Number(dateStr))) {
+        date = new Date(Number(dateStr));
+      }
+      // Try parsing as is
+      else {
+        date = new Date(dateStr);
+      }
+    } else {
+      date = new Date(dateStr);
+    }
+    
+    console.log('Parsed date object:', date);
+    console.log('Is valid date?', !isNaN(date.getTime()));
+    
+    if (isNaN(date.getTime())) {
+      console.log('Invalid date, returning original string');
+      return dateStr?.toString() || 'Invalid Date';
+    }
+    
     // Format as DD-MMM-YYYY (e.g., 04-Jun-2025)
-    return format(date, 'dd-MMM-yyyy');
-  } catch {
-    return 'Invalid Date';
+    const formatted = format(date, 'dd-MMM-yyyy');
+    console.log('Formatted result:', formatted);
+    return formatted;
+  } catch (error) {
+    console.error('Error formatting PTP date:', error);
+    return dateStr?.toString() || 'Invalid Date';
   }
 };
 

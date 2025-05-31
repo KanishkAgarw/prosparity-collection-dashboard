@@ -27,6 +27,7 @@ export const useUserProfiles = () => {
 
     setLoading(true);
     try {
+      console.log('=== USER PROFILES FETCH DEBUG ===');
       console.log('Fetching profiles for user IDs:', uncachedUserIds);
       
       const { data: profiles, error } = await supabase
@@ -39,6 +40,8 @@ export const useUserProfiles = () => {
         return [];
       }
 
+      console.log('Fetched profiles:', profiles);
+
       // Update cache with new profiles
       setProfilesCache(prevCache => {
         const newCache = new Map(prevCache);
@@ -48,13 +51,14 @@ export const useUserProfiles = () => {
         return newCache;
       });
 
-      // Return all requested profiles (including newly fetched)
+      // Return all requested profiles (including newly fetched and cached)
       const allProfiles = userIds.map(id => {
         const cached = profilesCache.get(id);
         if (cached) return cached;
         return profiles?.find(p => p.id === id);
       }).filter(Boolean) as UserProfile[];
       
+      console.log('Returning all profiles:', allProfiles);
       return allProfiles;
     } catch (error) {
       console.error('Error fetching user profiles:', error);
@@ -66,10 +70,27 @@ export const useUserProfiles = () => {
 
   const getUserName = useCallback((userId: string, fallbackEmail?: string): string => {
     const profile = profilesCache.get(userId);
-    // Prioritize full_name over email
-    if (profile?.full_name && profile.full_name.trim()) return profile.full_name;
-    if (profile?.email) return profile.email;
-    if (fallbackEmail) return fallbackEmail;
+    console.log(`=== GET USER NAME DEBUG ===`);
+    console.log(`User ID: ${userId}`);
+    console.log(`Profile from cache:`, profile);
+    console.log(`Fallback email: ${fallbackEmail}`);
+    
+    // Prioritize full_name over email with proper null/empty checks
+    if (profile?.full_name && profile.full_name.trim() && 
+        profile.full_name !== 'null' && profile.full_name !== null) {
+      console.log(`Returning full_name: ${profile.full_name}`);
+      return profile.full_name.trim();
+    }
+    if (profile?.email && profile.email.trim() && 
+        profile.email !== 'null' && profile.email !== null) {
+      console.log(`Returning profile email: ${profile.email}`);
+      return profile.email.trim();
+    }
+    if (fallbackEmail && fallbackEmail.trim()) {
+      console.log(`Returning fallback email: ${fallbackEmail}`);
+      return fallbackEmail.trim();
+    }
+    console.log(`Returning Unknown User`);
     return 'Unknown User';
   }, [profilesCache]);
 

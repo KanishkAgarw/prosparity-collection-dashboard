@@ -24,21 +24,50 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
   const [ptpDate, setPtpDate] = useState('');
   const [showLogDialog, setShowLogDialog] = useState(false);
   
-  // Update local state when application changes
+  // Update local state when application changes - IMPROVED
   useEffect(() => {
-    console.log('=== STATUS TAB PTP DATE SYNC ===');
+    console.log('=== STATUS TAB PTP DATE SYNC (IMPROVED) ===');
     console.log('Application PTP date:', application.ptp_date);
+    console.log('Type of PTP date:', typeof application.ptp_date);
     
     if (application.ptp_date) {
       try {
-        // Parse the date and format for input (YYYY-MM-DD)
-        const parsedDate = new Date(application.ptp_date);
-        if (!isNaN(parsedDate.getTime())) {
-          const dateOnly = parsedDate.toISOString().split('T')[0];
-          console.log('Setting PTP date input to:', dateOnly);
-          setPtpDate(dateOnly);
+        let dateForInput = '';
+        
+        // Handle different date formats more robustly
+        if (typeof application.ptp_date === 'string') {
+          let parsedDate: Date;
+          
+          // If it's already an ISO string or timestamp
+          if (application.ptp_date.includes('T') || application.ptp_date.includes('Z')) {
+            parsedDate = new Date(application.ptp_date);
+          } 
+          // If it's a YYYY-MM-DD format
+          else if (application.ptp_date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            parsedDate = new Date(application.ptp_date + 'T00:00:00.000Z');
+          }
+          // If it's a timestamp string
+          else if (!isNaN(Number(application.ptp_date))) {
+            parsedDate = new Date(Number(application.ptp_date));
+          }
+          // Try parsing as is
+          else {
+            parsedDate = new Date(application.ptp_date);
+          }
+          
+          console.log('Parsed date object:', parsedDate);
+          
+          if (!isNaN(parsedDate.getTime())) {
+            // Format for HTML date input (YYYY-MM-DD)
+            dateForInput = parsedDate.toISOString().split('T')[0];
+            console.log('Setting PTP date input to:', dateForInput);
+            setPtpDate(dateForInput);
+          } else {
+            console.log('Invalid date, clearing input');
+            setPtpDate('');
+          }
         } else {
-          console.log('Invalid date, clearing input');
+          console.log('PTP date is not a string, clearing input');
           setPtpDate('');
         }
       } catch (error) {
