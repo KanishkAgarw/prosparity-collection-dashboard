@@ -1,6 +1,5 @@
-
 import { useState } from 'react';
-import { Settings, UserPlus, Users, Eye, EyeOff, Download } from 'lucide-react';
+import { UserPlus, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,7 +14,6 @@ import {
 } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import * as XLSX from 'xlsx';
 import BulkUserUpload from './BulkUserUpload';
 
 interface AdminUserManagementProps {
@@ -88,42 +86,6 @@ const AdminUserManagement = ({ isAdmin }: AdminUserManagementProps) => {
     setPassword(result);
   };
 
-  const downloadTemplate = () => {
-    // Create template data with example row
-    const templateData = [
-      {
-        'Email (User ID)': 'user@example.com',
-        'Full Name': 'John Doe',
-        'Password': 'SecurePassword123'
-      }
-    ];
-
-    // Create workbook and worksheet
-    const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.json_to_sheet(templateData);
-
-    // Set column widths for better readability
-    const colWidths = [
-      { wch: 25 }, // Email (User ID)
-      { wch: 20 }, // Full Name
-      { wch: 15 }  // Password
-    ];
-    
-    worksheet['!cols'] = colWidths;
-    
-    // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'User Template');
-
-    // Generate filename with timestamp
-    const timestamp = new Date().toISOString().split('T')[0];
-    const filename = `user-bulk-upload-template-${timestamp}.xlsx`;
-
-    // Download the file
-    XLSX.writeFile(workbook, filename);
-    
-    toast.success('Template downloaded successfully!');
-  };
-
   const handleUsersAdded = () => {
     // Refresh or callback when users are added via bulk upload
     console.log('Users added via bulk upload');
@@ -131,16 +93,6 @@ const AdminUserManagement = ({ isAdmin }: AdminUserManagementProps) => {
 
   return (
     <div className="flex gap-2">
-      <Button 
-        variant="outline" 
-        size="sm"
-        onClick={downloadTemplate}
-        className="hidden sm:flex"
-      >
-        <Download className="h-4 w-4 mr-2" />
-        Download Template
-      </Button>
-      
       <BulkUserUpload onUsersAdded={handleUsersAdded} />
       
       <Dialog open={open} onOpenChange={setOpen}>

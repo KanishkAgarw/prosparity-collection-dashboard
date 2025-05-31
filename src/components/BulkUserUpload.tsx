@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Upload } from 'lucide-react';
+import { Upload, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 interface BulkUserUploadProps {
@@ -37,6 +37,42 @@ const BulkUserUpload = ({ onUsersAdded }: BulkUserUploadProps) => {
     }
   };
 
+  const downloadTemplate = () => {
+    // Create template data with example row
+    const templateData = [
+      {
+        'Email (User ID)': 'user@example.com',
+        'Full Name': 'John Doe',
+        'Password': 'SecurePassword123'
+      }
+    ];
+
+    // Create workbook and worksheet
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(templateData);
+
+    // Set column widths for better readability
+    const colWidths = [
+      { wch: 25 }, // Email (User ID)
+      { wch: 20 }, // Full Name
+      { wch: 15 }  // Password
+    ];
+    
+    worksheet['!cols'] = colWidths;
+    
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'User Template');
+
+    // Generate filename with timestamp
+    const timestamp = new Date().toISOString().split('T')[0];
+    const filename = `user-bulk-upload-template-${timestamp}.xlsx`;
+
+    // Download the file
+    XLSX.writeFile(workbook, filename);
+    
+    toast.success('Template downloaded successfully!');
+  };
+
   const handleExcelUpload = async () => {
     if (!selectedFile) return;
     
@@ -65,72 +101,31 @@ const BulkUserUpload = ({ onUsersAdded }: BulkUserUploadProps) => {
         return;
       }
 
-      // Process users one by one
-      const results = {
-        successful: 0,
-        failed: 0,
-        errors: [] as string[]
-      };
+      // Prepare user data for the Edge Function
+      const users = jsonData.map(row => ({
+        email: String(row['Email (User ID)']).trim(),
+        fullName: String(row['Full Name']).trim(),
+        password: String(row['Password']).trim()
+      }));
 
-      for (const row of jsonData) {
-        try {
-          const email = String(row['Email (User ID)']).trim();
-          const fullName = String(row['Full Name']).trim();
-          const password = String(row['Password']).trim();
+      console.log('Calling Edge Function with users:', users.length);
 
-          // Basic validation
-          if (!email || !fullName || !password) {
-            results.failed++;
-            results.errors.push(`Row with email "${email}": Missing required fields`);
-            continue;
-          }
+      // Call the Edge Function to create users
+      const { data, error } = await supabase.functions.invoke('create-bulk-users', {
+        body: { users }
+      });
 
-          // Email format validation
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          if (!emailRegex.test(email)) {
-            results.failed++;
-            results.errors.push(`Row with email "${email}": Invalid email format`);
-            continue;
-          }
-
-          // Password length validation
-          if (password.length < 6) {
-            results.failed++;
-            results.errors.push(`Row with email "${email}": Password must be at least 6 characters`);
-            continue;
-          }
-
-          console.log('Creating user:', { email, fullName });
-
-          const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: {
-                full_name: fullName,
-              },
-              emailRedirectTo: undefined,
-            }
-          });
-
-          if (error) {
-            console.error('User creation error:', error);
-            results.failed++;
-            if (error.message.includes('User already registered')) {
-              results.errors.push(`${email}: User already exists`);
-            } else {
-              results.errors.push(`${email}: ${error.message}`);
-            }
-          } else {
-            console.log('User created successfully:', email);
-            results.successful++;
-          }
-        } catch (error) {
-          console.error('Unexpected error creating user:', error);
-          results.failed++;
-          results.errors.push(`${row['Email (User ID)'] || 'Unknown'}: Unexpected error`);
-        }
+      if (error) {
+        console.error('Edge Function error:', error);
+        toast.error('Failed to process users. Please try again.');
+        return;
       }
+
+      const results = data as {
+        successful: number;
+        failed: number;
+        errors: string[];
+      };
 
       // Show results
       if (results.successful > 0) {
@@ -166,40 +161,75 @@ const BulkUserUpload = ({ onUsersAdded }: BulkUserUploadProps) => {
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Bulk Upload Users via Excel</DialogTitle>
+          <DialogTitle>Bulk Upload Users</DialogTitle>
           <DialogDescription>
-            Upload multiple users using an Excel file. Use the template format with Email, Full Name, and Password columns.
+            Upload multiple users using an Excel file. Download the template to get started.
           </DialogDescription>
         </DialogHeader>
         
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="excel-file">Select Excel File</Label>
-            <Input
-              id="excel-file"
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={handleFileSelect}
-            />
-            <p className="text-sm text-gray-500 mt-1">
-              Supported formats: .xlsx, .xls
-            </p>
-          </div>
-          
-          {selectedFile && (
-            <div className="p-3 bg-gray-50 rounded-md">
-              <p className="text-sm">Selected file: {selectedFile.name}</p>
-              <p className="text-xs text-gray-500">Size: {(selectedFile.size / 1024).toFixed(1)} KB</p>
+        <div className="space-y-6">
+          {/* Template Download Section */}
+          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-medium text-blue-900">Step 1: Download Template</h4>
+                <p className="text-sm text-blue-700 mt-1">
+                  Download the Excel template with the required format
+                </p>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={downloadTemplate}
+                className="border-blue-300 text-blue-700 hover:bg-blue-100"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download Template
+              </Button>
             </div>
-          )}
-          
-          <Button 
-            onClick={handleExcelUpload}
-            disabled={!selectedFile || loading}
-            className="w-full"
-          >
-            {loading ? 'Processing...' : 'Upload Excel File'}
-          </Button>
+          </div>
+
+          {/* File Upload Section */}
+          <div className="space-y-4">
+            <div>
+              <h4 className="font-medium text-gray-900 mb-3">Step 2: Upload Your File</h4>
+              <Label htmlFor="excel-file">Select Excel File</Label>
+              <Input
+                id="excel-file"
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileSelect}
+                className="mt-1"
+              />
+              <p className="text-sm text-gray-500 mt-2">
+                Supported formats: .xlsx, .xls
+              </p>
+            </div>
+            
+            {selectedFile && (
+              <div className="p-3 bg-green-50 rounded-md border border-green-200">
+                <p className="text-sm font-medium text-green-800">Selected file: {selectedFile.name}</p>
+                <p className="text-xs text-green-600">Size: {(selectedFile.size / 1024).toFixed(1)} KB</p>
+              </div>
+            )}
+          </div>
+
+          {/* Upload Button */}
+          <div className="flex justify-end space-x-2 pt-4 border-t">
+            <Button 
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleExcelUpload}
+              disabled={!selectedFile || loading}
+            >
+              {loading ? 'Processing...' : 'Upload Users'}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
