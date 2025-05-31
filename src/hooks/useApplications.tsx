@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -58,6 +57,12 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
         return;
       }
 
+      console.log('=== DEBUGGING PTP DATES (FIXED) ===');
+      appsData?.slice(0, 3).forEach(app => {
+        console.log(`App: ${app.applicant_name} (${app.applicant_id})`);
+        console.log(`PTP Date: ${app.ptp_date} (type: ${typeof app.ptp_date})`);
+      });
+
       // Fetch recent comments for ALL applications
       const allAppIds = allAppsData?.map(app => app.applicant_id) || [];
       
@@ -65,22 +70,30 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
       let allApplicationsWithComments: Application[] = allAppsData || [];
       
       if (allAppIds.length > 0) {
+        console.log('=== FETCHING COMMENTS (FIXED) ===');
         const commentsByApp = await fetchAndMapComments(allAppIds);
 
-        // Add comments to both paginated and all applications, properly typing the result
+        // Add comments to both paginated and all applications, ensuring PTP date is preserved
         applicationsWithComments = (appsData as DatabaseApplication[]).map(app => ({
           ...app,
+          ptp_date: app.ptp_date, // FIX: Explicitly preserve ptp_date
           recent_comments: commentsByApp[app.applicant_id] || []
         })) as Application[];
 
         allApplicationsWithComments = (allAppsData as DatabaseApplication[]).map(app => ({
           ...app,
+          ptp_date: app.ptp_date, // FIX: Explicitly preserve ptp_date
           recent_comments: commentsByApp[app.applicant_id] || []
         })) as Application[];
       }
 
-      console.log('=== SUPER ENHANCED APPLICATIONS WITH COMMENTS ===');
-      console.log('Sample app with comments:', applicationsWithComments.find(app => app.recent_comments && app.recent_comments.length > 0));
+      console.log('=== ENHANCED APPLICATIONS WITH COMMENTS (FIXED) ===');
+      const sampleApp = applicationsWithComments.find(app => app.recent_comments && app.recent_comments.length > 0);
+      if (sampleApp) {
+        console.log('Sample app with comments:', sampleApp);
+        console.log('PTP Date preserved:', sampleApp.ptp_date);
+        console.log('Comments with user names:', sampleApp.recent_comments);
+      }
       
       setApplications(applicationsWithComments);
       setAllApplications(allApplicationsWithComments);

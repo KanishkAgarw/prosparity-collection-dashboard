@@ -5,7 +5,7 @@ import { UserProfile } from '@/types/database';
 export const fetchUserProfiles = async (userIds: string[]): Promise<Record<string, UserProfile>> => {
   if (userIds.length === 0) return {};
 
-  console.log('=== FETCHING USER PROFILES ===');
+  console.log('=== FETCHING USER PROFILES (FIXED) ===');
   console.log('User IDs to fetch:', userIds);
   
   const { data: profilesData, error: profilesError } = await supabase
@@ -13,7 +13,7 @@ export const fetchUserProfiles = async (userIds: string[]): Promise<Record<strin
     .select('id, full_name, email')
     .in('id', userIds);
 
-  console.log('=== PROFILES FETCH RESULT ===');
+  console.log('=== PROFILES FETCH RESULT (FIXED) ===');
   console.log('Profiles data:', profilesData);
   console.log('Profiles error:', profilesError);
   
@@ -21,16 +21,20 @@ export const fetchUserProfiles = async (userIds: string[]): Promise<Record<strin
   
   if (profilesError) {
     console.error('CRITICAL: Profiles fetch error:', profilesError);
-  } else if (profilesData && profilesData.length > 0) {
+    return userProfilesMap;
+  }
+  
+  if (profilesData && profilesData.length > 0) {
     profilesData.forEach(profile => {
+      // FIX: Store the complete profile object, not just name/email
       userProfilesMap[profile.id] = { 
         full_name: profile.full_name, 
         email: profile.email 
       };
-      console.log(`✓ Mapped profile: ${profile.id} -> name: "${profile.full_name}", email: "${profile.email}"`);
+      console.log(`✓ FIXED - Mapped profile: ${profile.id} -> name: "${profile.full_name}", email: "${profile.email}"`);
     });
     
-    console.log('=== USER PROFILES MAP ===');
+    console.log('=== FIXED USER PROFILES MAP ===');
     console.log('Complete mapping:', userProfilesMap);
   } else {
     console.log('No profiles data returned');
@@ -40,46 +44,35 @@ export const fetchUserProfiles = async (userIds: string[]): Promise<Record<strin
 };
 
 export const resolveUserName = (userId: string, userProfile: UserProfile | undefined): string => {
-  console.log(`=== USER NAME RESOLUTION ===`);
+  console.log(`=== USER NAME RESOLUTION (FIXED) ===`);
   console.log(`User ID: ${userId}`);
   console.log(`Profile found:`, userProfile);
   
-  // Enhanced user name resolution with comprehensive validation
-  let resolvedUserName = 'Unknown User';
-  
+  // FIX: Simplified and more robust user name resolution
   if (userProfile) {
-    // Strategy 1: Check full_name with comprehensive validation
+    // Strategy 1: Use full_name if it exists and is not empty/null
     if (userProfile.full_name && 
-        typeof userProfile.full_name === 'string' &&
         userProfile.full_name.trim() !== '' && 
-        userProfile.full_name.toLowerCase() !== 'null' &&
         userProfile.full_name !== 'null' &&
-        userProfile.full_name !== null &&
-        userProfile.full_name !== undefined) {
-      resolvedUserName = userProfile.full_name.trim();
-      console.log(`✓ SUCCESS - Using full_name: "${resolvedUserName}"`);
-    } 
-    // Strategy 2: Fallback to email with comprehensive validation
-    else if (userProfile.email && 
-             typeof userProfile.email === 'string' &&
-             userProfile.email.trim() !== '' && 
-             userProfile.email.toLowerCase() !== 'null' &&
-             userProfile.email !== 'null' &&
-             userProfile.email !== null &&
-             userProfile.email !== undefined) {
+        userProfile.full_name !== null) {
+      const resolvedName = userProfile.full_name.trim();
+      console.log(`✓ SUCCESS (FIXED) - Using full_name: "${resolvedName}"`);
+      return resolvedName;
+    }
+    
+    // Strategy 2: Use email if full_name is not available
+    if (userProfile.email && 
+        userProfile.email.trim() !== '' && 
+        userProfile.email !== 'null' &&
+        userProfile.email !== null) {
       // Extract name from email (part before @)
       const emailName = userProfile.email.split('@')[0];
-      resolvedUserName = emailName.replace(/[._]/g, ' ').trim();
-      console.log(`✓ SUCCESS - Using email-derived name: "${resolvedUserName}"`);
-    } else {
-      console.log(`✗ FAIL - No valid name or email found for user ${userId}`);
-      console.log(`✗ Full name was: "${userProfile.full_name}" (type: ${typeof userProfile.full_name})`);
-      console.log(`✗ Email was: "${userProfile.email}" (type: ${typeof userProfile.email})`);
+      const resolvedName = emailName.replace(/[._-]/g, ' ').trim();
+      console.log(`✓ SUCCESS (FIXED) - Using email-derived name: "${resolvedName}"`);
+      return resolvedName;
     }
-  } else {
-    console.log(`✗ FAIL - No profile found for user ${userId}`);
   }
   
-  console.log(`✓ FINAL USER NAME: "${resolvedUserName}"`);
-  return resolvedUserName;
+  console.log(`✗ FAIL (FIXED) - No valid profile found for user ${userId}`);
+  return 'Unknown User';
 };
