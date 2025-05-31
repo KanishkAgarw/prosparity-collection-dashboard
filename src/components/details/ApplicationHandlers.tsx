@@ -58,19 +58,30 @@ export const useApplicationHandlers = (
   };
 
   const handlePtpDateChange = async (newDate: string) => {
-    if (!user || !application || newDate === application.ptp_date) return;
+    if (!user || !application) return;
     
     console.log('Handling PTP date change:', { 
       applicationId: application.applicant_id, 
       oldDate: application.ptp_date, 
-      newDate 
+      newDate,
+      dateToSave: newDate || null
     });
     
     try {
+      // Convert date string to proper timestamp format for database
+      let ptpTimestamp = null;
+      if (newDate && newDate.trim()) {
+        // Create a proper timestamp from the date string
+        ptpTimestamp = new Date(newDate + 'T00:00:00.000Z').toISOString();
+        console.log('Converted date to timestamp:', ptpTimestamp);
+      }
+
       const updateData = {
-        ptp_date: newDate || null,
+        ptp_date: ptpTimestamp,
         updated_at: new Date().toISOString()
       };
+
+      console.log('Updating with data:', updateData);
 
       const { error } = await supabase
         .from('applications')
@@ -89,10 +100,11 @@ export const useApplicationHandlers = (
 
       const updatedApp = {
         ...application,
-        ptp_date: newDate || null,
+        ptp_date: ptpTimestamp,
         updated_at: new Date().toISOString()
       };
       
+      console.log('Updated app with new PTP date:', updatedApp);
       onSave(updatedApp);
       toast.success('PTP date updated successfully');
     } catch (error) {

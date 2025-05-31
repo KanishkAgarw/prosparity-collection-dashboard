@@ -63,6 +63,8 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
       let allApplicationsWithComments = allAppsData || [];
       
       if (allAppIds.length > 0) {
+        console.log('Fetching comments for all application IDs:', allAppIds.length);
+        
         // Get comments for ALL applications
         const { data: commentsData, error: commentsError } = await supabase
           .from('comments')
@@ -72,10 +74,14 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
 
         if (commentsError) {
           console.error('Error fetching comments:', commentsError);
+        } else {
+          console.log('Fetched comments data:', commentsData);
         }
 
         // Get user profiles for the comment authors
         const userIds = [...new Set(commentsData?.map(comment => comment.user_id) || [])];
+        console.log('Unique user IDs from comments:', userIds);
+        
         let profilesMap: Record<string, { full_name?: string; email?: string }> = {};
         
         if (userIds.length > 0) {
@@ -84,11 +90,15 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
             .select('id, full_name, email')
             .in('id', userIds);
 
+          console.log('Fetched profiles data:', profilesData);
+          console.log('Profiles error:', profilesError);
+
           if (!profilesError && profilesData) {
             profilesMap = profilesData.reduce((acc, profile) => {
               acc[profile.id] = { full_name: profile.full_name, email: profile.email };
               return acc;
             }, {} as Record<string, { full_name?: string; email?: string }>);
+            console.log('Created profiles map:', profilesMap);
           }
         }
 
@@ -99,7 +109,18 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
           }
           if (acc[comment.application_id].length < 3) {
             const profile = profilesMap[comment.user_id];
-            const userName = profile?.full_name || profile?.email || 'Unknown User';
+            console.log(`Mapping user ${comment.user_id}:`, profile);
+            
+            // Prioritize full_name, then email, then fallback
+            let userName = 'Unknown User';
+            if (profile?.full_name && profile.full_name.trim()) {
+              userName = profile.full_name;
+            } else if (profile?.email) {
+              userName = profile.email;
+            }
+            
+            console.log(`Final user name for ${comment.user_id}:`, userName);
+            
             acc[comment.application_id].push({
               content: comment.content,
               user_name: userName
@@ -107,6 +128,8 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
           }
           return acc;
         }, {} as Record<string, Array<{content: string; user_name: string}>>);
+
+        console.log('Final comments by app:', commentsByApp);
 
         // Add comments to both paginated and all applications
         applicationsWithComments = appsData.map(app => ({

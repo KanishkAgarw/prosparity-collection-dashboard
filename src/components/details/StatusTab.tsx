@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -25,10 +26,17 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
   
   // Update local state when application changes
   useEffect(() => {
+    console.log('StatusTab: Application PTP date changed:', application.ptp_date);
     if (application.ptp_date) {
-      // Format the date for the date input (YYYY-MM-DD)
-      const dateOnly = new Date(application.ptp_date).toISOString().split('T')[0];
-      setPtpDate(dateOnly);
+      try {
+        // Format the date for the date input (YYYY-MM-DD)
+        const dateOnly = new Date(application.ptp_date).toISOString().split('T')[0];
+        console.log('StatusTab: Setting PTP date to:', dateOnly);
+        setPtpDate(dateOnly);
+      } catch (error) {
+        console.error('Error parsing PTP date:', error);
+        setPtpDate('');
+      }
     } else {
       setPtpDate('');
     }
@@ -38,6 +46,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
   const statusOnlyLogs = useFilteredAuditLogs(auditLogs);
 
   const handlePtpDateChange = (value: string) => {
+    console.log('StatusTab: Local PTP date change:', value);
     setPtpDate(value);
     onPtpDateChange(value);
   };
