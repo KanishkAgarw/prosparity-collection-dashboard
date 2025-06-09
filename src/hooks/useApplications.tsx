@@ -6,6 +6,9 @@ import { Application } from '@/types/application';
 import { DatabaseApplication } from '@/types/database';
 import { fetchAndMapComments } from '@/utils/commentMapping';
 import { useFieldStatus } from '@/hooks/useFieldStatus';
+import { usePtpDates } from '@/hooks/usePtpDates';
+import { usePaymentDates } from '@/hooks/usePaymentDates';
+import { useContactCallingStatus } from '@/hooks/useContactCallingStatus';
 
 interface UseApplicationsProps {
   page?: number;
@@ -15,6 +18,9 @@ interface UseApplicationsProps {
 export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProps = {}) => {
   const { user } = useAuth();
   const { fetchFieldStatus } = useFieldStatus();
+  const { fetchPtpDates } = usePtpDates();
+  const { fetchPaymentDates } = usePaymentDates();
+  const { fetchContactStatuses } = useContactCallingStatus();
   const [applications, setApplications] = useState<Application[]>([]);
   const [allApplications, setAllApplications] = useState<Application[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -60,57 +66,50 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
         return;
       }
 
-      console.log('=== DEBUGGING PTP DATES (FIXED) ===');
-      appsData?.slice(0, 3).forEach(app => {
-        console.log(`App: ${app.applicant_name} (${app.applicant_id})`);
-        console.log(`PTP Date: ${app.ptp_date} (type: ${typeof app.ptp_date})`);
-      });
-
-      // Fetch field status for ALL applications
+      // Fetch related data for ALL applications
       const allAppIds = allAppsData?.map(app => app.applicant_id) || [];
-      const fieldStatusMap = await fetchFieldStatus(allAppIds);
-
-      // Fetch recent comments for ALL applications
-      let applicationsWithComments: Application[] = appsData || [];
-      let allApplicationsWithComments: Application[] = allAppsData || [];
       
-      if (allAppIds.length > 0) {
-        console.log('=== FETCHING COMMENTS (FIXED) ===');
-        const commentsByApp = await fetchAndMapComments(allAppIds);
+      const [fieldStatusMap, ptpDatesMap, paymentDatesMap, contactStatusesMap, commentsByApp] = await Promise.all([
+        fetchFieldStatus(allAppIds),
+        fetchPtpDates(allAppIds),
+        fetchPaymentDates(allAppIds),
+        fetchContactStatuses(allAppIds),
+        fetchAndMapComments(allAppIds)
+      ]);
 
-        // Add comments and field status to both paginated and all applications
-        applicationsWithComments = (appsData as DatabaseApplication[]).map(app => ({
-          ...app,
-          ptp_date: app.ptp_date, // Explicitly preserve ptp_date
-          field_status: fieldStatusMap[app.applicant_id] || 'Unpaid', // Add field status
-          recent_comments: commentsByApp[app.applicant_id] || []
-        })) as Application[];
+      // Enhance applications with related data
+      const enhanceApplications = (apps: DatabaseApplication[]): Application[] => {
+        return apps.map(app => {
+          const contactStatuses = contactStatusesMap[app.applicant_id] || {};
+          
+          return {
+            ...app,
+            field_status: fieldStatusMap[app.applicant_id] || 'Unpaid',
+            ptp_date: ptpDatesMap[app.applicant_id],
+            paid_date: paymentDatesMap[app.applicant_id],
+            applicant_calling_status: contactStatuses.applicant || 'Not Called',
+            co_applicant_calling_status: contactStatuses.co_applicant || 'Not Called',
+            guarantor_calling_status: contactStatuses.guarantor || 'Not Called',
+            reference_calling_status: contactStatuses.reference || 'Not Called',
+            latest_calling_status: contactStatuses.latest || 'No Calls',
+            recent_comments: commentsByApp[app.applicant_id] || []
+          } as Application;
+        });
+      };
 
-        allApplicationsWithComments = (allAppsData as DatabaseApplication[]).map(app => ({
-          ...app,
-          ptp_date: app.ptp_date, // Explicitly preserve ptp_date
-          field_status: fieldStatusMap[app.applicant_id] || 'Unpaid', // Add field status
-          recent_comments: commentsByApp[app.applicant_id] || []
-        })) as Application[];
-      }
+      const applicationsWithData = enhanceApplications(appsData as DatabaseApplication[]);
+      const allApplicationsWithData = enhanceApplications(allAppsData as DatabaseApplication[]);
 
-      console.log('=== ENHANCED APPLICATIONS WITH COMMENTS AND FIELD STATUS (FIXED) ===');
-      const sampleApp = applicationsWithComments.find(app => app.recent_comments && app.recent_comments.length > 0);
-      if (sampleApp) {
-        console.log('Sample app with comments:', sampleApp);
-        console.log('PTP Date preserved:', sampleApp.ptp_date);
-        console.log('Field Status:', sampleApp.field_status);
-        console.log('LMS Status:', sampleApp.lms_status);
-      }
+      console.log('Enhanced applications with all related data');
       
-      setApplications(applicationsWithComments);
-      setAllApplications(allApplicationsWithComments);
+      setApplications(applicationsWithData);
+      setAllApplications(allApplicationsWithData);
     } catch (error) {
       console.error('Error fetching applications:', error);
     } finally {
       setLoading(false);
     }
-  }, [user, page, pageSize, fetchFieldStatus]);
+  }, [user, page, pageSize, fetchFieldStatus, fetchPtpDates, fetchPaymentDates, fetchContactStatuses]);
 
   useEffect(() => {
     if (user) {

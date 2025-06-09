@@ -10,88 +10,117 @@ interface ExportData {
 }
 
 export const useExport = () => {
-  const exportToExcel = useCallback((data: ExportData, fileName: string = 'collection-report') => {
+  const exportToExcel = useCallback((data: ExportData, fileName: string = 'applications-report') => {
     const workbook = XLSX.utils.book_new();
 
-    // Create actionable monitoring format
-    const monitoringData = data.applications.map(app => ({
-      'Application ID': app.applicant_id,
-      'Applicant Name': app.applicant_name,
-      'Mobile': app.applicant_mobile || 'N/A',
-      'EMI Amount': formatCurrency(app.emi_amount),
-      'Field Status': app.field_status || 'Unpaid',
-      'LMS Status': app.lms_status,
-      'PTP Date': formatPtpDate(app.ptp_date),
-      'Call Status - Applicant': app.applicant_calling_status || 'Not Called',
-      'Call Status - Co-Applicant': app.co_applicant_calling_status || 'Not Called',
-      'Call Status - Guarantor': app.guarantor_calling_status || 'Not Called',
-      'Call Status - Reference': app.reference_calling_status || 'Not Called',
-      'Overall Call Status': app.latest_calling_status || 'No Calls',
-      'Recent Comment 1': app.recent_comments?.[0]?.content || '',
-      'Recent Comment 2': app.recent_comments?.[1]?.content || '',
-      'Recent Comment 3': app.recent_comments?.[2]?.content || '',
-      'Branch': app.branch_name,
+    // Create export data with the specified columns in exact order
+    const exportData = data.applications.map(app => ({
+      'Applicant ID': app.applicant_id,
+      'Branch Name': app.branch_name,
       'RM Name': app.rm_name,
-      'Team Lead': app.team_lead,
-      'Dealer': app.dealer_name,
-      'Lender': app.lender_name,
-      'Last Updated': format(new Date(app.updated_at), 'dd-MMM-yy HH:mm')
+      'Dealer Name': app.dealer_name,
+      'Applicant Name': app.applicant_name,
+      'Applicant Mobile Number': app.applicant_mobile || '',
+      'Applicant Current Address': app.applicant_address || '',
+      'House Ownership': app.house_ownership || '',
+      'Co-Applicant Name': app.co_applicant_name || '',
+      'Coapplicant Mobile Number': app.co_applicant_mobile || '',
+      'Coapplicant Current Address': app.co_applicant_address || '',
+      'Guarantor Name': app.guarantor_name || '',
+      'Guarantor Mobile Number': app.guarantor_mobile || '',
+      'Guarantor Current Address': app.guarantor_address || '',
+      'Reference Name': app.reference_name || '',
+      'Reference Mobile Number': app.reference_mobile || '',
+      'Reference Address': app.reference_address || '',
+      'FI Submission Location': app.fi_location || '',
+      'Demand Date': app.demand_date || '',
+      'Repayment': app.repayment || '',
+      'Principle Due': app.principle_due || 0,
+      'Interest Due': app.interest_due || 0,
+      'EMI': app.emi_amount,
+      'Last Month Bounce': app.last_month_bounce || 0,
+      'Lender Name': app.lender_name,
+      'Status': app.lms_status,
+      'Team Lead': app.team_lead
     }));
 
-    const monitoringSheet = XLSX.utils.json_to_sheet(monitoringData);
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
     
     // Set column widths for better readability
     const colWidths = [
-      { wch: 20 }, // Application ID
-      { wch: 25 }, // Applicant Name
-      { wch: 15 }, // Mobile
-      { wch: 12 }, // EMI Amount
-      { wch: 15 }, // Field Status
-      { wch: 12 }, // LMS Status
-      { wch: 12 }, // PTP Date
-      { wch: 18 }, // Call Status - Applicant
-      { wch: 18 }, // Call Status - Co-Applicant
-      { wch: 18 }, // Call Status - Guarantor
-      { wch: 18 }, // Call Status - Reference
-      { wch: 15 }, // Overall Call Status
-      { wch: 30 }, // Recent Comment 1
-      { wch: 30 }, // Recent Comment 2
-      { wch: 30 }, // Recent Comment 3
-      { wch: 15 }, // Branch
+      { wch: 20 }, // Applicant ID
+      { wch: 20 }, // Branch Name
       { wch: 20 }, // RM Name
-      { wch: 20 }, // Team Lead
-      { wch: 25 }, // Dealer
-      { wch: 25 }, // Lender
-      { wch: 18 }  // Last Updated
+      { wch: 25 }, // Dealer Name
+      { wch: 25 }, // Applicant Name
+      { wch: 15 }, // Applicant Mobile Number
+      { wch: 30 }, // Applicant Current Address
+      { wch: 15 }, // House Ownership
+      { wch: 25 }, // Co-Applicant Name
+      { wch: 15 }, // Coapplicant Mobile Number
+      { wch: 30 }, // Coapplicant Current Address
+      { wch: 25 }, // Guarantor Name
+      { wch: 15 }, // Guarantor Mobile Number
+      { wch: 30 }, // Guarantor Current Address
+      { wch: 25 }, // Reference Name
+      { wch: 15 }, // Reference Mobile Number
+      { wch: 30 }, // Reference Address
+      { wch: 20 }, // FI Submission Location
+      { wch: 12 }, // Demand Date
+      { wch: 15 }, // Repayment
+      { wch: 12 }, // Principle Due
+      { wch: 12 }, // Interest Due
+      { wch: 12 }, // EMI
+      { wch: 15 }, // Last Month Bounce
+      { wch: 25 }, // Lender Name
+      { wch: 12 }, // Status
+      { wch: 20 }  // Team Lead
     ];
     
-    monitoringSheet['!cols'] = colWidths;
+    worksheet['!cols'] = colWidths;
     
-    XLSX.utils.book_append_sheet(workbook, monitoringSheet, 'Collection Monitoring');
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Applications');
 
     // Export the file
     const timestamp = format(new Date(), 'yyyy-MM-dd-HHmm');
     XLSX.writeFile(workbook, `${fileName}-${timestamp}.xlsx`);
   }, []);
 
-  const exportToCSV = useCallback((data: ExportData, fileName: string = 'collection-report') => {
-    // For CSV, create a simplified version
+  const exportToCSV = useCallback((data: ExportData, fileName: string = 'applications-report') => {
+    // Create export data with the specified columns in exact order
     const csvData = data.applications.map(app => ({
-      'Application ID': app.applicant_id,
+      'Applicant ID': app.applicant_id,
+      'Branch Name': app.branch_name,
+      'RM Name': app.rm_name,
+      'Dealer Name': app.dealer_name,
       'Applicant Name': app.applicant_name,
-      'Mobile': app.applicant_mobile || 'N/A',
-      'EMI Amount': formatCurrency(app.emi_amount),
-      'Field Status': app.field_status || 'Unpaid',
-      'LMS Status': app.lms_status,
-      'PTP Date': formatPtpDate(app.ptp_date),
-      'Overall Call Status': app.latest_calling_status || 'No Calls',
-      'Recent Comment': app.recent_comments?.[0]?.content || 'No Comments',
-      'Last Updated': format(new Date(app.updated_at), 'dd-MMM-yy HH:mm')
+      'Applicant Mobile Number': app.applicant_mobile || '',
+      'Applicant Current Address': app.applicant_address || '',
+      'House Ownership': app.house_ownership || '',
+      'Co-Applicant Name': app.co_applicant_name || '',
+      'Coapplicant Mobile Number': app.co_applicant_mobile || '',
+      'Coapplicant Current Address': app.co_applicant_address || '',
+      'Guarantor Name': app.guarantor_name || '',
+      'Guarantor Mobile Number': app.guarantor_mobile || '',
+      'Guarantor Current Address': app.guarantor_address || '',
+      'Reference Name': app.reference_name || '',
+      'Reference Mobile Number': app.reference_mobile || '',
+      'Reference Address': app.reference_address || '',
+      'FI Submission Location': app.fi_location || '',
+      'Demand Date': app.demand_date || '',
+      'Repayment': app.repayment || '',
+      'Principle Due': app.principle_due || 0,
+      'Interest Due': app.interest_due || 0,
+      'EMI': app.emi_amount,
+      'Last Month Bounce': app.last_month_bounce || 0,
+      'Lender Name': app.lender_name,
+      'Status': app.lms_status,
+      'Team Lead': app.team_lead
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(csvData);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Collection Summary');
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Applications');
     
     const timestamp = format(new Date(), 'yyyy-MM-dd-HHmm');
     XLSX.writeFile(workbook, `${fileName}-${timestamp}.csv`);

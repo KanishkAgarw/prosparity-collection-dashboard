@@ -1,5 +1,5 @@
 
-// Database application type without recent_comments
+// Database application type without removed columns
 export interface DatabaseApplication {
   id: string;
   applicant_id: string;
@@ -9,14 +9,11 @@ export interface DatabaseApplication {
   rm_name: string;
   dealer_name: string;
   lender_name: string;
-  lms_status: string; // Changed from status to lms_status
+  lms_status: string;
   emi_amount: number;
   principle_due: number;
   interest_due: number;
-  ptp_date?: string;
-  paid_date?: string;
   demand_date?: string;
-  rm_comments?: string;
   user_id: string;
   created_at: string;
   updated_at: string;
@@ -35,11 +32,6 @@ export interface DatabaseApplication {
   fi_location?: string;
   repayment?: string;
   last_month_bounce?: number;
-  applicant_calling_status?: string;
-  co_applicant_calling_status?: string;
-  guarantor_calling_status?: string;
-  reference_calling_status?: string;
-  latest_calling_status?: string;
 }
 
 export interface UserProfile {
@@ -54,13 +46,31 @@ export interface CommentData {
   user_id: string;
 }
 
-// New interface for field status
 export interface FieldStatus {
   id: string;
   application_id: string;
   status: string;
   user_id: string;
   user_email?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// New interfaces for PTP and Payment dates
+export interface PtpDate {
+  id: string;
+  application_id: string;
+  ptp_date?: string;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaymentDate {
+  id: string;
+  application_id: string;
+  paid_date?: string;
+  user_id: string;
   created_at: string;
   updated_at: string;
 }

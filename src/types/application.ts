@@ -8,15 +8,12 @@ export interface Application {
   rm_name: string;
   dealer_name: string;
   lender_name: string;
-  lms_status: string; // Changed from status to lms_status
-  field_status?: string; // New field for user-editable status
+  lms_status: string;
+  field_status?: string; // From field_status table
   emi_amount: number;
   principle_due: number;
   interest_due: number;
-  ptp_date?: string;
-  paid_date?: string;
   demand_date?: string;
-  rm_comments?: string;
   user_id: string;
   created_at: string;
   updated_at: string;
@@ -36,7 +33,10 @@ export interface Application {
   fi_location?: string;
   repayment?: string;
   last_month_bounce?: number;
-  applicant_calling_status?: string;
+  // These are now fetched from separate tables
+  ptp_date?: string; // From ptp_dates table
+  paid_date?: string; // From payment_dates table
+  applicant_calling_status?: string; // From contact_calling_status table
   co_applicant_calling_status?: string;
   guarantor_calling_status?: string;
   reference_calling_status?: string;

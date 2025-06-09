@@ -1,9 +1,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Application } from "@/types/application";
-import { supabase } from "@/integrations/supabase/client";
-import { useState, useEffect } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useMemo } from "react";
 
 interface MobileStatusCardsProps {
   applications: Application[];
@@ -20,101 +18,70 @@ interface StatusCounts {
 }
 
 const MobileStatusCards = ({ applications }: MobileStatusCardsProps) => {
-  const { user } = useAuth();
-  const [totalCounts, setTotalCounts] = useState<StatusCounts>({
-    total: 0,
-    fieldPaid: 0,
-    fieldUnpaid: 0,
-    fieldPartiallyPaid: 0,
-    lmsPaid: 0,
-    lmsUnpaid: 0,
-    lmsPartiallyPaid: 0
-  });
-
-  useEffect(() => {
-    const fetchTotalCounts = async () => {
-      if (!user) return;
-
-      try {
-        // Get total count
-        const { count: totalCount } = await supabase
-          .from('applications')
-          .select('*', { count: 'exact', head: true });
-
-        // Get LMS status counts
-        const { data: lmsStatusData } = await supabase
-          .from('applications')
-          .select('lms_status');
-
-        // Get field status counts
-        const { data: fieldStatusData } = await supabase
-          .from('field_status')
-          .select('status');
-
-        if (lmsStatusData && fieldStatusData) {
-          const lmsCounts = lmsStatusData.reduce((acc, app) => {
-            switch (app.lms_status) {
-              case 'Paid':
-                acc.lmsPaid++;
-                break;
-              case 'Unpaid':
-                acc.lmsUnpaid++;
-                break;
-              case 'Partially Paid':
-                acc.lmsPartiallyPaid++;
-                break;
-            }
-            return acc;
-          }, { lmsPaid: 0, lmsUnpaid: 0, lmsPartiallyPaid: 0 });
-
-          const fieldCounts = fieldStatusData.reduce((acc, status) => {
-            switch (status.status) {
-              case 'Paid':
-                acc.fieldPaid++;
-                break;
-              case 'Unpaid':
-                acc.fieldUnpaid++;
-                break;
-              case 'Partially Paid':
-                acc.fieldPartiallyPaid++;
-                break;
-            }
-            return acc;
-          }, { fieldPaid: 0, fieldUnpaid: 0, fieldPartiallyPaid: 0 });
-
-          setTotalCounts({
-            total: totalCount || 0,
-            ...lmsCounts,
-            ...fieldCounts
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching total counts:', error);
+  // Calculate counts from the applications data passed as props
+  const statusCounts = useMemo(() => {
+    const counts = applications.reduce((acc, app) => {
+      acc.total++;
+      
+      // Count field status
+      switch (app.field_status) {
+        case 'Paid':
+          acc.fieldPaid++;
+          break;
+        case 'Unpaid':
+          acc.fieldUnpaid++;
+          break;
+        case 'Partially Paid':
+          acc.fieldPartiallyPaid++;
+          break;
       }
-    };
 
-    fetchTotalCounts();
-  }, [user, applications.length]);
+      // Count LMS status
+      switch (app.lms_status) {
+        case 'Paid':
+          acc.lmsPaid++;
+          break;
+        case 'Unpaid':
+          acc.lmsUnpaid++;
+          break;
+        case 'Partially Paid':
+          acc.lmsPartiallyPaid++;
+          break;
+      }
+      
+      return acc;
+    }, {
+      total: 0,
+      fieldPaid: 0,
+      fieldUnpaid: 0,
+      fieldPartiallyPaid: 0,
+      lmsPaid: 0,
+      lmsUnpaid: 0,
+      lmsPartiallyPaid: 0
+    });
+
+    return counts;
+  }, [applications]);
 
   const cards = [
     {
       title: "Total",
-      value: totalCounts.total,
+      value: statusCounts.total,
       className: "bg-blue-50 border-blue-200"
     },
     {
       title: "Field Paid",
-      value: totalCounts.fieldPaid,
+      value: statusCounts.fieldPaid,
       className: "bg-green-50 border-green-200"
     },
     {
       title: "Field Unpaid",
-      value: totalCounts.fieldUnpaid,
+      value: statusCounts.fieldUnpaid,
       className: "bg-red-50 border-red-200"
     },
     {
       title: "LMS Paid",
-      value: totalCounts.lmsPaid,
+      value: statusCounts.lmsPaid,
       className: "bg-emerald-50 border-emerald-200"
     }
   ];
