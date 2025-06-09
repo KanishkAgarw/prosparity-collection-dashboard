@@ -12,7 +12,7 @@ interface ApplicationsTableProps {
   selectedApplicationId?: string;
 }
 
-const getStatusBadge = (status: string) => {
+const getFieldStatusBadge = (status: string) => {
   const variants = {
     'Unpaid': 'bg-red-100 text-red-800 border-red-200',
     'Partially Paid': 'bg-yellow-100 text-yellow-800 border-yellow-200',
@@ -23,6 +23,20 @@ const getStatusBadge = (status: string) => {
   
   return (
     <Badge className={`${variants[status as keyof typeof variants] || 'bg-gray-100 text-gray-800 border-gray-200'} border`}>
+      {status}
+    </Badge>
+  );
+};
+
+const getLmsStatusBadge = (status: string) => {
+  const variants = {
+    'Unpaid': 'bg-red-50 text-red-700 border-red-300',
+    'Partially Paid': 'bg-yellow-50 text-yellow-700 border-yellow-300',
+    'Paid': 'bg-green-50 text-green-700 border-green-300'
+  };
+  
+  return (
+    <Badge className={`${variants[status as keyof typeof variants] || 'bg-gray-50 text-gray-700 border-gray-300'} border`}>
       {status}
     </Badge>
   );
@@ -46,6 +60,7 @@ const ApplicationsTable = ({ applications, onRowClick, selectedApplicationId }: 
               <TableHead className="min-w-[320px]">Details</TableHead>
               <TableHead className="min-w-[120px]">EMI Due</TableHead>
               <TableHead className="min-w-[120px]">Field Status</TableHead>
+              <TableHead className="min-w-[120px]">LMS Status</TableHead>
               <TableHead className="min-w-[100px]">PTP Date</TableHead>
               <TableHead className="min-w-[150px]">Call Status</TableHead>
               <TableHead className="min-w-[200px]">Recent Comments</TableHead>
@@ -83,7 +98,8 @@ const ApplicationsTable = ({ applications, onRowClick, selectedApplicationId }: 
                   </div>
                 </TableCell>
                 <TableCell className="font-medium text-blue-600">{formatCurrency(app.emi_amount)}</TableCell>
-                <TableCell>{getStatusBadge(app.field_status || 'Unpaid')}</TableCell>
+                <TableCell>{getFieldStatusBadge(app.field_status || 'Unpaid')}</TableCell>
+                <TableCell>{getLmsStatusBadge(app.lms_status)}</TableCell>
                 <TableCell className={`${app.ptp_date ? 'text-blue-600 font-medium' : 'text-gray-400'} whitespace-nowrap`}>
                   {app.ptp_date ? formatPtpDate(app.ptp_date) : 'Not Set'}
                 </TableCell>

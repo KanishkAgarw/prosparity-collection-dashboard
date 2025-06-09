@@ -19,7 +19,8 @@ export const useExport = () => {
       'Applicant Name': app.applicant_name,
       'Mobile': app.applicant_mobile || 'N/A',
       'EMI Amount': formatCurrency(app.emi_amount),
-      'Status': app.status,
+      'Field Status': app.field_status || 'Unpaid',
+      'LMS Status': app.lms_status,
       'PTP Date': formatPtpDate(app.ptp_date),
       'Call Status - Applicant': app.applicant_calling_status || 'Not Called',
       'Call Status - Co-Applicant': app.co_applicant_calling_status || 'Not Called',
@@ -45,7 +46,8 @@ export const useExport = () => {
       { wch: 25 }, // Applicant Name
       { wch: 15 }, // Mobile
       { wch: 12 }, // EMI Amount
-      { wch: 12 }, // Status
+      { wch: 15 }, // Field Status
+      { wch: 12 }, // LMS Status
       { wch: 12 }, // PTP Date
       { wch: 18 }, // Call Status - Applicant
       { wch: 18 }, // Call Status - Co-Applicant
@@ -79,7 +81,8 @@ export const useExport = () => {
       'Applicant Name': app.applicant_name,
       'Mobile': app.applicant_mobile || 'N/A',
       'EMI Amount': formatCurrency(app.emi_amount),
-      'Status': app.status,
+      'Field Status': app.field_status || 'Unpaid',
+      'LMS Status': app.lms_status,
       'PTP Date': formatPtpDate(app.ptp_date),
       'Overall Call Status': app.latest_calling_status || 'No Calls',
       'Recent Comment': app.recent_comments?.[0]?.content || 'No Comments',

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Application } from "@/types/application";
 import { useContactCallingStatus } from "@/hooks/useContactCallingStatus";
+import { useFieldStatus } from "@/hooks/useFieldStatus";
 
 export const useApplicationHandlers = (
   application: Application | null,
@@ -12,55 +13,43 @@ export const useApplicationHandlers = (
   onSave: (updatedApp: Application) => void
 ) => {
   const { updateCallingStatus } = useContactCallingStatus(application?.applicant_id);
+  const { updateFieldStatus } = useFieldStatus();
 
   const handleStatusChange = async (newStatus: string) => {
-    if (!user || !application || newStatus === application.status) return;
+    if (!user || !application || newStatus === application.field_status) return;
     
-    console.log('Handling status change:', { 
+    console.log('Handling field status change:', { 
       applicationId: application.applicant_id, 
-      oldStatus: application.status, 
-      newStatus 
+      oldFieldStatus: application.field_status, 
+      newFieldStatus: newStatus 
     });
     
     try {
-      const updateData = {
-        status: newStatus,
-        updated_at: new Date().toISOString()
-      };
-
-      const { error } = await supabase
-        .from('applications')
-        .update(updateData)
-        .eq('applicant_id', application.applicant_id);
-
-      if (error) {
-        console.error('Error updating status:', error);
-        toast.error('Failed to update status');
-        return;
-      }
+      // Update field status table instead of applications table
+      await updateFieldStatus(application.applicant_id, newStatus);
 
       // Add audit log
-      console.log('Adding audit log for status change');
-      await addAuditLog('Status', application.status, newStatus);
+      console.log('Adding audit log for field status change');
+      await addAuditLog('Field Status', application.field_status || 'Unpaid', newStatus);
 
       const updatedApp = {
         ...application,
-        status: newStatus,
+        field_status: newStatus,
         updated_at: new Date().toISOString()
       };
       
       onSave(updatedApp);
-      toast.success('Status updated successfully');
+      toast.success('Field status updated successfully');
     } catch (error) {
-      console.error('Error updating status:', error);
-      toast.error('Failed to update status');
+      console.error('Error updating field status:', error);
+      toast.error('Failed to update field status');
     }
   };
 
   const handlePtpDateChange = async (newDate: string) => {
     if (!user || !application) return;
     
-    console.log('=== CRITICAL PTP DATE DEBUG START ===');
+    console.log('=== PTP DATE UPDATE ===');
     console.log('User attempting PTP update:', {
       userId: user.id,
       userEmail: user.email,
@@ -78,28 +67,8 @@ export const useApplicationHandlers = (
         console.log('Converted PTP value:', ptpValue);
       }
 
-      // Step 2: Check if record exists and current user can access it
-      console.log('=== CHECKING RECORD ACCESS ===');
-      const { data: checkData, error: checkError } = await supabase
-        .from('applications')
-        .select('id, applicant_id, applicant_name, ptp_date, user_id')
-        .eq('applicant_id', application.applicant_id)
-        .single();
-
-      console.log('Record check result:', {
-        data: checkData,
-        error: checkError,
-        userCanAccess: checkData?.user_id === user.id
-      });
-
-      if (checkError) {
-        console.error('CRITICAL: Cannot access application record:', checkError);
-        toast.error(`Cannot access application: ${checkError.message}`);
-        return;
-      }
-
-      // Step 3: Attempt the update
-      console.log('=== ATTEMPTING DATABASE UPDATE ===');
+      // Step 2: Update applications table
+      console.log('=== UPDATING APPLICATIONS TABLE ===');
       const updateData = {
         ptp_date: ptpValue,
         updated_at: new Date().toISOString()
@@ -111,42 +80,27 @@ export const useApplicationHandlers = (
         .from('applications')
         .update(updateData)
         .eq('applicant_id', application.applicant_id)
-        .select('ptp_date, updated_at, applicant_name, user_id')
+        .select('ptp_date, updated_at, applicant_name')
         .single();
 
-      console.log('=== UPDATE RESULT ===');
-      console.log('Update data:', updateResult);
+      console.log('Update result:', updateResult);
       console.log('Update error:', updateError);
 
       if (updateError) {
-        console.error('CRITICAL: Database update failed:', updateError);
+        console.error('Database update failed:', updateError);
         toast.error(`Database update failed: ${updateError.message}`);
         return;
       }
 
       if (!updateResult) {
-        console.error('CRITICAL: No data returned from update');
+        console.error('No data returned from update');
         toast.error('No data returned from update');
         return;
       }
 
       console.log('SUCCESS: PTP date updated in database');
 
-      // Step 4: Verify the update worked
-      console.log('=== VERIFICATION QUERY ===');
-      const { data: verifyData, error: verifyError } = await supabase
-        .from('applications')
-        .select('ptp_date, applicant_name, updated_at')
-        .eq('applicant_id', application.applicant_id)
-        .single();
-
-      console.log('Verification result:', {
-        data: verifyData,
-        error: verifyError,
-        ptpDateSaved: verifyData?.ptp_date
-      });
-
-      // Step 5: Add audit log
+      // Step 3: Add audit log
       const previousValue = application.ptp_date ? 
         new Date(application.ptp_date).toISOString().split('T')[0] : 'Not set';
       const newValue = newDate || 'Not set';
@@ -158,7 +112,7 @@ export const useApplicationHandlers = (
       
       await addAuditLog('PTP Date', previousValue, newValue);
 
-      // Step 6: Update local state
+      // Step 4: Update local state
       const updatedApp = {
         ...application,
         ptp_date: ptpValue,
@@ -173,10 +127,8 @@ export const useApplicationHandlers = (
       onSave(updatedApp);
       toast.success(`PTP date updated successfully for ${application.applicant_name}`);
       
-      console.log('=== CRITICAL PTP DATE DEBUG END ===');
-      
     } catch (error) {
-      console.error('CRITICAL: Exception in handlePtpDateChange:', error);
+      console.error('Exception in handlePtpDateChange:', error);
       toast.error(`Failed to update PTP date: ${error.message}`);
     }
   };

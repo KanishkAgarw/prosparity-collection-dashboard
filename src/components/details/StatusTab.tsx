@@ -24,13 +24,12 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
   const [ptpDate, setPtpDate] = useState('');
   const [showLogDialog, setShowLogDialog] = useState(false);
   
-  // ENHANCED PTP date synchronization with comprehensive debugging
+  // PTP date synchronization
   useEffect(() => {
-    console.log('=== PTP DATE SYNC EFFECT (ENHANCED) ===');
+    console.log('=== PTP DATE SYNC ===');
     console.log('Application:', application.applicant_name);
     console.log('Application ID:', application.applicant_id);
     console.log('Raw PTP date from application:', application.ptp_date);
-    console.log('Type of PTP date:', typeof application.ptp_date);
     
     if (application.ptp_date) {
       try {
@@ -43,38 +42,28 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
           if (application.ptp_date.includes('T') || application.ptp_date.includes('Z')) {
             // ISO string format
             parsedDate = new Date(application.ptp_date);
-            console.log('Parsed as ISO string:', parsedDate);
           } else if (application.ptp_date.match(/^\d{4}-\d{2}-\d{2}$/)) {
             // YYYY-MM-DD format
             parsedDate = new Date(application.ptp_date + 'T00:00:00.000Z');
-            console.log('Parsed as YYYY-MM-DD:', parsedDate);
           } else {
             // Try parsing as generic date
             parsedDate = new Date(application.ptp_date);
-            console.log('Parsed as generic date:', parsedDate);
           }
-          
-          console.log('Final parsed date:', parsedDate);
-          console.log('Is valid date:', !isNaN(parsedDate.getTime()));
           
           if (!isNaN(parsedDate.getTime())) {
             // Format for HTML date input (YYYY-MM-DD)
             inputValue = parsedDate.toISOString().split('T')[0];
-            console.log('Setting HTML input value:', inputValue);
           } else {
-            console.log('Invalid date parsed, clearing input');
             inputValue = '';
           }
         }
         
         setPtpDate(inputValue);
-        console.log('✓ PTP date state updated to:', inputValue);
       } catch (error) {
         console.error('Error parsing PTP date:', error);
         setPtpDate('');
       }
     } else {
-      console.log('No PTP date, clearing input');
       setPtpDate('');
     }
   }, [application.ptp_date, application.applicant_id, application.applicant_name]);
@@ -83,15 +72,12 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
   const statusOnlyLogs = useFilteredAuditLogs(auditLogs);
 
   const handlePtpDateChange = (value: string) => {
-    console.log('=== PTP DATE INPUT CHANGE (ENHANCED) ===');
+    console.log('=== PTP DATE INPUT CHANGE ===');
     console.log('Application:', application.applicant_name);
     console.log('Input value:', value);
-    console.log('Current state value:', ptpDate);
     
     setPtpDate(value);
     onPtpDateChange(value);
-    
-    console.log('✓ PTP date change handlers called');
   };
 
   const formatDateTime = (dateStr: string) => {
@@ -115,8 +101,8 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
         <CardContent className="pt-0">
           <div className="space-y-4">
             <div>
-              <Label htmlFor="status">Payment Status</Label>
-              <Select value={application.status} onValueChange={onStatusChange}>
+              <Label htmlFor="fieldStatus">Field Status (User Editable)</Label>
+              <Select value={application.field_status || 'Unpaid'} onValueChange={onStatusChange}>
                 <SelectTrigger className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
@@ -128,6 +114,20 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
                   <SelectItem value="Paid">Paid</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="lmsStatus">LMS Status (System Controlled)</Label>
+              <Input
+                id="lmsStatus"
+                value={application.lms_status}
+                readOnly
+                className="mt-1 bg-gray-100 cursor-not-allowed"
+                title="This status is controlled by the LMS system and can only be updated via bulk upload"
+              />
+              <div className="text-xs text-gray-500 mt-1">
+                This status is controlled by the LMS system and can only be updated via bulk upload
+              </div>
             </div>
             
             <div>
@@ -146,9 +146,6 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
                   Selected: {formatPtpDate(ptpDate + 'T00:00:00.000Z')}
                 </div>
               )}
-              <div className="text-xs text-gray-400 mt-1">
-                Debug - Input value: "{ptpDate}" | DB value: "{application.ptp_date || 'null'}"
-              </div>
             </div>
           </div>
         </CardContent>

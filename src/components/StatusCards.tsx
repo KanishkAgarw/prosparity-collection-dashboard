@@ -9,11 +9,16 @@ interface StatusCardsProps {
 
 interface StatusCounts {
   total: number;
-  unpaid: number;
-  partiallyPaid: number;
-  cashCollected: number;
-  customerDeposited: number;
-  paid: number;
+  // Field Status counts
+  fieldUnpaid: number;
+  fieldPartiallyPaid: number;
+  fieldCashCollected: number;
+  fieldCustomerDeposited: number;
+  fieldPaid: number;
+  // LMS Status counts
+  lmsUnpaid: number;
+  lmsPartiallyPaid: number;
+  lmsPaid: number;
 }
 
 const StatusCards = ({ applications }: StatusCardsProps) => {
@@ -21,65 +26,108 @@ const StatusCards = ({ applications }: StatusCardsProps) => {
   const statusCounts = useMemo(() => {
     const counts = applications.reduce((acc, app) => {
       acc.total++;
-      switch (app.status) {
+      
+      // Count field status
+      switch (app.field_status) {
         case 'Unpaid':
-          acc.unpaid++;
+          acc.fieldUnpaid++;
           break;
         case 'Partially Paid':
-          acc.partiallyPaid++;
+          acc.fieldPartiallyPaid++;
           break;
         case 'Cash Collected from Customer':
-          acc.cashCollected++;
+          acc.fieldCashCollected++;
           break;
         case 'Customer Deposited to Bank':
-          acc.customerDeposited++;
+          acc.fieldCustomerDeposited++;
           break;
         case 'Paid':
-          acc.paid++;
+          acc.fieldPaid++;
           break;
       }
+
+      // Count LMS status
+      switch (app.lms_status) {
+        case 'Unpaid':
+          acc.lmsUnpaid++;
+          break;
+        case 'Partially Paid':
+          acc.lmsPartiallyPaid++;
+          break;
+        case 'Paid':
+          acc.lmsPaid++;
+          break;
+      }
+      
       return acc;
-    }, { total: 0, unpaid: 0, partiallyPaid: 0, cashCollected: 0, customerDeposited: 0, paid: 0 });
+    }, { 
+      total: 0, 
+      fieldUnpaid: 0, 
+      fieldPartiallyPaid: 0, 
+      fieldCashCollected: 0, 
+      fieldCustomerDeposited: 0, 
+      fieldPaid: 0,
+      lmsUnpaid: 0,
+      lmsPartiallyPaid: 0,
+      lmsPaid: 0
+    });
 
     return counts;
   }, [applications]);
 
-  // Logical arrangement: Total → Unpaid → Partially Paid → Cash Collected → Customer Deposited → Paid
+  // Arrangement: Total → Field Status (user-editable) → LMS Status (system)
   const cards = [
     {
       title: "Total",
       value: statusCounts.total,
       className: "bg-blue-50 border-blue-200"
     },
+    // Field Status Cards
     {
-      title: "Unpaid",
-      value: statusCounts.unpaid,
+      title: "Field Unpaid",
+      value: statusCounts.fieldUnpaid,
       className: "bg-red-50 border-red-200"
     },
     {
-      title: "Partially Paid",
-      value: statusCounts.partiallyPaid,
+      title: "Field Partially Paid",
+      value: statusCounts.fieldPartiallyPaid,
       className: "bg-yellow-50 border-yellow-200"
     },
     {
-      title: "Cash Collected",
-      value: statusCounts.cashCollected,
+      title: "Field Cash Collected",
+      value: statusCounts.fieldCashCollected,
       className: "bg-orange-50 border-orange-200"
     },
     {
-      title: "Customer Deposited",
-      value: statusCounts.customerDeposited,
+      title: "Field Customer Deposited",
+      value: statusCounts.fieldCustomerDeposited,
       className: "bg-indigo-50 border-indigo-200"
     },
     {
-      title: "Paid",
-      value: statusCounts.paid,
+      title: "Field Paid",
+      value: statusCounts.fieldPaid,
       className: "bg-green-50 border-green-200"
+    },
+    // LMS Status Cards
+    {
+      title: "LMS Unpaid",
+      value: statusCounts.lmsUnpaid,
+      className: "bg-red-100 border-red-300"
+    },
+    {
+      title: "LMS Partially Paid",
+      value: statusCounts.lmsPartiallyPaid,
+      className: "bg-yellow-100 border-yellow-300"
+    },
+    {
+      title: "LMS Paid",
+      value: statusCounts.lmsPaid,
+      className: "bg-green-100 border-green-300"
     }
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3">
       {cards.map((card, index) => (
         <Card key={index} className={`${card.className} border shadow-sm`}>
           <CardHeader className="pb-1 pt-2 px-2 md:pb-2 md:pt-3 md:px-3">

@@ -11,18 +11,24 @@ interface MobileStatusCardsProps {
 
 interface StatusCounts {
   total: number;
-  paid: number;
-  unpaid: number;
-  partiallyPaid: number;
+  fieldPaid: number;
+  fieldUnpaid: number;
+  fieldPartiallyPaid: number;
+  lmsPaid: number;
+  lmsUnpaid: number;
+  lmsPartiallyPaid: number;
 }
 
 const MobileStatusCards = ({ applications }: MobileStatusCardsProps) => {
   const { user } = useAuth();
   const [totalCounts, setTotalCounts] = useState<StatusCounts>({
     total: 0,
-    paid: 0,
-    unpaid: 0,
-    partiallyPaid: 0
+    fieldPaid: 0,
+    fieldUnpaid: 0,
+    fieldPartiallyPaid: 0,
+    lmsPaid: 0,
+    lmsUnpaid: 0,
+    lmsPartiallyPaid: 0
   });
 
   useEffect(() => {
@@ -35,30 +41,51 @@ const MobileStatusCards = ({ applications }: MobileStatusCardsProps) => {
           .from('applications')
           .select('*', { count: 'exact', head: true });
 
-        // Get counts by status
-        const { data: statusData } = await supabase
+        // Get LMS status counts
+        const { data: lmsStatusData } = await supabase
           .from('applications')
+          .select('lms_status');
+
+        // Get field status counts
+        const { data: fieldStatusData } = await supabase
+          .from('field_status')
           .select('status');
 
-        if (statusData) {
-          const counts = statusData.reduce((acc, app) => {
-            switch (app.status) {
+        if (lmsStatusData && fieldStatusData) {
+          const lmsCounts = lmsStatusData.reduce((acc, app) => {
+            switch (app.lms_status) {
               case 'Paid':
-                acc.paid++;
+                acc.lmsPaid++;
                 break;
               case 'Unpaid':
-                acc.unpaid++;
+                acc.lmsUnpaid++;
                 break;
               case 'Partially Paid':
-                acc.partiallyPaid++;
+                acc.lmsPartiallyPaid++;
                 break;
             }
             return acc;
-          }, { paid: 0, unpaid: 0, partiallyPaid: 0 });
+          }, { lmsPaid: 0, lmsUnpaid: 0, lmsPartiallyPaid: 0 });
+
+          const fieldCounts = fieldStatusData.reduce((acc, status) => {
+            switch (status.status) {
+              case 'Paid':
+                acc.fieldPaid++;
+                break;
+              case 'Unpaid':
+                acc.fieldUnpaid++;
+                break;
+              case 'Partially Paid':
+                acc.fieldPartiallyPaid++;
+                break;
+            }
+            return acc;
+          }, { fieldPaid: 0, fieldUnpaid: 0, fieldPartiallyPaid: 0 });
 
           setTotalCounts({
             total: totalCount || 0,
-            ...counts
+            ...lmsCounts,
+            ...fieldCounts
           });
         }
       } catch (error) {
@@ -67,7 +94,7 @@ const MobileStatusCards = ({ applications }: MobileStatusCardsProps) => {
     };
 
     fetchTotalCounts();
-  }, [user, applications.length]); // Refresh when applications change
+  }, [user, applications.length]);
 
   const cards = [
     {
@@ -76,19 +103,19 @@ const MobileStatusCards = ({ applications }: MobileStatusCardsProps) => {
       className: "bg-blue-50 border-blue-200"
     },
     {
-      title: "Paid",
-      value: totalCounts.paid,
+      title: "Field Paid",
+      value: totalCounts.fieldPaid,
       className: "bg-green-50 border-green-200"
     },
     {
-      title: "Unpaid",
-      value: totalCounts.unpaid,
+      title: "Field Unpaid",
+      value: totalCounts.fieldUnpaid,
       className: "bg-red-50 border-red-200"
     },
     {
-      title: "Partial",
-      value: totalCounts.partiallyPaid,
-      className: "bg-yellow-50 border-yellow-200"
+      title: "LMS Paid",
+      value: totalCounts.lmsPaid,
+      className: "bg-emerald-50 border-emerald-200"
     }
   ];
 
