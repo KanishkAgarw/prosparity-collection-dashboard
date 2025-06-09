@@ -35,8 +35,9 @@ const BulkStatusUpdate = ({ selectedApplications, onUpdate, onCancel }: BulkStat
         // Update field status
         await updateFieldStatus(app.applicant_id, newStatus);
         
-        // Add audit log
-        await addAuditLog(app.applicant_id)(
+        // Add audit log - fix the function call
+        const logFunction = addAuditLog(app.applicant_id);
+        await logFunction(
           'Status (Bulk Update)',
           previousStatus,
           newStatus

@@ -100,7 +100,6 @@ const MainContent = ({
           <MobileOptimizedTable
             applications={applications}
             onRowClick={onRowClick}
-            onApplicationDeleted={onApplicationDeleted}
             selectedApplicationId={selectedApplicationId}
           />
         ) : (

@@ -1,4 +1,3 @@
-
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -81,10 +80,8 @@ const ApplicationsTable = ({
                 <TableHead className="w-[50px]">
                   <Checkbox
                     checked={allSelected}
-                    ref={(el) => {
-                      if (el) el.indeterminate = someSelected;
-                    }}
                     onCheckedChange={handleSelectAll}
+                    className={someSelected ? "data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground opacity-50" : ""}
                   />
                 </TableHead>
               )}

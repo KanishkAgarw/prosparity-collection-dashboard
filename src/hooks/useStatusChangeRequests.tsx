@@ -39,7 +39,13 @@ export const useStatusChangeRequests = () => {
         return;
       }
 
-      setRequests(data || []);
+      // Type cast the data to match our interface
+      const typedRequests: StatusChangeRequest[] = (data || []).map(item => ({
+        ...item,
+        status: item.status as 'pending' | 'approved' | 'rejected'
+      }));
+
+      setRequests(typedRequests);
     } catch (error) {
       console.error('Error in fetchRequests:', error);
     } finally {

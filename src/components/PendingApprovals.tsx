@@ -33,8 +33,9 @@ const PendingApprovals = ({ onUpdate }: PendingApprovalsProps) => {
       // Then update the actual field status
       await updateFieldStatus(request.application_id, request.requested_status);
       
-      // Add audit log for the approval
-      await addAuditLog(request.application_id)(
+      // Add audit log for the approval - fix the function call
+      const logFunction = addAuditLog(request.application_id);
+      await logFunction(
         'Status (Approved)',
         request.current_status || 'Unpaid',
         request.requested_status
@@ -54,8 +55,9 @@ const PendingApprovals = ({ onUpdate }: PendingApprovalsProps) => {
     try {
       await reviewRequest(request.id, 'rejected', reviewComment);
       
-      // Add audit log for the rejection
-      await addAuditLog(request.application_id)(
+      // Add audit log for the rejection - fix the function call
+      const logFunction = addAuditLog(request.application_id);
+      await logFunction(
         'Status Change Rejected',
         request.current_status || 'Unpaid',
         `Rejected request for ${request.requested_status}`
