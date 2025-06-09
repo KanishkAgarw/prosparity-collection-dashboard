@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Upload, FileSpreadsheet, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -65,33 +64,12 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
 
     // Set column widths for better readability
     const colWidths = [
-      { wch: 20 }, // Applicant ID
-      { wch: 20 }, // Branch Name
-      { wch: 15 }, // RM Name
-      { wch: 25 }, // Dealer Name
-      { wch: 25 }, // Applicant Name
-      { wch: 15 }, // Applicant Mobile Number
-      { wch: 30 }, // Applicant Current Address
-      { wch: 15 }, // House Ownership
-      { wch: 25 }, // Co-Applicant Name
-      { wch: 15 }, // Coapplicant Mobile Number
-      { wch: 30 }, // Coapplicant Current Address
-      { wch: 25 }, // Guarantor Name
-      { wch: 15 }, // Guarantor Mobile Number
-      { wch: 30 }, // Guarantor Current Address
-      { wch: 25 }, // Reference Name
-      { wch: 15 }, // Reference Mobile Number
-      { wch: 30 }, // Reference Address
-      { wch: 25 }, // FI Submission Location
-      { wch: 12 }, // Demand Date
-      { wch: 15 }, // Repayment
-      { wch: 12 }, // Principle Due
-      { wch: 12 }, // Interest Due
-      { wch: 12 }, // EMI
-      { wch: 15 }, // Last Month Bounce
-      { wch: 25 }, // Lender Name
-      { wch: 15 }, // Status
-      { wch: 20 }  // Team Lead
+      { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 25 }, { wch: 25 },
+      { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 25 }, { wch: 15 },
+      { wch: 30 }, { wch: 25 }, { wch: 15 }, { wch: 30 }, { wch: 25 },
+      { wch: 15 }, { wch: 30 }, { wch: 25 }, { wch: 12 }, { wch: 15 },
+      { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 25 },
+      { wch: 15 }, { wch: 20 }
     ];
     
     worksheet['!cols'] = colWidths;
@@ -129,7 +107,7 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
         return;
       }
 
-      // Transform data to match database schema with the new column mapping including Status
+      // Transform data to match database schema, keeping status separate
       const applications = jsonData.map((row: any) => ({
         applicant_id: row['Applicant ID'] || row['applicant_id'],
         applicant_name: row['Applicant Name'] || row['applicant_name'],
@@ -144,7 +122,7 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
         interest_due: parseFloat(row['Interest Due'] || row['interest_due'] || '0'),
         demand_date: row['Demand Date'] || row['demand_date'],
         user_id: user.id,
-        // Additional fields
+        // Additional application fields
         applicant_mobile: row['Applicant Mobile Number'] || row['applicant_mobile'],
         applicant_address: row['Applicant Current Address'] || row['applicant_address'],
         house_ownership: row['House Ownership'] || row['house_ownership'],
@@ -160,7 +138,7 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
         fi_location: row['FI Submission Location'] || row['fi_location'],
         repayment: row['Repayment'] || row['repayment'],
         last_month_bounce: parseFloat(row['Last Month Bounce'] || row['last_month_bounce'] || '0'),
-        // Status field for field_status update
+        // Status field for field_status table update
         status: row['Status'] || row['status']
       }));
 
@@ -168,22 +146,43 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
 
       const results = await processBulkApplications(applications, user);
 
+      // Provide detailed feedback based on results
       if (results.errors.length > 0) {
         console.error('Upload errors:', results.errors);
-        toast.error(`Upload completed with errors. ${results.successful} successful, ${results.updated} updated, ${results.failed} failed.`, { id: 'upload' });
-      } else {
-        let message = `Upload successful! ${results.successful} new applications added, ${results.updated} applications updated.`;
+        
+        // Show detailed error information
+        let errorMessage = `Upload completed with some issues:\n`;
+        errorMessage += `✅ ${results.successful} new applications added\n`;
+        errorMessage += `✅ ${results.updated} applications updated\n`;
         if (results.statusUpdated > 0) {
-          message += ` ${results.statusUpdated} statuses updated.`;
+          errorMessage += `✅ ${results.statusUpdated} statuses updated\n`;
         }
-        toast.success(message, { id: 'upload' });
+        errorMessage += `❌ ${results.failed} failed\n`;
+        errorMessage += `\nFirst few errors:\n${results.errors.slice(0, 3).join('\n')}`;
+        
+        toast.error(errorMessage, { 
+          id: 'upload',
+          duration: 10000 // Show for longer to allow reading
+        });
+      } else {
+        let message = `🎉 Upload successful!\n`;
+        message += `✅ ${results.successful} new applications added\n`;
+        message += `✅ ${results.updated} applications updated`;
+        if (results.statusUpdated > 0) {
+          message += `\n✅ ${results.statusUpdated} statuses updated`;
+        }
+        
+        toast.success(message, { 
+          id: 'upload',
+          duration: 5000
+        });
       }
 
       onApplicationsAdded();
       setOpen(false);
     } catch (error) {
       console.error('Error processing file:', error);
-      toast.error('Failed to process file', { id: 'upload' });
+      toast.error(`Failed to process file: ${error}`, { id: 'upload' });
     } finally {
       setUploading(false);
       // Reset file input
@@ -247,7 +246,8 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
           <div className="text-xs text-gray-500">
             <p>Supported formats: Excel (.xlsx, .xls) and CSV (.csv)</p>
             <p>The system will update existing applications based on Applicant ID and add new ones.</p>
-            <p><strong>Status Column:</strong> Use to set field status (Unpaid, Partially Paid, Cash Collected from Customer, Customer Deposited to Bank, Paid)</p>
+            <p><strong>Status Values:</strong> Unpaid, Partially Paid, Cash Collected from Customer, Customer Deposited to Bank, Paid</p>
+            <p><strong>Note:</strong> Invalid status values will default to 'Unpaid'</p>
           </div>
         </div>
       </DialogContent>

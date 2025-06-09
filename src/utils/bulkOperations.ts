@@ -1,6 +1,5 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
 
 export const processBulkApplications = async (applications: any[], user?: any) => {
   console.log('Processing bulk applications:', applications.length);
@@ -13,8 +12,19 @@ export const processBulkApplications = async (applications: any[], user?: any) =
     errors: [] as string[]
   };
 
+  // Define valid status values for validation
+  const validStatuses = ['Unpaid', 'Partially Paid', 'Cash Collected from Customer', 'Customer Deposited to Bank', 'Paid'];
+
   for (const app of applications) {
     try {
+      // Separate status from application data
+      const { status: statusFromTemplate, ...applicationData } = app;
+      
+      // Validate status if provided
+      if (statusFromTemplate && !validStatuses.includes(statusFromTemplate)) {
+        console.warn(`Invalid status value: ${statusFromTemplate}. Using 'Unpaid' as default.`);
+      }
+
       // Check if application already exists
       const { data: existingApp } = await supabase
         .from('applications')
@@ -22,14 +32,12 @@ export const processBulkApplications = async (applications: any[], user?: any) =
         .eq('applicant_id', app.applicant_id)
         .maybeSingle();
 
-      const statusFromTemplate = app.status || app.Status;
-
       if (existingApp) {
-        // Update existing application
+        // Update existing application (excluding status field)
         const { error: updateError } = await supabase
           .from('applications')
           .update({
-            ...app,
+            ...applicationData,
             updated_at: new Date().toISOString()
           })
           .eq('applicant_id', app.applicant_id);
@@ -43,17 +51,22 @@ export const processBulkApplications = async (applications: any[], user?: any) =
           results.updated++;
 
           // Handle status update if Status column is provided
-          if (statusFromTemplate && user) {
-            await updateFieldStatusFromBulk(app.applicant_id, statusFromTemplate, user);
-            results.statusUpdated++;
+          if (statusFromTemplate && validStatuses.includes(statusFromTemplate) && user) {
+            try {
+              await updateFieldStatusFromBulk(app.applicant_id, statusFromTemplate, user);
+              results.statusUpdated++;
+            } catch (statusError) {
+              console.error('Error updating status for existing application:', statusError);
+              results.errors.push(`Failed to update status for ${app.applicant_id}: ${statusError}`);
+            }
           }
         }
       } else {
-        // Insert new application
+        // Insert new application (excluding status field)
         const { error: insertError } = await supabase
           .from('applications')
           .insert([{
-            ...app,
+            ...applicationData,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           }]);
@@ -68,7 +81,10 @@ export const processBulkApplications = async (applications: any[], user?: any) =
 
           // Create initial field status for new applications
           try {
-            const initialStatus = statusFromTemplate || 'Unpaid';
+            const initialStatus = (statusFromTemplate && validStatuses.includes(statusFromTemplate)) 
+              ? statusFromTemplate 
+              : 'Unpaid';
+            
             await supabase
               .from('field_status')
               .insert({
@@ -78,7 +94,7 @@ export const processBulkApplications = async (applications: any[], user?: any) =
                 user_email: user?.email || 'system@bulk-upload.local'
               });
 
-            if (statusFromTemplate) {
+            if (statusFromTemplate && validStatuses.includes(statusFromTemplate)) {
               results.statusUpdated++;
               
               // Add audit log for status setting
@@ -97,7 +113,7 @@ export const processBulkApplications = async (applications: any[], user?: any) =
             }
           } catch (fieldStatusError) {
             console.error('Error creating field status:', fieldStatusError);
-            // Don't fail the whole operation for this
+            results.errors.push(`Failed to create field status for ${app.applicant_id}: ${fieldStatusError}`);
           }
         }
       }
@@ -122,6 +138,12 @@ const updateFieldStatusFromBulk = async (applicationId: string, newStatus: strin
 
     const previousStatus = currentStatus?.status || 'Unpaid';
 
+    // Only update if status is actually changing
+    if (previousStatus === newStatus) {
+      console.log(`Status for ${applicationId} is already ${newStatus}, skipping update`);
+      return;
+    }
+
     // Update or insert field status
     const { error } = await supabase
       .from('field_status')
@@ -135,7 +157,7 @@ const updateFieldStatusFromBulk = async (applicationId: string, newStatus: strin
 
     if (error) {
       console.error('Error updating field status:', error);
-      return;
+      throw error;
     }
 
     // Add audit log for status change
@@ -153,5 +175,6 @@ const updateFieldStatusFromBulk = async (applicationId: string, newStatus: strin
     console.log(`Updated status for ${applicationId}: ${previousStatus} -> ${newStatus}`);
   } catch (error) {
     console.error('Error in updateFieldStatusFromBulk:', error);
+    throw error;
   }
 };
