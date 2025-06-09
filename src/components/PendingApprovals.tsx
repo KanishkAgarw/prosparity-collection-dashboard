@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,9 +32,9 @@ const PendingApprovals = ({ onUpdate }: PendingApprovalsProps) => {
       // Then update the actual field status
       await updateFieldStatus(request.application_id, request.requested_status);
       
-      // Add audit log for the approval - fix the function call
-      const logFunction = addAuditLog(request.application_id);
-      await logFunction(
+      // Add audit log for the approval - call the function directly with all 4 arguments
+      await addAuditLog(
+        request.application_id,
         'Status (Approved)',
         request.current_status || 'Unpaid',
         request.requested_status
@@ -55,9 +54,9 @@ const PendingApprovals = ({ onUpdate }: PendingApprovalsProps) => {
     try {
       await reviewRequest(request.id, 'rejected', reviewComment);
       
-      // Add audit log for the rejection - fix the function call
-      const logFunction = addAuditLog(request.application_id);
-      await logFunction(
+      // Add audit log for the rejection - call the function directly with all 4 arguments
+      await addAuditLog(
+        request.application_id,
         'Status Change Rejected',
         request.current_status || 'Unpaid',
         `Rejected request for ${request.requested_status}`

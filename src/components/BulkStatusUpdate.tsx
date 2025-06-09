@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -35,9 +34,9 @@ const BulkStatusUpdate = ({ selectedApplications, onUpdate, onCancel }: BulkStat
         // Update field status
         await updateFieldStatus(app.applicant_id, newStatus);
         
-        // Add audit log - fix the function call
-        const logFunction = addAuditLog(app.applicant_id);
-        await logFunction(
+        // Add audit log - call the function directly with all 3 arguments
+        await addAuditLog(
+          app.applicant_id,
           'Status (Bulk Update)',
           previousStatus,
           newStatus
