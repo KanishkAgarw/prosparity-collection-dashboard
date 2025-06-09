@@ -5,13 +5,17 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Application } from "@/types/application";
 import { AuditLog } from "@/hooks/useAuditLogs";
 import { format } from "date-fns";
 import { formatPtpDate } from "@/utils/formatters";
 import { History } from "lucide-react";
 import { useFilteredAuditLogs } from "@/hooks/useFilteredAuditLogs";
+import { useUserRoles } from "@/hooks/useUserRoles";
+import { useStatusChangeRequests } from "@/hooks/useStatusChangeRequests";
 import LogDialog from "./LogDialog";
+import { toast } from "sonner";
 
 interface StatusTabProps {
   application: Application;
@@ -23,6 +27,9 @@ interface StatusTabProps {
 const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: StatusTabProps) => {
   const [ptpDate, setPtpDate] = useState('');
   const [showLogDialog, setShowLogDialog] = useState(false);
+  const [requestReason, setRequestReason] = useState('');
+  const { isAdmin } = useUserRoles();
+  const { createRequest } = useStatusChangeRequests();
   
   // PTP date synchronization
   useEffect(() => {
@@ -80,6 +87,28 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
     onPtpDateChange(value);
   };
 
+  const handleStatusChange = async (newStatus: string) => {
+    // If user is not admin and trying to set status to "Paid", create a request
+    if (!isAdmin && newStatus === 'Paid') {
+      try {
+        await createRequest(
+          application.applicant_id,
+          newStatus,
+          application.field_status || 'Unpaid',
+          requestReason
+        );
+        toast.success('Status change request submitted for admin approval');
+        setRequestReason('');
+      } catch (error) {
+        console.error('Error creating status change request:', error);
+        toast.error('Failed to submit status change request');
+      }
+    } else {
+      // Admin or non-"Paid" status changes go through directly
+      onStatusChange(newStatus);
+    }
+  };
+
   const formatDateTime = (dateStr: string) => {
     try {
       const date = new Date(dateStr);
@@ -102,7 +131,10 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
           <div className="space-y-4">
             <div>
               <Label htmlFor="status">Status</Label>
-              <Select value={application.field_status || 'Unpaid'} onValueChange={onStatusChange}>
+              <Select 
+                value={application.field_status || 'Unpaid'} 
+                onValueChange={handleStatusChange}
+              >
                 <SelectTrigger className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
@@ -111,9 +143,27 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
                   <SelectItem value="Partially Paid">Partially Paid</SelectItem>
                   <SelectItem value="Cash Collected from Customer">Cash Collected from Customer</SelectItem>
                   <SelectItem value="Customer Deposited to Bank">Customer Deposited to Bank</SelectItem>
-                  <SelectItem value="Paid">Paid</SelectItem>
+                  <SelectItem value="Paid">
+                    Paid {!isAdmin && '(Requires Approval)'}
+                  </SelectItem>
                 </SelectContent>
               </Select>
+              
+              {!isAdmin && (
+                <div className="mt-2">
+                  <Label htmlFor="reason" className="text-xs">
+                    Reason for status change (optional)
+                  </Label>
+                  <Textarea
+                    id="reason"
+                    value={requestReason}
+                    onChange={(e) => setRequestReason(e.target.value)}
+                    placeholder="Provide reason for status change..."
+                    className="mt-1 text-xs"
+                    rows={2}
+                  />
+                </div>
+              )}
             </div>
             
             <div>

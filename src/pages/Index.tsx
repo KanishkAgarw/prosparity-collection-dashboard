@@ -5,6 +5,7 @@ import { useCascadingFilters } from "@/hooks/useCascadingFilters";
 import { useExport } from "@/hooks/useExport";
 import { useUserProfiles } from "@/hooks/useUserProfiles";
 import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
+import { useUserRoles } from "@/hooks/useUserRoles";
 import { Application } from "@/types/application";
 import ApplicationDetailsPanel from "@/components/ApplicationDetailsPanel";
 import AppHeader from "@/components/layout/AppHeader";
@@ -19,6 +20,7 @@ import { useNavigate } from "react-router-dom";
 const Index = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const { isAdmin, loading: rolesLoading } = useUserRoles();
   const { fetchProfiles } = useUserProfiles();
   const [currentPage, setCurrentPage] = useState(1);
   const { applications, allApplications, loading: appsLoading, refetch, totalCount, totalPages } = useApplications({ 
@@ -114,7 +116,7 @@ const Index = () => {
   };
 
   // Show loading screen while auth is loading
-  if (authLoading) {
+  if (authLoading || rolesLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>

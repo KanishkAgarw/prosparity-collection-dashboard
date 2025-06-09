@@ -1,6 +1,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { formatEmiMonth, formatCurrency, formatPtpDate } from "@/utils/formatters";
 import { Application } from "@/types/application";
 import CallStatusDisplay from "./CallStatusDisplay";
@@ -10,6 +11,9 @@ interface ApplicationsTableProps {
   onRowClick: (application: Application) => void;
   onApplicationDeleted?: () => void;
   selectedApplicationId?: string;
+  selectedApplications?: Application[];
+  onSelectionChange?: (applications: Application[]) => void;
+  showBulkSelection?: boolean;
 }
 
 const getStatusBadge = (status: string) => {
@@ -36,13 +40,54 @@ const formatLenderName = (lenderName: string) => {
   return lenderName;
 };
 
-const ApplicationsTable = ({ applications, onRowClick, selectedApplicationId }: ApplicationsTableProps) => {
+const ApplicationsTable = ({ 
+  applications, 
+  onRowClick, 
+  selectedApplicationId,
+  selectedApplications = [],
+  onSelectionChange,
+  showBulkSelection = false
+}: ApplicationsTableProps) => {
+
+  const handleSelectAll = (checked: boolean) => {
+    if (!onSelectionChange) return;
+    onSelectionChange(checked ? applications : []);
+  };
+
+  const handleSelectApplication = (application: Application, checked: boolean) => {
+    if (!onSelectionChange) return;
+    
+    if (checked) {
+      onSelectionChange([...selectedApplications, application]);
+    } else {
+      onSelectionChange(selectedApplications.filter(app => app.id !== application.id));
+    }
+  };
+
+  const isApplicationSelected = (application: Application) => {
+    return selectedApplications.some(app => app.id === application.id);
+  };
+
+  const allSelected = applications.length > 0 && selectedApplications.length === applications.length;
+  const someSelected = selectedApplications.length > 0 && selectedApplications.length < applications.length;
+
   return (
     <div className="px-4 sm:px-6 lg:px-8">
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
+              {showBulkSelection && (
+                <TableHead className="w-[50px]">
+                  <Checkbox
+                    checked={allSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = someSelected;
+                    }}
+                    onCheckedChange={handleSelectAll}
+                  />
+                </TableHead>
+              )}
               <TableHead className="min-w-[320px]">Details</TableHead>
               <TableHead className="min-w-[120px]">EMI Due</TableHead>
               <TableHead className="min-w-[120px]">Status</TableHead>
@@ -60,8 +105,20 @@ const ApplicationsTable = ({ applications, onRowClick, selectedApplicationId }: 
                     ? 'bg-blue-50 border-l-4 border-l-blue-500 hover:bg-blue-100' 
                     : 'hover:bg-gray-50'
                 }`}
-                onClick={() => onRowClick(app)}
+                onClick={(e) => {
+                  if (!showBulkSelection || !(e.target as HTMLElement).closest('input[type="checkbox"]')) {
+                    onRowClick(app);
+                  }
+                }}
               >
+                {showBulkSelection && (
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={isApplicationSelected(app)}
+                      onCheckedChange={(checked) => handleSelectApplication(app, checked as boolean)}
+                    />
+                  </TableCell>
+                )}
                 <TableCell className="py-3">
                   <div className="space-y-1">
                     <div className="font-semibold text-blue-900">{app.applicant_name}</div>
