@@ -27,18 +27,10 @@ const UserRoleManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      // Get all profiles with their roles
+      // Get all profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select(`
-          id,
-          email,
-          full_name,
-          user_roles!left (
-            role,
-            created_at
-          )
-        `)
+        .select('id, email, full_name')
         .order('email');
 
       if (profilesError) {
@@ -47,13 +39,33 @@ const UserRoleManagement = () => {
         return;
       }
 
-      const usersWithRoles = profiles?.map(profile => ({
-        id: profile.id,
-        email: profile.email || '',
-        full_name: profile.full_name,
-        role: profile.user_roles?.[0]?.role || 'user',
-        role_created_at: profile.user_roles?.[0]?.created_at
-      })) || [];
+      if (!profiles) {
+        setUsers([]);
+        return;
+      }
+
+      // Get user roles
+      const { data: userRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role, created_at');
+
+      if (rolesError) {
+        console.error('Error fetching user roles:', rolesError);
+        toast.error('Failed to fetch user roles');
+        return;
+      }
+
+      // Combine profiles with roles
+      const usersWithRoles = profiles.map(profile => {
+        const userRole = userRoles?.find(role => role.user_id === profile.id);
+        return {
+          id: profile.id,
+          email: profile.email || '',
+          full_name: profile.full_name,
+          role: userRole?.role || 'user',
+          role_created_at: userRole?.created_at
+        };
+      });
 
       setUsers(usersWithRoles);
     } catch (error) {

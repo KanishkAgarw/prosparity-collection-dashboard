@@ -47,26 +47,46 @@ const PendingApprovals = ({ onUpdate }: PendingApprovalsProps) => {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // First get the status change requests
+      const { data: requestsData, error: requestsError } = await supabase
         .from('status_change_requests')
-        .select(`
-          *,
-          applications!inner(applicant_name, applicant_id)
-        `)
+        .select('*')
         .eq('approval_status', 'pending')
         .order('request_timestamp', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching pending requests:', error);
+      if (requestsError) {
+        console.error('Error fetching pending requests:', requestsError);
         toast.error('Failed to fetch pending requests');
         return;
       }
 
-      const requestsWithAppDetails = data?.map(request => ({
-        ...request,
-        applicant_name: request.applications?.applicant_name,
-        applicant_id: request.applications?.applicant_id
-      })) || [];
+      if (!requestsData || requestsData.length === 0) {
+        setRequests([]);
+        return;
+      }
+
+      // Get application details for each request
+      const applicationIds = requestsData.map(req => req.application_id);
+      const { data: applicationsData, error: applicationsError } = await supabase
+        .from('applications')
+        .select('applicant_id, applicant_name')
+        .in('applicant_id', applicationIds);
+
+      if (applicationsError) {
+        console.error('Error fetching applications:', applicationsError);
+        toast.error('Failed to fetch application details');
+        return;
+      }
+
+      // Combine the data
+      const requestsWithAppDetails = requestsData.map(request => {
+        const appDetails = applicationsData?.find(app => app.applicant_id === request.application_id);
+        return {
+          ...request,
+          applicant_name: appDetails?.applicant_name,
+          applicant_id: appDetails?.applicant_id
+        };
+      });
 
       setRequests(requestsWithAppDetails);
     } catch (error) {
