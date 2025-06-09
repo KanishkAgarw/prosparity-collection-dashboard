@@ -20,10 +20,14 @@ export const updateMissingPtpDates = async () => {
 
   for (const update of updates) {
     try {
+      // Insert into ptp_dates table instead of updating applications table
       const { data, error } = await supabase
-        .from('applications')
-        .update({ ptp_date: update.ptp_date })
-        .eq('applicant_id', update.applicant_id)
+        .from('ptp_dates')
+        .insert({
+          application_id: update.applicant_id,
+          ptp_date: update.ptp_date,
+          user_id: 'system' // Use a system user ID or get from auth
+        })
         .select();
 
       if (error) {

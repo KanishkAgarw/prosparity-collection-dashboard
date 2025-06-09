@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Application } from "@/types/application";
 import { useContactCallingStatus } from "@/hooks/useContactCallingStatus";
 import { useFieldStatus } from "@/hooks/useFieldStatus";
+import { usePtpDates } from "@/hooks/usePtpDates";
 
 export const useApplicationHandlers = (
   application: Application | null,
@@ -14,6 +15,7 @@ export const useApplicationHandlers = (
 ) => {
   const { updateCallingStatus } = useContactCallingStatus(application?.applicant_id);
   const { updateFieldStatus } = useFieldStatus();
+  const { updatePtpDate } = usePtpDates();
 
   const handleStatusChange = async (newStatus: string) => {
     if (!user || !application || newStatus === application.field_status) return;
@@ -67,34 +69,13 @@ export const useApplicationHandlers = (
         console.log('Converted PTP value:', ptpValue);
       }
 
-      // Step 2: Update applications table
-      console.log('=== UPDATING APPLICATIONS TABLE ===');
-      const updateData = {
-        ptp_date: ptpValue,
-        updated_at: new Date().toISOString()
-      };
+      // Step 2: Update PTP dates table instead of applications table
+      console.log('=== UPDATING PTP DATES TABLE ===');
+      const success = await updatePtpDate(application.applicant_id, ptpValue);
 
-      console.log('Update payload:', updateData);
-
-      const { data: updateResult, error: updateError } = await supabase
-        .from('applications')
-        .update(updateData)
-        .eq('applicant_id', application.applicant_id)
-        .select('ptp_date, updated_at, applicant_name')
-        .single();
-
-      console.log('Update result:', updateResult);
-      console.log('Update error:', updateError);
-
-      if (updateError) {
-        console.error('Database update failed:', updateError);
-        toast.error(`Database update failed: ${updateError.message}`);
-        return;
-      }
-
-      if (!updateResult) {
-        console.error('No data returned from update');
-        toast.error('No data returned from update');
+      if (!success) {
+        console.error('PTP date update failed');
+        toast.error('Failed to update PTP date');
         return;
       }
 
@@ -116,7 +97,7 @@ export const useApplicationHandlers = (
       const updatedApp = {
         ...application,
         ptp_date: ptpValue,
-        updated_at: updateResult.updated_at
+        updated_at: new Date().toISOString()
       };
       
       console.log('Calling onSave with updated app:', {

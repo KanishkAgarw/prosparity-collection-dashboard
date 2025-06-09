@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -41,6 +40,53 @@ export const useContactCallingStatus = (applicationId?: string) => {
       setLoading(false);
     }
   };
+
+  const fetchContactStatuses = useCallback(async (applicationIds: string[]): Promise<Record<string, Record<string, string>>> => {
+    if (!user || applicationIds.length === 0) return {};
+    
+    try {
+      const { data, error } = await supabase
+        .from('contact_calling_status')
+        .select('application_id, contact_type, status, created_at')
+        .in('application_id', applicationIds)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching contact statuses:', error);
+        return {};
+      }
+
+      // Group by application_id and get latest status for each contact type
+      const statusMap: Record<string, Record<string, string>> = {};
+      data?.forEach(status => {
+        if (!statusMap[status.application_id]) {
+          statusMap[status.application_id] = {};
+        }
+        
+        // Only set if we don't already have a status for this contact type (keeps latest due to ordering)
+        if (!statusMap[status.application_id][status.contact_type]) {
+          statusMap[status.application_id][status.contact_type] = status.status;
+        }
+      });
+
+      // Add latest calling status for each application
+      Object.keys(statusMap).forEach(appId => {
+        const statuses = Object.values(statusMap[appId]);
+        if (statuses.length > 0) {
+          // Find the most recent non-"Not Called" status, or "Not Called" if all are
+          const activeStatuses = statuses.filter(s => s !== 'Not Called');
+          statusMap[appId].latest = activeStatuses.length > 0 ? activeStatuses[0] : 'No Calls';
+        } else {
+          statusMap[appId].latest = 'No Calls';
+        }
+      });
+
+      return statusMap;
+    } catch (error) {
+      console.error('Error fetching contact statuses:', error);
+      return {};
+    }
+  }, [user]);
 
   const updateCallingStatus = async (contactType: string, newStatus: string) => {
     if (!applicationId || !user) return;
@@ -90,6 +136,7 @@ export const useContactCallingStatus = (applicationId?: string) => {
     loading,
     updateCallingStatus,
     getStatusForContact,
-    refetch: fetchCallingStatuses
+    refetch: fetchCallingStatuses,
+    fetchContactStatuses
   };
 };
