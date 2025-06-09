@@ -95,12 +95,13 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
     toast.loading('Processing file...', { id: 'upload' });
 
     try {
+      console.log('Starting file upload process');
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      console.log('Parsed data:', jsonData);
+      console.log('Parsed data from file:', jsonData.length, 'rows');
 
       if (jsonData.length === 0) {
         toast.error('No data found in the file', { id: 'upload' });
@@ -108,49 +109,52 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
       }
 
       // Transform data to match database schema, keeping status separate
-      const applications = jsonData.map((row: any) => ({
-        applicant_id: row['Applicant ID'] || row['applicant_id'],
-        applicant_name: row['Applicant Name'] || row['applicant_name'],
-        branch_name: row['Branch Name'] || row['branch_name'],
-        team_lead: row['Team Lead'] || row['team_lead'],
-        rm_name: row['RM Name'] || row['rm_name'],
-        dealer_name: row['Dealer Name'] || row['dealer_name'],
-        lender_name: row['Lender Name'] || row['lender_name'],
-        lms_status: row['LMS Status'] || row['lms_status'] || 'Unpaid',
-        emi_amount: parseFloat(row['EMI'] || row['EMI Amount'] || row['emi_amount'] || '0'),
-        principle_due: parseFloat(row['Principle Due'] || row['principle_due'] || '0'),
-        interest_due: parseFloat(row['Interest Due'] || row['interest_due'] || '0'),
-        demand_date: row['Demand Date'] || row['demand_date'],
-        user_id: user.id,
-        // Additional application fields
-        applicant_mobile: row['Applicant Mobile Number'] || row['applicant_mobile'],
-        applicant_address: row['Applicant Current Address'] || row['applicant_address'],
-        house_ownership: row['House Ownership'] || row['house_ownership'],
-        co_applicant_name: row['Co-Applicant Name'] || row['co_applicant_name'],
-        co_applicant_mobile: row['Coapplicant Mobile Number'] || row['co_applicant_mobile'],
-        co_applicant_address: row['Coapplicant Current Address'] || row['co_applicant_address'],
-        guarantor_name: row['Guarantor Name'] || row['guarantor_name'],
-        guarantor_mobile: row['Guarantor Mobile Number'] || row['guarantor_mobile'],
-        guarantor_address: row['Guarantor Current Address'] || row['guarantor_address'],
-        reference_name: row['Reference Name'] || row['reference_name'],
-        reference_mobile: row['Reference Mobile Number'] || row['reference_mobile'],
-        reference_address: row['Reference Address'] || row['reference_address'],
-        fi_location: row['FI Submission Location'] || row['fi_location'],
-        repayment: row['Repayment'] || row['repayment'],
-        last_month_bounce: parseFloat(row['Last Month Bounce'] || row['last_month_bounce'] || '0'),
-        // Status field for field_status table update
-        status: row['Status'] || row['status']
-      }));
+      const applications = jsonData.map((row: any, index: number) => {
+        console.log(`Transforming row ${index + 1}:`, row);
+        return {
+          applicant_id: row['Applicant ID'] || row['applicant_id'],
+          applicant_name: row['Applicant Name'] || row['applicant_name'],
+          branch_name: row['Branch Name'] || row['branch_name'],
+          team_lead: row['Team Lead'] || row['team_lead'],
+          rm_name: row['RM Name'] || row['rm_name'],
+          dealer_name: row['Dealer Name'] || row['dealer_name'],
+          lender_name: row['Lender Name'] || row['lender_name'],
+          lms_status: row['LMS Status'] || row['lms_status'] || 'Unpaid',
+          emi_amount: parseFloat(row['EMI'] || row['EMI Amount'] || row['emi_amount'] || '0'),
+          principle_due: parseFloat(row['Principle Due'] || row['principle_due'] || '0'),
+          interest_due: parseFloat(row['Interest Due'] || row['interest_due'] || '0'),
+          demand_date: row['Demand Date'] || row['demand_date'],
+          user_id: user.id,
+          // Additional application fields
+          applicant_mobile: row['Applicant Mobile Number'] || row['applicant_mobile'],
+          applicant_address: row['Applicant Current Address'] || row['applicant_address'],
+          house_ownership: row['House Ownership'] || row['house_ownership'],
+          co_applicant_name: row['Co-Applicant Name'] || row['co_applicant_name'],
+          co_applicant_mobile: row['Coapplicant Mobile Number'] || row['co_applicant_mobile'],
+          co_applicant_address: row['Coapplicant Current Address'] || row['co_applicant_address'],
+          guarantor_name: row['Guarantor Name'] || row['guarantor_name'],
+          guarantor_mobile: row['Guarantor Mobile Number'] || row['guarantor_mobile'],
+          guarantor_address: row['Guarantor Current Address'] || row['guarantor_address'],
+          reference_name: row['Reference Name'] || row['reference_name'],
+          reference_mobile: row['Reference Mobile Number'] || row['reference_mobile'],
+          reference_address: row['Reference Address'] || row['reference_address'],
+          fi_location: row['FI Submission Location'] || row['fi_location'],
+          repayment: row['Repayment'] || row['repayment'],
+          last_month_bounce: parseFloat(row['Last Month Bounce'] || row['last_month_bounce'] || '0'),
+          // Status field for field_status table update
+          status: row['Status'] || row['status']
+        };
+      });
 
-      console.log('Transformed applications:', applications);
+      console.log('Transformed applications ready for processing:', applications.length);
 
       const results = await processBulkApplications(applications, user);
+      console.log('Bulk processing results:', results);
 
       // Provide detailed feedback based on results
       if (results.errors.length > 0) {
         console.error('Upload errors:', results.errors);
         
-        // Show detailed error information
         let errorMessage = `Upload completed with some issues:\n`;
         errorMessage += `✅ ${results.successful} new applications added\n`;
         errorMessage += `✅ ${results.updated} applications updated\n`;

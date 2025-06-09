@@ -17,6 +17,8 @@ export const processBulkApplications = async (applications: any[], user?: any) =
 
   for (const app of applications) {
     try {
+      console.log(`Processing application: ${app.applicant_id}`);
+      
       // Separate status from application data
       const { status: statusFromTemplate, ...applicationData } = app;
       
@@ -33,6 +35,8 @@ export const processBulkApplications = async (applications: any[], user?: any) =
         .maybeSingle();
 
       if (existingApp) {
+        console.log(`Updating existing application: ${app.applicant_id}`);
+        
         // Update existing application (excluding status field)
         const { error: updateError } = await supabase
           .from('applications')
@@ -55,6 +59,7 @@ export const processBulkApplications = async (applications: any[], user?: any) =
             try {
               await updateFieldStatusFromBulk(app.applicant_id, statusFromTemplate, user);
               results.statusUpdated++;
+              console.log(`Status updated for existing application: ${app.applicant_id}`);
             } catch (statusError) {
               console.error('Error updating status for existing application:', statusError);
               results.errors.push(`Failed to update status for ${app.applicant_id}: ${statusError}`);
@@ -62,6 +67,8 @@ export const processBulkApplications = async (applications: any[], user?: any) =
           }
         }
       } else {
+        console.log(`Creating new application: ${app.applicant_id}`);
+        
         // Insert new application (excluding status field)
         const { error: insertError } = await supabase
           .from('applications')
@@ -79,36 +86,47 @@ export const processBulkApplications = async (applications: any[], user?: any) =
           console.log('Inserted application:', app.applicant_id);
           results.successful++;
 
-          // Create initial field status for new applications
+          // Create initial field status for new applications using upsert
           try {
             const initialStatus = (statusFromTemplate && validStatuses.includes(statusFromTemplate)) 
               ? statusFromTemplate 
               : 'Unpaid';
             
-            await supabase
+            console.log(`Creating field status for new application: ${app.applicant_id} with status: ${initialStatus}`);
+            
+            // Use upsert to handle potential duplicates
+            const { error: fieldStatusError } = await supabase
               .from('field_status')
-              .insert({
+              .upsert({
                 application_id: app.applicant_id,
                 status: initialStatus,
                 user_id: user?.id || app.user_id,
-                user_email: user?.email || 'system@bulk-upload.local'
+                user_email: user?.email || 'system@bulk-upload.local',
+                updated_at: new Date().toISOString()
+              }, {
+                onConflict: 'application_id'
               });
 
-            if (statusFromTemplate && validStatuses.includes(statusFromTemplate)) {
-              results.statusUpdated++;
-              
-              // Add audit log for status setting
-              if (user) {
-                await supabase
-                  .from('audit_logs')
-                  .insert({
-                    field: 'Status (Bulk Upload)',
-                    previous_value: 'Unpaid',
-                    new_value: statusFromTemplate,
-                    application_id: app.applicant_id,
-                    user_id: user.id,
-                    user_email: user.email
-                  });
+            if (fieldStatusError) {
+              console.error('Error creating field status:', fieldStatusError);
+              results.errors.push(`Failed to create field status for ${app.applicant_id}: ${fieldStatusError.message}`);
+            } else {
+              if (statusFromTemplate && validStatuses.includes(statusFromTemplate)) {
+                results.statusUpdated++;
+                
+                // Add audit log for status setting
+                if (user) {
+                  await supabase
+                    .from('audit_logs')
+                    .insert({
+                      field: 'Status (Bulk Upload)',
+                      previous_value: 'Unpaid',
+                      new_value: statusFromTemplate,
+                      application_id: app.applicant_id,
+                      user_id: user.id,
+                      user_email: user.email
+                    });
+                }
               }
             }
           } catch (fieldStatusError) {
@@ -124,12 +142,15 @@ export const processBulkApplications = async (applications: any[], user?: any) =
     }
   }
 
+  console.log('Bulk processing completed:', results);
   return results;
 };
 
 const updateFieldStatusFromBulk = async (applicationId: string, newStatus: string, user: any) => {
   try {
-    // Get current status
+    console.log(`Updating field status for ${applicationId} to ${newStatus}`);
+    
+    // Get current status first
     const { data: currentStatus } = await supabase
       .from('field_status')
       .select('status')
@@ -144,7 +165,7 @@ const updateFieldStatusFromBulk = async (applicationId: string, newStatus: strin
       return;
     }
 
-    // Update or insert field status
+    // Use upsert with proper conflict resolution
     const { error } = await supabase
       .from('field_status')
       .upsert({
@@ -153,6 +174,8 @@ const updateFieldStatusFromBulk = async (applicationId: string, newStatus: strin
         user_id: user.id,
         user_email: user.email,
         updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'application_id'
       });
 
     if (error) {
@@ -172,7 +195,7 @@ const updateFieldStatusFromBulk = async (applicationId: string, newStatus: strin
         user_email: user.email
       });
 
-    console.log(`Updated status for ${applicationId}: ${previousStatus} -> ${newStatus}`);
+    console.log(`Successfully updated status for ${applicationId}: ${previousStatus} -> ${newStatus}`);
   } catch (error) {
     console.error('Error in updateFieldStatusFromBulk:', error);
     throw error;
