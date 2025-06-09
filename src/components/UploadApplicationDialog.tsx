@@ -26,7 +26,7 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
   const [uploading, setUploading] = useState(false);
 
   const downloadTemplate = () => {
-    // Create template data with example row and the exact 27 required columns
+    // Create template data with example row and the exact 28 required columns (including Status)
     const templateData = [
       {
         'Applicant ID': 'PROSAPP250101000001',
@@ -90,7 +90,7 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
       { wch: 12 }, // EMI
       { wch: 15 }, // Last Month Bounce
       { wch: 25 }, // Lender Name
-      { wch: 12 }, // Status
+      { wch: 15 }, // Status
       { wch: 20 }  // Team Lead
     ];
     
@@ -129,7 +129,7 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
         return;
       }
 
-      // Transform data to match database schema with the new column mapping
+      // Transform data to match database schema with the new column mapping including Status
       const applications = jsonData.map((row: any) => ({
         applicant_id: row['Applicant ID'] || row['applicant_id'],
         applicant_name: row['Applicant Name'] || row['applicant_name'],
@@ -138,7 +138,7 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
         rm_name: row['RM Name'] || row['rm_name'],
         dealer_name: row['Dealer Name'] || row['dealer_name'],
         lender_name: row['Lender Name'] || row['lender_name'],
-        lms_status: row['LMS Status'] || row['lms_status'] || 'Unpaid', // Keep LMS status for database compatibility but don't use Status column for it
+        lms_status: row['LMS Status'] || row['lms_status'] || 'Unpaid',
         emi_amount: parseFloat(row['EMI'] || row['EMI Amount'] || row['emi_amount'] || '0'),
         principle_due: parseFloat(row['Principle Due'] || row['principle_due'] || '0'),
         interest_due: parseFloat(row['Interest Due'] || row['interest_due'] || '0'),
@@ -159,18 +159,24 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
         reference_address: row['Reference Address'] || row['reference_address'],
         fi_location: row['FI Submission Location'] || row['fi_location'],
         repayment: row['Repayment'] || row['repayment'],
-        last_month_bounce: parseFloat(row['Last Month Bounce'] || row['last_month_bounce'] || '0')
+        last_month_bounce: parseFloat(row['Last Month Bounce'] || row['last_month_bounce'] || '0'),
+        // Status field for field_status update
+        status: row['Status'] || row['status']
       }));
 
       console.log('Transformed applications:', applications);
 
-      const results = await processBulkApplications(applications);
+      const results = await processBulkApplications(applications, user);
 
       if (results.errors.length > 0) {
         console.error('Upload errors:', results.errors);
         toast.error(`Upload completed with errors. ${results.successful} successful, ${results.updated} updated, ${results.failed} failed.`, { id: 'upload' });
       } else {
-        toast.success(`Upload successful! ${results.successful} new applications added, ${results.updated} applications updated.`, { id: 'upload' });
+        let message = `Upload successful! ${results.successful} new applications added, ${results.updated} applications updated.`;
+        if (results.statusUpdated > 0) {
+          message += ` ${results.statusUpdated} statuses updated.`;
+        }
+        toast.success(message, { id: 'upload' });
       }
 
       onApplicationsAdded();
@@ -200,7 +206,7 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
             Upload Applications
           </DialogTitle>
           <DialogDescription>
-            Upload Excel/CSV files containing application data. The system will automatically update existing applications or add new ones.
+            Upload Excel/CSV files containing application data. The system will automatically update existing applications or add new ones. Use the Status column to set field status.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -210,7 +216,7 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
               <div>
                 <h4 className="font-medium text-blue-900">Step 1: Download Template</h4>
                 <p className="text-sm text-blue-700 mt-1">
-                  Download the Excel template with the required format (27 columns)
+                  Download the Excel template with the required format (27 columns + Status)
                 </p>
               </div>
               <Button 
@@ -241,6 +247,7 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
           <div className="text-xs text-gray-500">
             <p>Supported formats: Excel (.xlsx, .xls) and CSV (.csv)</p>
             <p>The system will update existing applications based on Applicant ID and add new ones.</p>
+            <p><strong>Status Column:</strong> Use to set field status (Unpaid, Partially Paid, Cash Collected from Customer, Customer Deposited to Bank, Paid)</p>
           </div>
         </div>
       </DialogContent>

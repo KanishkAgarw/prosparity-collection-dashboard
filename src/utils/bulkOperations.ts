@@ -1,13 +1,15 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
-export const processBulkApplications = async (applications: any[]) => {
+export const processBulkApplications = async (applications: any[], user?: any) => {
   console.log('Processing bulk applications:', applications.length);
   
   const results = {
     successful: 0,
     failed: 0,
     updated: 0,
+    statusUpdated: 0,
     errors: [] as string[]
   };
 
@@ -20,8 +22,10 @@ export const processBulkApplications = async (applications: any[]) => {
         .eq('applicant_id', app.applicant_id)
         .maybeSingle();
 
+      const statusFromTemplate = app.status || app.Status;
+
       if (existingApp) {
-        // Update existing application (including LMS status)
+        // Update existing application
         const { error: updateError } = await supabase
           .from('applications')
           .update({
@@ -37,6 +41,12 @@ export const processBulkApplications = async (applications: any[]) => {
         } else {
           console.log('Updated application:', app.applicant_id);
           results.updated++;
+
+          // Handle status update if Status column is provided
+          if (statusFromTemplate && user) {
+            await updateFieldStatusFromBulk(app.applicant_id, statusFromTemplate, user);
+            results.statusUpdated++;
+          }
         }
       } else {
         // Insert new application
@@ -58,14 +68,33 @@ export const processBulkApplications = async (applications: any[]) => {
 
           // Create initial field status for new applications
           try {
+            const initialStatus = statusFromTemplate || 'Unpaid';
             await supabase
               .from('field_status')
               .insert({
                 application_id: app.applicant_id,
-                status: 'Unpaid',
-                user_id: app.user_id,
-                user_email: 'system@bulk-upload.local'
+                status: initialStatus,
+                user_id: user?.id || app.user_id,
+                user_email: user?.email || 'system@bulk-upload.local'
               });
+
+            if (statusFromTemplate) {
+              results.statusUpdated++;
+              
+              // Add audit log for status setting
+              if (user) {
+                await supabase
+                  .from('audit_logs')
+                  .insert({
+                    field: 'Status (Bulk Upload)',
+                    previous_value: 'Unpaid',
+                    new_value: statusFromTemplate,
+                    application_id: app.applicant_id,
+                    user_id: user.id,
+                    user_email: user.email
+                  });
+              }
+            }
           } catch (fieldStatusError) {
             console.error('Error creating field status:', fieldStatusError);
             // Don't fail the whole operation for this
@@ -80,4 +109,49 @@ export const processBulkApplications = async (applications: any[]) => {
   }
 
   return results;
+};
+
+const updateFieldStatusFromBulk = async (applicationId: string, newStatus: string, user: any) => {
+  try {
+    // Get current status
+    const { data: currentStatus } = await supabase
+      .from('field_status')
+      .select('status')
+      .eq('application_id', applicationId)
+      .maybeSingle();
+
+    const previousStatus = currentStatus?.status || 'Unpaid';
+
+    // Update or insert field status
+    const { error } = await supabase
+      .from('field_status')
+      .upsert({
+        application_id: applicationId,
+        status: newStatus,
+        user_id: user.id,
+        user_email: user.email,
+        updated_at: new Date().toISOString()
+      });
+
+    if (error) {
+      console.error('Error updating field status:', error);
+      return;
+    }
+
+    // Add audit log for status change
+    await supabase
+      .from('audit_logs')
+      .insert({
+        field: 'Status (Bulk Upload)',
+        previous_value: previousStatus,
+        new_value: newStatus,
+        application_id: applicationId,
+        user_id: user.id,
+        user_email: user.email
+      });
+
+    console.log(`Updated status for ${applicationId}: ${previousStatus} -> ${newStatus}`);
+  } catch (error) {
+    console.error('Error in updateFieldStatusFromBulk:', error);
+  }
 };

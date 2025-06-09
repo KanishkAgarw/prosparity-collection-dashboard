@@ -62,11 +62,12 @@ export const useAuditLogs = (applicationId?: string) => {
     }));
   }, [rawAuditLogs, getUserName]);
 
-  const addAuditLog = async (field: string, previousValue: string | null, newValue: string | null) => {
-    if (!applicationId || !user) return;
+  // Updated function signature to accept applicationId as first parameter
+  const addAuditLog = async (appId: string, field: string, previousValue: string | null, newValue: string | null) => {
+    if (!user) return;
 
     try {
-      console.log('Adding audit log for application:', applicationId, { field, previousValue, newValue });
+      console.log('Adding audit log for application:', appId, { field, previousValue, newValue });
       
       const { error } = await supabase
         .from('audit_logs')
@@ -74,7 +75,7 @@ export const useAuditLogs = (applicationId?: string) => {
           field,
           previous_value: previousValue,
           new_value: newValue,
-          application_id: applicationId,
+          application_id: appId,
           user_id: user.id,
           user_email: user.email
         });
@@ -83,7 +84,10 @@ export const useAuditLogs = (applicationId?: string) => {
         console.error('Error adding audit log:', error);
       } else {
         console.log('Added audit log successfully');
-        await fetchAuditLogs(); // Refresh audit logs
+        // Only refresh if this log is for the current application
+        if (appId === applicationId) {
+          await fetchAuditLogs();
+        }
       }
     } catch (error) {
       console.error('Error adding audit log:', error);
