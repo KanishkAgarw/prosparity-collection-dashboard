@@ -12,6 +12,7 @@ interface StatusCounts {
   // LMS Status counts
   lmsPaid: number;
   lmsBounced: number;
+  lmsPaidAfterDue: number;
   // Field Status counts
   fieldUnpaid: number;
   fieldPartiallyPaid: number;
@@ -30,6 +31,15 @@ const StatusCards = ({ applications }: StatusCardsProps) => {
       switch (app.lms_status) {
         case 'Paid':
           acc.lmsPaid++;
+          
+          // Check if paid after due date
+          if (app.demand_date && app.paid_date) {
+            const demandDate = new Date(app.demand_date);
+            const paidDate = new Date(app.paid_date);
+            if (paidDate > demandDate) {
+              acc.lmsPaidAfterDue++;
+            }
+          }
           break;
         case 'Bounced':
           acc.lmsBounced++;
@@ -61,6 +71,7 @@ const StatusCards = ({ applications }: StatusCardsProps) => {
       total: 0, 
       lmsPaid: 0,
       lmsBounced: 0,
+      lmsPaidAfterDue: 0,
       fieldUnpaid: 0, 
       fieldPartiallyPaid: 0, 
       fieldCashCollected: 0, 
@@ -83,6 +94,11 @@ const StatusCards = ({ applications }: StatusCardsProps) => {
       title: "LMS Paid",
       value: statusCounts.lmsPaid,
       className: "bg-green-100 border-green-300"
+    },
+    {
+      title: "LMS Paid after due date",
+      value: statusCounts.lmsPaidAfterDue,
+      className: "bg-amber-100 border-amber-300"
     },
     {
       title: "LMS Bounced",
