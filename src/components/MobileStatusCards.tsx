@@ -21,22 +21,16 @@ const MobileStatusCards = ({ applications }: MobileStatusCardsProps) => {
     const counts = applications.reduce((acc, app) => {
       acc.total++;
       
-      // Count LMS status - only Paid and Bounced for mobile view
+      // Count LMS status - only Paid, Bounced, and Paid after due date for mobile view
       switch (app.lms_status) {
         case 'Paid':
           acc.lmsPaid++;
-          
-          // Check if paid after due date
-          if (app.demand_date && app.paid_date) {
-            const demandDate = new Date(app.demand_date);
-            const paidDate = new Date(app.paid_date);
-            if (paidDate > demandDate) {
-              acc.lmsPaidAfterDue++;
-            }
-          }
           break;
         case 'Bounced':
           acc.lmsBounced++;
+          break;
+        case 'Paid after due date':
+          acc.lmsPaidAfterDue++;
           break;
         // All other LMS statuses are not counted in mobile simplified view
       }
