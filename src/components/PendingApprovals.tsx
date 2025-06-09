@@ -29,14 +29,14 @@ const PendingApprovals = ({ onUpdate }: PendingApprovalsProps) => {
       // First approve the request
       await reviewRequest(request.id, 'approved', reviewComment);
       
-      // Then update the actual field status
+      // Then update the actual field status from pending to approved
       await updateFieldStatus(request.application_id, request.requested_status);
       
-      // Add audit log for the approval - call the function directly with all 4 arguments
+      // Add audit log for the approval
       await addAuditLog(
         request.application_id,
         'Status (Approved)',
-        request.current_status || 'Unpaid',
+        `${request.requested_status} (Pending Approval)`,
         request.requested_status
       );
 
@@ -54,12 +54,16 @@ const PendingApprovals = ({ onUpdate }: PendingApprovalsProps) => {
     try {
       await reviewRequest(request.id, 'rejected', reviewComment);
       
-      // Add audit log for the rejection - call the function directly with all 4 arguments
+      // Revert the field status from pending back to the original status
+      const revertStatus = request.current_status || 'Unpaid';
+      await updateFieldStatus(request.application_id, revertStatus);
+      
+      // Add audit log for the rejection
       await addAuditLog(
         request.application_id,
         'Status Change Rejected',
-        request.current_status || 'Unpaid',
-        `Rejected request for ${request.requested_status}`
+        `${request.requested_status} (Pending Approval)`,
+        revertStatus
       );
 
       toast.success(`Status change rejected for application ${request.application_id}`);

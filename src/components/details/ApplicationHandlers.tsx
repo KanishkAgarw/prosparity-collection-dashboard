@@ -20,7 +20,7 @@ export const useApplicationHandlers = (
     try {
       const previousStatus = application.field_status || 'Unpaid';
 
-      // Update field_status table
+      // Update field_status table with proper conflict handling
       const { error } = await supabase
         .from('field_status')
         .upsert({
@@ -29,6 +29,8 @@ export const useApplicationHandlers = (
           user_id: user.id,
           user_email: user.email,
           updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'application_id'
         });
 
       if (error) {

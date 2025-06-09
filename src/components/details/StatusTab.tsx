@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -14,6 +13,8 @@ import { History } from "lucide-react";
 import { useFilteredAuditLogs } from "@/hooks/useFilteredAuditLogs";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { useStatusChangeRequests } from "@/hooks/useStatusChangeRequests";
+import { useFieldStatus } from "@/hooks/useFieldStatus";
+import { useAuditLogs } from "@/hooks/useAuditLogs";
 import LogDialog from "./LogDialog";
 import { toast } from "sonner";
 
@@ -30,6 +31,8 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
   const [requestReason, setRequestReason] = useState('');
   const { isAdmin } = useUserRoles();
   const { createRequest } = useStatusChangeRequests();
+  const { updateFieldStatus } = useFieldStatus();
+  const { addAuditLog } = useAuditLogs();
   
   // PTP date synchronization
   useEffect(() => {
@@ -88,16 +91,31 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
   };
 
   const handleStatusChange = async (newStatus: string) => {
-    // If user is not admin and trying to set status to "Paid", create a request
+    // If user is not admin and trying to set status to "Paid", create a request and set pending state
     if (!isAdmin && newStatus === 'Paid') {
       try {
+        const previousStatus = application.field_status || 'Unpaid';
+        
+        // Create the status change request
         await createRequest(
           application.applicant_id,
           newStatus,
-          application.field_status || 'Unpaid',
+          previousStatus,
           requestReason
         );
-        toast.success('Status change request submitted for admin approval');
+
+        // Immediately update the field status to show pending state
+        await updateFieldStatus(application.applicant_id, 'Paid (Pending Approval)');
+
+        // Add audit log for the pending request
+        await addAuditLog(
+          application.applicant_id,
+          'Status (Pending Approval)',
+          previousStatus,
+          'Paid (Pending Approval)'
+        );
+
+        toast.success('Status change request submitted and marked as pending approval');
         setRequestReason('');
       } catch (error) {
         console.error('Error creating status change request:', error);
@@ -121,6 +139,12 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
   // Show only recent 2 status changes
   const recentStatusLogs = statusOnlyLogs.slice(0, 2);
 
+  // Determine the current status display value
+  const getCurrentStatusDisplay = () => {
+    const currentStatus = application.field_status || 'Unpaid';
+    return currentStatus;
+  };
+
   return (
     <div className="space-y-4">
       <Card>
@@ -132,7 +156,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
             <div>
               <Label htmlFor="status">Status</Label>
               <Select 
-                value={application.field_status || 'Unpaid'} 
+                value={getCurrentStatusDisplay()} 
                 onValueChange={handleStatusChange}
               >
                 <SelectTrigger className="mt-1">
@@ -143,6 +167,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
                   <SelectItem value="Partially Paid">Partially Paid</SelectItem>
                   <SelectItem value="Cash Collected from Customer">Cash Collected from Customer</SelectItem>
                   <SelectItem value="Customer Deposited to Bank">Customer Deposited to Bank</SelectItem>
+                  <SelectItem value="Paid (Pending Approval)">Paid (Pending Approval)</SelectItem>
                   <SelectItem value="Paid">
                     Paid {!isAdmin && '(Requires Approval)'}
                   </SelectItem>
