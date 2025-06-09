@@ -12,8 +12,7 @@ interface MobileFilterBarProps {
     rm: string[];
     dealer: string[];
     lender: string[];
-    lmsStatus: string[];
-    fieldStatus: string[];
+    status: string[]; // Renamed from fieldStatus
     emiMonth: string[];
     repayment: string[];
     lastMonthBounce: string[];
@@ -25,8 +24,7 @@ interface MobileFilterBarProps {
     rms: string[];
     dealers: string[];
     lenders: string[];
-    lmsStatuses: string[];
-    fieldStatuses: string[];
+    statuses: string[]; // Renamed from fieldStatuses
     emiMonths: string[];
     repayments: string[];
     lastMonthBounce: string[];
@@ -43,8 +41,7 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
     rms: availableOptions?.rms || [],
     dealers: availableOptions?.dealers || [],
     lenders: availableOptions?.lenders || [],
-    lmsStatuses: availableOptions?.lmsStatuses || [],
-    fieldStatuses: availableOptions?.fieldStatuses || [],
+    statuses: availableOptions?.statuses || [], // Renamed from fieldStatuses
     emiMonths: availableOptions?.emiMonths || [],
     repayments: availableOptions?.repayments || [],
     lastMonthBounce: availableOptions?.lastMonthBounce || [],
@@ -57,8 +54,7 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
     rm: filters?.rm || [],
     dealer: filters?.dealer || [],
     lender: filters?.lender || [],
-    lmsStatus: filters?.lmsStatus || [],
-    fieldStatus: filters?.fieldStatus || [],
+    status: filters?.status || [], // Renamed from fieldStatus
     emiMonth: filters?.emiMonth || [],
     repayment: filters?.repayment || [],
     lastMonthBounce: filters?.lastMonthBounce || [],
@@ -157,22 +153,12 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
               </div>
 
               <div className="space-y-2">
-                <label className="block text-xs font-medium text-gray-700">LMS Status</label>
+                <label className="block text-xs font-medium text-gray-700">Status</label>
                 <CustomMultiSelectFilter
-                  label="LMS Status"
-                  options={safeFilterOptions.lmsStatuses}
-                  selected={safeFilters.lmsStatus}
-                  onSelectionChange={(values) => onFilterChange('lmsStatus', values)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-xs font-medium text-gray-700">Field Status</label>
-                <CustomMultiSelectFilter
-                  label="Field Status"
-                  options={safeFilterOptions.fieldStatuses}
-                  selected={safeFilters.fieldStatus}
-                  onSelectionChange={(values) => onFilterChange('fieldStatus', values)}
+                  label="Status"
+                  options={safeFilterOptions.statuses}
+                  selected={safeFilters.status}
+                  onSelectionChange={(values) => onFilterChange('status', values)}
                 />
               </div>
 

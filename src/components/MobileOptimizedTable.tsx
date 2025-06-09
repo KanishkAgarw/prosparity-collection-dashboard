@@ -13,16 +13,7 @@ interface MobileOptimizedTableProps {
   selectedApplicationId?: string;
 }
 
-const getLmsStatusColor = (status: string) => {
-  switch (status) {
-    case 'Paid': return 'bg-green-50 text-green-700 border-green-300';
-    case 'Unpaid': return 'bg-red-50 text-red-700 border-red-300';
-    case 'Partially Paid': return 'bg-yellow-50 text-yellow-700 border-yellow-300';
-    default: return 'bg-gray-50 text-gray-700 border-gray-300';
-  }
-};
-
-const getFieldStatusColor = (status: string) => {
+const getStatusColor = (status: string) => {
   switch (status) {
     case 'Paid': return 'bg-green-100 text-green-800 border-green-200';
     case 'Unpaid': return 'bg-red-100 text-red-800 border-red-200';
@@ -64,11 +55,8 @@ const MobileOptimizedTable = ({
                 </p>
               </div>
               <div className="flex flex-col gap-1 ml-3">
-                <Badge className={`text-xs px-2 py-1 ${getLmsStatusColor(app.lms_status)}`}>
-                  LMS: {app.lms_status}
-                </Badge>
-                <Badge className={`text-xs px-2 py-1 ${getFieldStatusColor(app.field_status || 'Unpaid')}`}>
-                  Field: {app.field_status || 'Unpaid'}
+                <Badge className={`text-xs px-2 py-1 ${getStatusColor(app.field_status || 'Unpaid')}`}>
+                  {app.field_status || 'Unpaid'}
                 </Badge>
                 <Eye className="h-4 w-4 text-gray-400 self-center" />
               </div>

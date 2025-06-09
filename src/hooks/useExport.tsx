@@ -40,7 +40,7 @@ export const useExport = () => {
       'EMI': app.emi_amount,
       'Last Month Bounce': app.last_month_bounce || 0,
       'Lender Name': app.lender_name,
-      'Status': app.lms_status,
+      'Status': app.field_status || 'Unpaid', // Renamed from LMS Status to Status
       'Team Lead': app.team_lead
     }));
 
@@ -114,7 +114,7 @@ export const useExport = () => {
       'EMI': app.emi_amount,
       'Last Month Bounce': app.last_month_bounce || 0,
       'Lender Name': app.lender_name,
-      'Status': app.lms_status,
+      'Status': app.field_status || 'Unpaid', // Renamed from LMS Status to Status
       'Team Lead': app.team_lead
     }));
 

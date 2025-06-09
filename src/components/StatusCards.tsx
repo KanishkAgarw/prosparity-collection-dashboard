@@ -9,16 +9,12 @@ interface StatusCardsProps {
 
 interface StatusCounts {
   total: number;
-  // LMS Status counts
-  lmsPaid: number;
-  lmsBounced: number;
-  lmsPaidAfterDue: number;
-  // Field Status counts
-  fieldUnpaid: number;
-  fieldPartiallyPaid: number;
-  fieldCashCollected: number;
-  fieldCustomerDeposited: number;
-  fieldPaid: number;
+  // Status counts (renamed from field status)
+  statusUnpaid: number;
+  statusPartiallyPaid: number;
+  statusCashCollected: number;
+  statusCustomerDeposited: number;
+  statusPaid: number;
 }
 
 const StatusCards = ({ applications }: StatusCardsProps) => {
@@ -27,102 +23,69 @@ const StatusCards = ({ applications }: StatusCardsProps) => {
     const counts = applications.reduce((acc, app) => {
       acc.total++;
       
-      // Count LMS status - only Paid, Bounced, and Paid after due date
-      switch (app.lms_status) {
-        case 'Paid':
-          acc.lmsPaid++;
-          break;
-        case 'Bounced':
-          acc.lmsBounced++;
-          break;
-        case 'Paid after due date':
-          acc.lmsPaidAfterDue++;
-          break;
-        // All other LMS statuses (Unpaid, Partially Paid, etc.) are not counted in these specific cards
-      }
-
-      // Count field status
+      // Count status (renamed from field status)
       switch (app.field_status) {
         case 'Unpaid':
-          acc.fieldUnpaid++;
+          acc.statusUnpaid++;
           break;
         case 'Partially Paid':
-          acc.fieldPartiallyPaid++;
+          acc.statusPartiallyPaid++;
           break;
         case 'Cash Collected from Customer':
-          acc.fieldCashCollected++;
+          acc.statusCashCollected++;
           break;
         case 'Customer Deposited to Bank':
-          acc.fieldCustomerDeposited++;
+          acc.statusCustomerDeposited++;
           break;
         case 'Paid':
-          acc.fieldPaid++;
+          acc.statusPaid++;
           break;
       }
       
       return acc;
     }, { 
       total: 0, 
-      lmsPaid: 0,
-      lmsBounced: 0,
-      lmsPaidAfterDue: 0,
-      fieldUnpaid: 0, 
-      fieldPartiallyPaid: 0, 
-      fieldCashCollected: 0, 
-      fieldCustomerDeposited: 0, 
-      fieldPaid: 0
+      statusUnpaid: 0, 
+      statusPartiallyPaid: 0, 
+      statusCashCollected: 0, 
+      statusCustomerDeposited: 0, 
+      statusPaid: 0
     });
 
     return counts;
   }, [applications]);
 
-  // Arrangement: Total → LMS Status (system) → Field Status (user-editable)
+  // Arrangement: Total → Status (user-editable)
   const cards = [
     {
       title: "Total",
       value: statusCounts.total,
       className: "bg-blue-50 border-blue-200"
     },
-    // LMS Status Cards
+    // Status Cards (renamed from Field Status)
     {
-      title: "LMS Paid",
-      value: statusCounts.lmsPaid,
-      className: "bg-green-100 border-green-300"
-    },
-    {
-      title: "LMS Paid after due date",
-      value: statusCounts.lmsPaidAfterDue,
-      className: "bg-amber-100 border-amber-300"
-    },
-    {
-      title: "LMS Bounced",
-      value: statusCounts.lmsBounced,
-      className: "bg-red-100 border-red-300"
-    },
-    // Field Status Cards
-    {
-      title: "Field Unpaid",
-      value: statusCounts.fieldUnpaid,
+      title: "Unpaid",
+      value: statusCounts.statusUnpaid,
       className: "bg-red-50 border-red-200"
     },
     {
-      title: "Field Partially Paid",
-      value: statusCounts.fieldPartiallyPaid,
+      title: "Partially Paid",
+      value: statusCounts.statusPartiallyPaid,
       className: "bg-yellow-50 border-yellow-200"
     },
     {
-      title: "Field Cash Collected",
-      value: statusCounts.fieldCashCollected,
+      title: "Cash Collected",
+      value: statusCounts.statusCashCollected,
       className: "bg-orange-50 border-orange-200"
     },
     {
-      title: "Field Customer Deposited",
-      value: statusCounts.fieldCustomerDeposited,
+      title: "Customer Deposited",
+      value: statusCounts.statusCustomerDeposited,
       className: "bg-indigo-50 border-indigo-200"
     },
     {
-      title: "Field Paid",
-      value: statusCounts.fieldPaid,
+      title: "Paid",
+      value: statusCounts.statusPaid,
       className: "bg-green-50 border-green-200"
     }
   ];

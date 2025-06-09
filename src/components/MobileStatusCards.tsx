@@ -9,10 +9,7 @@ interface MobileStatusCardsProps {
 
 interface StatusCounts {
   total: number;
-  lmsPaid: number;
-  lmsBounced: number;
-  lmsPaidAfterDue: number;
-  fieldPaid: number;
+  statusPaid: number;
 }
 
 const MobileStatusCards = ({ applications }: MobileStatusCardsProps) => {
@@ -21,35 +18,18 @@ const MobileStatusCards = ({ applications }: MobileStatusCardsProps) => {
     const counts = applications.reduce((acc, app) => {
       acc.total++;
       
-      // Count LMS status - only Paid, Bounced, and Paid after due date for mobile view
-      switch (app.lms_status) {
-        case 'Paid':
-          acc.lmsPaid++;
-          break;
-        case 'Bounced':
-          acc.lmsBounced++;
-          break;
-        case 'Paid after due date':
-          acc.lmsPaidAfterDue++;
-          break;
-        // All other LMS statuses are not counted in mobile simplified view
-      }
-
-      // Count field status - only Paid for mobile simplified view
+      // Count status - only Paid for mobile simplified view
       switch (app.field_status) {
         case 'Paid':
-          acc.fieldPaid++;
+          acc.statusPaid++;
           break;
-        // All other field statuses are not counted in mobile simplified view
+        // All other statuses are not counted in mobile simplified view
       }
       
       return acc;
     }, {
       total: 0,
-      lmsPaid: 0,
-      lmsBounced: 0,
-      lmsPaidAfterDue: 0,
-      fieldPaid: 0
+      statusPaid: 0
     });
 
     return counts;
@@ -62,23 +42,8 @@ const MobileStatusCards = ({ applications }: MobileStatusCardsProps) => {
       className: "bg-blue-50 border-blue-200"
     },
     {
-      title: "LMS Paid",
-      value: statusCounts.lmsPaid,
-      className: "bg-green-100 border-green-300"
-    },
-    {
-      title: "LMS Paid after due date",
-      value: statusCounts.lmsPaidAfterDue,
-      className: "bg-amber-100 border-amber-300"
-    },
-    {
-      title: "LMS Bounced",
-      value: statusCounts.lmsBounced,
-      className: "bg-red-100 border-red-300"
-    },
-    {
-      title: "Field Paid",
-      value: statusCounts.fieldPaid,
+      title: "Paid",
+      value: statusCounts.statusPaid,
       className: "bg-green-50 border-green-200"
     }
   ];

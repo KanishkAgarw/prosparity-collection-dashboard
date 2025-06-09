@@ -101,7 +101,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
         <CardContent className="pt-0">
           <div className="space-y-4">
             <div>
-              <Label htmlFor="fieldStatus">Field Status (User Editable)</Label>
+              <Label htmlFor="status">Status</Label>
               <Select value={application.field_status || 'Unpaid'} onValueChange={onStatusChange}>
                 <SelectTrigger className="mt-1">
                   <SelectValue />
@@ -114,20 +114,6 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
                   <SelectItem value="Paid">Paid</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="lmsStatus">LMS Status (System Controlled)</Label>
-              <Input
-                id="lmsStatus"
-                value={application.lms_status}
-                readOnly
-                className="mt-1 bg-gray-100 cursor-not-allowed"
-                title="This status is controlled by the LMS system and can only be updated via bulk upload"
-              />
-              <div className="text-xs text-gray-500 mt-1">
-                This status is controlled by the LMS system and can only be updated via bulk upload
-              </div>
             </div>
             
             <div>

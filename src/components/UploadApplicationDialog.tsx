@@ -138,7 +138,7 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
         rm_name: row['RM Name'] || row['rm_name'],
         dealer_name: row['Dealer Name'] || row['dealer_name'],
         lender_name: row['Lender Name'] || row['lender_name'],
-        lms_status: row['Status'] || row['LMS Status'] || row['lms_status'] || row['status'] || 'Unpaid',
+        lms_status: row['LMS Status'] || row['lms_status'] || 'Unpaid', // Keep LMS status for database compatibility but don't use Status column for it
         emi_amount: parseFloat(row['EMI'] || row['EMI Amount'] || row['emi_amount'] || '0'),
         principle_due: parseFloat(row['Principle Due'] || row['principle_due'] || '0'),
         interest_due: parseFloat(row['Interest Due'] || row['interest_due'] || '0'),
@@ -241,7 +241,6 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
           <div className="text-xs text-gray-500">
             <p>Supported formats: Excel (.xlsx, .xls) and CSV (.csv)</p>
             <p>The system will update existing applications based on Applicant ID and add new ones.</p>
-            <p><strong>Note:</strong> LMS Status can only be updated through this upload feature.</p>
           </div>
         </div>
       </DialogContent>
