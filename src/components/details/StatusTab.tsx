@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -145,6 +146,32 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
     return currentStatus;
   };
 
+  // Get available status options based on user role
+  const getStatusOptions = () => {
+    const baseOptions = [
+      { value: "Unpaid", label: "Unpaid" },
+      { value: "Partially Paid", label: "Partially Paid" },
+      { value: "Cash Collected from Customer", label: "Cash Collected from Customer" },
+      { value: "Customer Deposited to Bank", label: "Customer Deposited to Bank" }
+    ];
+
+    if (isAdmin) {
+      // Admin can set any status including "Paid" directly
+      return [
+        ...baseOptions,
+        { value: "Paid (Pending Approval)", label: "Paid (Pending Approval)" },
+        { value: "Paid", label: "Paid" }
+      ];
+    } else {
+      // Non-admin can only request "Paid" which shows as pending
+      return [
+        ...baseOptions,
+        { value: "Paid (Pending Approval)", label: "Paid (Pending Approval)" },
+        { value: "Paid", label: "Paid (Requires Approval)" }
+      ];
+    }
+  };
+
   return (
     <div className="space-y-4">
       <Card>
@@ -163,14 +190,11 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Unpaid">Unpaid</SelectItem>
-                  <SelectItem value="Partially Paid">Partially Paid</SelectItem>
-                  <SelectItem value="Cash Collected from Customer">Cash Collected from Customer</SelectItem>
-                  <SelectItem value="Customer Deposited to Bank">Customer Deposited to Bank</SelectItem>
-                  <SelectItem value="Paid (Pending Approval)">Paid (Pending Approval)</SelectItem>
-                  <SelectItem value="Paid">
-                    Paid {!isAdmin && '(Requires Approval)'}
-                  </SelectItem>
+                  {getStatusOptions().map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               

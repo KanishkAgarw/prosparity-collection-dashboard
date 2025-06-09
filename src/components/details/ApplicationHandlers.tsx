@@ -20,6 +20,12 @@ export const useApplicationHandlers = (
     try {
       const previousStatus = application.field_status || 'Unpaid';
 
+      // Only proceed if status is actually changing
+      if (previousStatus === newStatus) {
+        setIsUpdating(false);
+        return;
+      }
+
       // Update field_status table with proper conflict handling
       const { error } = await supabase
         .from('field_status')
@@ -39,7 +45,7 @@ export const useApplicationHandlers = (
         return;
       }
 
-      // Add audit log with correct signature
+      // Add audit log for the status change
       await addAuditLog(application.applicant_id, 'Status', previousStatus, newStatus);
 
       // Update local application state

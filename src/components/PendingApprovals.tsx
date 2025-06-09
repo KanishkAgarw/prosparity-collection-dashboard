@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,17 +27,17 @@ const PendingApprovals = ({ onUpdate }: PendingApprovalsProps) => {
 
   const handleApprove = async (request: StatusChangeRequest) => {
     try {
-      // First approve the request
+      // First approve the request in the database
       await reviewRequest(request.id, 'approved', reviewComment);
       
-      // Then update the actual field status from pending to approved
+      // Then update the field status to the approved status
       await updateFieldStatus(request.application_id, request.requested_status);
       
-      // Add audit log for the approval
+      // Add audit log for the approval - single entry showing final approved status
       await addAuditLog(
         request.application_id,
-        'Status (Approved)',
-        `${request.requested_status} (Pending Approval)`,
+        'Status',
+        request.current_status || 'Unpaid',
         request.requested_status
       );
 
@@ -52,17 +53,18 @@ const PendingApprovals = ({ onUpdate }: PendingApprovalsProps) => {
 
   const handleReject = async (request: StatusChangeRequest) => {
     try {
+      // First reject the request in the database
       await reviewRequest(request.id, 'rejected', reviewComment);
       
-      // Revert the field status from pending back to the original status
+      // Revert the field status back to the original status
       const revertStatus = request.current_status || 'Unpaid';
       await updateFieldStatus(request.application_id, revertStatus);
       
-      // Add audit log for the rejection
+      // Add audit log for the rejection - showing reversion to original status
       await addAuditLog(
         request.application_id,
-        'Status Change Rejected',
-        `${request.requested_status} (Pending Approval)`,
+        'Status',
+        'Paid (Pending Approval)',
         revertStatus
       );
 
