@@ -351,54 +351,6 @@ export type Database = {
         }
         Relationships: []
       }
-      status_change_requests: {
-        Row: {
-          application_id: string
-          created_at: string
-          current_status: string | null
-          id: string
-          request_reason: string | null
-          requested_status: string
-          requester_email: string | null
-          requester_id: string
-          review_comment: string | null
-          reviewed_at: string | null
-          reviewed_by: string | null
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          application_id: string
-          created_at?: string
-          current_status?: string | null
-          id?: string
-          request_reason?: string | null
-          requested_status: string
-          requester_email?: string | null
-          requester_id: string
-          review_comment?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          application_id?: string
-          created_at?: string
-          current_status?: string | null
-          id?: string
-          request_reason?: string | null
-          requested_status?: string
-          requester_email?: string | null
-          requester_id?: string
-          review_comment?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       user_roles: {
         Row: {
           created_at: string

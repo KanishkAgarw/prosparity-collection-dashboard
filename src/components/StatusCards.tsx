@@ -15,7 +15,6 @@ interface StatusCounts {
   statusCashCollected: number;
   statusCustomerDeposited: number;
   statusPaid: number;
-  statusPaidPending: number;
 }
 
 const StatusCards = ({ applications }: StatusCardsProps) => {
@@ -41,9 +40,6 @@ const StatusCards = ({ applications }: StatusCardsProps) => {
         case 'Paid':
           acc.statusPaid++;
           break;
-        case 'Paid (Pending Approval)':
-          acc.statusPaidPending++;
-          break;
       }
       
       return acc;
@@ -53,8 +49,7 @@ const StatusCards = ({ applications }: StatusCardsProps) => {
       statusPartiallyPaid: 0, 
       statusCashCollected: 0, 
       statusCustomerDeposited: 0, 
-      statusPaid: 0,
-      statusPaidPending: 0
+      statusPaid: 0
     });
 
     return counts;
@@ -92,11 +87,6 @@ const StatusCards = ({ applications }: StatusCardsProps) => {
       title: "Paid",
       value: statusCounts.statusPaid,
       className: "bg-green-50 border-green-200"
-    },
-    {
-      title: "Paid (Pending)",
-      value: statusCounts.statusPaidPending,
-      className: "bg-purple-50 border-purple-200"
     }
   ];
 

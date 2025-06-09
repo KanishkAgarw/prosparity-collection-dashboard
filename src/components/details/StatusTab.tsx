@@ -5,19 +5,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Application } from "@/types/application";
 import { AuditLog } from "@/hooks/useAuditLogs";
 import { format } from "date-fns";
 import { formatPtpDate } from "@/utils/formatters";
 import { History } from "lucide-react";
 import { useFilteredAuditLogs } from "@/hooks/useFilteredAuditLogs";
-import { useUserRoles } from "@/hooks/useUserRoles";
-import { useStatusChangeRequests } from "@/hooks/useStatusChangeRequests";
-import { useFieldStatus } from "@/hooks/useFieldStatus";
-import { useAuditLogs } from "@/hooks/useAuditLogs";
 import LogDialog from "./LogDialog";
-import { toast } from "sonner";
 
 interface StatusTabProps {
   application: Application;
@@ -29,11 +23,6 @@ interface StatusTabProps {
 const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: StatusTabProps) => {
   const [ptpDate, setPtpDate] = useState('');
   const [showLogDialog, setShowLogDialog] = useState(false);
-  const [requestReason, setRequestReason] = useState('');
-  const { isAdmin } = useUserRoles();
-  const { createRequest } = useStatusChangeRequests();
-  const { updateFieldStatus } = useFieldStatus();
-  const { addAuditLog } = useAuditLogs();
   
   // PTP date synchronization
   useEffect(() => {
@@ -91,41 +80,8 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
     onPtpDateChange(value);
   };
 
-  const handleStatusChange = async (newStatus: string) => {
-    // If user is not admin and trying to set status to "Paid", create a request and set pending state
-    if (!isAdmin && newStatus === 'Paid') {
-      try {
-        const previousStatus = application.field_status || 'Unpaid';
-        
-        // Create the status change request
-        await createRequest(
-          application.applicant_id,
-          newStatus,
-          previousStatus,
-          requestReason
-        );
-
-        // Immediately update the field status to show pending state
-        await updateFieldStatus(application.applicant_id, 'Paid (Pending Approval)');
-
-        // Add audit log for the pending request
-        await addAuditLog(
-          application.applicant_id,
-          'Status (Pending Approval)',
-          previousStatus,
-          'Paid (Pending Approval)'
-        );
-
-        toast.success('Status change request submitted and marked as pending approval');
-        setRequestReason('');
-      } catch (error) {
-        console.error('Error creating status change request:', error);
-        toast.error('Failed to submit status change request');
-      }
-    } else {
-      // Admin or non-"Paid" status changes go through directly
-      onStatusChange(newStatus);
-    }
+  const handleStatusChange = (newStatus: string) => {
+    onStatusChange(newStatus);
   };
 
   const formatDateTime = (dateStr: string) => {
@@ -140,36 +96,15 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
   // Show only recent 2 status changes
   const recentStatusLogs = statusOnlyLogs.slice(0, 2);
 
-  // Determine the current status display value
-  const getCurrentStatusDisplay = () => {
-    const currentStatus = application.field_status || 'Unpaid';
-    return currentStatus;
-  };
-
-  // Get available status options based on user role
+  // Get the 5 basic status options
   const getStatusOptions = () => {
-    const baseOptions = [
+    return [
       { value: "Unpaid", label: "Unpaid" },
       { value: "Partially Paid", label: "Partially Paid" },
       { value: "Cash Collected from Customer", label: "Cash Collected from Customer" },
-      { value: "Customer Deposited to Bank", label: "Customer Deposited to Bank" }
+      { value: "Customer Deposited to Bank", label: "Customer Deposited to Bank" },
+      { value: "Paid", label: "Paid" }
     ];
-
-    if (isAdmin) {
-      // Admin can set any status including "Paid" directly
-      return [
-        ...baseOptions,
-        { value: "Paid (Pending Approval)", label: "Paid (Pending Approval)" },
-        { value: "Paid", label: "Paid" }
-      ];
-    } else {
-      // Non-admin can only request "Paid" which shows as pending
-      return [
-        ...baseOptions,
-        { value: "Paid (Pending Approval)", label: "Paid (Pending Approval)" },
-        { value: "Paid", label: "Paid (Requires Approval)" }
-      ];
-    }
   };
 
   return (
@@ -183,7 +118,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
             <div>
               <Label htmlFor="status">Status</Label>
               <Select 
-                value={getCurrentStatusDisplay()} 
+                value={application.field_status || 'Unpaid'} 
                 onValueChange={handleStatusChange}
               >
                 <SelectTrigger className="mt-1">
@@ -197,22 +132,6 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
                   ))}
                 </SelectContent>
               </Select>
-              
-              {!isAdmin && (
-                <div className="mt-2">
-                  <Label htmlFor="reason" className="text-xs">
-                    Reason for status change (optional)
-                  </Label>
-                  <Textarea
-                    id="reason"
-                    value={requestReason}
-                    onChange={(e) => setRequestReason(e.target.value)}
-                    placeholder="Provide reason for status change..."
-                    className="mt-1 text-xs"
-                    rows={2}
-                  />
-                </div>
-              )}
             </div>
             
             <div>
