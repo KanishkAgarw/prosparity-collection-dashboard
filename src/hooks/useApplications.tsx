@@ -1,9 +1,11 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Application } from '@/types/application';
 import { DatabaseApplication } from '@/types/database';
 import { fetchAndMapComments } from '@/utils/commentMapping';
+import { useFieldStatus } from '@/hooks/useFieldStatus';
 
 interface UseApplicationsProps {
   page?: number;
@@ -12,6 +14,7 @@ interface UseApplicationsProps {
 
 export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProps = {}) => {
   const { user } = useAuth();
+  const { fetchFieldStatus } = useFieldStatus();
   const [applications, setApplications] = useState<Application[]>([]);
   const [allApplications, setAllApplications] = useState<Application[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -63,9 +66,11 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
         console.log(`PTP Date: ${app.ptp_date} (type: ${typeof app.ptp_date})`);
       });
 
-      // Fetch recent comments for ALL applications
+      // Fetch field status for ALL applications
       const allAppIds = allAppsData?.map(app => app.applicant_id) || [];
-      
+      const fieldStatusMap = await fetchFieldStatus(allAppIds);
+
+      // Fetch recent comments for ALL applications
       let applicationsWithComments: Application[] = appsData || [];
       let allApplicationsWithComments: Application[] = allAppsData || [];
       
@@ -73,26 +78,29 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
         console.log('=== FETCHING COMMENTS (FIXED) ===');
         const commentsByApp = await fetchAndMapComments(allAppIds);
 
-        // Add comments to both paginated and all applications, ensuring PTP date is preserved
+        // Add comments and field status to both paginated and all applications
         applicationsWithComments = (appsData as DatabaseApplication[]).map(app => ({
           ...app,
-          ptp_date: app.ptp_date, // FIX: Explicitly preserve ptp_date
+          ptp_date: app.ptp_date, // Explicitly preserve ptp_date
+          field_status: fieldStatusMap[app.applicant_id] || 'Unpaid', // Add field status
           recent_comments: commentsByApp[app.applicant_id] || []
         })) as Application[];
 
         allApplicationsWithComments = (allAppsData as DatabaseApplication[]).map(app => ({
           ...app,
-          ptp_date: app.ptp_date, // FIX: Explicitly preserve ptp_date
+          ptp_date: app.ptp_date, // Explicitly preserve ptp_date
+          field_status: fieldStatusMap[app.applicant_id] || 'Unpaid', // Add field status
           recent_comments: commentsByApp[app.applicant_id] || []
         })) as Application[];
       }
 
-      console.log('=== ENHANCED APPLICATIONS WITH COMMENTS (FIXED) ===');
+      console.log('=== ENHANCED APPLICATIONS WITH COMMENTS AND FIELD STATUS (FIXED) ===');
       const sampleApp = applicationsWithComments.find(app => app.recent_comments && app.recent_comments.length > 0);
       if (sampleApp) {
         console.log('Sample app with comments:', sampleApp);
         console.log('PTP Date preserved:', sampleApp.ptp_date);
-        console.log('Comments with user names:', sampleApp.recent_comments);
+        console.log('Field Status:', sampleApp.field_status);
+        console.log('LMS Status:', sampleApp.lms_status);
       }
       
       setApplications(applicationsWithComments);
@@ -102,7 +110,7 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
     } finally {
       setLoading(false);
     }
-  }, [user, page, pageSize]);
+  }, [user, page, pageSize, fetchFieldStatus]);
 
   useEffect(() => {
     if (user) {

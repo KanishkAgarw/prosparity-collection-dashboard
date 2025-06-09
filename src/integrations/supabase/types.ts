@@ -32,6 +32,7 @@ export type Database = {
           interest_due: number | null
           last_month_bounce: number | null
           lender_name: string
+          lms_status: string
           paid_date: string | null
           principle_due: number | null
           ptp_date: string | null
@@ -41,7 +42,6 @@ export type Database = {
           repayment: string | null
           rm_comments: string | null
           rm_name: string
-          status: string
           team_lead: string
           updated_at: string | null
           user_id: string
@@ -68,6 +68,7 @@ export type Database = {
           interest_due?: number | null
           last_month_bounce?: number | null
           lender_name: string
+          lms_status?: string
           paid_date?: string | null
           principle_due?: number | null
           ptp_date?: string | null
@@ -77,7 +78,6 @@ export type Database = {
           repayment?: string | null
           rm_comments?: string | null
           rm_name: string
-          status?: string
           team_lead: string
           updated_at?: string | null
           user_id: string
@@ -104,6 +104,7 @@ export type Database = {
           interest_due?: number | null
           last_month_bounce?: number | null
           lender_name?: string
+          lms_status?: string
           paid_date?: string | null
           principle_due?: number | null
           ptp_date?: string | null
@@ -113,7 +114,6 @@ export type Database = {
           repayment?: string | null
           rm_comments?: string | null
           rm_name?: string
-          status?: string
           team_lead?: string
           updated_at?: string | null
           user_id?: string
@@ -247,6 +247,36 @@ export type Database = {
           id?: string
           status?: string
           updated_at?: string | null
+          user_email?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      field_status: {
+        Row: {
+          application_id: string
+          created_at: string
+          id: string
+          status: string
+          updated_at: string
+          user_email: string | null
+          user_id: string
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_email?: string | null
+          user_id: string
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          id?: string
+          status?: string
+          updated_at?: string
           user_email?: string | null
           user_id?: string
         }

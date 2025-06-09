@@ -22,7 +22,7 @@ export const processBulkApplications = async (applications: any[]) => {
         .maybeSingle();
 
       if (existingApp) {
-        // Update existing application
+        // Update existing application (including LMS status)
         const { error: updateError } = await supabase
           .from('applications')
           .update({
@@ -56,6 +56,21 @@ export const processBulkApplications = async (applications: any[]) => {
         } else {
           console.log('Inserted application:', app.applicant_id);
           results.successful++;
+
+          // Create initial field status for new applications
+          try {
+            await supabase
+              .from('field_status')
+              .insert({
+                application_id: app.applicant_id,
+                status: 'Unpaid',
+                user_id: app.user_id,
+                user_email: 'system@bulk-upload.local'
+              });
+          } catch (fieldStatusError) {
+            console.error('Error creating field status:', fieldStatusError);
+            // Don't fail the whole operation for this
+          }
         }
       }
     } catch (error) {

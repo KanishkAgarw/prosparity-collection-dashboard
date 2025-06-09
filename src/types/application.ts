@@ -8,7 +8,8 @@ export interface Application {
   rm_name: string;
   dealer_name: string;
   lender_name: string;
-  status: string;
+  lms_status: string; // Changed from status to lms_status
+  field_status?: string; // New field for user-editable status
   emi_amount: number;
   principle_due: number;
   interest_due: number;

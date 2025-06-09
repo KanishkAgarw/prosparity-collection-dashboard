@@ -45,7 +45,7 @@ const ApplicationsTable = ({ applications, onRowClick, selectedApplicationId }: 
             <TableRow>
               <TableHead className="min-w-[320px]">Details</TableHead>
               <TableHead className="min-w-[120px]">EMI Due</TableHead>
-              <TableHead className="min-w-[120px]">Status</TableHead>
+              <TableHead className="min-w-[120px]">Field Status</TableHead>
               <TableHead className="min-w-[100px]">PTP Date</TableHead>
               <TableHead className="min-w-[150px]">Call Status</TableHead>
               <TableHead className="min-w-[200px]">Recent Comments</TableHead>
@@ -83,7 +83,7 @@ const ApplicationsTable = ({ applications, onRowClick, selectedApplicationId }: 
                   </div>
                 </TableCell>
                 <TableCell className="font-medium text-blue-600">{formatCurrency(app.emi_amount)}</TableCell>
-                <TableCell>{getStatusBadge(app.status)}</TableCell>
+                <TableCell>{getStatusBadge(app.field_status || 'Unpaid')}</TableCell>
                 <TableCell className={`${app.ptp_date ? 'text-blue-600 font-medium' : 'text-gray-400'} whitespace-nowrap`}>
                   {app.ptp_date ? formatPtpDate(app.ptp_date) : 'Not Set'}
                 </TableCell>

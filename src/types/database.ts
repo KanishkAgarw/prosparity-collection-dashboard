@@ -9,7 +9,7 @@ export interface DatabaseApplication {
   rm_name: string;
   dealer_name: string;
   lender_name: string;
-  status: string;
+  lms_status: string; // Changed from status to lms_status
   emi_amount: number;
   principle_due: number;
   interest_due: number;
@@ -52,4 +52,15 @@ export interface CommentData {
   content: string;
   created_at: string;
   user_id: string;
+}
+
+// New interface for field status
+export interface FieldStatus {
+  id: string;
+  application_id: string;
+  status: string;
+  user_id: string;
+  user_email?: string;
+  created_at: string;
+  updated_at: string;
 }

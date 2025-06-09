@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { Upload, FileSpreadsheet } from 'lucide-react';
+import { Upload, FileSpreadsheet, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -25,6 +25,96 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
   const [open, setOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
 
+  const downloadTemplate = () => {
+    // Create template data with example row and all required columns
+    const templateData = [
+      {
+        'Applicant ID': 'PROSAPP250101000001',
+        'Applicant Name': 'John Doe',
+        'Branch': 'Mumbai Branch',
+        'Team Lead': 'Team Lead Name',
+        'RM Name': 'RM Name',
+        'Dealer': 'Dealer Name',
+        'Lender': 'Lender Name',
+        'LMS Status': 'Unpaid',
+        'EMI Amount': 5000,
+        'Principle Due': 45000,
+        'Interest Due': 2500,
+        'Demand Date': '2024-01-15',
+        'PTP Date': '',
+        'Paid Date': '',
+        'Applicant Mobile': '9876543210',
+        'Applicant Address': 'Sample Address',
+        'House Ownership': 'Own',
+        'Co-Applicant Name': 'Co-Applicant Name',
+        'Co-Applicant Mobile': '9876543211',
+        'Co-Applicant Address': 'Co-Applicant Address',
+        'Guarantor Name': 'Guarantor Name',
+        'Guarantor Mobile': '9876543212',
+        'Guarantor Address': 'Guarantor Address',
+        'Reference Name': 'Reference Name',
+        'Reference Mobile': '9876543213',
+        'Reference Address': 'Reference Address',
+        'FI Location': 'Field Investigation Location',
+        'Repayment': 'Monthly',
+        'Last Month Bounce': 0,
+        'RM Comments': 'Sample comments'
+      }
+    ];
+
+    // Create workbook and worksheet
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(templateData);
+
+    // Set column widths for better readability
+    const colWidths = [
+      { wch: 20 }, // Applicant ID
+      { wch: 25 }, // Applicant Name
+      { wch: 15 }, // Branch
+      { wch: 15 }, // Team Lead
+      { wch: 15 }, // RM Name
+      { wch: 20 }, // Dealer
+      { wch: 20 }, // Lender
+      { wch: 15 }, // LMS Status
+      { wch: 12 }, // EMI Amount
+      { wch: 15 }, // Principle Due
+      { wch: 12 }, // Interest Due
+      { wch: 12 }, // Demand Date
+      { wch: 12 }, // PTP Date
+      { wch: 12 }, // Paid Date
+      { wch: 15 }, // Applicant Mobile
+      { wch: 30 }, // Applicant Address
+      { wch: 15 }, // House Ownership
+      { wch: 20 }, // Co-Applicant Name
+      { wch: 15 }, // Co-Applicant Mobile
+      { wch: 30 }, // Co-Applicant Address
+      { wch: 20 }, // Guarantor Name
+      { wch: 15 }, // Guarantor Mobile
+      { wch: 30 }, // Guarantor Address
+      { wch: 20 }, // Reference Name
+      { wch: 15 }, // Reference Mobile
+      { wch: 30 }, // Reference Address
+      { wch: 25 }, // FI Location
+      { wch: 12 }, // Repayment
+      { wch: 15 }, // Last Month Bounce
+      { wch: 30 }  // RM Comments
+    ];
+    
+    worksheet['!cols'] = colWidths;
+    
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Applications Template');
+
+    // Generate filename with timestamp
+    const timestamp = new Date().toISOString().split('T')[0];
+    const filename = `applications-bulk-upload-template-${timestamp}.xlsx`;
+
+    // Download the file
+    XLSX.writeFile(workbook, filename);
+    
+    toast.success('Template downloaded successfully!');
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !user) return;
@@ -45,7 +135,7 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
         return;
       }
 
-      // Transform data to match database schema
+      // Transform data to match database schema with LMS status
       const applications = jsonData.map((row: any) => ({
         applicant_id: row['Applicant ID'] || row['applicant_id'],
         applicant_name: row['Applicant Name'] || row['applicant_name'],
@@ -54,7 +144,7 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
         rm_name: row['RM Name'] || row['rm_name'],
         dealer_name: row['Dealer'] || row['dealer_name'],
         lender_name: row['Lender'] || row['lender_name'],
-        status: row['Status'] || row['status'] || 'Unpaid',
+        lms_status: row['LMS Status'] || row['lms_status'] || row['Status'] || row['status'] || 'Unpaid', // Handle LMS status
         emi_amount: parseFloat(row['EMI Amount'] || row['emi_amount'] || '0'),
         principle_due: parseFloat(row['Principle Due'] || row['principle_due'] || '0'),
         interest_due: parseFloat(row['Interest Due'] || row['interest_due'] || '0'),
@@ -123,9 +213,31 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
+          {/* Template Download Section */}
+          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-medium text-blue-900">Step 1: Download Template</h4>
+                <p className="text-sm text-blue-700 mt-1">
+                  Download the Excel template with the required format including LMS Status
+                </p>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={downloadTemplate}
+                className="border-blue-300 text-blue-700 hover:bg-blue-100"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download Template
+              </Button>
+            </div>
+          </div>
+
+          {/* File Upload Section */}
           <div className="space-y-2">
             <label htmlFor="file-upload" className="text-sm font-medium">
-              Select File (Excel/CSV)
+              Step 2: Select File (Excel/CSV)
             </label>
             <Input
               id="file-upload"
@@ -138,6 +250,7 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
           <div className="text-xs text-gray-500">
             <p>Supported formats: Excel (.xlsx, .xls) and CSV (.csv)</p>
             <p>The system will update existing applications based on Applicant ID and add new ones.</p>
+            <p><strong>Note:</strong> LMS Status can only be updated through this upload feature.</p>
           </div>
         </div>
       </DialogContent>
