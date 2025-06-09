@@ -9,16 +9,16 @@ interface StatusCardsProps {
 
 interface StatusCounts {
   total: number;
+  // LMS Status counts
+  lmsUnpaid: number;
+  lmsPartiallyPaid: number;
+  lmsPaid: number;
   // Field Status counts
   fieldUnpaid: number;
   fieldPartiallyPaid: number;
   fieldCashCollected: number;
   fieldCustomerDeposited: number;
   fieldPaid: number;
-  // LMS Status counts
-  lmsUnpaid: number;
-  lmsPartiallyPaid: number;
-  lmsPaid: number;
 }
 
 const StatusCards = ({ applications }: StatusCardsProps) => {
@@ -27,6 +27,19 @@ const StatusCards = ({ applications }: StatusCardsProps) => {
     const counts = applications.reduce((acc, app) => {
       acc.total++;
       
+      // Count LMS status
+      switch (app.lms_status) {
+        case 'Unpaid':
+          acc.lmsUnpaid++;
+          break;
+        case 'Partially Paid':
+          acc.lmsPartiallyPaid++;
+          break;
+        case 'Paid':
+          acc.lmsPaid++;
+          break;
+      }
+
       // Count field status
       switch (app.field_status) {
         case 'Unpaid':
@@ -45,42 +58,45 @@ const StatusCards = ({ applications }: StatusCardsProps) => {
           acc.fieldPaid++;
           break;
       }
-
-      // Count LMS status
-      switch (app.lms_status) {
-        case 'Unpaid':
-          acc.lmsUnpaid++;
-          break;
-        case 'Partially Paid':
-          acc.lmsPartiallyPaid++;
-          break;
-        case 'Paid':
-          acc.lmsPaid++;
-          break;
-      }
       
       return acc;
     }, { 
       total: 0, 
+      lmsUnpaid: 0,
+      lmsPartiallyPaid: 0,
+      lmsPaid: 0,
       fieldUnpaid: 0, 
       fieldPartiallyPaid: 0, 
       fieldCashCollected: 0, 
       fieldCustomerDeposited: 0, 
-      fieldPaid: 0,
-      lmsUnpaid: 0,
-      lmsPartiallyPaid: 0,
-      lmsPaid: 0
+      fieldPaid: 0
     });
 
     return counts;
   }, [applications]);
 
-  // Arrangement: Total → Field Status (user-editable) → LMS Status (system)
+  // Arrangement: Total → LMS Status (system) → Field Status (user-editable)
   const cards = [
     {
       title: "Total",
       value: statusCounts.total,
       className: "bg-blue-50 border-blue-200"
+    },
+    // LMS Status Cards
+    {
+      title: "LMS Unpaid",
+      value: statusCounts.lmsUnpaid,
+      className: "bg-red-100 border-red-300"
+    },
+    {
+      title: "LMS Partially Paid",
+      value: statusCounts.lmsPartiallyPaid,
+      className: "bg-yellow-100 border-yellow-300"
+    },
+    {
+      title: "LMS Paid",
+      value: statusCounts.lmsPaid,
+      className: "bg-green-100 border-green-300"
     },
     // Field Status Cards
     {
@@ -107,22 +123,6 @@ const StatusCards = ({ applications }: StatusCardsProps) => {
       title: "Field Paid",
       value: statusCounts.fieldPaid,
       className: "bg-green-50 border-green-200"
-    },
-    // LMS Status Cards
-    {
-      title: "LMS Unpaid",
-      value: statusCounts.lmsUnpaid,
-      className: "bg-red-100 border-red-300"
-    },
-    {
-      title: "LMS Partially Paid",
-      value: statusCounts.lmsPartiallyPaid,
-      className: "bg-yellow-100 border-yellow-300"
-    },
-    {
-      title: "LMS Paid",
-      value: statusCounts.lmsPaid,
-      className: "bg-green-100 border-green-300"
     }
   ];
 

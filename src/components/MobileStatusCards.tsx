@@ -9,12 +9,10 @@ interface MobileStatusCardsProps {
 
 interface StatusCounts {
   total: number;
-  fieldPaid: number;
-  fieldUnpaid: number;
-  fieldPartiallyPaid: number;
   lmsPaid: number;
   lmsUnpaid: number;
-  lmsPartiallyPaid: number;
+  fieldPaid: number;
+  fieldUnpaid: number;
 }
 
 const MobileStatusCards = ({ applications }: MobileStatusCardsProps) => {
@@ -23,19 +21,6 @@ const MobileStatusCards = ({ applications }: MobileStatusCardsProps) => {
     const counts = applications.reduce((acc, app) => {
       acc.total++;
       
-      // Count field status
-      switch (app.field_status) {
-        case 'Paid':
-          acc.fieldPaid++;
-          break;
-        case 'Unpaid':
-          acc.fieldUnpaid++;
-          break;
-        case 'Partially Paid':
-          acc.fieldPartiallyPaid++;
-          break;
-      }
-
       // Count LMS status
       switch (app.lms_status) {
         case 'Paid':
@@ -44,20 +29,35 @@ const MobileStatusCards = ({ applications }: MobileStatusCardsProps) => {
         case 'Unpaid':
           acc.lmsUnpaid++;
           break;
+        // Partially Paid counted as unpaid for mobile simplified view
         case 'Partially Paid':
-          acc.lmsPartiallyPaid++;
+          acc.lmsUnpaid++;
+          break;
+      }
+
+      // Count field status
+      switch (app.field_status) {
+        case 'Paid':
+          acc.fieldPaid++;
+          break;
+        case 'Unpaid':
+          acc.fieldUnpaid++;
+          break;
+        // All other statuses counted as unpaid for mobile simplified view
+        case 'Partially Paid':
+        case 'Cash Collected from Customer':
+        case 'Customer Deposited to Bank':
+          acc.fieldUnpaid++;
           break;
       }
       
       return acc;
     }, {
       total: 0,
-      fieldPaid: 0,
-      fieldUnpaid: 0,
-      fieldPartiallyPaid: 0,
       lmsPaid: 0,
       lmsUnpaid: 0,
-      lmsPartiallyPaid: 0
+      fieldPaid: 0,
+      fieldUnpaid: 0
     });
 
     return counts;
@@ -70,19 +70,19 @@ const MobileStatusCards = ({ applications }: MobileStatusCardsProps) => {
       className: "bg-blue-50 border-blue-200"
     },
     {
-      title: "Field Paid",
-      value: statusCounts.fieldPaid,
-      className: "bg-green-50 border-green-200"
-    },
-    {
-      title: "Field Unpaid",
-      value: statusCounts.fieldUnpaid,
-      className: "bg-red-50 border-red-200"
-    },
-    {
       title: "LMS Paid",
       value: statusCounts.lmsPaid,
       className: "bg-emerald-50 border-emerald-200"
+    },
+    {
+      title: "LMS Unpaid",
+      value: statusCounts.lmsUnpaid,
+      className: "bg-red-100 border-red-300"
+    },
+    {
+      title: "Field Paid",
+      value: statusCounts.fieldPaid,
+      className: "bg-green-50 border-green-200"
     }
   ];
 
