@@ -26,39 +26,36 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
   const [uploading, setUploading] = useState(false);
 
   const downloadTemplate = () => {
-    // Create template data with example row and all required columns
+    // Create template data with example row and the exact 27 required columns
     const templateData = [
       {
         'Applicant ID': 'PROSAPP250101000001',
-        'Applicant Name': 'John Doe',
-        'Branch': 'Mumbai Branch',
-        'Team Lead': 'Team Lead Name',
+        'Branch Name': 'Mumbai Branch',
         'RM Name': 'RM Name',
-        'Dealer': 'Dealer Name',
-        'Lender': 'Lender Name',
-        'LMS Status': 'Unpaid',
-        'EMI Amount': 5000,
-        'Principle Due': 45000,
-        'Interest Due': 2500,
-        'Demand Date': '2024-01-15',
-        'PTP Date': '',
-        'Paid Date': '',
-        'Applicant Mobile': '9876543210',
-        'Applicant Address': 'Sample Address',
+        'Dealer Name': 'Dealer Name',
+        'Applicant Name': 'John Doe',
+        'Applicant Mobile Number': '9876543210',
+        'Applicant Current Address': 'Sample Address',
         'House Ownership': 'Own',
         'Co-Applicant Name': 'Co-Applicant Name',
-        'Co-Applicant Mobile': '9876543211',
-        'Co-Applicant Address': 'Co-Applicant Address',
+        'Coapplicant Mobile Number': '9876543211',
+        'Coapplicant Current Address': 'Co-Applicant Address',
         'Guarantor Name': 'Guarantor Name',
-        'Guarantor Mobile': '9876543212',
-        'Guarantor Address': 'Guarantor Address',
+        'Guarantor Mobile Number': '9876543212',
+        'Guarantor Current Address': 'Guarantor Address',
         'Reference Name': 'Reference Name',
-        'Reference Mobile': '9876543213',
+        'Reference Mobile Number': '9876543213',
         'Reference Address': 'Reference Address',
-        'FI Location': 'Field Investigation Location',
+        'FI Submission Location': 'Field Investigation Location',
+        'Demand Date': '2024-01-15',
         'Repayment': 'Monthly',
+        'Principle Due': 45000,
+        'Interest Due': 2500,
+        'EMI': 5000,
         'Last Month Bounce': 0,
-        'RM Comments': 'Sample comments'
+        'Lender Name': 'Lender Name',
+        'Status': 'Unpaid',
+        'Team Lead': 'Team Lead Name'
       }
     ];
 
@@ -69,35 +66,32 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
     // Set column widths for better readability
     const colWidths = [
       { wch: 20 }, // Applicant ID
-      { wch: 25 }, // Applicant Name
-      { wch: 15 }, // Branch
-      { wch: 15 }, // Team Lead
+      { wch: 20 }, // Branch Name
       { wch: 15 }, // RM Name
-      { wch: 20 }, // Dealer
-      { wch: 20 }, // Lender
-      { wch: 15 }, // LMS Status
-      { wch: 12 }, // EMI Amount
-      { wch: 15 }, // Principle Due
-      { wch: 12 }, // Interest Due
-      { wch: 12 }, // Demand Date
-      { wch: 12 }, // PTP Date
-      { wch: 12 }, // Paid Date
-      { wch: 15 }, // Applicant Mobile
-      { wch: 30 }, // Applicant Address
+      { wch: 25 }, // Dealer Name
+      { wch: 25 }, // Applicant Name
+      { wch: 15 }, // Applicant Mobile Number
+      { wch: 30 }, // Applicant Current Address
       { wch: 15 }, // House Ownership
-      { wch: 20 }, // Co-Applicant Name
-      { wch: 15 }, // Co-Applicant Mobile
-      { wch: 30 }, // Co-Applicant Address
-      { wch: 20 }, // Guarantor Name
-      { wch: 15 }, // Guarantor Mobile
-      { wch: 30 }, // Guarantor Address
-      { wch: 20 }, // Reference Name
-      { wch: 15 }, // Reference Mobile
+      { wch: 25 }, // Co-Applicant Name
+      { wch: 15 }, // Coapplicant Mobile Number
+      { wch: 30 }, // Coapplicant Current Address
+      { wch: 25 }, // Guarantor Name
+      { wch: 15 }, // Guarantor Mobile Number
+      { wch: 30 }, // Guarantor Current Address
+      { wch: 25 }, // Reference Name
+      { wch: 15 }, // Reference Mobile Number
       { wch: 30 }, // Reference Address
-      { wch: 25 }, // FI Location
-      { wch: 12 }, // Repayment
+      { wch: 25 }, // FI Submission Location
+      { wch: 12 }, // Demand Date
+      { wch: 15 }, // Repayment
+      { wch: 12 }, // Principle Due
+      { wch: 12 }, // Interest Due
+      { wch: 12 }, // EMI
       { wch: 15 }, // Last Month Bounce
-      { wch: 30 }  // RM Comments
+      { wch: 25 }, // Lender Name
+      { wch: 12 }, // Status
+      { wch: 20 }  // Team Lead
     ];
     
     worksheet['!cols'] = colWidths;
@@ -135,40 +129,37 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
         return;
       }
 
-      // Transform data to match database schema with LMS status
+      // Transform data to match database schema with the new column mapping
       const applications = jsonData.map((row: any) => ({
         applicant_id: row['Applicant ID'] || row['applicant_id'],
         applicant_name: row['Applicant Name'] || row['applicant_name'],
-        branch_name: row['Branch'] || row['branch_name'],
+        branch_name: row['Branch Name'] || row['branch_name'],
         team_lead: row['Team Lead'] || row['team_lead'],
         rm_name: row['RM Name'] || row['rm_name'],
-        dealer_name: row['Dealer'] || row['dealer_name'],
-        lender_name: row['Lender'] || row['lender_name'],
-        lms_status: row['LMS Status'] || row['lms_status'] || row['Status'] || row['status'] || 'Unpaid', // Handle LMS status
-        emi_amount: parseFloat(row['EMI Amount'] || row['emi_amount'] || '0'),
+        dealer_name: row['Dealer Name'] || row['dealer_name'],
+        lender_name: row['Lender Name'] || row['lender_name'],
+        lms_status: row['Status'] || row['LMS Status'] || row['lms_status'] || row['status'] || 'Unpaid',
+        emi_amount: parseFloat(row['EMI'] || row['EMI Amount'] || row['emi_amount'] || '0'),
         principle_due: parseFloat(row['Principle Due'] || row['principle_due'] || '0'),
         interest_due: parseFloat(row['Interest Due'] || row['interest_due'] || '0'),
         demand_date: row['Demand Date'] || row['demand_date'],
-        ptp_date: row['PTP Date'] || row['ptp_date'] || null,
-        paid_date: row['Paid Date'] || row['paid_date'] || null,
         user_id: user.id,
         // Additional fields
-        applicant_mobile: row['Applicant Mobile'] || row['applicant_mobile'],
-        applicant_address: row['Applicant Address'] || row['applicant_address'],
+        applicant_mobile: row['Applicant Mobile Number'] || row['applicant_mobile'],
+        applicant_address: row['Applicant Current Address'] || row['applicant_address'],
         house_ownership: row['House Ownership'] || row['house_ownership'],
         co_applicant_name: row['Co-Applicant Name'] || row['co_applicant_name'],
-        co_applicant_mobile: row['Co-Applicant Mobile'] || row['co_applicant_mobile'],
-        co_applicant_address: row['Co-Applicant Address'] || row['co_applicant_address'],
+        co_applicant_mobile: row['Coapplicant Mobile Number'] || row['co_applicant_mobile'],
+        co_applicant_address: row['Coapplicant Current Address'] || row['co_applicant_address'],
         guarantor_name: row['Guarantor Name'] || row['guarantor_name'],
-        guarantor_mobile: row['Guarantor Mobile'] || row['guarantor_mobile'],
-        guarantor_address: row['Guarantor Address'] || row['guarantor_address'],
+        guarantor_mobile: row['Guarantor Mobile Number'] || row['guarantor_mobile'],
+        guarantor_address: row['Guarantor Current Address'] || row['guarantor_address'],
         reference_name: row['Reference Name'] || row['reference_name'],
-        reference_mobile: row['Reference Mobile'] || row['reference_mobile'],
+        reference_mobile: row['Reference Mobile Number'] || row['reference_mobile'],
         reference_address: row['Reference Address'] || row['reference_address'],
-        fi_location: row['FI Location'] || row['fi_location'],
+        fi_location: row['FI Submission Location'] || row['fi_location'],
         repayment: row['Repayment'] || row['repayment'],
-        last_month_bounce: parseFloat(row['Last Month Bounce'] || row['last_month_bounce'] || '0'),
-        rm_comments: row['RM Comments'] || row['rm_comments']
+        last_month_bounce: parseFloat(row['Last Month Bounce'] || row['last_month_bounce'] || '0')
       }));
 
       console.log('Transformed applications:', applications);
@@ -219,7 +210,7 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
               <div>
                 <h4 className="font-medium text-blue-900">Step 1: Download Template</h4>
                 <p className="text-sm text-blue-700 mt-1">
-                  Download the Excel template with the required format including LMS Status
+                  Download the Excel template with the required format (27 columns)
                 </p>
               </div>
               <Button 

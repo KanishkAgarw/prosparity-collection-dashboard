@@ -13,35 +13,35 @@ interface MobileOptimizedTableProps {
   selectedApplicationId?: string;
 }
 
+const getLmsStatusColor = (status: string) => {
+  switch (status) {
+    case 'Paid': return 'bg-green-50 text-green-700 border-green-300';
+    case 'Unpaid': return 'bg-red-50 text-red-700 border-red-300';
+    case 'Partially Paid': return 'bg-yellow-50 text-yellow-700 border-yellow-300';
+    default: return 'bg-gray-50 text-gray-700 border-gray-300';
+  }
+};
+
+const getFieldStatusColor = (status: string) => {
+  switch (status) {
+    case 'Paid': return 'bg-green-100 text-green-800 border-green-200';
+    case 'Unpaid': return 'bg-red-100 text-red-800 border-red-200';
+    case 'Partially Paid': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    case 'Cash Collected from Customer': return 'bg-orange-100 text-orange-800 border-orange-200';
+    case 'Customer Deposited to Bank': return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+    default: return 'bg-gray-100 text-gray-800 border-gray-200';
+  }
+};
+
+const truncateText = (text: string, maxLength: number = 20) => {
+  return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+};
+
 const MobileOptimizedTable = ({ 
   applications, 
   onRowClick, 
   selectedApplicationId 
 }: MobileOptimizedTableProps) => {
-  const getFieldStatusColor = (status: string) => {
-    switch (status) {
-      case 'Paid': return 'bg-green-100 text-green-800 border-green-200';
-      case 'Unpaid': return 'bg-red-100 text-red-800 border-red-200';
-      case 'Partially Paid': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'Cash Collected from Customer': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'Customer Deposited to Bank': return 'bg-indigo-100 text-indigo-800 border-indigo-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
-  const getLmsStatusColor = (status: string) => {
-    switch (status) {
-      case 'Paid': return 'bg-green-50 text-green-700 border-green-300';
-      case 'Unpaid': return 'bg-red-50 text-red-700 border-red-300';
-      case 'Partially Paid': return 'bg-yellow-50 text-yellow-700 border-yellow-300';
-      default: return 'bg-gray-50 text-gray-700 border-gray-300';
-    }
-  };
-
-  const truncateText = (text: string, maxLength: number = 20) => {
-    return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
-  };
-
   return (
     <div className="space-y-3">
       {applications.map((app) => (
@@ -64,11 +64,11 @@ const MobileOptimizedTable = ({
                 </p>
               </div>
               <div className="flex flex-col gap-1 ml-3">
-                <Badge className={`text-xs px-2 py-1 ${getFieldStatusColor(app.field_status || 'Unpaid')}`}>
-                  Field: {app.field_status || 'Unpaid'}
-                </Badge>
                 <Badge className={`text-xs px-2 py-1 ${getLmsStatusColor(app.lms_status)}`}>
                   LMS: {app.lms_status}
+                </Badge>
+                <Badge className={`text-xs px-2 py-1 ${getFieldStatusColor(app.field_status || 'Unpaid')}`}>
+                  Field: {app.field_status || 'Unpaid'}
                 </Badge>
                 <Eye className="h-4 w-4 text-gray-400 self-center" />
               </div>

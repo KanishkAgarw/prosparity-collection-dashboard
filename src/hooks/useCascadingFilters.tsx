@@ -14,7 +14,8 @@ interface FilterState {
   rm: string[];
   dealer: string[];
   lender: string[];
-  status: string[];
+  lmsStatus: string[];
+  fieldStatus: string[];
   emiMonth: string[];
   repayment: string[];
   lastMonthBounce: LastMonthBounceCategory[];
@@ -56,7 +57,8 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
     rm: [],
     dealer: [],
     lender: [],
-    status: [],
+    lmsStatus: [],
+    fieldStatus: [],
     emiMonth: [],
     repayment: [],
     lastMonthBounce: []
@@ -75,13 +77,20 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
       const emiMonthMatch = filters.emiMonth.length === 0 || 
         filters.emiMonth.includes(formatEmiMonth(app.demand_date));
 
+      const lmsStatusMatch = filters.lmsStatus.length === 0 || 
+        filters.lmsStatus.includes(app.lms_status);
+
+      const fieldStatusMatch = filters.fieldStatus.length === 0 || 
+        filters.fieldStatus.includes(app.field_status || 'Unpaid');
+
       return (
         (filters.branch.length === 0 || filters.branch.includes(app.branch_name)) &&
         (filters.teamLead.length === 0 || filters.teamLead.includes(app.team_lead)) &&
         (filters.rm.length === 0 || filters.rm.includes(app.rm_name)) &&
         (filters.dealer.length === 0 || filters.dealer.includes(app.dealer_name)) &&
         (filters.lender.length === 0 || filters.lender.includes(app.lender_name)) &&
-        (filters.status.length === 0 || filters.status.includes(app.status)) &&
+        lmsStatusMatch &&
+        fieldStatusMatch &&
         emiMonthMatch &&
         repaymentMatch &&
         lastMonthBounceMatch
@@ -110,7 +119,8 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
       rms: [...new Set(safeApplications.map(app => app.rm_name).filter(Boolean))],
       dealers: [...new Set(safeApplications.map(app => app.dealer_name).filter(Boolean))],
       lenders: [...new Set(safeApplications.map(app => app.lender_name).filter(Boolean))],
-      statuses: [...new Set(safeApplications.map(app => app.status).filter(Boolean))],
+      lmsStatuses: [...new Set(safeApplications.map(app => app.lms_status).filter(Boolean))],
+      fieldStatuses: [...new Set(safeApplications.map(app => app.field_status || 'Unpaid').filter(Boolean))],
       emiMonths: [...new Set(safeApplications.map(app => formatEmiMonth(app.demand_date)).filter(Boolean))],
       repayments,
       lastMonthBounce: lastMonthBounceCategories
@@ -126,7 +136,8 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
         rm: prevFilters.rm.filter(item => availableOptions.rms.includes(item)),
         dealer: prevFilters.dealer.filter(item => availableOptions.dealers.includes(item)),
         lender: prevFilters.lender.filter(item => availableOptions.lenders.includes(item)),
-        status: prevFilters.status.filter(item => availableOptions.statuses.includes(item)),
+        lmsStatus: prevFilters.lmsStatus.filter(item => availableOptions.lmsStatuses.includes(item)),
+        fieldStatus: prevFilters.fieldStatus.filter(item => availableOptions.fieldStatuses.includes(item)),
         emiMonth: prevFilters.emiMonth.filter(item => availableOptions.emiMonths.includes(item)),
         repayment: prevFilters.repayment.filter(item => availableOptions.repayments.includes(item)),
         lastMonthBounce: prevFilters.lastMonthBounce.filter(item => availableOptions.lastMonthBounce.includes(item))

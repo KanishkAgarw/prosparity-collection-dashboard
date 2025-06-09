@@ -1,6 +1,5 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { Application } from '@/types/application';
 
 export const processBulkApplications = async (applications: any[]) => {
   console.log('Processing bulk applications:', applications.length);
