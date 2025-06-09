@@ -10,9 +10,8 @@ interface StatusCardsProps {
 interface StatusCounts {
   total: number;
   // LMS Status counts
-  lmsUnpaid: number;
-  lmsPartiallyPaid: number;
   lmsPaid: number;
+  lmsBounced: number;
   // Field Status counts
   fieldUnpaid: number;
   fieldPartiallyPaid: number;
@@ -27,17 +26,15 @@ const StatusCards = ({ applications }: StatusCardsProps) => {
     const counts = applications.reduce((acc, app) => {
       acc.total++;
       
-      // Count LMS status
+      // Count LMS status - only Paid and Bounced
       switch (app.lms_status) {
-        case 'Unpaid':
-          acc.lmsUnpaid++;
-          break;
-        case 'Partially Paid':
-          acc.lmsPartiallyPaid++;
-          break;
         case 'Paid':
           acc.lmsPaid++;
           break;
+        case 'Bounced':
+          acc.lmsBounced++;
+          break;
+        // All other LMS statuses (Unpaid, Partially Paid, etc.) are not counted in these specific cards
       }
 
       // Count field status
@@ -62,9 +59,8 @@ const StatusCards = ({ applications }: StatusCardsProps) => {
       return acc;
     }, { 
       total: 0, 
-      lmsUnpaid: 0,
-      lmsPartiallyPaid: 0,
       lmsPaid: 0,
+      lmsBounced: 0,
       fieldUnpaid: 0, 
       fieldPartiallyPaid: 0, 
       fieldCashCollected: 0, 
@@ -84,19 +80,14 @@ const StatusCards = ({ applications }: StatusCardsProps) => {
     },
     // LMS Status Cards
     {
-      title: "LMS Unpaid",
-      value: statusCounts.lmsUnpaid,
-      className: "bg-red-100 border-red-300"
-    },
-    {
-      title: "LMS Partially Paid",
-      value: statusCounts.lmsPartiallyPaid,
-      className: "bg-yellow-100 border-yellow-300"
-    },
-    {
       title: "LMS Paid",
       value: statusCounts.lmsPaid,
       className: "bg-green-100 border-green-300"
+    },
+    {
+      title: "LMS Bounced",
+      value: statusCounts.lmsBounced,
+      className: "bg-red-100 border-red-300"
     },
     // Field Status Cards
     {
@@ -127,7 +118,7 @@ const StatusCards = ({ applications }: StatusCardsProps) => {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3">
       {cards.map((card, index) => (
         <Card key={index} className={`${card.className} border shadow-sm`}>
           <CardHeader className="pb-1 pt-2 px-2 md:pb-2 md:pt-3 md:px-3">

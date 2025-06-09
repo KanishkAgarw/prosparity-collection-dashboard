@@ -10,9 +10,8 @@ interface MobileStatusCardsProps {
 interface StatusCounts {
   total: number;
   lmsPaid: number;
-  lmsUnpaid: number;
+  lmsBounced: number;
   fieldPaid: number;
-  fieldUnpaid: number;
 }
 
 const MobileStatusCards = ({ applications }: MobileStatusCardsProps) => {
@@ -21,43 +20,31 @@ const MobileStatusCards = ({ applications }: MobileStatusCardsProps) => {
     const counts = applications.reduce((acc, app) => {
       acc.total++;
       
-      // Count LMS status
+      // Count LMS status - only Paid and Bounced for mobile view
       switch (app.lms_status) {
         case 'Paid':
           acc.lmsPaid++;
           break;
-        case 'Unpaid':
-          acc.lmsUnpaid++;
+        case 'Bounced':
+          acc.lmsBounced++;
           break;
-        // Partially Paid counted as unpaid for mobile simplified view
-        case 'Partially Paid':
-          acc.lmsUnpaid++;
-          break;
+        // All other LMS statuses are not counted in mobile simplified view
       }
 
-      // Count field status
+      // Count field status - only Paid for mobile simplified view
       switch (app.field_status) {
         case 'Paid':
           acc.fieldPaid++;
           break;
-        case 'Unpaid':
-          acc.fieldUnpaid++;
-          break;
-        // All other statuses counted as unpaid for mobile simplified view
-        case 'Partially Paid':
-        case 'Cash Collected from Customer':
-        case 'Customer Deposited to Bank':
-          acc.fieldUnpaid++;
-          break;
+        // All other field statuses are not counted in mobile simplified view
       }
       
       return acc;
     }, {
       total: 0,
       lmsPaid: 0,
-      lmsUnpaid: 0,
-      fieldPaid: 0,
-      fieldUnpaid: 0
+      lmsBounced: 0,
+      fieldPaid: 0
     });
 
     return counts;
@@ -72,11 +59,11 @@ const MobileStatusCards = ({ applications }: MobileStatusCardsProps) => {
     {
       title: "LMS Paid",
       value: statusCounts.lmsPaid,
-      className: "bg-emerald-50 border-emerald-200"
+      className: "bg-green-100 border-green-300"
     },
     {
-      title: "LMS Unpaid",
-      value: statusCounts.lmsUnpaid,
+      title: "LMS Bounced",
+      value: statusCounts.lmsBounced,
       className: "bg-red-100 border-red-300"
     },
     {
