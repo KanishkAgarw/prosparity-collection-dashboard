@@ -5,6 +5,7 @@ import ApplicationsTable from "@/components/ApplicationsTable";
 import MobileOptimizedTable from "@/components/MobileOptimizedTable";
 import PaginationControls from "@/components/PaginationControls";
 import BulkStatusUpdate from "@/components/BulkStatusUpdate";
+import PendingApprovals from "@/components/PendingApprovals";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -53,6 +54,9 @@ const MainContent = ({
       {/* Admin Controls */}
       {isAdmin && (
         <div className="space-y-4">
+          {/* Pending Approvals */}
+          <PendingApprovals onUpdate={() => window.location.reload()} />
+          
           {/* Bulk Operations */}
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium">Applications Management</h3>

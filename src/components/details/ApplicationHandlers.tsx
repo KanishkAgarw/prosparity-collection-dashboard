@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Application } from '@/types/application';
 import { toast } from 'sonner';
+import { useUserProfiles } from '@/hooks/useUserProfiles';
 
 export const useApplicationHandlers = (
   application: Application | null,
@@ -11,6 +12,7 @@ export const useApplicationHandlers = (
   addCallingLog: (contactType: string, newStatus: string, previousStatus?: string) => Promise<void>,
   onSave: (updatedApp: Application) => void
 ) => {
+  const { getUserName } = useUserProfiles();
   const [isUpdating, setIsUpdating] = useState(false);
 
   const handleStatusChange = async (newStatus: string) => {
@@ -26,33 +28,89 @@ export const useApplicationHandlers = (
         return;
       }
 
-      // Update field_status table with proper conflict handling
-      const { error } = await supabase
-        .from('field_status')
-        .upsert({
-          application_id: application.applicant_id,
-          status: newStatus,
-          user_id: user.id,
-          user_email: user.email,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'application_id'
-        });
+      // Check if this is a request for "Paid" status - requires approval
+      if (newStatus === 'Paid') {
+        // Create a status change request
+        const { error: requestError } = await supabase
+          .from('status_change_requests')
+          .insert({
+            application_id: application.applicant_id,
+            requested_status: newStatus,
+            current_status: previousStatus,
+            requested_by_user_id: user.id,
+            requested_by_email: user.email,
+            requested_by_name: getUserName(user.id, user.email)
+          });
 
-      if (error) {
-        console.error('Error updating field status:', error);
-        toast.error('Failed to update status');
-        return;
+        if (requestError) {
+          console.error('Error creating status change request:', requestError);
+          toast.error('Failed to create status change request');
+          return;
+        }
+
+        // Update field_status to show pending approval state
+        const { error } = await supabase
+          .from('field_status')
+          .upsert({
+            application_id: application.applicant_id,
+            status: 'Paid (Pending Approval)',
+            requested_status: newStatus,
+            status_approval_needed: true,
+            user_id: user.id,
+            user_email: user.email,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'application_id'
+          });
+
+        if (error) {
+          console.error('Error updating field status:', error);
+          toast.error('Failed to update status');
+          return;
+        }
+
+        // Add audit log for the request
+        await addAuditLog(application.applicant_id, 'Status', previousStatus, 'Paid (Pending Approval)');
+
+        // Update local application state
+        const updatedApp = { 
+          ...application, 
+          field_status: 'Paid (Pending Approval)'
+        };
+        onSave(updatedApp);
+
+        toast.success('Status change request submitted for approval');
+      } else {
+        // Handle normal status changes (non-Paid statuses)
+        const { error } = await supabase
+          .from('field_status')
+          .upsert({
+            application_id: application.applicant_id,
+            status: newStatus,
+            requested_status: null,
+            status_approval_needed: false,
+            user_id: user.id,
+            user_email: user.email,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'application_id'
+          });
+
+        if (error) {
+          console.error('Error updating field status:', error);
+          toast.error('Failed to update status');
+          return;
+        }
+
+        // Add audit log for the status change
+        await addAuditLog(application.applicant_id, 'Status', previousStatus, newStatus);
+
+        // Update local application state
+        const updatedApp = { ...application, field_status: newStatus };
+        onSave(updatedApp);
+
+        toast.success('Status updated successfully');
       }
-
-      // Add audit log for the status change
-      await addAuditLog(application.applicant_id, 'Status', previousStatus, newStatus);
-
-      // Update local application state
-      const updatedApp = { ...application, field_status: newStatus };
-      onSave(updatedApp);
-
-      toast.success('Status updated successfully');
     } catch (error) {
       console.error('Error updating status:', error);
       toast.error('Failed to update status');

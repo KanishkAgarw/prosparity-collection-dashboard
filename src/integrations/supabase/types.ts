@@ -248,7 +248,9 @@ export type Database = {
           application_id: string
           created_at: string
           id: string
+          requested_status: string | null
           status: string
+          status_approval_needed: boolean | null
           updated_at: string
           user_email: string | null
           user_id: string
@@ -257,7 +259,9 @@ export type Database = {
           application_id: string
           created_at?: string
           id?: string
+          requested_status?: string | null
           status?: string
+          status_approval_needed?: boolean | null
           updated_at?: string
           user_email?: string | null
           user_id: string
@@ -266,7 +270,9 @@ export type Database = {
           application_id?: string
           created_at?: string
           id?: string
+          requested_status?: string | null
           status?: string
+          status_approval_needed?: boolean | null
           updated_at?: string
           user_email?: string | null
           user_id?: string
@@ -351,6 +357,63 @@ export type Database = {
         }
         Relationships: []
       }
+      status_change_requests: {
+        Row: {
+          application_id: string
+          approval_status: Database["public"]["Enums"]["approval_status"]
+          created_at: string | null
+          current_status: string
+          id: string
+          request_timestamp: string
+          requested_by_email: string | null
+          requested_by_name: string | null
+          requested_by_user_id: string
+          requested_status: string
+          review_comments: string | null
+          review_timestamp: string | null
+          reviewed_by_email: string | null
+          reviewed_by_name: string | null
+          reviewed_by_user_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          application_id: string
+          approval_status?: Database["public"]["Enums"]["approval_status"]
+          created_at?: string | null
+          current_status: string
+          id?: string
+          request_timestamp?: string
+          requested_by_email?: string | null
+          requested_by_name?: string | null
+          requested_by_user_id: string
+          requested_status: string
+          review_comments?: string | null
+          review_timestamp?: string | null
+          reviewed_by_email?: string | null
+          reviewed_by_name?: string | null
+          reviewed_by_user_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          application_id?: string
+          approval_status?: Database["public"]["Enums"]["approval_status"]
+          created_at?: string | null
+          current_status?: string
+          id?: string
+          request_timestamp?: string
+          requested_by_email?: string | null
+          requested_by_name?: string | null
+          requested_by_user_id?: string
+          requested_status?: string
+          review_comments?: string | null
+          review_timestamp?: string | null
+          reviewed_by_email?: string | null
+          reviewed_by_name?: string | null
+          reviewed_by_user_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -390,6 +453,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      approval_status: "pending" | "approved" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -506,6 +570,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      approval_status: ["pending", "approved", "rejected"],
     },
   },
 } as const

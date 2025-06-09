@@ -5,11 +5,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Application } from "@/types/application";
 import { AuditLog } from "@/hooks/useAuditLogs";
 import { format } from "date-fns";
 import { formatPtpDate } from "@/utils/formatters";
-import { History } from "lucide-react";
+import { History, Clock, AlertCircle } from "lucide-react";
 import { useFilteredAuditLogs } from "@/hooks/useFilteredAuditLogs";
 import LogDialog from "./LogDialog";
 
@@ -107,6 +108,10 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
     ];
   };
 
+  // Check if status is pending approval
+  const isPendingApproval = application.field_status?.includes('Pending Approval');
+  const currentStatus = application.field_status || 'Unpaid';
+
   return (
     <div className="space-y-4">
       <Card>
@@ -117,21 +122,44 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
           <div className="space-y-4">
             <div>
               <Label htmlFor="status">Status</Label>
-              <Select 
-                value={application.field_status || 'Unpaid'} 
-                onValueChange={handleStatusChange}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {getStatusOptions().map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {isPendingApproval ? (
+                <div className="mt-1 space-y-2">
+                  <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                    <Clock className="h-4 w-4 text-yellow-600" />
+                    <div className="flex-1">
+                      <div className="font-medium text-yellow-800">
+                        {currentStatus}
+                      </div>
+                      <div className="text-sm text-yellow-600">
+                        This status change is awaiting admin approval
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                      Pending
+                    </Badge>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    <AlertCircle className="h-3 w-3 inline mr-1" />
+                    Status cannot be changed while approval is pending
+                  </div>
+                </div>
+              ) : (
+                <Select 
+                  value={currentStatus} 
+                  onValueChange={handleStatusChange}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getStatusOptions().map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             
             <div>
