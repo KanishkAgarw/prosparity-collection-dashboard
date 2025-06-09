@@ -1,12 +1,13 @@
 
 import { useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { LogOut, Download, Menu } from "lucide-react";
+import { LogOut, Download, Menu, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserProfiles } from "@/hooks/useUserProfiles";
+import { useUserRoles } from "@/hooks/useUserRoles";
 import UploadApplicationDialog from "@/components/UploadApplicationDialog";
 import AdminUserManagement from "@/components/AdminUserManagement";
 
@@ -19,6 +20,7 @@ const AppHeader = ({ onExport, onApplicationAdded }: AppHeaderProps) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { getUserName, fetchProfiles } = useUserProfiles();
+  const { isAdmin } = useUserRoles();
 
   // Fetch user profile when component mounts
   useEffect(() => {
@@ -31,8 +33,6 @@ const AppHeader = ({ onExport, onApplicationAdded }: AppHeaderProps) => {
     if (!user) return '';
     return getUserName(user.id, user.email || '');
   }, [user, getUserName]);
-
-  const isAdmin = user?.email === 'kanishk@prosparity.in';
 
   const handleSignOut = async () => {
     try {
@@ -74,6 +74,17 @@ const AppHeader = ({ onExport, onApplicationAdded }: AppHeaderProps) => {
             </Button>
             {isAdmin && <UploadApplicationDialog onApplicationsAdded={onApplicationAdded} />}
             {isAdmin && <AdminUserManagement isAdmin={isAdmin} />}
+            {isAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/admin-settings')}
+                className="h-8 text-xs"
+              >
+                <Settings className="h-3 w-3 mr-1" />
+                Admin Settings
+              </Button>
+            )}
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <span className="font-medium truncate max-w-[120px]">{userDisplayName}</span>
@@ -94,14 +105,26 @@ const AppHeader = ({ onExport, onApplicationAdded }: AppHeaderProps) => {
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <span className="font-medium truncate max-w-[150px]">{userDisplayName}</span>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSignOut}
-            className="text-gray-600 hover:text-gray-900 h-8"
-          >
-            Log Out
-          </Button>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/admin-settings')}
+                className="h-8"
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSignOut}
+              className="text-gray-600 hover:text-gray-900 h-8"
+            >
+              Log Out
+            </Button>
+          </div>
         </div>
       </div>
     </>
