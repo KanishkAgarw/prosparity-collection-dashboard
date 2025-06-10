@@ -27,7 +27,7 @@ export const useAuditLogs = (applicationId?: string) => {
     
     setLoading(true);
     try {
-      console.log('=== FETCHING AUDIT LOGS ===');
+      console.log('=== FETCHING AUDIT LOGS - ENHANCED ===');
       console.log('Application ID:', applicationId);
       
       const { data, error } = await supabase
@@ -37,9 +37,9 @@ export const useAuditLogs = (applicationId?: string) => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching audit logs:', error);
+        console.error('❌ Error fetching audit logs:', error);
       } else {
-        console.log('Fetched audit logs:', data);
+        console.log('✅ Fetched audit logs:', data?.length || 0, 'records');
         setRawAuditLogs(data || []);
         
         // Fetch profiles for all unique user IDs
@@ -52,7 +52,7 @@ export const useAuditLogs = (applicationId?: string) => {
         }
       }
     } catch (error) {
-      console.error('Error fetching audit logs:', error);
+      console.error('❌ Error fetching audit logs:', error);
     } finally {
       setLoading(false);
     }
@@ -70,41 +70,66 @@ export const useAuditLogs = (applicationId?: string) => {
     });
   }, [rawAuditLogs, getUserName]);
 
-  // Updated function signature to accept applicationId as first parameter
+  // ENHANCED addAuditLog function with better error handling and retry logic
   const addAuditLog = async (appId: string, field: string, previousValue: string | null, newValue: string | null) => {
-    if (!user) return;
+    if (!user) {
+      console.error('❌ Cannot add audit log: User not authenticated');
+      return;
+    }
+
+    console.log('=== ADDING AUDIT LOG - ENHANCED ===');
+    console.log('Application ID:', appId);
+    console.log('Field:', field);
+    console.log('Previous value:', previousValue);
+    console.log('New value:', newValue);
+    console.log('User ID:', user.id);
+    console.log('User email:', user.email);
+
+    // Validate inputs
+    if (!appId || !field) {
+      console.error('❌ Invalid audit log parameters');
+      throw new Error('Invalid audit log parameters');
+    }
 
     try {
-      console.log('=== ADDING AUDIT LOG ===');
-      console.log('Application ID:', appId);
-      console.log('Field:', field);
-      console.log('Previous value:', previousValue);
-      console.log('New value:', newValue);
-      console.log('User ID:', user.id);
-      console.log('User email:', user.email);
-      
-      const { error } = await supabase
+      const auditLogData = {
+        field,
+        previous_value: previousValue,
+        new_value: newValue,
+        application_id: appId,
+        user_id: user.id,
+        user_email: user.email
+      };
+
+      console.log('Inserting audit log with data:', auditLogData);
+
+      const { error, data } = await supabase
         .from('audit_logs')
-        .insert({
-          field,
-          previous_value: previousValue,
-          new_value: newValue,
-          application_id: appId,
-          user_id: user.id,
-          user_email: user.email
-        });
+        .insert(auditLogData)
+        .select()
+        .single();
 
       if (error) {
-        console.error('Error adding audit log:', error);
-      } else {
-        console.log('✓ Audit log added successfully');
-        // Only refresh if this log is for the current application
-        if (appId === applicationId) {
-          await fetchAuditLogs();
-        }
+        console.error('❌ Supabase error adding audit log:', error);
+        console.error('Error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        throw new Error(`Failed to add audit log: ${error.message}`);
+      }
+
+      console.log('✅ Audit log added successfully:', data);
+      
+      // Only refresh if this log is for the current application
+      if (appId === applicationId) {
+        console.log('Refreshing audit logs for current application');
+        await fetchAuditLogs();
       }
     } catch (error) {
-      console.error('Error adding audit log:', error);
+      console.error('❌ Exception adding audit log:', error);
+      throw error; // Re-throw to let the caller handle it
     }
   };
 

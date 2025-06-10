@@ -23,28 +23,11 @@ export const useRealtimeUpdates = ({
   useEffect(() => {
     if (!user) return;
 
-    console.log('Setting up real-time subscriptions');
+    console.log('=== SETTING UP ENHANCED REAL-TIME SUBSCRIPTIONS ===');
 
-    // Subscribe to application changes
-    const applicationsChannel = supabase
-      .channel('applications-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'applications'
-        },
-        (payload) => {
-          console.log('Application update received:', payload);
-          onApplicationUpdate?.();
-        }
-      )
-      .subscribe();
-
-    // Subscribe to PTP dates changes
+    // Subscribe to PTP dates changes - CRITICAL for immediate updates
     const ptpDatesChannel = supabase
-      .channel('ptp-dates-changes')
+      .channel('ptp-dates-changes-enhanced')
       .on(
         'postgres_changes',
         {
@@ -53,33 +36,16 @@ export const useRealtimeUpdates = ({
           table: 'ptp_dates'
         },
         (payload) => {
-          console.log('PTP date update received:', payload);
+          console.log('✅ PTP date update received:', payload);
           onPtpDateUpdate?.();
           onApplicationUpdate?.(); // Also trigger app update for main list
         }
       )
       .subscribe();
 
-    // Subscribe to calling logs changes
-    const callingLogsChannel = supabase
-      .channel('calling-logs-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'calling_logs'
-        },
-        (payload) => {
-          console.log('Calling log update received:', payload);
-          onCallingLogUpdate?.();
-        }
-      )
-      .subscribe();
-
     // Subscribe to audit logs changes - CRITICAL for PTP date logging
     const auditLogsChannel = supabase
-      .channel('audit-logs-changes')
+      .channel('audit-logs-changes-enhanced')
       .on(
         'postgres_changes',
         {
@@ -88,15 +54,49 @@ export const useRealtimeUpdates = ({
           table: 'audit_logs'
         },
         (payload) => {
-          console.log('Audit log update received:', payload);
+          console.log('✅ Audit log update received:', payload);
           onAuditLogUpdate?.();
+        }
+      )
+      .subscribe();
+
+    // Subscribe to application changes
+    const applicationsChannel = supabase
+      .channel('applications-changes-enhanced')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'applications'
+        },
+        (payload) => {
+          console.log('✅ Application update received:', payload);
+          onApplicationUpdate?.();
+        }
+      )
+      .subscribe();
+
+    // Subscribe to calling logs changes
+    const callingLogsChannel = supabase
+      .channel('calling-logs-changes-enhanced')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'calling_logs'
+        },
+        (payload) => {
+          console.log('✅ Calling log update received:', payload);
+          onCallingLogUpdate?.();
         }
       )
       .subscribe();
 
     // Subscribe to contact calling status changes
     const contactStatusChannel = supabase
-      .channel('contact-status-changes')
+      .channel('contact-status-changes-enhanced')
       .on(
         'postgres_changes',
         {
@@ -105,7 +105,7 @@ export const useRealtimeUpdates = ({
           table: 'contact_calling_status'
         },
         (payload) => {
-          console.log('Contact status update received:', payload);
+          console.log('✅ Contact status update received:', payload);
           onCallingLogUpdate?.();
         }
       )
@@ -113,7 +113,7 @@ export const useRealtimeUpdates = ({
 
     // Subscribe to comments changes
     const commentsChannel = supabase
-      .channel('comments-changes')
+      .channel('comments-changes-enhanced')
       .on(
         'postgres_changes',
         {
@@ -122,18 +122,18 @@ export const useRealtimeUpdates = ({
           table: 'comments'
         },
         (payload) => {
-          console.log('Comment update received:', payload);
+          console.log('✅ Comment update received:', payload);
           onCommentUpdate?.();
         }
       )
       .subscribe();
 
     return () => {
-      console.log('Cleaning up real-time subscriptions');
-      supabase.removeChannel(applicationsChannel);
+      console.log('🧹 Cleaning up enhanced real-time subscriptions');
       supabase.removeChannel(ptpDatesChannel);
-      supabase.removeChannel(callingLogsChannel);
       supabase.removeChannel(auditLogsChannel);
+      supabase.removeChannel(applicationsChannel);
+      supabase.removeChannel(callingLogsChannel);
       supabase.removeChannel(contactStatusChannel);
       supabase.removeChannel(commentsChannel);
     };

@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Application } from '@/types/application';
@@ -122,12 +123,13 @@ export const useApplicationHandlers = (
     if (!application || !user || isUpdating) return;
 
     setIsUpdating(true);
-    try {
-      console.log('=== PTP DATE CHANGE HANDLER ===');
-      console.log('Application ID:', application.applicant_id);
-      console.log('Previous PTP date:', application.ptp_date);
-      console.log('New PTP date input:', newDate);
+    console.log('=== PTP DATE CHANGE HANDLER - ENHANCED ===');
+    console.log('Application ID:', application.applicant_id);
+    console.log('User ID:', user.id);
+    console.log('Previous PTP date:', application.ptp_date);
+    console.log('New PTP date input:', newDate);
 
+    try {
       const previousDate = application.ptp_date;
       let formattedDate: string | null = null;
 
@@ -137,39 +139,27 @@ export const useApplicationHandlers = (
         console.log('Formatted date for storage:', formattedDate);
       }
 
-      // Update ptp_dates table first
-      console.log('Inserting PTP date record...');
-      const { error: ptpError } = await supabase
+      // Step 1: Insert PTP date record with enhanced error handling
+      console.log('Step 1: Inserting PTP date record...');
+      const { error: ptpError, data: ptpData } = await supabase
         .from('ptp_dates')
         .insert({
           application_id: application.applicant_id,
           ptp_date: formattedDate,
           user_id: user.id
-        });
+        })
+        .select()
+        .single();
 
       if (ptpError) {
-        console.error('Error updating PTP date:', ptpError);
-        toast.error('Failed to update PTP date');
+        console.error('❌ PTP Insert Error:', ptpError);
+        toast.error(`Failed to update PTP date: ${ptpError.message}`);
         return;
       }
 
-      // Update applications table
-      console.log('Updating applications table...');
-      const { error: appError } = await supabase
-        .from('applications')
-        .update({
-          ptp_date: formattedDate,
-          updated_at: new Date().toISOString()
-        })
-        .eq('applicant_id', application.applicant_id);
+      console.log('✅ PTP date record inserted:', ptpData);
 
-      if (appError) {
-        console.error('Error updating application PTP date:', appError);
-        toast.error('Failed to update PTP date');
-        return;
-      }
-
-      // Format dates for audit log - use consistent DD-MMM-YYYY format
+      // Step 2: Format dates for audit log - use consistent DD-MMM-YYYY format
       const formatDateForAudit = (dateString: string | null): string => {
         if (!dateString) return 'Not Set';
         try {
@@ -188,29 +178,59 @@ export const useApplicationHandlers = (
       const previousDisplayValue = formatDateForAudit(previousDate);
       const newDisplayValue = formatDateForAudit(formattedDate);
 
-      console.log('Adding audit log with values:');
+      console.log('Step 2: Formatted values for audit log:');
       console.log('Previous:', previousDisplayValue);
       console.log('New:', newDisplayValue);
 
-      // Add audit log - this is critical for showing in Recent Changes
-      try {
-        await addAuditLog(application.applicant_id, 'PTP Date', previousDisplayValue, newDisplayValue);
-        console.log('✓ Audit log added successfully');
-      } catch (auditError) {
-        console.error('Failed to add audit log:', auditError);
-        // Don't fail the whole operation if audit log fails
+      // Step 3: Add audit log with enhanced error handling and retry
+      console.log('Step 3: Adding audit log...');
+      let auditLogSuccess = false;
+      let auditAttempts = 0;
+      const maxAuditAttempts = 3;
+
+      while (!auditLogSuccess && auditAttempts < maxAuditAttempts) {
+        auditAttempts++;
+        try {
+          console.log(`Audit log attempt ${auditAttempts}/${maxAuditAttempts}`);
+          await addAuditLog(application.applicant_id, 'PTP Date', previousDisplayValue, newDisplayValue);
+          auditLogSuccess = true;
+          console.log('✅ Audit log added successfully');
+        } catch (auditError) {
+          console.error(`❌ Audit log attempt ${auditAttempts} failed:`, auditError);
+          if (auditAttempts < maxAuditAttempts) {
+            // Wait 500ms before retry
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+      }
+
+      if (!auditLogSuccess) {
+        console.error('❌ All audit log attempts failed');
+        // Don't fail the entire operation, but show warning
         toast.error('PTP date updated but logging failed');
       }
 
-      // Update local application state
+      // Step 4: Update local application state
+      console.log('Step 4: Updating local application state...');
       const updatedApp = { ...application, ptp_date: formattedDate };
       onSave(updatedApp);
 
-      toast.success('PTP date updated successfully');
-      console.log('✓ PTP date change completed successfully');
+      // Step 5: Show success message
+      if (newDate) {
+        const formattedDisplayDate = new Date(formattedDate!).toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        });
+        toast.success(`PTP date updated to ${formattedDisplayDate}`);
+      } else {
+        toast.success('PTP date cleared');
+      }
+
+      console.log('✅ PTP date change completed successfully');
     } catch (error) {
-      console.error('Error updating PTP date:', error);
-      toast.error('Failed to update PTP date');
+      console.error('❌ Unexpected error in PTP date change:', error);
+      toast.error('Failed to update PTP date. Please try again.');
     } finally {
       setIsUpdating(false);
     }

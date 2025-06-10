@@ -37,33 +37,33 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }
     }
   }, [application?.applicant_id, fetchComments]);
 
-  // Set up real-time updates with enhanced PTP date handling
+  // Set up ENHANCED real-time updates with immediate refresh logic
   useRealtimeUpdates({
     onCallingLogUpdate: () => {
-      console.log('Real-time: Calling log updated');
+      console.log('📞 Real-time: Calling log updated');
       refetchCallingLogs();
       onDataChanged?.();
     },
     onAuditLogUpdate: () => {
-      console.log('Real-time: Audit log updated - refreshing audit logs');
+      console.log('📋 Real-time: Audit log updated - refreshing immediately');
       refetchAuditLogs();
       onDataChanged?.();
     },
     onCommentUpdate: () => {
-      console.log('Real-time: Comment updated');
+      console.log('💬 Real-time: Comment updated');
       if (application?.applicant_id) {
         fetchComments(application.applicant_id);
       }
       onDataChanged?.();
     },
     onApplicationUpdate: () => {
-      console.log('Real-time: Application updated');
+      console.log('🔄 Real-time: Application updated');
       onDataChanged?.();
     },
     onPtpDateUpdate: () => {
-      console.log('Real-time: PTP date updated - triggering refresh');
+      console.log('📅 Real-time: PTP date updated - triggering comprehensive refresh');
       refetchAuditLogs(); // Refresh audit logs to show PTP changes
-      onDataChanged?.(); // Refresh main list
+      onDataChanged?.(); // Refresh main list immediately
     }
   });
 
@@ -72,6 +72,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }
     handlePtpDateChange,
     handleCallingStatusChange
   } = useApplicationHandlers(application, user, addAuditLog, addCallingLog, (updatedApp) => {
+    console.log('🔄 Application saved, triggering data refresh');
     onSave(updatedApp);
     onDataChanged?.();
   });

@@ -68,7 +68,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
   const statusAndPtpLogs = useFilteredAuditLogs(auditLogs);
 
   const handlePtpDateChange = async (value: string) => {
-    console.log('=== PTP DATE INPUT CHANGE ===');
+    console.log('=== PTP DATE INPUT CHANGE - CLEANED UP ===');
     console.log('Application:', application.applicant_name);
     console.log('Input value:', value);
     
@@ -78,16 +78,9 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
     try {
       console.log('Calling onPtpDateChange with value:', value);
       await onPtpDateChange(value);
-      
-      // Show success message
-      if (value) {
-        const formattedDisplayDate = formatPtpDate(value + 'T00:00:00.000Z');
-        toast.success(`PTP date updated to ${formattedDisplayDate}`);
-      } else {
-        toast.success('PTP date cleared');
-      }
+      console.log('✅ PTP date change completed');
     } catch (error) {
-      console.error('Error updating PTP date:', error);
+      console.error('❌ Error updating PTP date:', error);
       toast.error('Failed to update PTP date. Please try again.');
       
       // Revert the input value on error
@@ -195,10 +188,9 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
               )}
             </div>
             
+            {/* CLEANED UP PTP DATE SECTION - SINGLE DISPLAY */}
             <div>
-              <Label htmlFor="ptpDate">
-                PTP Date {application.ptp_date && `(Current: ${formatPtpDate(application.ptp_date)})`}
-              </Label>
+              <Label htmlFor="ptpDate">PTP Date</Label>
               <Input
                 id="ptpDate"
                 type="date"
@@ -213,9 +205,9 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
                   Updating PTP date...
                 </div>
               )}
-              {ptpDate && !isUpdatingPtp && (
+              {application.ptp_date && !isUpdatingPtp && (
                 <div className="text-xs text-gray-500 mt-1">
-                  Selected: {formatPtpDate(ptpDate + 'T00:00:00.000Z')}
+                  Current: {formatPtpDate(application.ptp_date)}
                 </div>
               )}
             </div>
