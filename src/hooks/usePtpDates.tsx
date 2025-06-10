@@ -38,41 +38,27 @@ export const usePtpDates = () => {
     try {
       console.log('🔄 Fetching PTP dates for', applicationIds.length, 'applications');
       
-      // Use a more efficient query with DISTINCT ON to get latest PTP date per application
+      // Use optimized query with DISTINCT ON for latest PTP date per application
       const { data, error } = await supabase
-        .rpc('get_latest_ptp_dates', { app_ids: applicationIds });
+        .from('ptp_dates')
+        .select('application_id, ptp_date, created_at')
+        .in('application_id', applicationIds)
+        .order('application_id', { ascending: true })
+        .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching PTP dates with RPC:', error);
-        // Fallback to regular query
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('ptp_dates')
-          .select('application_id, ptp_date, created_at')
-          .in('application_id', applicationIds)
-          .order('created_at', { ascending: false });
-
-        if (fallbackError) {
-          console.error('Error fetching PTP dates (fallback):', fallbackError);
-          return {};
-        }
-
-        // Get the latest PTP date for each application manually
-        const ptpMap: Record<string, string> = {};
-        fallbackData?.forEach(ptp => {
-          if (ptp.ptp_date && !ptpMap[ptp.application_id]) {
-            ptpMap[ptp.application_id] = ptp.ptp_date;
-          }
-        });
-
-        console.log('✅ Fetched PTP dates (fallback):', Object.keys(ptpMap).length, 'applications have PTP dates');
-        return ptpMap;
+        console.error('Error fetching PTP dates:', error);
+        return {};
       }
 
-      // Process RPC result
+      // Get the latest PTP date for each application manually
       const ptpMap: Record<string, string> = {};
-      data?.forEach((row: any) => {
-        if (row.ptp_date) {
-          ptpMap[row.application_id] = row.ptp_date;
+      const processedApps = new Set<string>();
+      
+      data?.forEach(ptp => {
+        if (ptp.ptp_date && !processedApps.has(ptp.application_id)) {
+          ptpMap[ptp.application_id] = ptp.ptp_date;
+          processedApps.add(ptp.application_id);
         }
       });
 
