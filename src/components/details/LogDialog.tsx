@@ -34,6 +34,20 @@ const LogDialog = ({ open, onClose, logs, title, type }: LogDialogProps) => {
     }
   };
 
+  // Function to display user name with fallback
+  const displayUserName = (userName: string | null) => {
+    if (!userName || userName.trim() === '' || userName === 'Unknown User') {
+      return 'Unknown User';
+    }
+    
+    // If it looks like an email, try to extract name part or use as is
+    if (userName.includes('@')) {
+      return userName; // Keep email if that's all we have
+    }
+    
+    return userName;
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
@@ -56,7 +70,7 @@ const LogDialog = ({ open, onClose, logs, title, type }: LogDialogProps) => {
               {logs.map((log) => (
                 <div key={log.id} className="border rounded-lg p-4 bg-gray-50">
                   <div className="flex justify-between items-start mb-3">
-                    <span className="font-semibold text-blue-700">
+                    <span className="font-semibold text-blue-700 capitalize">
                       {type === 'audit' ? log.field : log.contact_type?.replace('_', ' ')}
                     </span>
                     <span className="text-xs text-gray-500">
@@ -84,7 +98,7 @@ const LogDialog = ({ open, onClose, logs, title, type }: LogDialogProps) => {
                       </span>
                     </div>
                     <div className="text-xs text-gray-500 mt-2">
-                      Changed by: {log.user_name || 'Unknown User'}
+                      Changed by: {displayUserName(log.user_name)}
                     </div>
                   </div>
                 </div>

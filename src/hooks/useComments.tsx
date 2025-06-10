@@ -1,8 +1,8 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfiles } from '@/hooks/useUserProfiles';
-import { resolveUserName } from '@/utils/userProfileMapping';
 
 export interface Comment {
   id: string;
@@ -57,7 +57,7 @@ export const useComments = () => {
 
       // Map comments with resolved user names
       const mappedComments: Comment[] = commentsData.map(comment => {
-        const userName = resolveUserName(comment.user_id, undefined, comment.user_email);
+        const userName = getUserName(comment.user_id, comment.user_email);
         console.log(`Mapped comment ${comment.id}: user_id=${comment.user_id} -> user_name="${userName}"`);
         
         return {
@@ -75,7 +75,7 @@ export const useComments = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, fetchProfiles]);
+  }, [user, fetchProfiles, getUserName]);
 
   const fetchCommentsByApplications = useCallback(async (applicationIds: string[]): Promise<Record<string, Array<{content: string; user_name: string}>>> => {
     if (!user || applicationIds.length === 0) return {};
@@ -117,7 +117,7 @@ export const useComments = () => {
         
         // Only keep the 2 most recent comments per application
         if (commentsByApp[comment.application_id].length < 2) {
-          const userName = resolveUserName(comment.user_id, undefined, comment.user_email);
+          const userName = getUserName(comment.user_id, comment.user_email);
           commentsByApp[comment.application_id].push({
             content: comment.content,
             user_name: userName
@@ -131,7 +131,7 @@ export const useComments = () => {
       console.error('Exception in fetchCommentsByApplications:', error);
       return {};
     }
-  }, [user, fetchProfiles]);
+  }, [user, fetchProfiles, getUserName]);
 
   const addComment = useCallback(async (applicationId: string, content: string): Promise<void> => {
     if (!user || !applicationId || !content.trim()) return;

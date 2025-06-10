@@ -1,6 +1,6 @@
 
 import { useState, useRef, useEffect } from "react";
-import { Check, ChevronDown, X } from "lucide-react";
+import { Check, ChevronDown, X, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
@@ -80,18 +80,22 @@ const CustomMultiSelectFilter = ({
         <PopoverTrigger asChild>
           <Button
             variant="outline"
-            className="w-full justify-between h-auto min-h-[40px] text-left font-normal p-3"
+            className="w-full justify-between h-auto min-h-[40px] text-left font-normal p-3 relative"
           >
-            <div className="flex flex-wrap gap-1 items-center min-h-[20px]">
+            <div className="flex flex-wrap gap-1 items-center min-h-[20px] flex-1">
               {safeSelected.length === 0 ? (
-                <span className="text-muted-foreground">{label}</span>
+                <div className="flex items-center gap-2">
+                  <CheckSquare className="h-4 w-4 text-gray-400" />
+                  <span className="text-muted-foreground">{label}</span>
+                  <span className="text-xs text-gray-400">(Multi-select)</span>
+                </div>
               ) : (
                 <>
                   {safeSelected.slice(0, 2).map((item) => (
                     <Badge 
                       key={item} 
                       variant="secondary" 
-                      className="text-xs h-6 px-2"
+                      className="text-xs h-6 px-2 bg-blue-100 text-blue-800"
                     >
                       {item}
                       <X 
@@ -101,7 +105,7 @@ const CustomMultiSelectFilter = ({
                     </Badge>
                   ))}
                   {safeSelected.length > 2 && (
-                    <Badge variant="secondary" className="text-xs h-6 px-2">
+                    <Badge variant="secondary" className="text-xs h-6 px-2 bg-blue-100 text-blue-800">
                       +{safeSelected.length - 2} more
                     </Badge>
                   )}
@@ -112,7 +116,11 @@ const CustomMultiSelectFilter = ({
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-full min-w-[250px] p-0" align="start">
-          <div className="p-3 border-b">
+          <div className="p-3 border-b bg-blue-50">
+            <div className="flex items-center gap-2 mb-2">
+              <CheckSquare className="h-4 w-4 text-blue-600" />
+              <span className="text-sm font-medium text-blue-800">Multi-Select Filter</span>
+            </div>
             <input
               ref={searchInputRef}
               type="text"
@@ -124,7 +132,7 @@ const CustomMultiSelectFilter = ({
           </div>
           
           <div className="max-h-60 overflow-y-auto">
-            <div className="p-2 border-b space-y-1">
+            <div className="p-2 border-b space-y-1 bg-gray-50">
               {filteredOptions.length > 1 && (
                 <Button
                   variant="ghost"
@@ -132,6 +140,7 @@ const CustomMultiSelectFilter = ({
                   onClick={selectAll}
                   className="w-full text-blue-600 hover:text-blue-700 hover:bg-blue-50 justify-start"
                 >
+                  <CheckSquare className="h-4 w-4 mr-2" />
                   Select All ({filteredOptions.length})
                 </Button>
               )}
@@ -142,6 +151,7 @@ const CustomMultiSelectFilter = ({
                   onClick={clearAll}
                   className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 justify-start"
                 >
+                  <X className="h-4 w-4 mr-2" />
                   Clear All ({safeSelected.length})
                 </Button>
               )}
@@ -153,12 +163,12 @@ const CustomMultiSelectFilter = ({
                   <div
                     key={option}
                     onClick={() => toggleOption(option)}
-                    className="flex items-center space-x-2 px-3 py-2 cursor-pointer hover:bg-gray-100 rounded-md"
+                    className="flex items-center space-x-2 px-3 py-2 cursor-pointer hover:bg-gray-100 rounded-md transition-colors"
                   >
-                    <div className={`w-4 h-4 border rounded flex items-center justify-center ${
+                    <div className={`w-4 h-4 border rounded flex items-center justify-center transition-colors ${
                       safeSelected.includes(option) 
                         ? 'bg-blue-600 border-blue-600' 
-                        : 'border-gray-300'
+                        : 'border-gray-300 hover:border-blue-400'
                     }`}>
                       {safeSelected.includes(option) && (
                         <Check className="w-3 h-3 text-white" />
@@ -174,6 +184,14 @@ const CustomMultiSelectFilter = ({
               </div>
             )}
           </div>
+          
+          {safeSelected.length > 0 && (
+            <div className="p-2 border-t bg-gray-50">
+              <div className="text-xs text-gray-600 text-center">
+                {safeSelected.length} item{safeSelected.length !== 1 ? 's' : ''} selected
+              </div>
+            </div>
+          )}
         </PopoverContent>
       </Popover>
     </div>

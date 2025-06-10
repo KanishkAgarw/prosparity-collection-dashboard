@@ -32,6 +32,20 @@ const CommentsTab = ({ comments, onAddComment }: CommentsTabProps) => {
     }
   };
 
+  // Function to display user name properly
+  const displayUserName = (userName: string) => {
+    if (!userName || userName.trim() === '' || userName === 'Unknown User') {
+      return 'Unknown User';
+    }
+    
+    // If it's an email, use it but don't show as unknown
+    if (userName.includes('@')) {
+      return userName;
+    }
+    
+    return userName;
+  };
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -70,7 +84,7 @@ const CommentsTab = ({ comments, onAddComment }: CommentsTabProps) => {
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-2">
                           <span className="font-medium text-xs sm:text-sm text-blue-700 flex items-center gap-1">
-                            {comment.user_name}
+                            {displayUserName(comment.user_name)}
                             {comment.user_name === 'Unknown User' && (
                               <AlertCircle className="h-3 w-3 text-orange-500" />
                             )}

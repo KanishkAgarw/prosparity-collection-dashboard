@@ -43,16 +43,17 @@ export const resolveUserName = (userId: string, userProfile: UserProfile | undef
   console.log(`Profile:`, userProfile);
   console.log(`Fallback email: ${fallbackEmail}`);
   
-  // Strategy 1: Use full_name if available and valid
+  // Priority 1: Use full_name if available and valid
   if (userProfile?.full_name && 
       userProfile.full_name.trim() !== '' && 
-      userProfile.full_name !== 'null') {
+      userProfile.full_name !== 'null' &&
+      userProfile.full_name.toLowerCase() !== 'unknown user') {
     const resolvedName = userProfile.full_name.trim();
     console.log(`✓ Using full_name: "${resolvedName}"`);
     return resolvedName;
   }
   
-  // Strategy 2: Use profile email if available
+  // Priority 2: Use profile email if available
   if (userProfile?.email && 
       userProfile.email.trim() !== '' && 
       userProfile.email !== 'null') {
@@ -61,7 +62,7 @@ export const resolveUserName = (userId: string, userProfile: UserProfile | undef
     return resolvedName;
   }
   
-  // Strategy 3: Use fallback email if provided
+  // Priority 3: Use fallback email if provided
   if (fallbackEmail && 
       fallbackEmail.trim() !== '' && 
       fallbackEmail !== 'null') {

@@ -77,14 +77,17 @@ export const useUserProfiles = () => {
     console.log(`Profile from cache:`, profile);
     console.log(`Fallback email: ${fallbackEmail}`);
     
+    // Priority 1: Use full_name if available and valid
     if (profile?.full_name && 
         profile.full_name.trim() !== '' && 
-        profile.full_name !== 'null') {
+        profile.full_name !== 'null' &&
+        profile.full_name.toLowerCase() !== 'unknown user') {
       const name = profile.full_name.trim();
       console.log(`✓ Returning full_name: "${name}"`);
       return name;
     }
     
+    // Priority 2: Use profile email if available and different from fallback
     if (profile?.email && 
         profile.email.trim() !== '' && 
         profile.email !== 'null') {
@@ -93,6 +96,7 @@ export const useUserProfiles = () => {
       return email;
     }
     
+    // Priority 3: Use fallback email if provided
     if (fallbackEmail && fallbackEmail.trim() !== '') {
       const fallback = fallbackEmail.trim();
       console.log(`✓ Returning fallback email: "${fallback}"`);

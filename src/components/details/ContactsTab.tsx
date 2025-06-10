@@ -9,6 +9,7 @@ import { Activity } from "lucide-react";
 import ContactCard from "./ContactCard";
 import { useContactCallingStatus } from "@/hooks/useContactCallingStatus";
 import LogDialog from "./LogDialog";
+import FiLocationDisplay from "./FiLocationDisplay";
 
 interface ContactsTabProps {
   application: Application;
@@ -82,6 +83,9 @@ const ContactsTab = ({ application, callingLogs, onCallingStatusChange }: Contac
           />
         ))}
       </div>
+
+      {/* FI Location Display */}
+      <FiLocationDisplay fiLocation={application.fi_location} />
 
       {/* Recent Call Activity - Compact View */}
       <Card>
