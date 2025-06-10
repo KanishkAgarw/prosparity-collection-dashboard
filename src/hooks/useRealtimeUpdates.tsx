@@ -1,5 +1,5 @@
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -19,132 +19,106 @@ export const useRealtimeUpdates = ({
   onPtpDateUpdate
 }: UseRealtimeUpdatesProps) => {
   const { user } = useAuth();
+  const channelsRef = useRef<any[]>([]);
+  const isActiveRef = useRef(true);
 
   useEffect(() => {
     if (!user) return;
 
-    console.log('=== SETTING UP ENHANCED REAL-TIME SUBSCRIPTIONS ===');
+    console.log('=== SETTING UP OPTIMIZED REAL-TIME SUBSCRIPTIONS ===');
 
-    // Subscribe to PTP dates changes - CRITICAL for immediate updates
-    const ptpDatesChannel = supabase
-      .channel('ptp-dates-changes-enhanced')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'ptp_dates'
-        },
-        (payload) => {
-          console.log('✅ PTP date update received:', payload);
-          // Trigger multiple updates to ensure UI consistency
-          onPtpDateUpdate?.();
-          onApplicationUpdate?.(); // Also trigger app update for main list
-          // Small delay to ensure database consistency
-          setTimeout(() => {
-            onApplicationUpdate?.();
-          }, 500);
-        }
-      )
-      .subscribe();
-
-    // Subscribe to audit logs changes - CRITICAL for PTP date logging
-    const auditLogsChannel = supabase
-      .channel('audit-logs-changes-enhanced')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'audit_logs'
-        },
-        (payload) => {
-          console.log('✅ Audit log update received:', payload);
-          onAuditLogUpdate?.();
-          // If this is a PTP-related audit log, also refresh main list
-          if (payload.new && typeof payload.new === 'object' && 'field' in payload.new && payload.new.field === 'PTP Date') {
+    // Track page visibility to pause/resume connections
+    const handleVisibilityChange = () => {
+      isActiveRef.current = !document.hidden;
+      
+      if (document.hidden) {
+        console.log('🛑 Tab hidden - pausing real-time updates');
+        // Don't unsubscribe, just mark as inactive to reduce processing
+      } else {
+        console.log('👁️ Tab visible - resuming real-time updates');
+        // Trigger a refresh when tab becomes active again
+        setTimeout(() => {
+          if (isActiveRef.current) {
             onApplicationUpdate?.();
           }
-        }
-      )
-      .subscribe();
+        }, 500);
+      }
+    };
 
-    // Subscribe to application changes
-    const applicationsChannel = supabase
-      .channel('applications-changes-enhanced')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'applications'
-        },
-        (payload) => {
-          console.log('✅ Application update received:', payload);
-          onApplicationUpdate?.();
-        }
-      )
-      .subscribe();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Subscribe to calling logs changes
-    const callingLogsChannel = supabase
-      .channel('calling-logs-changes-enhanced')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'calling_logs'
-        },
-        (payload) => {
-          console.log('✅ Calling log update received:', payload);
-          onCallingLogUpdate?.();
-        }
-      )
-      .subscribe();
+    // Create optimized real-time subscriptions
+    const createSubscription = (tableName: string, callback: () => void) => {
+      return supabase
+        .channel(`${tableName}-changes-optimized`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: tableName
+          },
+          (payload) => {
+            // Only process updates if tab is active
+            if (isActiveRef.current) {
+              console.log(`✅ ${tableName} update received:`, payload);
+              callback();
+            } else {
+              console.log(`⏸️ ${tableName} update received but tab inactive`);
+            }
+          }
+        )
+        .subscribe();
+    };
 
-    // Subscribe to contact calling status changes
-    const contactStatusChannel = supabase
-      .channel('contact-status-changes-enhanced')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'contact_calling_status'
-        },
-        (payload) => {
-          console.log('✅ Contact status update received:', payload);
-          onCallingLogUpdate?.();
-        }
-      )
-      .subscribe();
+    // Subscribe to critical tables only
+    const subscriptions = [
+      createSubscription('ptp_dates', () => {
+        onPtpDateUpdate?.();
+        // Small delay to ensure database consistency
+        setTimeout(() => {
+          if (isActiveRef.current) {
+            onApplicationUpdate?.();
+          }
+        }, 300);
+      }),
+      
+      createSubscription('audit_logs', () => {
+        onAuditLogUpdate?.();
+      }),
+      
+      createSubscription('applications', () => {
+        onApplicationUpdate?.();
+      }),
+      
+      createSubscription('calling_logs', () => {
+        onCallingLogUpdate?.();
+      }),
+      
+      createSubscription('contact_calling_status', () => {
+        onCallingLogUpdate?.();
+      }),
+      
+      createSubscription('comments', () => {
+        onCommentUpdate?.();
+      })
+    ];
 
-    // Subscribe to comments changes
-    const commentsChannel = supabase
-      .channel('comments-changes-enhanced')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'comments'
-        },
-        (payload) => {
-          console.log('✅ Comment update received:', payload);
-          onCommentUpdate?.();
-        }
-      )
-      .subscribe();
+    channelsRef.current = subscriptions;
 
     return () => {
-      console.log('🧹 Cleaning up enhanced real-time subscriptions');
-      supabase.removeChannel(ptpDatesChannel);
-      supabase.removeChannel(auditLogsChannel);
-      supabase.removeChannel(applicationsChannel);
-      supabase.removeChannel(callingLogsChannel);
-      supabase.removeChannel(contactStatusChannel);
-      supabase.removeChannel(commentsChannel);
+      console.log('🧹 Cleaning up optimized real-time subscriptions');
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      subscriptions.forEach(channel => {
+        supabase.removeChannel(channel);
+      });
+      channelsRef.current = [];
     };
   }, [user, onApplicationUpdate, onCallingLogUpdate, onAuditLogUpdate, onCommentUpdate, onPtpDateUpdate]);
+
+  // Return current connection status
+  return {
+    isActive: isActiveRef.current,
+    connectionCount: channelsRef.current.length
+  };
 };

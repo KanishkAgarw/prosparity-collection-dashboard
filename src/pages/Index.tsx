@@ -1,11 +1,11 @@
-
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useApplications } from "@/hooks/useApplications";
 import { useCascadingFilters } from "@/hooks/useCascadingFilters";
 import { useEnhancedExport } from "@/hooks/useEnhancedExport";
 import { useUserProfiles } from "@/hooks/useUserProfiles";
 import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
 import { useUserRoles } from "@/hooks/useUserRoles";
+import { useStatePersistence } from "@/hooks/useStatePersistence";
 import { Application } from "@/types/application";
 import ApplicationDetailsPanel from "@/components/ApplicationDetailsPanel";
 import AppHeader from "@/components/layout/AppHeader";
@@ -22,21 +22,81 @@ const Index = () => {
   const { user, loading: authLoading } = useAuth();
   const { isAdmin, loading: rolesLoading } = useUserRoles();
   const { fetchProfiles } = useUserProfiles();
+  
+  // State persistence hooks
+  const {
+    saveScrollPosition,
+    restoreScrollPosition,
+    saveFiltersState,
+    restoreFiltersState,
+    saveSelectedApplication,
+    restoreSelectedApplication,
+    setIsRestoringState
+  } = useStatePersistence();
+
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
+  const [hasRestoredState, setHasRestoredState] = useState(false);
+
   const { applications, allApplications, loading: appsLoading, refetch, totalCount, totalPages } = useApplications({ 
     page: currentPage, 
     pageSize: 50 
   });
-  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
+
   const { exportPtpCommentsReport, exportFullReport } = useEnhancedExport();
 
-  // Set up real-time updates for the main applications list
-  useRealtimeUpdates({
-    onApplicationUpdate: refetch,
-    onCommentUpdate: refetch, // Refresh when comments are updated
-    onAuditLogUpdate: refetch, // Refresh when audit logs are updated
-    onCallingLogUpdate: refetch // Refresh when calling logs are updated
+  // Restore state on component mount
+  useEffect(() => {
+    if (!hasRestoredState && !authLoading && user) {
+      setIsRestoringState(true);
+      
+      // Restore filters and search state
+      const savedFiltersState = restoreFiltersState();
+      if (savedFiltersState) {
+        setSearchTerm(savedFiltersState.searchTerm || "");
+        setCurrentPage(savedFiltersState.currentPage || 1);
+      }
+
+      // Restore selected application
+      const savedApplicationId = restoreSelectedApplication();
+      if (savedApplicationId && applications.length > 0) {
+        const app = applications.find(a => a.id === savedApplicationId);
+        if (app) {
+          setSelectedApplication(app);
+        }
+      }
+
+      // Restore scroll position
+      restoreScrollPosition();
+      
+      setHasRestoredState(true);
+      setIsRestoringState(false);
+    }
+  }, [hasRestoredState, authLoading, user, applications, restoreFiltersState, restoreSelectedApplication, restoreScrollPosition, setIsRestoringState]);
+
+  // Save scroll position when user scrolls
+  useEffect(() => {
+    const handleScroll = () => {
+      saveScrollPosition(window.scrollY);
+    };
+
+    const throttledScroll = throttle(handleScroll, 1000);
+    window.addEventListener('scroll', throttledScroll);
+    return () => window.removeEventListener('scroll', throttledScroll);
+  }, [saveScrollPosition]);
+
+  // Set up real-time updates with optimized refresh logic
+  const { isActive: realtimeActive } = useRealtimeUpdates({
+    onApplicationUpdate: () => {
+      // Only refetch if tab is active to prevent unnecessary network calls
+      if (!document.hidden) {
+        refetch();
+      }
+    },
+    onCommentUpdate: refetch,
+    onAuditLogUpdate: refetch,
+    onCallingLogUpdate: refetch
   });
 
   // Use allApplications for filter generation and get filtered results
@@ -46,6 +106,13 @@ const Index = () => {
     availableOptions,
     handleFilterChange
   } = useCascadingFilters({ applications: allApplications });
+
+  // Save filters state when they change
+  useEffect(() => {
+    if (hasRestoredState) {
+      saveFiltersState(filters, searchTerm, currentPage);
+    }
+  }, [filters, searchTerm, currentPage, hasRestoredState, saveFiltersState]);
 
   // Apply search filter to the filtered applications
   const finalFilteredApplications = useMemo(() => {
@@ -86,17 +153,27 @@ const Index = () => {
   const handleApplicationDeleted = () => {
     refetch();
     setSelectedApplication(null);
+    saveSelectedApplication(null);
   };
 
   const handleApplicationUpdated = (updatedApp: Application) => {
     setSelectedApplication(updatedApp);
-    // Refresh the main list to ensure all data is up to date
+    saveSelectedApplication(updatedApp.id);
     refetch();
   };
 
-  // New handler for when data changes in the detail panel
   const handleDataChanged = () => {
-    refetch(); // Refresh the main applications list
+    refetch();
+  };
+
+  const handleApplicationSelect = (app: Application) => {
+    setSelectedApplication(app);
+    saveSelectedApplication(app.id);
+  };
+
+  const handleApplicationClose = () => {
+    setSelectedApplication(null);
+    saveSelectedApplication(null);
   };
 
   const handleExportFull = async () => {
@@ -176,12 +253,11 @@ const Index = () => {
             onSearchChange={setSearchTerm}
           />
 
-          {/* Status Cards - now using filtered applications */}
           <StatusCards applications={finalFilteredApplications} />
 
           <MainContent
             applications={paginatedFilteredApplications}
-            onRowClick={setSelectedApplication}
+            onRowClick={handleApplicationSelect}
             onApplicationDeleted={handleApplicationDeleted}
             selectedApplicationId={selectedApplication?.id}
             currentPage={currentPage}
@@ -193,14 +269,12 @@ const Index = () => {
         </div>
       </div>
 
-      {/* PWA Install Prompt */}
       <PWAInstallPrompt />
 
-      {/* Application Details Panel */}
       {selectedApplication && (
         <ApplicationDetailsPanel
           application={selectedApplication}
-          onClose={() => setSelectedApplication(null)}
+          onClose={handleApplicationClose}
           onSave={handleApplicationUpdated}
           onDataChanged={handleDataChanged}
         />
@@ -208,5 +282,17 @@ const Index = () => {
     </div>
   );
 };
+
+// Simple throttle utility
+function throttle(func: Function, limit: number) {
+  let inThrottle: boolean;
+  return function(this: any, ...args: any[]) {
+    if (!inThrottle) {
+      func.apply(this, args);
+      inThrottle = true;
+      setTimeout(() => inThrottle = false, limit);
+    }
+  }
+}
 
 export default Index;
