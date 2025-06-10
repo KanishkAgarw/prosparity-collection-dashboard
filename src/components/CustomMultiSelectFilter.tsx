@@ -1,6 +1,6 @@
 
 import { useState, useRef, useEffect } from "react";
-import { Check, ChevronDown, X, CheckSquare } from "lucide-react";
+import { Check, ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
@@ -98,11 +98,7 @@ const CustomMultiSelectFilter = ({
           >
             <div className="flex flex-wrap gap-1 items-center min-h-[20px] flex-1">
               {safeSelected.length === 0 ? (
-                <div className="flex items-center gap-2">
-                  <CheckSquare className="h-4 w-4 text-blue-500" />
-                  <span className="text-muted-foreground">{label}</span>
-                  <span className="text-xs text-blue-500 font-medium">(Multi-select enabled)</span>
-                </div>
+                <span className="text-muted-foreground">{label}</span>
               ) : (
                 <>
                   {safeSelected.slice(0, 2).map((item) => (
@@ -130,14 +126,7 @@ const CustomMultiSelectFilter = ({
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-full min-w-[280px] p-0" align="start">
-          <div className="p-3 border-b bg-blue-50">
-            <div className="flex items-center gap-2 mb-2">
-              <CheckSquare className="h-4 w-4 text-blue-600" />
-              <span className="text-sm font-medium text-blue-800">Multi-Select Filter</span>
-              <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
-                {safeSelected.length} selected
-              </span>
-            </div>
+          <div className="p-3 border-b">
             <input
               ref={searchInputRef}
               type="text"
@@ -146,9 +135,6 @@ const CustomMultiSelectFilter = ({
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <div className="text-xs text-blue-600 mt-1 font-medium">
-              💡 Click multiple items to select them
-            </div>
           </div>
           
           <div className="max-h-60 overflow-y-auto">
@@ -160,7 +146,6 @@ const CustomMultiSelectFilter = ({
                   onClick={selectAll}
                   className="w-full text-blue-600 hover:text-blue-700 hover:bg-blue-50 justify-start"
                 >
-                  <CheckSquare className="h-4 w-4 mr-2" />
                   Select All ({filteredOptions.length})
                 </Button>
               )}
@@ -171,7 +156,6 @@ const CustomMultiSelectFilter = ({
                   onClick={clearAll}
                   className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 justify-start"
                 >
-                  <X className="h-4 w-4 mr-2" />
                   Clear All ({safeSelected.length})
                 </Button>
               )}

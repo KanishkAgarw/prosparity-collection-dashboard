@@ -43,6 +43,7 @@ export const useComments = () => {
 
       if (!commentsData || commentsData.length === 0) {
         console.log('No comments found for application:', applicationId);
+        setComments([]);
         return [];
       }
 
@@ -52,8 +53,11 @@ export const useComments = () => {
       const userIds = [...new Set(commentsData.map(comment => comment.user_id))];
       console.log('Fetching profiles for user IDs:', userIds);
 
-      // Fetch user profiles first
+      // Fetch user profiles first and wait for completion
       await fetchProfiles(userIds);
+
+      // Small delay to ensure profiles are cached
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // Map comments with resolved user names
       const mappedComments: Comment[] = commentsData.map(comment => {
@@ -106,6 +110,9 @@ export const useComments = () => {
       // Get unique user IDs for profile fetching
       const userIds = [...new Set(commentsData.map(comment => comment.user_id))];
       await fetchProfiles(userIds);
+
+      // Small delay to ensure profiles are cached
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // Group comments by application and resolve user names
       const commentsByApp: Record<string, Array<{content: string; user_name: string}>> = {};

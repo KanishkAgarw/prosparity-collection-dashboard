@@ -161,14 +161,23 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
       setFilters(prev => ({ ...prev, [key]: validValues }));
     } else if (key === 'ptpDate') {
       // Convert labels back to categories for PTP date filter
-      const validValues = values.map(label => {
-        // Find the category that matches this label
-        const category = (['today', 'overdue', 'upcoming', 'future', 'no_date'] as PtpDateCategory[])
-          .find(cat => getPtpDateCategoryLabel(cat) === label);
-        return category;
-      }).filter((cat): cat is PtpDateCategory => cat !== undefined);
-      console.log('Valid PTP date categories:', validValues);
-      setFilters(prev => ({ ...prev, [key]: validValues }));
+      const labelToCategoryMap: { [key: string]: PtpDateCategory } = {
+        "Today's PTPs": 'today',
+        "Overdue PTPs": 'overdue',
+        "Upcoming PTPs": 'upcoming',
+        "Future PTPs": 'future',
+        "No PTP Date": 'no_date'
+      };
+      
+      const validCategories = values
+        .map(label => labelToCategoryMap[label])
+        .filter((category): category is PtpDateCategory => 
+          category !== undefined && isValidPtpDateCategory(category)
+        );
+      
+      console.log('PTP Date - Labels:', values);
+      console.log('PTP Date - Categories:', validCategories);
+      setFilters(prev => ({ ...prev, [key]: validCategories }));
     } else {
       console.log(`Setting ${key} to:`, values);
       setFilters(prev => ({ ...prev, [key]: values }));

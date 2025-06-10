@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -13,17 +13,28 @@ export const useUserProfiles = () => {
   const { user } = useAuth();
   const [profilesCache, setProfilesCache] = useState<Map<string, UserProfile>>(new Map());
   const [loading, setLoading] = useState(false);
+  const fetchInProgressRef = useRef<Set<string>>(new Set());
 
   const fetchProfiles = useCallback(async (userIds: string[]) => {
-    if (!user || userIds.length === 0) return [];
+    if (!user || userIds.length === 0) {
+      console.log('No user or empty userIds, returning empty array');
+      return [];
+    }
 
-    // Filter out user IDs that are already cached
-    const uncachedUserIds = userIds.filter(id => !profilesCache.has(id));
+    // Filter out user IDs that are already cached or currently being fetched
+    const uncachedUserIds = userIds.filter(id => 
+      !profilesCache.has(id) && !fetchInProgressRef.current.has(id)
+    );
     
     if (uncachedUserIds.length === 0) {
       // Return cached profiles
-      return userIds.map(id => profilesCache.get(id)).filter(Boolean) as UserProfile[];
+      const cachedProfiles = userIds.map(id => profilesCache.get(id)).filter(Boolean) as UserProfile[];
+      console.log('All profiles already cached, returning:', cachedProfiles.length);
+      return cachedProfiles;
     }
+
+    // Mark these IDs as being fetched
+    uncachedUserIds.forEach(id => fetchInProgressRef.current.add(id));
 
     setLoading(true);
     try {
@@ -40,7 +51,7 @@ export const useUserProfiles = () => {
         return [];
       }
 
-      console.log('Fetched profiles:', profiles);
+      console.log('Fetched profiles from DB:', profiles);
 
       // Update cache with new profiles
       if (profiles && profiles.length > 0) {
@@ -54,18 +65,21 @@ export const useUserProfiles = () => {
         });
       }
 
-      // Return all requested profiles
+      // Return all requested profiles (both cached and newly fetched)
       const allProfiles = userIds.map(id => {
         const newProfile = profiles?.find(p => p.id === id);
         if (newProfile) return newProfile;
         return profilesCache.get(id);
       }).filter(Boolean) as UserProfile[];
       
+      console.log('Returning total profiles:', allProfiles.length);
       return allProfiles;
     } catch (error) {
       console.error('Exception in fetchProfiles:', error);
       return [];
     } finally {
+      // Remove IDs from fetch in progress
+      uncachedUserIds.forEach(id => fetchInProgressRef.current.delete(id));
       setLoading(false);
     }
   }, [user, profilesCache]);
@@ -110,6 +124,7 @@ export const useUserProfiles = () => {
   const clearCache = useCallback(() => {
     console.log('Clearing user profiles cache');
     setProfilesCache(new Map());
+    fetchInProgressRef.current.clear();
   }, []);
 
   return {

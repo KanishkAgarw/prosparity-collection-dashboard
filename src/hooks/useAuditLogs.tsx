@@ -47,6 +47,8 @@ export const useAuditLogs = (applicationId?: string) => {
         if (userIds.length > 0) {
           console.log('Fetching profiles for audit log users:', userIds);
           await fetchProfiles(userIds);
+          // Small delay to ensure profiles are cached
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
     } catch (error) {
