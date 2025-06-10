@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -71,8 +70,8 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
     }
   }, [application.ptp_date, application.applicant_id, application.applicant_name]);
   
-  // Filter audit logs to only show status-related changes
-  const statusOnlyLogs = useFilteredAuditLogs(auditLogs);
+  // Filter audit logs to include both Status and PTP Date changes
+  const statusAndPtpLogs = useFilteredAuditLogs(auditLogs);
 
   const handlePtpDateChange = async (value: string) => {
     console.log('=== PTP DATE INPUT CHANGE ===');
@@ -128,8 +127,8 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
     }
   };
 
-  // Show only recent 2 status changes
-  const recentStatusLogs = statusOnlyLogs.slice(0, 2);
+  // Show only recent 2 status/PTP changes
+  const recentStatusAndPtpLogs = statusAndPtpLogs.slice(0, 2);
 
   // Get the 5 basic status options
   const getStatusOptions = () => {
@@ -224,34 +223,34 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
         </CardContent>
       </Card>
 
-      {/* Recent Status Changes - Compact View */}
+      {/* Recent Status & PTP Changes - Compact View */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center justify-between">
             <div className="flex items-center gap-2">
               <History className="h-4 w-4" />
-              Recent Status Changes
+              Recent Changes
             </div>
-            {statusOnlyLogs.length > 0 && (
+            {statusAndPtpLogs.length > 0 && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setShowLogDialog(true)}
                 className="text-xs h-7"
               >
-                Log ({statusOnlyLogs.length})
+                Log ({statusAndPtpLogs.length})
               </Button>
             )}
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
-          {recentStatusLogs.length === 0 ? (
+          {recentStatusAndPtpLogs.length === 0 ? (
             <div className="text-sm text-gray-500 text-center py-3">
-              No status changes recorded yet
+              No status or PTP date changes recorded yet
             </div>
           ) : (
             <div className="space-y-2">
-              {recentStatusLogs.map((log) => (
+              {recentStatusAndPtpLogs.map((log) => (
                 <div key={log.id} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
                   <div className="flex-1">
                     <span className="font-medium text-blue-700">{log.field}</span>
@@ -276,8 +275,8 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
       <LogDialog
         open={showLogDialog}
         onClose={() => setShowLogDialog(false)}
-        logs={statusOnlyLogs}
-        title="Status Change History"
+        logs={statusAndPtpLogs}
+        title="Status & PTP Date History"
         type="audit"
       />
     </div>

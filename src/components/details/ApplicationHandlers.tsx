@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Application } from '@/types/application';
@@ -124,22 +123,27 @@ export const useApplicationHandlers = (
 
     setIsUpdating(true);
     try {
+      console.log('=== PTP DATE CHANGE HANDLER ===');
+      console.log('Application ID:', application.applicant_id);
+      console.log('Previous PTP date:', application.ptp_date);
+      console.log('New PTP date input:', newDate);
+
       const previousDate = application.ptp_date;
       let formattedDate: string | null = null;
 
       if (newDate) {
         // Convert YYYY-MM-DD to ISO string for storage
         formattedDate = new Date(newDate + 'T00:00:00.000Z').toISOString();
+        console.log('Formatted date for storage:', formattedDate);
       }
 
       // Update ptp_dates table
       const { error } = await supabase
         .from('ptp_dates')
-        .upsert({
+        .insert({
           application_id: application.applicant_id,
           ptp_date: formattedDate,
-          user_id: user.id,
-          updated_at: new Date().toISOString()
+          user_id: user.id
         });
 
       if (error) {
@@ -163,8 +167,21 @@ export const useApplicationHandlers = (
         return;
       }
 
-      // Add audit log with correct signature
-      await addAuditLog(application.applicant_id, 'PTP Date', previousDate || 'Not Set', formattedDate || 'Not Set');
+      // Format dates for audit log display
+      const previousDisplayValue = previousDate ? 
+        new Date(previousDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 
+        'Not Set';
+      
+      const newDisplayValue = formattedDate ? 
+        new Date(formattedDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 
+        'Not Set';
+
+      console.log('Adding audit log with display values:');
+      console.log('Previous:', previousDisplayValue);
+      console.log('New:', newDisplayValue);
+
+      // Add audit log with formatted display values
+      await addAuditLog(application.applicant_id, 'PTP Date', previousDisplayValue, newDisplayValue);
 
       // Update local application state
       const updatedApp = { ...application, ptp_date: formattedDate };
