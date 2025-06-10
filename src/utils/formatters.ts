@@ -51,13 +51,11 @@ export const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
+// Optimized PTP date formatter with consistent output
 export const formatPtpDate = (dateStr?: string | null): string => {
   if (!dateStr) return 'Not Set';
   
   try {
-    console.log('=== PTP DATE FORMATTING DEBUG ===');
-    console.log('Input dateStr:', dateStr);
-    
     let date: Date;
     
     // Handle different date formats more robustly
@@ -82,18 +80,13 @@ export const formatPtpDate = (dateStr?: string | null): string => {
       date = new Date(dateStr);
     }
     
-    console.log('Parsed date object:', date);
-    console.log('Is valid date?', !isNaN(date.getTime()));
-    
     if (isNaN(date.getTime())) {
-      console.log('Invalid date, returning original string');
+      console.warn('Invalid date format:', dateStr);
       return dateStr?.toString() || 'Invalid Date';
     }
     
-    // Format as DD-MMM-YYYY (e.g., 04-Jun-2025)
-    const formatted = format(date, 'dd-MMM-yyyy');
-    console.log('Formatted result:', formatted);
-    return formatted;
+    // Consistent format: DD-MMM-YYYY (e.g., 04-Jun-2025)
+    return format(date, 'dd-MMM-yyyy');
   } catch (error) {
     console.error('Error formatting PTP date:', error);
     return dateStr?.toString() || 'Invalid Date';

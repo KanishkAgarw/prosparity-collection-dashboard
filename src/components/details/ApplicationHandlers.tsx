@@ -137,8 +137,9 @@ export const useApplicationHandlers = (
         console.log('Formatted date for storage:', formattedDate);
       }
 
-      // Update ptp_dates table
-      const { error } = await supabase
+      // Update ptp_dates table first
+      console.log('Inserting PTP date record...');
+      const { error: ptpError } = await supabase
         .from('ptp_dates')
         .insert({
           application_id: application.applicant_id,
@@ -146,13 +147,14 @@ export const useApplicationHandlers = (
           user_id: user.id
         });
 
-      if (error) {
-        console.error('Error updating PTP date:', error);
+      if (ptpError) {
+        console.error('Error updating PTP date:', ptpError);
         toast.error('Failed to update PTP date');
         return;
       }
 
       // Update applications table
+      console.log('Updating applications table...');
       const { error: appError } = await supabase
         .from('applications')
         .update({
@@ -167,27 +169,45 @@ export const useApplicationHandlers = (
         return;
       }
 
-      // Format dates for audit log display
-      const previousDisplayValue = previousDate ? 
-        new Date(previousDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 
-        'Not Set';
-      
-      const newDisplayValue = formattedDate ? 
-        new Date(formattedDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 
-        'Not Set';
+      // Format dates for audit log - use consistent DD-MMM-YYYY format
+      const formatDateForAudit = (dateString: string | null): string => {
+        if (!dateString) return 'Not Set';
+        try {
+          const date = new Date(dateString);
+          return date.toLocaleDateString('en-GB', { 
+            day: '2-digit', 
+            month: 'short', 
+            year: 'numeric' 
+          });
+        } catch (error) {
+          console.error('Error formatting date for audit:', error);
+          return 'Invalid Date';
+        }
+      };
 
-      console.log('Adding audit log with display values:');
+      const previousDisplayValue = formatDateForAudit(previousDate);
+      const newDisplayValue = formatDateForAudit(formattedDate);
+
+      console.log('Adding audit log with values:');
       console.log('Previous:', previousDisplayValue);
       console.log('New:', newDisplayValue);
 
-      // Add audit log with formatted display values
-      await addAuditLog(application.applicant_id, 'PTP Date', previousDisplayValue, newDisplayValue);
+      // Add audit log - this is critical for showing in Recent Changes
+      try {
+        await addAuditLog(application.applicant_id, 'PTP Date', previousDisplayValue, newDisplayValue);
+        console.log('✓ Audit log added successfully');
+      } catch (auditError) {
+        console.error('Failed to add audit log:', auditError);
+        // Don't fail the whole operation if audit log fails
+        toast.error('PTP date updated but logging failed');
+      }
 
       // Update local application state
       const updatedApp = { ...application, ptp_date: formattedDate };
       onSave(updatedApp);
 
       toast.success('PTP date updated successfully');
+      console.log('✓ PTP date change completed successfully');
     } catch (error) {
       console.error('Error updating PTP date:', error);
       toast.error('Failed to update PTP date');

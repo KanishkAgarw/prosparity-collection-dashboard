@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -26,13 +27,8 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
   const [showLogDialog, setShowLogDialog] = useState(false);
   const [isUpdatingPtp, setIsUpdatingPtp] = useState(false);
   
-  // PTP date synchronization
+  // PTP date synchronization - optimized to reduce re-renders
   useEffect(() => {
-    console.log('=== PTP DATE SYNC ===');
-    console.log('Application:', application.applicant_name);
-    console.log('Application ID:', application.applicant_id);
-    console.log('Raw PTP date from application:', application.ptp_date);
-    
     if (application.ptp_date) {
       try {
         let inputValue = '';
@@ -55,8 +51,6 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
           if (!isNaN(parsedDate.getTime())) {
             // Format for HTML date input (YYYY-MM-DD)
             inputValue = parsedDate.toISOString().split('T')[0];
-          } else {
-            inputValue = '';
           }
         }
         
@@ -68,10 +62,12 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
     } else {
       setPtpDate('');
     }
-  }, [application.ptp_date, application.applicant_id, application.applicant_name]);
+  }, [application.ptp_date]);
   
-  // Filter audit logs to include both Status and PTP Date changes
-  const statusAndPtpLogs = useFilteredAuditLogs(auditLogs);
+  // Memoized filtered audit logs to prevent excessive re-filtering
+  const statusAndPtpLogs = useMemo(() => {
+    return useFilteredAuditLogs(auditLogs);
+  }, [auditLogs]);
 
   const handlePtpDateChange = async (value: string) => {
     console.log('=== PTP DATE INPUT CHANGE ===');
@@ -87,7 +83,8 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
       
       // Show success message
       if (value) {
-        toast.success(`PTP date updated to ${formatPtpDate(value + 'T00:00:00.000Z')}`);
+        const formattedDisplayDate = formatPtpDate(value + 'T00:00:00.000Z');
+        toast.success(`PTP date updated to ${formattedDisplayDate}`);
       } else {
         toast.success('PTP date cleared');
       }
@@ -118,17 +115,22 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
     onStatusChange(newStatus);
   };
 
-  const formatDateTime = (dateStr: string) => {
-    try {
-      const date = new Date(dateStr);
-      return `${format(date, 'dd-MMM-yyyy')} at ${format(date, 'HH:mm')}`;
-    } catch {
-      return dateStr;
-    }
-  };
+  // Optimized date formatting function
+  const formatDateTime = useMemo(() => {
+    return (dateStr: string) => {
+      try {
+        const date = new Date(dateStr);
+        return `${format(date, 'dd-MMM-yyyy')} at ${format(date, 'HH:mm')}`;
+      } catch {
+        return dateStr;
+      }
+    };
+  }, []);
 
   // Show only recent 2 status/PTP changes
-  const recentStatusAndPtpLogs = statusAndPtpLogs.slice(0, 2);
+  const recentStatusAndPtpLogs = useMemo(() => {
+    return statusAndPtpLogs.slice(0, 2);
+  }, [statusAndPtpLogs]);
 
   // Get the 5 basic status options
   const getStatusOptions = () => {

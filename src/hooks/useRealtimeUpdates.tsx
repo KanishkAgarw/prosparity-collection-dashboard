@@ -8,13 +8,15 @@ interface UseRealtimeUpdatesProps {
   onCallingLogUpdate?: () => void;
   onAuditLogUpdate?: () => void;
   onCommentUpdate?: () => void;
+  onPtpDateUpdate?: () => void;
 }
 
 export const useRealtimeUpdates = ({
   onApplicationUpdate,
   onCallingLogUpdate,
   onAuditLogUpdate,
-  onCommentUpdate
+  onCommentUpdate,
+  onPtpDateUpdate
 }: UseRealtimeUpdatesProps) => {
   const { user } = useAuth();
 
@@ -40,6 +42,24 @@ export const useRealtimeUpdates = ({
       )
       .subscribe();
 
+    // Subscribe to PTP dates changes
+    const ptpDatesChannel = supabase
+      .channel('ptp-dates-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'ptp_dates'
+        },
+        (payload) => {
+          console.log('PTP date update received:', payload);
+          onPtpDateUpdate?.();
+          onApplicationUpdate?.(); // Also trigger app update for main list
+        }
+      )
+      .subscribe();
+
     // Subscribe to calling logs changes
     const callingLogsChannel = supabase
       .channel('calling-logs-changes')
@@ -57,7 +77,7 @@ export const useRealtimeUpdates = ({
       )
       .subscribe();
 
-    // Subscribe to audit logs changes
+    // Subscribe to audit logs changes - CRITICAL for PTP date logging
     const auditLogsChannel = supabase
       .channel('audit-logs-changes')
       .on(
@@ -111,10 +131,11 @@ export const useRealtimeUpdates = ({
     return () => {
       console.log('Cleaning up real-time subscriptions');
       supabase.removeChannel(applicationsChannel);
+      supabase.removeChannel(ptpDatesChannel);
       supabase.removeChannel(callingLogsChannel);
       supabase.removeChannel(auditLogsChannel);
       supabase.removeChannel(contactStatusChannel);
       supabase.removeChannel(commentsChannel);
     };
-  }, [user, onApplicationUpdate, onCallingLogUpdate, onAuditLogUpdate, onCommentUpdate]);
+  }, [user, onApplicationUpdate, onCallingLogUpdate, onAuditLogUpdate, onCommentUpdate, onPtpDateUpdate]);
 };

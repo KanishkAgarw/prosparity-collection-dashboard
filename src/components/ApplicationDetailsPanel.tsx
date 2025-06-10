@@ -20,7 +20,7 @@ interface ApplicationDetailsPanelProps {
   application: Application | null;
   onClose: () => void;
   onSave: (updatedApp: Application) => void;
-  onDataChanged?: () => void; // New prop to trigger main list refresh
+  onDataChanged?: () => void;
 }
 
 const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }: ApplicationDetailsPanelProps) => {
@@ -37,24 +37,33 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }
     }
   }, [application?.applicant_id, fetchComments]);
 
-  // Set up real-time updates
+  // Set up real-time updates with enhanced PTP date handling
   useRealtimeUpdates({
     onCallingLogUpdate: () => {
+      console.log('Real-time: Calling log updated');
       refetchCallingLogs();
-      onDataChanged?.(); // Trigger main list refresh
+      onDataChanged?.();
     },
     onAuditLogUpdate: () => {
+      console.log('Real-time: Audit log updated - refreshing audit logs');
       refetchAuditLogs();
-      onDataChanged?.(); // Trigger main list refresh
+      onDataChanged?.();
     },
     onCommentUpdate: () => {
+      console.log('Real-time: Comment updated');
       if (application?.applicant_id) {
         fetchComments(application.applicant_id);
       }
-      onDataChanged?.(); // Trigger main list refresh
+      onDataChanged?.();
     },
     onApplicationUpdate: () => {
-      onDataChanged?.(); // Trigger main list refresh
+      console.log('Real-time: Application updated');
+      onDataChanged?.();
+    },
+    onPtpDateUpdate: () => {
+      console.log('Real-time: PTP date updated - triggering refresh');
+      refetchAuditLogs(); // Refresh audit logs to show PTP changes
+      onDataChanged?.()?; // Refresh main list
     }
   });
 
@@ -64,7 +73,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }
     handleCallingStatusChange
   } = useApplicationHandlers(application, user, addAuditLog, addCallingLog, (updatedApp) => {
     onSave(updatedApp);
-    onDataChanged?.(); // Trigger main list refresh after any update
+    onDataChanged?.();
   });
 
   if (!application) return null;
@@ -73,7 +82,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }
     if (application?.applicant_id) {
       await addComment(application.applicant_id, content);
       toast.success('Comment added successfully');
-      onDataChanged?.(); // Trigger main list refresh after adding comment
+      onDataChanged?.();
     }
   };
 
