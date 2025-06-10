@@ -52,13 +52,13 @@ export const useComments = () => {
       const userIds = [...new Set(commentsData.map(comment => comment.user_id))];
       console.log('Fetching profiles for user IDs:', userIds);
 
-      // Fetch user profiles
+      // Fetch user profiles first
       await fetchProfiles(userIds);
 
       // Map comments with resolved user names
       const mappedComments: Comment[] = commentsData.map(comment => {
         const userName = getUserName(comment.user_id, comment.user_email);
-        console.log(`Mapped comment ${comment.id}: user_id=${comment.user_id} -> user_name="${userName}"`);
+        console.log(`✓ Comment ${comment.id}: user_id=${comment.user_id} -> resolved_name="${userName}"`);
         
         return {
           ...comment,
@@ -66,7 +66,7 @@ export const useComments = () => {
         };
       });
 
-      console.log('Final mapped comments:', mappedComments);
+      console.log('Final mapped comments with resolved names:', mappedComments);
       setComments(mappedComments);
       return mappedComments;
     } catch (error) {
@@ -125,7 +125,7 @@ export const useComments = () => {
         }
       });
 
-      console.log('Comments grouped by application:', commentsByApp);
+      console.log('Comments grouped by application with resolved names:', commentsByApp);
       return commentsByApp;
     } catch (error) {
       console.error('Exception in fetchCommentsByApplications:', error);
@@ -140,6 +140,8 @@ export const useComments = () => {
       console.log('=== ADDING COMMENT ===');
       console.log('Application ID:', applicationId);
       console.log('Content:', content);
+      console.log('User ID:', user.id);
+      console.log('User email:', user.email);
 
       const { error } = await supabase
         .from('comments')
@@ -155,7 +157,7 @@ export const useComments = () => {
         throw error;
       }
 
-      console.log('Comment added successfully');
+      console.log('✓ Comment added successfully');
       // Refresh comments after adding
       await fetchComments(applicationId);
     } catch (error) {

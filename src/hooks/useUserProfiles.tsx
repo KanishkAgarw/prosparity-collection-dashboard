@@ -87,7 +87,7 @@ export const useUserProfiles = () => {
       return name;
     }
     
-    // Priority 2: Use profile email if available and different from fallback
+    // Priority 2: Use profile email if available
     if (profile?.email && 
         profile.email.trim() !== '' && 
         profile.email !== 'null') {

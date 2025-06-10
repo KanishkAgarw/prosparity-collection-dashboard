@@ -27,7 +27,8 @@ export const useCallingLogs = (applicationId?: string) => {
     
     setLoading(true);
     try {
-      console.log('Fetching calling logs for application:', applicationId);
+      console.log('=== FETCHING CALLING LOGS ===');
+      console.log('Application ID:', applicationId);
       
       const { data, error } = await supabase
         .from('calling_logs')
@@ -44,6 +45,7 @@ export const useCallingLogs = (applicationId?: string) => {
         // Fetch profiles for all unique user IDs
         const userIds = [...new Set(data?.map(log => log.user_id) || [])];
         if (userIds.length > 0) {
+          console.log('Fetching profiles for calling log users:', userIds);
           await fetchProfiles(userIds);
         }
       }
@@ -56,17 +58,27 @@ export const useCallingLogs = (applicationId?: string) => {
 
   // Memoize calling logs with user names to prevent unnecessary re-renders
   const callingLogs = useMemo(() => {
-    return rawCallingLogs.map(log => ({
-      ...log,
-      user_name: getUserName(log.user_id, log.user_email)
-    }));
+    return rawCallingLogs.map(log => {
+      const userName = getUserName(log.user_id, log.user_email);
+      console.log(`✓ Calling log ${log.id}: user_id=${log.user_id} -> resolved_name="${userName}"`);
+      return {
+        ...log,
+        user_name: userName
+      };
+    });
   }, [rawCallingLogs, getUserName]);
 
   const addCallingLog = async (contactType: string, previousStatus: string | null, newStatus: string) => {
     if (!applicationId || !user) return;
 
     try {
-      console.log('Adding calling log for application:', applicationId, { contactType, previousStatus, newStatus });
+      console.log('=== ADDING CALLING LOG ===');
+      console.log('Application ID:', applicationId);
+      console.log('Contact type:', contactType);
+      console.log('Previous status:', previousStatus);
+      console.log('New status:', newStatus);
+      console.log('User ID:', user.id);
+      console.log('User email:', user.email);
       
       const { error } = await supabase
         .from('calling_logs')
@@ -76,14 +88,13 @@ export const useCallingLogs = (applicationId?: string) => {
           previous_status: previousStatus,
           new_status: newStatus,
           user_id: user.id,
-          user_email: user.email,
-          user_name: user.user_metadata?.full_name || user.email
+          user_email: user.email
         });
 
       if (error) {
         console.error('Error adding calling log:', error);
       } else {
-        console.log('Added calling log successfully');
+        console.log('✓ Calling log added successfully');
         await fetchCallingLogs(); // Refresh calling logs
       }
     } catch (error) {

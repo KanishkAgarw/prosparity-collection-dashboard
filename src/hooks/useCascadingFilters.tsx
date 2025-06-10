@@ -73,7 +73,11 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
 
   // Get the currently filtered applications based on active filters
   const filteredApplications = useMemo(() => {
-    return applications.filter(app => {
+    console.log('=== FILTERING APPLICATIONS ===');
+    console.log('Total applications:', applications.length);
+    console.log('Active filters:', filters);
+    
+    const result = applications.filter(app => {
       const repaymentMatch = filters.repayment.length === 0 || 
         filters.repayment.includes(formatRepayment(app.repayment));
       
@@ -91,19 +95,19 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
       const ptpDateMatch = filters.ptpDate.length === 0 || 
         filters.ptpDate.includes(appPtpDateCategory);
 
-      return (
-        (filters.branch.length === 0 || filters.branch.includes(app.branch_name)) &&
-        (filters.teamLead.length === 0 || filters.teamLead.includes(app.team_lead)) &&
-        (filters.rm.length === 0 || filters.rm.includes(app.rm_name)) &&
-        (filters.dealer.length === 0 || filters.dealer.includes(app.dealer_name)) &&
-        (filters.lender.length === 0 || filters.lender.includes(app.lender_name)) &&
-        statusMatch &&
-        emiMonthMatch &&
-        repaymentMatch &&
-        lastMonthBounceMatch &&
-        ptpDateMatch
-      );
+      const branchMatch = filters.branch.length === 0 || filters.branch.includes(app.branch_name);
+      const teamLeadMatch = filters.teamLead.length === 0 || filters.teamLead.includes(app.team_lead);
+      const rmMatch = filters.rm.length === 0 || filters.rm.includes(app.rm_name);
+      const dealerMatch = filters.dealer.length === 0 || filters.dealer.includes(app.dealer_name);
+      const lenderMatch = filters.lender.length === 0 || filters.lender.includes(app.lender_name);
+
+      return branchMatch && teamLeadMatch && rmMatch && dealerMatch && 
+             lenderMatch && statusMatch && emiMonthMatch && repaymentMatch && 
+             lastMonthBounceMatch && ptpDateMatch;
     });
+    
+    console.log('Filtered applications:', result.length);
+    return result;
   }, [applications, filters]);
 
   // Calculate available options based on currently filtered data
@@ -146,49 +150,14 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
     };
   }, [filteredApplications]);
 
-  // When available options change, clean up invalid filter selections
-  useEffect(() => {
-    setFilters(prevFilters => {
-      const cleanedFilters = {
-        branch: prevFilters.branch.filter(item => availableOptions.branches.includes(item)),
-        teamLead: prevFilters.teamLead.filter(item => availableOptions.teamLeads.includes(item)),
-        rm: prevFilters.rm.filter(item => availableOptions.rms.includes(item)),
-        dealer: prevFilters.dealer.filter(item => availableOptions.dealers.includes(item)),
-        lender: prevFilters.lender.filter(item => availableOptions.lenders.includes(item)),
-        status: prevFilters.status.filter(item => availableOptions.statuses.includes(item)),
-        emiMonth: prevFilters.emiMonth.filter(item => availableOptions.emiMonths.includes(item)),
-        repayment: prevFilters.repayment.filter(item => availableOptions.repayments.includes(item)),
-        lastMonthBounce: prevFilters.lastMonthBounce.filter(item => availableOptions.lastMonthBounce.includes(item)),
-        ptpDate: prevFilters.ptpDate.filter(item => {
-          const label = getPtpDateCategoryLabel(item);
-          return availableOptions.ptpDateOptions.includes(label);
-        })
-      };
-
-      // Only update if there are actual changes
-      const hasChanges = Object.keys(cleanedFilters).some(key => {
-        if (key === 'lastMonthBounce') {
-          return cleanedFilters[key].length !== prevFilters[key].length ||
-            !cleanedFilters[key].every(item => prevFilters.lastMonthBounce.includes(item));
-        }
-        if (key === 'ptpDate') {
-          return cleanedFilters[key].length !== prevFilters[key].length ||
-            !cleanedFilters[key].every(item => prevFilters.ptpDate.includes(item));
-        }
-        return cleanedFilters[key as keyof FilterState].length !== prevFilters[key as keyof FilterState].length ||
-          !cleanedFilters[key as keyof FilterState].every(item => {
-            return (prevFilters[key as keyof FilterState] as string[]).includes(item as string);
-          });
-      });
-
-      return hasChanges ? cleanedFilters : prevFilters;
-    });
-  }, [availableOptions]);
-
   const handleFilterChange = (key: keyof FilterState, values: string[]) => {
+    console.log('=== FILTER CHANGE ===');
+    console.log(`Changing ${key} filter to:`, values);
+    
     if (key === 'lastMonthBounce') {
       // Type-safe handling for lastMonthBounce filter
       const validValues = values.filter(isValidLastMonthBounceCategory);
+      console.log('Valid lastMonthBounce values:', validValues);
       setFilters(prev => ({ ...prev, [key]: validValues }));
     } else if (key === 'ptpDate') {
       // Convert labels back to categories for PTP date filter
@@ -198,8 +167,10 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
           .find(cat => getPtpDateCategoryLabel(cat) === label);
         return category;
       }).filter((cat): cat is PtpDateCategory => cat !== undefined);
+      console.log('Valid PTP date categories:', validValues);
       setFilters(prev => ({ ...prev, [key]: validValues }));
     } else {
+      console.log(`Setting ${key} to:`, values);
       setFilters(prev => ({ ...prev, [key]: values }));
     }
   };

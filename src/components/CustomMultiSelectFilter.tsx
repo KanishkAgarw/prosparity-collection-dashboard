@@ -41,22 +41,36 @@ const CustomMultiSelectFilter = ({
   const toggleOption = (option: string) => {
     if (!option) return;
     
+    console.log('=== TOGGLE OPTION ===');
+    console.log('Option:', option);
+    console.log('Current selected:', safeSelected);
+    
     const newSelected = safeSelected.includes(option)
       ? safeSelected.filter(item => item !== option)
       : [...safeSelected, option];
+    
+    console.log('New selected:', newSelected);
     onSelectionChange(newSelected);
   };
 
   const clearAll = () => {
+    console.log('=== CLEAR ALL FILTERS ===');
+    console.log('Label:', label);
     onSelectionChange([]);
   };
 
   const selectAll = () => {
+    console.log('=== SELECT ALL FILTERS ===');
+    console.log('Label:', label);
+    console.log('All options:', filteredOptions);
     onSelectionChange(filteredOptions);
   };
 
   const removeItem = (item: string, event: React.MouseEvent) => {
     event.stopPropagation();
+    console.log('=== REMOVE ITEM ===');
+    console.log('Item:', item);
+    console.log('Label:', label);
     onSelectionChange(safeSelected.filter(selected => selected !== item));
   };
 
@@ -80,14 +94,14 @@ const CustomMultiSelectFilter = ({
         <PopoverTrigger asChild>
           <Button
             variant="outline"
-            className="w-full justify-between h-auto min-h-[40px] text-left font-normal p-3 relative"
+            className="w-full justify-between h-auto min-h-[40px] text-left font-normal p-3 relative hover:bg-blue-50 transition-colors"
           >
             <div className="flex flex-wrap gap-1 items-center min-h-[20px] flex-1">
               {safeSelected.length === 0 ? (
                 <div className="flex items-center gap-2">
-                  <CheckSquare className="h-4 w-4 text-gray-400" />
+                  <CheckSquare className="h-4 w-4 text-blue-500" />
                   <span className="text-muted-foreground">{label}</span>
-                  <span className="text-xs text-gray-400">(Multi-select)</span>
+                  <span className="text-xs text-blue-500 font-medium">(Multi-select enabled)</span>
                 </div>
               ) : (
                 <>
@@ -95,11 +109,11 @@ const CustomMultiSelectFilter = ({
                     <Badge 
                       key={item} 
                       variant="secondary" 
-                      className="text-xs h-6 px-2 bg-blue-100 text-blue-800"
+                      className="text-xs h-6 px-2 bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors"
                     >
                       {item}
                       <X 
-                        className="ml-1 h-3 w-3 cursor-pointer hover:text-red-500" 
+                        className="ml-1 h-3 w-3 cursor-pointer hover:text-red-500 transition-colors" 
                         onClick={(e) => removeItem(item, e)}
                       />
                     </Badge>
@@ -115,11 +129,14 @@ const CustomMultiSelectFilter = ({
             <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-full min-w-[250px] p-0" align="start">
+        <PopoverContent className="w-full min-w-[280px] p-0" align="start">
           <div className="p-3 border-b bg-blue-50">
             <div className="flex items-center gap-2 mb-2">
               <CheckSquare className="h-4 w-4 text-blue-600" />
               <span className="text-sm font-medium text-blue-800">Multi-Select Filter</span>
+              <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+                {safeSelected.length} selected
+              </span>
             </div>
             <input
               ref={searchInputRef}
@@ -129,6 +146,9 @@ const CustomMultiSelectFilter = ({
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            <div className="text-xs text-blue-600 mt-1 font-medium">
+              💡 Click multiple items to select them
+            </div>
           </div>
           
           <div className="max-h-60 overflow-y-auto">
@@ -163,7 +183,7 @@ const CustomMultiSelectFilter = ({
                   <div
                     key={option}
                     onClick={() => toggleOption(option)}
-                    className="flex items-center space-x-2 px-3 py-2 cursor-pointer hover:bg-gray-100 rounded-md transition-colors"
+                    className="flex items-center space-x-2 px-3 py-2 cursor-pointer hover:bg-blue-50 rounded-md transition-colors"
                   >
                     <div className={`w-4 h-4 border rounded flex items-center justify-center transition-colors ${
                       safeSelected.includes(option) 
@@ -175,6 +195,11 @@ const CustomMultiSelectFilter = ({
                       )}
                     </div>
                     <span className="flex-1 text-sm">{option}</span>
+                    {safeSelected.includes(option) && (
+                      <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800">
+                        Selected
+                      </Badge>
+                    )}
                   </div>
                 ))}
               </div>
@@ -186,8 +211,8 @@ const CustomMultiSelectFilter = ({
           </div>
           
           {safeSelected.length > 0 && (
-            <div className="p-2 border-t bg-gray-50">
-              <div className="text-xs text-gray-600 text-center">
+            <div className="p-2 border-t bg-blue-50">
+              <div className="text-xs text-blue-700 text-center font-medium">
                 {safeSelected.length} item{safeSelected.length !== 1 ? 's' : ''} selected
               </div>
             </div>

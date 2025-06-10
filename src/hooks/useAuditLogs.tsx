@@ -27,7 +27,8 @@ export const useAuditLogs = (applicationId?: string) => {
     
     setLoading(true);
     try {
-      console.log('Fetching audit logs for application:', applicationId);
+      console.log('=== FETCHING AUDIT LOGS ===');
+      console.log('Application ID:', applicationId);
       
       const { data, error } = await supabase
         .from('audit_logs')
@@ -44,6 +45,7 @@ export const useAuditLogs = (applicationId?: string) => {
         // Fetch profiles for all unique user IDs
         const userIds = [...new Set(data?.map(log => log.user_id) || [])];
         if (userIds.length > 0) {
+          console.log('Fetching profiles for audit log users:', userIds);
           await fetchProfiles(userIds);
         }
       }
@@ -56,10 +58,14 @@ export const useAuditLogs = (applicationId?: string) => {
 
   // Memoize audit logs with user names to prevent unnecessary re-renders
   const auditLogs = useMemo(() => {
-    return rawAuditLogs.map(log => ({
-      ...log,
-      user_name: getUserName(log.user_id, log.user_email)
-    }));
+    return rawAuditLogs.map(log => {
+      const userName = getUserName(log.user_id, log.user_email);
+      console.log(`✓ Audit log ${log.id}: user_id=${log.user_id} -> resolved_name="${userName}"`);
+      return {
+        ...log,
+        user_name: userName
+      };
+    });
   }, [rawAuditLogs, getUserName]);
 
   // Updated function signature to accept applicationId as first parameter
@@ -67,7 +73,13 @@ export const useAuditLogs = (applicationId?: string) => {
     if (!user) return;
 
     try {
-      console.log('Adding audit log for application:', appId, { field, previousValue, newValue });
+      console.log('=== ADDING AUDIT LOG ===');
+      console.log('Application ID:', appId);
+      console.log('Field:', field);
+      console.log('Previous value:', previousValue);
+      console.log('New value:', newValue);
+      console.log('User ID:', user.id);
+      console.log('User email:', user.email);
       
       const { error } = await supabase
         .from('audit_logs')
@@ -83,7 +95,7 @@ export const useAuditLogs = (applicationId?: string) => {
       if (error) {
         console.error('Error adding audit log:', error);
       } else {
-        console.log('Added audit log successfully');
+        console.log('✓ Audit log added successfully');
         // Only refresh if this log is for the current application
         if (appId === applicationId) {
           await fetchAuditLogs();
