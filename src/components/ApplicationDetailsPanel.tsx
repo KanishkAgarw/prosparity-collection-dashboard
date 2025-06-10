@@ -14,6 +14,7 @@ import ContactsTab from "./details/ContactsTab";
 import StatusTab from "./details/StatusTab";
 import CommentsTab from "./details/CommentsTab";
 import { useApplicationHandlers } from "./details/ApplicationHandlers";
+import { useEffect } from "react";
 
 interface ApplicationDetailsPanelProps {
   application: Application | null;
@@ -25,9 +26,16 @@ interface ApplicationDetailsPanelProps {
 const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }: ApplicationDetailsPanelProps) => {
   const { user } = useAuth();
 
-  const { comments, addComment, refetch: refetchComments } = useComments(application?.applicant_id);
+  const { comments, fetchComments, addComment } = useComments();
   const { auditLogs, addAuditLog, refetch: refetchAuditLogs } = useAuditLogs(application?.applicant_id);
   const { callingLogs, addCallingLog, refetch: refetchCallingLogs } = useCallingLogs(application?.applicant_id);
+
+  // Fetch comments when application changes
+  useEffect(() => {
+    if (application?.applicant_id) {
+      fetchComments(application.applicant_id);
+    }
+  }, [application?.applicant_id, fetchComments]);
 
   // Set up real-time updates
   useRealtimeUpdates({
@@ -40,7 +48,9 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }
       onDataChanged?.(); // Trigger main list refresh
     },
     onCommentUpdate: () => {
-      refetchComments();
+      if (application?.applicant_id) {
+        fetchComments(application.applicant_id);
+      }
       onDataChanged?.(); // Trigger main list refresh
     },
     onApplicationUpdate: () => {
@@ -60,9 +70,11 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }
   if (!application) return null;
 
   const handleAddComment = async (content: string) => {
-    await addComment(content);
-    toast.success('Comment added successfully');
-    onDataChanged?.(); // Trigger main list refresh after adding comment
+    if (application?.applicant_id) {
+      await addComment(application.applicant_id, content);
+      toast.success('Comment added successfully');
+      onDataChanged?.(); // Trigger main list refresh after adding comment
+    }
   };
 
   return (
