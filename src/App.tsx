@@ -9,10 +9,8 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import AdminSettings from "./pages/AdminSettings";
 import NotFound from "./pages/NotFound";
-import { persistQueryClient } from '@tanstack/react-query-persist-client-core';
-import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
 
-// Create a more optimized QueryClient with better caching and persistence
+// Create a more optimized QueryClient with better caching
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -29,22 +27,6 @@ const queryClient = new QueryClient({
       retry: 1,
     },
   },
-});
-
-// Create persister for localStorage
-const localStoragePersister = createSyncStoragePersister({
-  storage: window.localStorage,
-  key: 'PROSPARITY_QUERY_CACHE',
-  serialize: JSON.stringify,
-  deserialize: JSON.parse,
-});
-
-// Persist query client to localStorage
-persistQueryClient({
-  queryClient,
-  persister: localStoragePersister,
-  maxAge: 1000 * 60 * 60 * 24, // 24 hours
-  buster: '1.0.0', // Increment to invalidate cache on app updates
 });
 
 const App = () => (
