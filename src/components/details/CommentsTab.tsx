@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { User } from "lucide-react";
+import { User, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -69,8 +69,11 @@ const CommentsTab = ({ comments, onAddComment }: CommentsTabProps) => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-2">
-                          <span className="font-medium text-xs sm:text-sm text-blue-700">
-                            {comment.user_name || 'Unknown User'}
+                          <span className="font-medium text-xs sm:text-sm text-blue-700 flex items-center gap-1">
+                            {comment.user_name}
+                            {comment.user_name === 'Unknown User' && (
+                              <AlertCircle className="h-3 w-3 text-orange-500" title="User name not found" />
+                            )}
                           </span>
                           <span className="text-xs text-gray-500">
                             {formatDateTime(comment.created_at)}
