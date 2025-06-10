@@ -110,9 +110,13 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
     return result;
   }, [applications, filters]);
 
-  // Calculate available options based on currently filtered data
+  // Calculate available options based on ORIGINAL applications data (not filtered)
+  // This ensures all options remain selectable regardless of current filter state
   const availableOptions = useMemo(() => {
-    const safeApplications = filteredApplications || [];
+    const safeApplications = applications || [];
+    
+    console.log('=== CALCULATING AVAILABLE OPTIONS ===');
+    console.log('Using original applications:', safeApplications.length);
     
     // Get unique repayment values and format them
     const repayments = [...new Set(safeApplications
@@ -136,7 +140,7 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
 
     const ptpDateOptions = ptpDateCategories.map(category => getPtpDateCategoryLabel(category));
     
-    return {
+    const options = {
       branches: [...new Set(safeApplications.map(app => app.branch_name).filter(Boolean))],
       teamLeads: [...new Set(safeApplications.map(app => app.team_lead).filter(Boolean))],
       rms: [...new Set(safeApplications.map(app => app.rm_name).filter(Boolean))],
@@ -148,7 +152,17 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
       lastMonthBounce: lastMonthBounceCategories,
       ptpDateOptions
     };
-  }, [filteredApplications]);
+    
+    console.log('Available options calculated:', {
+      branches: options.branches.length,
+      teamLeads: options.teamLeads.length,
+      rms: options.rms.length,
+      dealers: options.dealers.length,
+      lenders: options.lenders.length
+    });
+    
+    return options;
+  }, [applications]); // Changed dependency from filteredApplications to applications
 
   const handleFilterChange = (key: keyof FilterState, values: string[]) => {
     console.log('=== FILTER CHANGE ===');
