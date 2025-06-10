@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Application } from "@/types/application";
 import { AuditLog } from "@/hooks/useAuditLogs";
 import { format } from "date-fns";
-import { formatPtpDate } from "@/utils/formatters";
 import { History, Clock, AlertCircle } from "lucide-react";
 import { useFilteredAuditLogs } from "@/hooks/useFilteredAuditLogs";
 import { toast } from "sonner";
@@ -27,7 +26,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
   const [showLogDialog, setShowLogDialog] = useState(false);
   const [isUpdatingPtp, setIsUpdatingPtp] = useState(false);
   
-  // PTP date synchronization - optimized to reduce re-renders
+  // PTP date synchronization - simplified to reduce redundancy
   useEffect(() => {
     if (application.ptp_date) {
       try {
@@ -68,7 +67,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
   const statusAndPtpLogs = useFilteredAuditLogs(auditLogs);
 
   const handlePtpDateChange = async (value: string) => {
-    console.log('=== PTP DATE INPUT CHANGE - CLEANED UP ===');
+    console.log('=== PTP DATE INPUT CHANGE ===');
     console.log('Application:', application.applicant_name);
     console.log('Input value:', value);
     
@@ -118,9 +117,22 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
     };
   }, []);
 
-  // Show only recent 2 status/PTP changes
+  // Show only recent 2 status/PTP changes and deduplicate
   const recentStatusAndPtpLogs = useMemo(() => {
-    return Array.isArray(statusAndPtpLogs) ? statusAndPtpLogs.slice(0, 2) : [];
+    if (!Array.isArray(statusAndPtpLogs)) return [];
+    
+    // Deduplicate logs based on field + timestamp combination
+    const seenLogs = new Set();
+    const uniqueLogs = statusAndPtpLogs.filter(log => {
+      const key = `${log.field}-${log.created_at}-${log.new_value}`;
+      if (seenLogs.has(key)) {
+        return false;
+      }
+      seenLogs.add(key);
+      return true;
+    });
+    
+    return uniqueLogs.slice(0, 2);
   }, [statusAndPtpLogs]);
 
   // Get the 5 basic status options
@@ -188,7 +200,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
               )}
             </div>
             
-            {/* CLEANED UP PTP DATE SECTION - SINGLE DISPLAY */}
+            {/* SINGLE PTP DATE DISPLAY - REMOVED REDUNDANT "Current:" TEXT */}
             <div>
               <Label htmlFor="ptpDate">PTP Date</Label>
               <Input
@@ -198,6 +210,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
                 onChange={(e) => handlePtpDateChange(e.target.value)}
                 className="mt-1"
                 disabled={isUpdatingPtp}
+                placeholder="Select PTP date"
               />
               {isUpdatingPtp && (
                 <div className="text-xs text-blue-600 mt-1 flex items-center gap-1">
@@ -205,17 +218,12 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
                   Updating PTP date...
                 </div>
               )}
-              {application.ptp_date && !isUpdatingPtp && (
-                <div className="text-xs text-gray-500 mt-1">
-                  Current: {formatPtpDate(application.ptp_date)}
-                </div>
-              )}
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Recent Status & PTP Changes - Compact View */}
+      {/* Recent Status & PTP Changes - Improved Deduplication */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center justify-between">

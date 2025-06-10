@@ -37,8 +37,13 @@ export const useRealtimeUpdates = ({
         },
         (payload) => {
           console.log('✅ PTP date update received:', payload);
+          // Trigger multiple updates to ensure UI consistency
           onPtpDateUpdate?.();
           onApplicationUpdate?.(); // Also trigger app update for main list
+          // Small delay to ensure database consistency
+          setTimeout(() => {
+            onApplicationUpdate?.();
+          }, 500);
         }
       )
       .subscribe();
@@ -56,6 +61,10 @@ export const useRealtimeUpdates = ({
         (payload) => {
           console.log('✅ Audit log update received:', payload);
           onAuditLogUpdate?.();
+          // If this is a PTP-related audit log, also refresh main list
+          if (payload.new && typeof payload.new === 'object' && 'field' in payload.new && payload.new.field === 'PTP Date') {
+            onApplicationUpdate?.();
+          }
         }
       )
       .subscribe();

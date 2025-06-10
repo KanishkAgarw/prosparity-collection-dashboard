@@ -37,7 +37,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }
     }
   }, [application?.applicant_id, fetchComments]);
 
-  // Set up ENHANCED real-time updates with immediate refresh logic
+  // Set up ENHANCED real-time updates with immediate and aggressive refresh logic
   useRealtimeUpdates({
     onCallingLogUpdate: () => {
       console.log('📞 Real-time: Calling log updated');
@@ -57,13 +57,18 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }
       onDataChanged?.();
     },
     onApplicationUpdate: () => {
-      console.log('🔄 Real-time: Application updated');
+      console.log('🔄 Real-time: Application updated - triggering main list refresh');
       onDataChanged?.();
     },
     onPtpDateUpdate: () => {
       console.log('📅 Real-time: PTP date updated - triggering comprehensive refresh');
       refetchAuditLogs(); // Refresh audit logs to show PTP changes
       onDataChanged?.(); // Refresh main list immediately
+      // Additional refresh after a short delay to ensure consistency
+      setTimeout(() => {
+        console.log('📅 Delayed refresh for PTP consistency');
+        onDataChanged?.();
+      }, 1000);
     }
   });
 
@@ -72,9 +77,14 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }
     handlePtpDateChange,
     handleCallingStatusChange
   } = useApplicationHandlers(application, user, addAuditLog, addCallingLog, (updatedApp) => {
-    console.log('🔄 Application saved, triggering data refresh');
+    console.log('🔄 Application saved, triggering immediate data refresh');
     onSave(updatedApp);
     onDataChanged?.();
+    // Additional refresh for PTP changes to ensure main list updates
+    setTimeout(() => {
+      console.log('🔄 Additional refresh to ensure main list consistency');
+      onDataChanged?.();
+    }, 500);
   });
 
   if (!application) return null;

@@ -36,25 +36,47 @@ export const usePtpDates = () => {
     if (!user || applicationIds.length === 0) return {};
     
     try {
+      console.log('🔄 Fetching PTP dates for', applicationIds.length, 'applications');
+      
+      // Use a more efficient query with DISTINCT ON to get latest PTP date per application
       const { data, error } = await supabase
-        .from('ptp_dates')
-        .select('application_id, ptp_date, created_at')
-        .in('application_id', applicationIds)
-        .order('created_at', { ascending: false });
+        .rpc('get_latest_ptp_dates', { app_ids: applicationIds });
 
       if (error) {
-        console.error('Error fetching PTP dates:', error);
-        return {};
+        console.error('Error fetching PTP dates with RPC:', error);
+        // Fallback to regular query
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('ptp_dates')
+          .select('application_id, ptp_date, created_at')
+          .in('application_id', applicationIds)
+          .order('created_at', { ascending: false });
+
+        if (fallbackError) {
+          console.error('Error fetching PTP dates (fallback):', fallbackError);
+          return {};
+        }
+
+        // Get the latest PTP date for each application manually
+        const ptpMap: Record<string, string> = {};
+        fallbackData?.forEach(ptp => {
+          if (ptp.ptp_date && !ptpMap[ptp.application_id]) {
+            ptpMap[ptp.application_id] = ptp.ptp_date;
+          }
+        });
+
+        console.log('✅ Fetched PTP dates (fallback):', Object.keys(ptpMap).length, 'applications have PTP dates');
+        return ptpMap;
       }
 
-      // Get the latest PTP date for each application
+      // Process RPC result
       const ptpMap: Record<string, string> = {};
-      data?.forEach(ptp => {
-        if (ptp.ptp_date && !ptpMap[ptp.application_id]) {
-          ptpMap[ptp.application_id] = ptp.ptp_date;
+      data?.forEach((row: any) => {
+        if (row.ptp_date) {
+          ptpMap[row.application_id] = row.ptp_date;
         }
       });
 
+      console.log('✅ Fetched PTP dates:', Object.keys(ptpMap).length, 'applications have PTP dates');
       return ptpMap;
     } catch (error) {
       console.error('Error fetching PTP dates:', error);
@@ -68,7 +90,7 @@ export const usePtpDates = () => {
       return false;
     }
 
-    console.log('=== PTP UPDATE ATTEMPT ===');
+    console.log('=== PTP UPDATE ATTEMPT - ENHANCED ===');
     console.log('Application ID:', applicationId);
     console.log('User ID:', user.id);
     console.log('New PTP Date:', ptpDate);
@@ -101,13 +123,15 @@ export const usePtpDates = () => {
         insertAttempts++;
         console.log(`PTP Insert attempt ${insertAttempts}/${maxRetries}`);
 
-        const { error: insertError } = await supabase
+        const { error: insertError, data: insertData } = await supabase
           .from('ptp_dates')
           .insert({
             application_id: applicationId,
             ptp_date: ptpDate,
             user_id: user.id
-          });
+          })
+          .select()
+          .single();
 
         if (insertError) {
           console.error(`PTP Insert attempt ${insertAttempts} failed:`, insertError);
@@ -116,7 +140,7 @@ export const usePtpDates = () => {
             await new Promise(resolve => setTimeout(resolve, 1000));
           }
         } else {
-          console.log(`PTP Insert successful on attempt ${insertAttempts}`);
+          console.log(`✅ PTP Insert successful on attempt ${insertAttempts}:`, insertData);
           insertSuccess = true;
         }
       }
@@ -126,7 +150,7 @@ export const usePtpDates = () => {
         return false;
       }
 
-      console.log('PTP date record inserted successfully');
+      console.log('✅ PTP date record inserted successfully');
       return true;
 
     } catch (error) {
