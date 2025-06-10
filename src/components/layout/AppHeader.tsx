@@ -1,7 +1,7 @@
 
 import { useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { LogOut, Download, Menu, Settings } from "lucide-react";
+import { LogOut, Menu, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -10,13 +10,15 @@ import { useUserProfiles } from "@/hooks/useUserProfiles";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import UploadApplicationDialog from "@/components/UploadApplicationDialog";
 import AdminUserManagement from "@/components/AdminUserManagement";
+import ExportDialog from "@/components/ExportDialog";
 
 interface AppHeaderProps {
-  onExport: () => void;
+  onExportFull: () => void;
+  onExportPtpComments: () => void;
   onApplicationAdded: () => void;
 }
 
-const AppHeader = ({ onExport, onApplicationAdded }: AppHeaderProps) => {
+const AppHeader = ({ onExportFull, onExportPtpComments, onApplicationAdded }: AppHeaderProps) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { getUserName, fetchProfiles } = useUserProfiles();
@@ -68,10 +70,10 @@ const AppHeader = ({ onExport, onApplicationAdded }: AppHeaderProps) => {
         {/* Desktop Actions */}
         <div className="hidden sm:flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={onExport} className="h-8 text-xs">
-              <Download className="h-3 w-3 mr-1" />
-              Export
-            </Button>
+            <ExportDialog 
+              onExportFull={onExportFull}
+              onExportPtpComments={onExportPtpComments}
+            />
             {isAdmin && <UploadApplicationDialog onApplicationsAdded={onApplicationAdded} />}
             {isAdmin && <AdminUserManagement isAdmin={isAdmin} />}
             {isAdmin && (

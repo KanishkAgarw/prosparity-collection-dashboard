@@ -2,7 +2,7 @@
 import { useState, useMemo } from "react";
 import { useApplications } from "@/hooks/useApplications";
 import { useCascadingFilters } from "@/hooks/useCascadingFilters";
-import { useExport } from "@/hooks/useExport";
+import { useEnhancedExport } from "@/hooks/useEnhancedExport";
 import { useUserProfiles } from "@/hooks/useUserProfiles";
 import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
 import { useUserRoles } from "@/hooks/useUserRoles";
@@ -29,7 +29,7 @@ const Index = () => {
   });
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const { exportToExcel } = useExport();
+  const { exportPtpCommentsReport, exportFullReport } = useEnhancedExport();
 
   // Set up real-time updates for the main applications list
   useRealtimeUpdates({
@@ -99,16 +99,32 @@ const Index = () => {
     refetch(); // Refresh the main applications list
   };
 
-  const handleExport = async () => {
+  const handleExportFull = async () => {
     try {
-      toast.loading('Preparing export...', { id: 'export' });
+      toast.loading('Preparing full report...', { id: 'export' });
       
       const exportData = {
         applications: finalFilteredApplications
       };
 
-      exportToExcel(exportData, 'collection-monitoring-report');
-      toast.success('Export completed successfully!', { id: 'export' });
+      exportFullReport(exportData, 'collection-monitoring-full-report');
+      toast.success('Full report exported successfully!', { id: 'export' });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export data', { id: 'export' });
+    }
+  };
+
+  const handleExportPtpComments = async () => {
+    try {
+      toast.loading('Preparing PTP + Comments report...', { id: 'export' });
+      
+      const exportData = {
+        applications: finalFilteredApplications
+      };
+
+      exportPtpCommentsReport(exportData, 'collection-ptp-comments-report');
+      toast.success('PTP + Comments report exported successfully!', { id: 'export' });
     } catch (error) {
       console.error('Export error:', error);
       toast.error('Failed to export data', { id: 'export' });
@@ -147,7 +163,8 @@ const Index = () => {
       <div className="container mx-auto py-4 px-4 sm:py-6 sm:px-6 lg:px-8 max-w-7xl">
         <div className="space-y-6">
           <AppHeader 
-            onExport={handleExport}
+            onExportFull={handleExportFull}
+            onExportPtpComments={handleExportPtpComments}
             onApplicationAdded={refetch}
           />
 
