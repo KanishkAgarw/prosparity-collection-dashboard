@@ -58,7 +58,7 @@ export const processFilterChange = (
     console.log('Valid lastMonthBounce values:', validValues);
     setFilters(prev => ({ ...prev, [key]: validValues }));
   } else if (key === 'ptpDate') {
-    // Convert labels back to categories for PTP date filter - updated for 4 options
+    // Convert labels back to categories for PTP date filter
     const labelToCategoryMap: { [key: string]: PtpDateCategory } = {
       "Today's PTP": 'today',
       "Overdue PTP": 'overdue',
@@ -67,13 +67,23 @@ export const processFilterChange = (
     };
     
     const validCategories = values
-      .map(label => labelToCategoryMap[label])
+      .map(label => {
+        // Handle both labels and direct category values for backwards compatibility
+        if (labelToCategoryMap[label]) {
+          return labelToCategoryMap[label];
+        }
+        // If it's already a category value, validate and use it
+        if (isValidPtpDateCategory(label)) {
+          return label as PtpDateCategory;
+        }
+        return undefined;
+      })
       .filter((category): category is PtpDateCategory => 
-        category !== undefined && isValidPtpDateCategory(category)
+        category !== undefined
       );
     
-    console.log('PTP Date - Labels:', values);
-    console.log('PTP Date - Categories:', validCategories);
+    console.log('PTP Date - Input values:', values);
+    console.log('PTP Date - Mapped categories:', validCategories);
     setFilters(prev => ({ ...prev, [key]: validCategories }));
   } else {
     console.log(`Setting ${key} to:`, values);
