@@ -129,12 +129,12 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
       .map(app => categorizeLastMonthBounce(app.last_month_bounce)))]
       .sort();
 
-    // Get PTP date categories with labels
+    // Get PTP date categories with labels - now only 4 categories
     const ptpDateCategories = [...new Set(safeApplications
       .map(app => categorizePtpDate(app.ptp_date)))]
       .sort((a, b) => {
-        // Sort in priority order: today, overdue, upcoming, future, no_date
-        const order = ['today', 'overdue', 'upcoming', 'future', 'no_date'];
+        // Sort in priority order: today, overdue, upcoming, no_date
+        const order = ['today', 'overdue', 'upcoming', 'no_date'];
         return order.indexOf(a) - order.indexOf(b);
       });
 
@@ -158,7 +158,8 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
       teamLeads: options.teamLeads.length,
       rms: options.rms.length,
       dealers: options.dealers.length,
-      lenders: options.lenders.length
+      lenders: options.lenders.length,
+      ptpDateOptions: options.ptpDateOptions
     });
     
     return options;
@@ -174,13 +175,12 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
       console.log('Valid lastMonthBounce values:', validValues);
       setFilters(prev => ({ ...prev, [key]: validValues }));
     } else if (key === 'ptpDate') {
-      // Convert labels back to categories for PTP date filter
+      // Convert labels back to categories for PTP date filter - updated for 4 options
       const labelToCategoryMap: { [key: string]: PtpDateCategory } = {
-        "Today's PTPs": 'today',
-        "Overdue PTPs": 'overdue',
+        "Today's PTP": 'today',
+        "Overdue PTP": 'overdue',
         "Upcoming PTPs": 'upcoming',
-        "Future PTPs": 'future',
-        "No PTP Date": 'no_date'
+        "No PTP set": 'no_date'
       };
       
       const validCategories = values
