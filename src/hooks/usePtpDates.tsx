@@ -63,26 +63,74 @@ export const usePtpDates = () => {
   }, [user]);
 
   const updatePtpDate = useCallback(async (applicationId: string, ptpDate: string | null) => {
-    if (!user) return false;
+    if (!user) {
+      console.error('PTP Update Failed: User not authenticated');
+      return false;
+    }
+
+    console.log('=== PTP UPDATE ATTEMPT ===');
+    console.log('Application ID:', applicationId);
+    console.log('User ID:', user.id);
+    console.log('New PTP Date:', ptpDate);
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('ptp_dates')
-        .insert({
-          application_id: applicationId,
-          ptp_date: ptpDate,
-          user_id: user.id
-        });
-
-      if (error) {
-        console.error('Error updating PTP date:', error);
+      // Validate input
+      if (!applicationId || applicationId.trim() === '') {
+        console.error('PTP Update Failed: Invalid application ID');
         return false;
       }
 
+      // Validate date format if provided
+      if (ptpDate) {
+        const parsedDate = new Date(ptpDate);
+        if (isNaN(parsedDate.getTime())) {
+          console.error('PTP Update Failed: Invalid date format:', ptpDate);
+          return false;
+        }
+      }
+
+      console.log('Attempting to insert PTP date record...');
+      
+      // Insert the PTP date record with retry logic
+      let insertAttempts = 0;
+      const maxRetries = 3;
+      let insertSuccess = false;
+
+      while (insertAttempts < maxRetries && !insertSuccess) {
+        insertAttempts++;
+        console.log(`PTP Insert attempt ${insertAttempts}/${maxRetries}`);
+
+        const { error: insertError } = await supabase
+          .from('ptp_dates')
+          .insert({
+            application_id: applicationId,
+            ptp_date: ptpDate,
+            user_id: user.id
+          });
+
+        if (insertError) {
+          console.error(`PTP Insert attempt ${insertAttempts} failed:`, insertError);
+          if (insertAttempts < maxRetries) {
+            // Wait before retry
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        } else {
+          console.log(`PTP Insert successful on attempt ${insertAttempts}`);
+          insertSuccess = true;
+        }
+      }
+
+      if (!insertSuccess) {
+        console.error('PTP Update Failed: All insert attempts failed');
+        return false;
+      }
+
+      console.log('PTP date record inserted successfully');
       return true;
+
     } catch (error) {
-      console.error('Error updating PTP date:', error);
+      console.error('PTP Update Failed: Unexpected error:', error);
       return false;
     } finally {
       setLoading(false);

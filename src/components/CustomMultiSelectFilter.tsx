@@ -51,6 +51,10 @@ const CustomMultiSelectFilter = ({
     onSelectionChange([]);
   };
 
+  const selectAll = () => {
+    onSelectionChange(filteredOptions);
+  };
+
   const removeItem = (item: string, event: React.MouseEvent) => {
     event.stopPropagation();
     onSelectionChange(safeSelected.filter(selected => selected !== item));
@@ -120,18 +124,28 @@ const CustomMultiSelectFilter = ({
           </div>
           
           <div className="max-h-60 overflow-y-auto">
-            {safeSelected.length > 0 && (
-              <div className="p-2 border-b">
+            <div className="p-2 border-b space-y-1">
+              {filteredOptions.length > 1 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={selectAll}
+                  className="w-full text-blue-600 hover:text-blue-700 hover:bg-blue-50 justify-start"
+                >
+                  Select All ({filteredOptions.length})
+                </Button>
+              )}
+              {safeSelected.length > 0 && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={clearAll}
-                  className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                  className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 justify-start"
                 >
                   Clear All ({safeSelected.length})
                 </Button>
-              </div>
-            )}
+              )}
+            </div>
             
             {filteredOptions.length > 0 ? (
               <div className="p-1">

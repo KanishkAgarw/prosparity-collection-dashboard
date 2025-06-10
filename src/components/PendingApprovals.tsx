@@ -4,12 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserProfiles } from "@/hooks/useUserProfiles";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { CheckCircle, XCircle, Clock } from "lucide-react";
+import { CheckCircle, XCircle, Clock, ChevronDown, ChevronUp } from "lucide-react";
 
 interface StatusChangeRequest {
   id: string;
@@ -41,6 +42,16 @@ const PendingApprovals = ({ onUpdate }: PendingApprovalsProps) => {
   const [requests, setRequests] = useState<StatusChangeRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [reviewComments, setReviewComments] = useState<Record<string, string>>({});
+  const [isOpen, setIsOpen] = useState(() => {
+    // Load saved state from localStorage
+    const saved = localStorage.getItem('pendingApprovalsOpen');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+
+  // Save toggle state to localStorage
+  useEffect(() => {
+    localStorage.setItem('pendingApprovalsOpen', JSON.stringify(isOpen));
+  }, [isOpen]);
 
   const fetchPendingRequests = async () => {
     if (!user) return;
@@ -227,94 +238,97 @@ const PendingApprovals = ({ onUpdate }: PendingApprovalsProps) => {
     );
   }
 
-  if (requests.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            Pending Status Approvals
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-4 text-gray-500">No pending requests</div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Clock className="h-5 w-5" />
-          Pending Status Approvals ({requests.length})
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {requests.map((request) => (
-            <div key={request.id} className="border rounded-lg p-4 space-y-3">
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <div className="font-semibold text-blue-900">
-                    {request.applicant_name} ({request.applicant_id})
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    Requested by: {request.requested_by_name || request.requested_by_email}
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    Requested: {format(new Date(request.request_timestamp), 'dd-MMM-yyyy HH:mm')}
-                  </div>
-                </div>
-                <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
-                  Pending Approval
-                </Badge>
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <CollapsibleTrigger asChild>
+          <CardHeader className="cursor-pointer hover:bg-gray-50 transition-colors">
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                Pending Status Approvals
+                {requests.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {requests.length}
+                  </Badge>
+                )}
               </div>
+              {isOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+            </CardTitle>
+          </CardHeader>
+        </CollapsibleTrigger>
+        
+        <CollapsibleContent>
+          <CardContent>
+            {requests.length === 0 ? (
+              <div className="text-center py-4 text-gray-500">No pending requests</div>
+            ) : (
+              <div className="space-y-4">
+                {requests.map((request) => (
+                  <div key={request.id} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <div className="font-semibold text-blue-900">
+                          {request.applicant_name} ({request.applicant_id})
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          Requested by: {request.requested_by_name || request.requested_by_email}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          Requested: {format(new Date(request.request_timestamp), 'dd-MMM-yyyy HH:mm')}
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
+                        Pending Approval
+                      </Badge>
+                    </div>
 
-              <div className="flex items-center gap-4 text-sm">
-                <span className="text-gray-600">Status Change:</span>
-                <span className="px-2 py-1 bg-red-50 text-red-700 rounded">{request.current_status}</span>
-                <span>→</span>
-                <span className="px-2 py-1 bg-green-50 text-green-700 rounded">{request.requested_status}</span>
-              </div>
+                    <div className="flex items-center gap-4 text-sm">
+                      <span className="text-gray-600">Status Change:</span>
+                      <span className="px-2 py-1 bg-red-50 text-red-700 rounded">{request.current_status}</span>
+                      <span>→</span>
+                      <span className="px-2 py-1 bg-green-50 text-green-700 rounded">{request.requested_status}</span>
+                    </div>
 
-              <div className="space-y-2">
-                <Textarea
-                  placeholder="Add review comments (optional)"
-                  value={reviewComments[request.id] || ''}
-                  onChange={(e) => setReviewComments(prev => ({
-                    ...prev,
-                    [request.id]: e.target.value
-                  }))}
-                  className="text-sm"
-                  rows={2}
-                />
-              </div>
+                    <div className="space-y-2">
+                      <Textarea
+                        placeholder="Add review comments (optional)"
+                        value={reviewComments[request.id] || ''}
+                        onChange={(e) => setReviewComments(prev => ({
+                          ...prev,
+                          [request.id]: e.target.value
+                        }))}
+                        className="text-sm"
+                        rows={2}
+                      />
+                    </div>
 
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => handleApproval(request.id, 'approved')}
-                  className="flex items-center gap-1 bg-green-600 hover:bg-green-700"
-                >
-                  <CheckCircle className="h-4 w-4" />
-                  Approve
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => handleApproval(request.id, 'rejected')}
-                  className="flex items-center gap-1"
-                >
-                  <XCircle className="h-4 w-4" />
-                  Reject
-                </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleApproval(request.id, 'approved')}
+                        className="flex items-center gap-1 bg-green-600 hover:bg-green-700"
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleApproval(request.id, 'rejected')}
+                        className="flex items-center gap-1"
+                      >
+                        <XCircle className="h-4 w-4" />
+                        Reject
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
+            )}
+          </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
     </Card>
   );
 };

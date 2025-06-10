@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { formatPtpDate } from "@/utils/formatters";
 import { History, Clock, AlertCircle } from "lucide-react";
 import { useFilteredAuditLogs } from "@/hooks/useFilteredAuditLogs";
+import { toast } from "sonner";
 import LogDialog from "./LogDialog";
 
 interface StatusTabProps {
@@ -24,6 +25,7 @@ interface StatusTabProps {
 const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: StatusTabProps) => {
   const [ptpDate, setPtpDate] = useState('');
   const [showLogDialog, setShowLogDialog] = useState(false);
+  const [isUpdatingPtp, setIsUpdatingPtp] = useState(false);
   
   // PTP date synchronization
   useEffect(() => {
@@ -72,13 +74,45 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
   // Filter audit logs to only show status-related changes
   const statusOnlyLogs = useFilteredAuditLogs(auditLogs);
 
-  const handlePtpDateChange = (value: string) => {
+  const handlePtpDateChange = async (value: string) => {
     console.log('=== PTP DATE INPUT CHANGE ===');
     console.log('Application:', application.applicant_name);
     console.log('Input value:', value);
     
     setPtpDate(value);
-    onPtpDateChange(value);
+    setIsUpdatingPtp(true);
+
+    try {
+      console.log('Calling onPtpDateChange with value:', value);
+      await onPtpDateChange(value);
+      
+      // Show success message
+      if (value) {
+        toast.success(`PTP date updated to ${formatPtpDate(value + 'T00:00:00.000Z')}`);
+      } else {
+        toast.success('PTP date cleared');
+      }
+    } catch (error) {
+      console.error('Error updating PTP date:', error);
+      toast.error('Failed to update PTP date. Please try again.');
+      
+      // Revert the input value on error
+      if (application.ptp_date) {
+        try {
+          const parsedDate = new Date(application.ptp_date);
+          if (!isNaN(parsedDate.getTime())) {
+            setPtpDate(parsedDate.toISOString().split('T')[0]);
+          }
+        } catch (revertError) {
+          console.error('Error reverting PTP date:', revertError);
+          setPtpDate('');
+        }
+      } else {
+        setPtpDate('');
+      }
+    } finally {
+      setIsUpdatingPtp(false);
+    }
   };
 
   const handleStatusChange = (newStatus: string) => {
@@ -172,8 +206,15 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
                 value={ptpDate}
                 onChange={(e) => handlePtpDateChange(e.target.value)}
                 className="mt-1"
+                disabled={isUpdatingPtp}
               />
-              {ptpDate && (
+              {isUpdatingPtp && (
+                <div className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                  Updating PTP date...
+                </div>
+              )}
+              {ptpDate && !isUpdatingPtp && (
                 <div className="text-xs text-gray-500 mt-1">
                   Selected: {formatPtpDate(ptpDate + 'T00:00:00.000Z')}
                 </div>
