@@ -64,10 +64,8 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
     }
   }, [application.ptp_date]);
   
-  // Memoized filtered audit logs to prevent excessive re-filtering
-  const statusAndPtpLogs = useMemo(() => {
-    return useFilteredAuditLogs(auditLogs);
-  }, [auditLogs]);
+  // Use the hook directly without wrapping in useMemo
+  const statusAndPtpLogs = useFilteredAuditLogs(auditLogs);
 
   const handlePtpDateChange = async (value: string) => {
     console.log('=== PTP DATE INPUT CHANGE ===');
@@ -129,7 +127,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
 
   // Show only recent 2 status/PTP changes
   const recentStatusAndPtpLogs = useMemo(() => {
-    return statusAndPtpLogs.slice(0, 2);
+    return Array.isArray(statusAndPtpLogs) ? statusAndPtpLogs.slice(0, 2) : [];
   }, [statusAndPtpLogs]);
 
   // Get the 5 basic status options
@@ -233,7 +231,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
               <History className="h-4 w-4" />
               Recent Changes
             </div>
-            {statusAndPtpLogs.length > 0 && (
+            {Array.isArray(statusAndPtpLogs) && statusAndPtpLogs.length > 0 && (
               <Button
                 variant="outline"
                 size="sm"
@@ -277,7 +275,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
       <LogDialog
         open={showLogDialog}
         onClose={() => setShowLogDialog(false)}
-        logs={statusAndPtpLogs}
+        logs={Array.isArray(statusAndPtpLogs) ? statusAndPtpLogs : []}
         title="Status & PTP Date History"
         type="audit"
       />
