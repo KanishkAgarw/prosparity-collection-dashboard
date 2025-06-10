@@ -25,6 +25,7 @@ export const usePtpDates = () => {
         return null;
       }
 
+      // Return the ptp_date value directly - could be a date string or null
       return data?.ptp_date || null;
     } catch (error) {
       console.error('Error fetching PTP date:', error);
@@ -32,13 +33,13 @@ export const usePtpDates = () => {
     }
   }, [user]);
 
-  const fetchPtpDates = useCallback(async (applicationIds: string[]): Promise<Record<string, string>> => {
+  const fetchPtpDates = useCallback(async (applicationIds: string[]): Promise<Record<string, string | null>> => {
     if (!user || applicationIds.length === 0) return {};
     
     try {
       console.log('🔄 Fetching PTP dates for', applicationIds.length, 'applications');
       
-      // Use optimized query with DISTINCT ON for latest PTP date per application
+      // Get ALL latest records per application, including those with null ptp_date
       const { data, error } = await supabase
         .from('ptp_dates')
         .select('application_id, ptp_date, created_at')
@@ -51,18 +52,22 @@ export const usePtpDates = () => {
         return {};
       }
 
-      // Get the latest PTP date for each application manually
-      const ptpMap: Record<string, string> = {};
+      // Get the latest record for each application (including null ptp_date)
+      const ptpMap: Record<string, string | null> = {};
       const processedApps = new Set<string>();
       
       data?.forEach(ptp => {
-        if (ptp.ptp_date && !processedApps.has(ptp.application_id)) {
+        if (!processedApps.has(ptp.application_id)) {
+          // Store the latest ptp_date for this application (could be null for cleared dates)
           ptpMap[ptp.application_id] = ptp.ptp_date;
           processedApps.add(ptp.application_id);
         }
       });
 
-      console.log('✅ Fetched PTP dates:', Object.keys(ptpMap).length, 'applications have PTP dates');
+      console.log('✅ Fetched PTP dates:', Object.keys(ptpMap).length, 'applications processed');
+      console.log('📅 Applications with actual dates:', Object.values(ptpMap).filter(date => date !== null).length);
+      console.log('🚫 Applications with cleared dates:', Object.values(ptpMap).filter(date => date === null).length);
+      
       return ptpMap;
     } catch (error) {
       console.error('Error fetching PTP dates:', error);
@@ -80,6 +85,7 @@ export const usePtpDates = () => {
     console.log('Application ID:', applicationId);
     console.log('User ID:', user.id);
     console.log('New PTP Date:', ptpDate);
+    console.log('Is clearing date:', ptpDate === null || ptpDate === '');
 
     setLoading(true);
     try {
@@ -89,8 +95,8 @@ export const usePtpDates = () => {
         return false;
       }
 
-      // Validate date format if provided
-      if (ptpDate) {
+      // Validate date format if provided (not null/empty)
+      if (ptpDate && ptpDate.trim() !== '') {
         const parsedDate = new Date(ptpDate);
         if (isNaN(parsedDate.getTime())) {
           console.error('PTP Update Failed: Invalid date format:', ptpDate);
@@ -98,7 +104,11 @@ export const usePtpDates = () => {
         }
       }
 
+      // Convert empty string to null for clearing
+      const finalPtpDate = (ptpDate && ptpDate.trim() !== '') ? ptpDate : null;
+
       console.log('Attempting to insert PTP date record...');
+      console.log('Final PTP Date value:', finalPtpDate);
       
       // Insert the PTP date record with retry logic
       let insertAttempts = 0;
@@ -113,7 +123,7 @@ export const usePtpDates = () => {
           .from('ptp_dates')
           .insert({
             application_id: applicationId,
-            ptp_date: ptpDate,
+            ptp_date: finalPtpDate,
             user_id: user.id
           })
           .select()

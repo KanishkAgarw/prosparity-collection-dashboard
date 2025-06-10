@@ -26,8 +26,12 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
   const [showLogDialog, setShowLogDialog] = useState(false);
   const [isUpdatingPtp, setIsUpdatingPtp] = useState(false);
   
-  // PTP date synchronization - simplified to reduce redundancy
+  // PTP date synchronization - improved to handle cleared dates
   useEffect(() => {
+    console.log('📅 StatusTab: Synchronizing PTP date');
+    console.log('Application PTP date:', application.ptp_date);
+    console.log('Type of PTP date:', typeof application.ptp_date);
+    
     if (application.ptp_date) {
       try {
         let inputValue = '';
@@ -50,15 +54,19 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
           if (!isNaN(parsedDate.getTime())) {
             // Format for HTML date input (YYYY-MM-DD)
             inputValue = parsedDate.toISOString().split('T')[0];
+            console.log('✅ Parsed date for input:', inputValue);
+          } else {
+            console.warn('⚠️ Could not parse date:', application.ptp_date);
           }
         }
         
         setPtpDate(inputValue);
       } catch (error) {
-        console.error('Error parsing PTP date:', error);
+        console.error('❌ Error parsing PTP date:', error);
         setPtpDate('');
       }
     } else {
+      console.log('🚫 No PTP date or date is null - showing empty input');
       setPtpDate('');
     }
   }, [application.ptp_date]);
@@ -70,6 +78,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
     console.log('=== PTP DATE INPUT CHANGE ===');
     console.log('Application:', application.applicant_name);
     console.log('Input value:', value);
+    console.log('Is clearing date:', value === '');
     
     setPtpDate(value);
     setIsUpdatingPtp(true);
@@ -78,6 +87,18 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
       console.log('Calling onPtpDateChange with value:', value);
       await onPtpDateChange(value);
       console.log('✅ PTP date change completed');
+      
+      // Show appropriate success message
+      if (value === '') {
+        toast.success('PTP date cleared successfully');
+      } else {
+        const formattedDisplayDate = new Date(value + 'T00:00:00.000Z').toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        });
+        toast.success(`PTP date updated to ${formattedDisplayDate}`);
+      }
     } catch (error) {
       console.error('❌ Error updating PTP date:', error);
       toast.error('Failed to update PTP date. Please try again.');
@@ -200,30 +221,35 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
               )}
             </div>
             
-            {/* SINGLE PTP DATE DISPLAY - REMOVED REDUNDANT "Current:" TEXT */}
+            {/* PTP DATE INPUT - Enhanced with better clearing support */}
             <div>
               <Label htmlFor="ptpDate">PTP Date</Label>
-              <Input
-                id="ptpDate"
-                type="date"
-                value={ptpDate}
-                onChange={(e) => handlePtpDateChange(e.target.value)}
-                className="mt-1"
-                disabled={isUpdatingPtp}
-                placeholder="Select PTP date"
-              />
-              {isUpdatingPtp && (
-                <div className="text-xs text-blue-600 mt-1 flex items-center gap-1">
-                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
-                  Updating PTP date...
-                </div>
-              )}
+              <div className="space-y-2">
+                <Input
+                  id="ptpDate"
+                  type="date"
+                  value={ptpDate}
+                  onChange={(e) => handlePtpDateChange(e.target.value)}
+                  className="mt-1"
+                  disabled={isUpdatingPtp}
+                  placeholder="Select PTP date"
+                />
+                {isUpdatingPtp && (
+                  <div className="text-xs text-blue-600 flex items-center gap-1">
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                    {ptpDate === '' ? 'Clearing PTP date...' : 'Updating PTP date...'}
+                  </div>
+                )}
+                {!application.ptp_date && !isUpdatingPtp && (
+                  <div className="text-xs text-gray-500">No PTP date set</div>
+                )}
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Recent Status & PTP Changes - Improved Deduplication */}
+      {/* Recent Status & PTP Changes */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center justify-between">
@@ -257,7 +283,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
                     <div className="text-xs text-gray-600">
                       <span className="text-red-600">{log.previous_value || 'Not Set'}</span>
                       {' → '}
-                      <span className="text-green-600">{log.new_value || 'Not Set'}</span>
+                      <span className="text-green-600">{log.new_value || 'Cleared'}</span>
                     </div>
                   </div>
                   <div className="text-xs text-gray-500 text-right">

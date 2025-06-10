@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Application } from '@/types/application';
@@ -123,20 +122,26 @@ export const useApplicationHandlers = (
     if (!application || !user || isUpdating) return;
 
     setIsUpdating(true);
-    console.log('=== PTP DATE CHANGE HANDLER - ENHANCED ===');
+    console.log('=== PTP DATE CHANGE HANDLER - ENHANCED FOR CLEARING ===');
     console.log('Application ID:', application.applicant_id);
     console.log('User ID:', user.id);
     console.log('Previous PTP date:', application.ptp_date);
     console.log('New PTP date input:', newDate);
+    console.log('Is clearing date:', newDate === '');
 
     try {
       const previousDate = application.ptp_date;
       let formattedDate: string | null = null;
 
-      if (newDate) {
+      // Handle clearing vs setting date
+      if (newDate && newDate.trim() !== '') {
         // Convert YYYY-MM-DD to ISO string for storage
         formattedDate = new Date(newDate + 'T00:00:00.000Z').toISOString();
         console.log('Formatted date for storage:', formattedDate);
+      } else {
+        // Clearing the date - explicitly set to null
+        formattedDate = null;
+        console.log('Clearing date - setting to null');
       }
 
       // Step 1: Insert PTP date record with enhanced error handling
@@ -176,7 +181,7 @@ export const useApplicationHandlers = (
       };
 
       const previousDisplayValue = formatDateForAudit(previousDate);
-      const newDisplayValue = formatDateForAudit(formattedDate);
+      const newDisplayValue = newDate === '' ? 'Cleared' : formatDateForAudit(formattedDate);
 
       console.log('Step 2: Formatted values for audit log:');
       console.log('Previous:', previousDisplayValue);
@@ -214,18 +219,6 @@ export const useApplicationHandlers = (
       console.log('Step 4: Updating local application state...');
       const updatedApp = { ...application, ptp_date: formattedDate };
       onSave(updatedApp);
-
-      // Step 5: Show success message
-      if (newDate) {
-        const formattedDisplayDate = new Date(formattedDate!).toLocaleDateString('en-GB', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric'
-        });
-        toast.success(`PTP date updated to ${formattedDisplayDate}`);
-      } else {
-        toast.success('PTP date cleared');
-      }
 
       console.log('✅ PTP date change completed successfully');
     } catch (error) {
