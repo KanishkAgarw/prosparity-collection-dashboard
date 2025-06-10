@@ -63,7 +63,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }
     onPtpDateUpdate: () => {
       console.log('Real-time: PTP date updated - triggering refresh');
       refetchAuditLogs(); // Refresh audit logs to show PTP changes
-      onDataChanged?.()?; // Refresh main list
+      onDataChanged?.(); // Refresh main list
     }
   });
 
