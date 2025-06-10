@@ -4,11 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Application } from '@/types/application';
 import { DatabaseApplication } from '@/types/database';
-import { fetchAndMapComments } from '@/utils/commentMapping';
 import { useFieldStatus } from '@/hooks/useFieldStatus';
 import { usePtpDates } from '@/hooks/usePtpDates';
 import { usePaymentDates } from '@/hooks/usePaymentDates';
 import { useContactCallingStatus } from '@/hooks/useContactCallingStatus';
+import { useComments } from '@/hooks/useComments';
 
 interface UseApplicationsProps {
   page?: number;
@@ -21,6 +21,7 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
   const { fetchPtpDates } = usePtpDates();
   const { fetchPaymentDates } = usePaymentDates();
   const { fetchContactStatuses } = useContactCallingStatus();
+  const { fetchCommentsByApplications } = useComments();
   const [applications, setApplications] = useState<Application[]>([]);
   const [allApplications, setAllApplications] = useState<Application[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -74,7 +75,7 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
         fetchPtpDates(allAppIds),
         fetchPaymentDates(allAppIds),
         fetchContactStatuses(allAppIds),
-        fetchAndMapComments(allAppIds)
+        fetchCommentsByApplications(allAppIds)
       ]);
 
       // Enhance applications with related data
@@ -109,7 +110,7 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
     } finally {
       setLoading(false);
     }
-  }, [user, page, pageSize, fetchFieldStatus, fetchPtpDates, fetchPaymentDates, fetchContactStatuses]);
+  }, [user, page, pageSize, fetchFieldStatus, fetchPtpDates, fetchPaymentDates, fetchContactStatuses, fetchCommentsByApplications]);
 
   useEffect(() => {
     if (user) {

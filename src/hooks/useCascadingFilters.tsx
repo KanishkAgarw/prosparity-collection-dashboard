@@ -1,6 +1,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { formatEmiMonth } from "@/utils/formatters";
+import { categorizePtpDate, getPtpDateCategoryLabel, type PtpDateCategory } from "@/utils/ptpDateUtils";
 
 interface CascadingFiltersProps {
   applications: any[];
@@ -14,10 +15,11 @@ interface FilterState {
   rm: string[];
   dealer: string[];
   lender: string[];
-  status: string[]; // Renamed from fieldStatus
+  status: string[];
   emiMonth: string[];
   repayment: string[];
   lastMonthBounce: LastMonthBounceCategory[];
+  ptpDate: PtpDateCategory[];
 }
 
 // Helper function to format repayment values
@@ -49,6 +51,12 @@ const isValidLastMonthBounceCategory = (value: string): value is LastMonthBounce
   return validCategories.includes(value as LastMonthBounceCategory);
 };
 
+// Type guard to check if a string is a valid PtpDateCategory
+const isValidPtpDateCategory = (value: string): value is PtpDateCategory => {
+  const validCategories: PtpDateCategory[] = ['today', 'overdue', 'upcoming', 'future', 'no_date'];
+  return validCategories.includes(value as PtpDateCategory);
+};
+
 export function useCascadingFilters({ applications }: CascadingFiltersProps) {
   const [filters, setFilters] = useState<FilterState>({
     branch: [],
@@ -56,10 +64,11 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
     rm: [],
     dealer: [],
     lender: [],
-    status: [], // Renamed from fieldStatus
+    status: [],
     emiMonth: [],
     repayment: [],
-    lastMonthBounce: []
+    lastMonthBounce: [],
+    ptpDate: []
   });
 
   // Get the currently filtered applications based on active filters
@@ -78,6 +87,10 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
       const statusMatch = filters.status.length === 0 || 
         filters.status.includes(app.field_status || 'Unpaid');
 
+      const appPtpDateCategory = categorizePtpDate(app.ptp_date);
+      const ptpDateMatch = filters.ptpDate.length === 0 || 
+        filters.ptpDate.includes(appPtpDateCategory);
+
       return (
         (filters.branch.length === 0 || filters.branch.includes(app.branch_name)) &&
         (filters.teamLead.length === 0 || filters.teamLead.includes(app.team_lead)) &&
@@ -87,7 +100,8 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
         statusMatch &&
         emiMonthMatch &&
         repaymentMatch &&
-        lastMonthBounceMatch
+        lastMonthBounceMatch &&
+        ptpDateMatch
       );
     });
   }, [applications, filters]);
@@ -106,6 +120,17 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
     const lastMonthBounceCategories: LastMonthBounceCategory[] = [...new Set(safeApplications
       .map(app => categorizeLastMonthBounce(app.last_month_bounce)))]
       .sort();
+
+    // Get PTP date categories with labels
+    const ptpDateCategories = [...new Set(safeApplications
+      .map(app => categorizePtpDate(app.ptp_date)))]
+      .sort((a, b) => {
+        // Sort in priority order: today, overdue, upcoming, future, no_date
+        const order = ['today', 'overdue', 'upcoming', 'future', 'no_date'];
+        return order.indexOf(a) - order.indexOf(b);
+      });
+
+    const ptpDateOptions = ptpDateCategories.map(category => getPtpDateCategoryLabel(category));
     
     return {
       branches: [...new Set(safeApplications.map(app => app.branch_name).filter(Boolean))],
@@ -113,10 +138,11 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
       rms: [...new Set(safeApplications.map(app => app.rm_name).filter(Boolean))],
       dealers: [...new Set(safeApplications.map(app => app.dealer_name).filter(Boolean))],
       lenders: [...new Set(safeApplications.map(app => app.lender_name).filter(Boolean))],
-      statuses: [...new Set(safeApplications.map(app => app.field_status || 'Unpaid').filter(Boolean))], // Renamed from fieldStatuses
+      statuses: [...new Set(safeApplications.map(app => app.field_status || 'Unpaid').filter(Boolean))],
       emiMonths: [...new Set(safeApplications.map(app => formatEmiMonth(app.demand_date)).filter(Boolean))],
       repayments,
-      lastMonthBounce: lastMonthBounceCategories
+      lastMonthBounce: lastMonthBounceCategories,
+      ptpDateOptions
     };
   }, [filteredApplications]);
 
@@ -129,22 +155,31 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
         rm: prevFilters.rm.filter(item => availableOptions.rms.includes(item)),
         dealer: prevFilters.dealer.filter(item => availableOptions.dealers.includes(item)),
         lender: prevFilters.lender.filter(item => availableOptions.lenders.includes(item)),
-        status: prevFilters.status.filter(item => availableOptions.statuses.includes(item)), // Renamed from fieldStatus
+        status: prevFilters.status.filter(item => availableOptions.statuses.includes(item)),
         emiMonth: prevFilters.emiMonth.filter(item => availableOptions.emiMonths.includes(item)),
         repayment: prevFilters.repayment.filter(item => availableOptions.repayments.includes(item)),
-        lastMonthBounce: prevFilters.lastMonthBounce.filter(item => availableOptions.lastMonthBounce.includes(item))
+        lastMonthBounce: prevFilters.lastMonthBounce.filter(item => availableOptions.lastMonthBounce.includes(item)),
+        ptpDate: prevFilters.ptpDate.filter(item => {
+          const label = getPtpDateCategoryLabel(item);
+          return availableOptions.ptpDateOptions.includes(label);
+        })
       };
 
       // Only update if there are actual changes
-      const hasChanges = Object.keys(cleanedFilters).some(key => 
-        cleanedFilters[key as keyof FilterState].length !== prevFilters[key as keyof FilterState].length ||
-        !cleanedFilters[key as keyof FilterState].every(item => {
-          if (key === 'lastMonthBounce') {
-            return prevFilters.lastMonthBounce.includes(item as LastMonthBounceCategory);
-          }
-          return (prevFilters[key as keyof FilterState] as string[]).includes(item as string);
-        })
-      );
+      const hasChanges = Object.keys(cleanedFilters).some(key => {
+        if (key === 'lastMonthBounce') {
+          return cleanedFilters[key].length !== prevFilters[key].length ||
+            !cleanedFilters[key].every(item => prevFilters.lastMonthBounce.includes(item));
+        }
+        if (key === 'ptpDate') {
+          return cleanedFilters[key].length !== prevFilters[key].length ||
+            !cleanedFilters[key].every(item => prevFilters.ptpDate.includes(item));
+        }
+        return cleanedFilters[key as keyof FilterState].length !== prevFilters[key as keyof FilterState].length ||
+          !cleanedFilters[key as keyof FilterState].every(item => {
+            return (prevFilters[key as keyof FilterState] as string[]).includes(item as string);
+          });
+      });
 
       return hasChanges ? cleanedFilters : prevFilters;
     });
@@ -154,6 +189,15 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
     if (key === 'lastMonthBounce') {
       // Type-safe handling for lastMonthBounce filter
       const validValues = values.filter(isValidLastMonthBounceCategory);
+      setFilters(prev => ({ ...prev, [key]: validValues }));
+    } else if (key === 'ptpDate') {
+      // Convert labels back to categories for PTP date filter
+      const validValues = values.map(label => {
+        // Find the category that matches this label
+        const category = (['today', 'overdue', 'upcoming', 'future', 'no_date'] as PtpDateCategory[])
+          .find(cat => getPtpDateCategoryLabel(cat) === label);
+        return category;
+      }).filter((cat): cat is PtpDateCategory => cat !== undefined);
       setFilters(prev => ({ ...prev, [key]: validValues }));
     } else {
       setFilters(prev => ({ ...prev, [key]: values }));

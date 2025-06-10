@@ -72,7 +72,7 @@ const CommentsTab = ({ comments, onAddComment }: CommentsTabProps) => {
                           <span className="font-medium text-xs sm:text-sm text-blue-700 flex items-center gap-1">
                             {comment.user_name}
                             {comment.user_name === 'Unknown User' && (
-                              <AlertCircle className="h-3 w-3 text-orange-500" title="User name not found" />
+                              <AlertCircle className="h-3 w-3 text-orange-500" />
                             )}
                           </span>
                           <span className="text-xs text-gray-500">

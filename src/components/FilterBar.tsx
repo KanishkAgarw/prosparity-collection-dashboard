@@ -12,10 +12,11 @@ interface FilterBarProps {
     rm: string[];
     dealer: string[];
     lender: string[];
-    status: string[]; // Renamed from fieldStatus
+    status: string[];
     emiMonth: string[];
     repayment: string[];
     lastMonthBounce: string[];
+    ptpDate: string[];
   };
   onFilterChange: (key: string, values: string[]) => void;
   availableOptions: {
@@ -24,10 +25,11 @@ interface FilterBarProps {
     rms: string[];
     dealers: string[];
     lenders: string[];
-    statuses: string[]; // Renamed from fieldStatuses
+    statuses: string[];
     emiMonths: string[];
     repayments: string[];
     lastMonthBounce: string[];
+    ptpDateOptions: string[];
   };
 }
 
@@ -41,10 +43,11 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
     rms: availableOptions?.rms || [],
     dealers: availableOptions?.dealers || [],
     lenders: availableOptions?.lenders || [],
-    statuses: availableOptions?.statuses || [], // Renamed from fieldStatuses
+    statuses: availableOptions?.statuses || [],
     emiMonths: availableOptions?.emiMonths || [],
     repayments: availableOptions?.repayments || [],
     lastMonthBounce: availableOptions?.lastMonthBounce || [],
+    ptpDateOptions: availableOptions?.ptpDateOptions || [],
   };
 
   // Ensure all filters have default empty arrays
@@ -54,10 +57,11 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
     rm: filters?.rm || [],
     dealer: filters?.dealer || [],
     lender: filters?.lender || [],
-    status: filters?.status || [], // Renamed from fieldStatus
+    status: filters?.status || [],
     emiMonth: filters?.emiMonth || [],
     repayment: filters?.repayment || [],
     lastMonthBounce: filters?.lastMonthBounce || [],
+    ptpDate: filters?.ptpDate || [],
   };
 
   // Count total active filters
@@ -87,6 +91,16 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
         <CollapsibleContent>
           <div className="p-6 border-t border-gray-100">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">PTP Date</label>
+                <CustomMultiSelectFilter
+                  label="PTP Date"
+                  options={safeFilterOptions.ptpDateOptions}
+                  selected={safeFilters.ptpDate}
+                  onSelectionChange={(values) => onFilterChange('ptpDate', values)}
+                />
+              </div>
+
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">EMI Months</label>
                 <CustomMultiSelectFilter

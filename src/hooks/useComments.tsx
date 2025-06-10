@@ -1,182 +1,174 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserProfiles } from '@/hooks/useUserProfiles';
+import { resolveUserName } from '@/utils/userProfileMapping';
 
 export interface Comment {
   id: string;
   content: string;
-  user_id: string;
-  user_email?: string;
-  user_name: string;
-  application_id: string;
   created_at: string;
   updated_at: string;
+  user_id: string;
+  user_email: string | null;
+  user_name: string;
+  application_id: string;
 }
 
-export const useComments = (applicationId?: string) => {
+export const useComments = () => {
   const { user } = useAuth();
+  const { getUserName, fetchProfiles } = useUserProfiles();
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchComments = async () => {
-    if (!applicationId || !user) return;
-    
+  const fetchComments = useCallback(async (applicationId: string): Promise<Comment[]> => {
+    if (!user || !applicationId) return [];
+
     setLoading(true);
     try {
-      console.log('=== FETCHING COMMENTS WITH PROFILES ===');
+      console.log('=== FETCHING COMMENTS ===');
       console.log('Application ID:', applicationId);
-      
-      // Fetch comments with user profiles in a single query
+
+      // Fetch comments with a simple query
       const { data: commentsData, error: commentsError } = await supabase
         .from('comments')
-        .select(`
-          id,
-          content,
-          user_id,
-          user_email,
-          application_id,
-          created_at,
-          updated_at,
-          profiles!inner(
-            full_name,
-            email
-          )
-        `)
+        .select('*')
         .eq('application_id', applicationId)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false });
 
       if (commentsError) {
-        console.error('Error fetching comments with profiles:', commentsError);
-        
-        // Fallback: fetch comments without profiles and handle name resolution manually
-        const { data: basicComments, error: basicError } = await supabase
-          .from('comments')
-          .select('*')
-          .eq('application_id', applicationId)
-          .order('created_at', { ascending: true });
-
-        if (basicError) {
-          console.error('Error fetching basic comments:', basicError);
-          return;
-        }
-
-        // Get unique user IDs and fetch profiles separately
-        const userIds = [...new Set(basicComments?.map(comment => comment.user_id) || [])];
-        console.log('Fetching profiles for user IDs:', userIds);
-        
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name, email')
-          .in('id', userIds);
-
-        console.log('Fetched profiles:', profiles);
-
-        // Map comments with profile data
-        const commentsWithNames = (basicComments || []).map(comment => {
-          const profile = profiles?.find(p => p.id === comment.user_id);
-          
-          let userName = 'Unknown User';
-          if (profile?.full_name && profile.full_name.trim() !== '') {
-            userName = profile.full_name.trim();
-          } else if (profile?.email && profile.email.trim() !== '') {
-            userName = profile.email.trim();
-          } else if (comment.user_email && comment.user_email.trim() !== '') {
-            userName = comment.user_email.trim();
-          }
-          
-          console.log(`Comment ${comment.id}: User ${comment.user_id} -> "${userName}"`);
-          
-          return {
-            ...comment,
-            user_name: userName
-          };
-        });
-
-        setComments(commentsWithNames);
-        return;
+        console.error('Error fetching comments:', commentsError);
+        return [];
       }
 
-      console.log('Successfully fetched comments with profiles:', commentsData);
+      if (!commentsData || commentsData.length === 0) {
+        console.log('No comments found for application:', applicationId);
+        return [];
+      }
 
-      // Process comments with joined profile data
-      const processedComments = (commentsData || []).map(comment => {
-        let userName = 'Unknown User';
-        
-        // Try to get name from joined profile
-        if (comment.profiles?.full_name && comment.profiles.full_name.trim() !== '') {
-          userName = comment.profiles.full_name.trim();
-        } else if (comment.profiles?.email && comment.profiles.email.trim() !== '') {
-          userName = comment.profiles.email.trim();
-        } else if (comment.user_email && comment.user_email.trim() !== '') {
-          userName = comment.user_email.trim();
-        }
-        
-        console.log(`✓ Comment ${comment.id}: User ${comment.user_id} -> "${userName}"`);
+      console.log('Raw comments data:', commentsData);
+
+      // Get unique user IDs for profile fetching
+      const userIds = [...new Set(commentsData.map(comment => comment.user_id))];
+      console.log('Fetching profiles for user IDs:', userIds);
+
+      // Fetch user profiles
+      await fetchProfiles(userIds);
+
+      // Map comments with resolved user names
+      const mappedComments: Comment[] = commentsData.map(comment => {
+        const userName = resolveUserName(comment.user_id, undefined, comment.user_email);
+        console.log(`Mapped comment ${comment.id}: user_id=${comment.user_id} -> user_name="${userName}"`);
         
         return {
-          id: comment.id,
-          content: comment.content,
-          user_id: comment.user_id,
-          user_email: comment.user_email,
-          user_name: userName,
-          application_id: comment.application_id,
-          created_at: comment.created_at,
-          updated_at: comment.updated_at
+          ...comment,
+          user_name: userName
         };
       });
 
-      setComments(processedComments);
+      console.log('Final mapped comments:', mappedComments);
+      setComments(mappedComments);
+      return mappedComments;
     } catch (error) {
       console.error('Exception in fetchComments:', error);
+      return [];
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, fetchProfiles]);
 
-  const addComment = async (content: string) => {
-    if (!applicationId || !user || !content.trim()) return;
+  const fetchCommentsByApplications = useCallback(async (applicationIds: string[]): Promise<Record<string, Array<{content: string; user_name: string}>>> => {
+    if (!user || applicationIds.length === 0) return {};
+
+    try {
+      console.log('=== FETCHING COMMENTS FOR MULTIPLE APPLICATIONS ===');
+      console.log('Application IDs:', applicationIds);
+
+      // Fetch recent comments (max 2 per application)
+      const { data: commentsData, error: commentsError } = await supabase
+        .from('comments')
+        .select('*')
+        .in('application_id', applicationIds)
+        .order('created_at', { ascending: false });
+
+      if (commentsError) {
+        console.error('Error fetching comments:', commentsError);
+        return {};
+      }
+
+      if (!commentsData || commentsData.length === 0) {
+        console.log('No comments found for applications');
+        return {};
+      }
+
+      console.log('Found comments:', commentsData.length);
+
+      // Get unique user IDs for profile fetching
+      const userIds = [...new Set(commentsData.map(comment => comment.user_id))];
+      await fetchProfiles(userIds);
+
+      // Group comments by application and resolve user names
+      const commentsByApp: Record<string, Array<{content: string; user_name: string}>> = {};
+      
+      commentsData.forEach(comment => {
+        if (!commentsByApp[comment.application_id]) {
+          commentsByApp[comment.application_id] = [];
+        }
+        
+        // Only keep the 2 most recent comments per application
+        if (commentsByApp[comment.application_id].length < 2) {
+          const userName = resolveUserName(comment.user_id, undefined, comment.user_email);
+          commentsByApp[comment.application_id].push({
+            content: comment.content,
+            user_name: userName
+          });
+        }
+      });
+
+      console.log('Comments grouped by application:', commentsByApp);
+      return commentsByApp;
+    } catch (error) {
+      console.error('Exception in fetchCommentsByApplications:', error);
+      return {};
+    }
+  }, [user, fetchProfiles]);
+
+  const addComment = useCallback(async (applicationId: string, content: string): Promise<void> => {
+    if (!user || !applicationId || !content.trim()) return;
 
     try {
       console.log('=== ADDING COMMENT ===');
       console.log('Application ID:', applicationId);
-      console.log('User:', user);
-      
-      const { data, error } = await supabase
+      console.log('Content:', content);
+
+      const { error } = await supabase
         .from('comments')
         .insert({
-          content: content.trim(),
           application_id: applicationId,
+          content: content.trim(),
           user_id: user.id,
           user_email: user.email
-        })
-        .select()
-        .single();
+        });
 
       if (error) {
         console.error('Error adding comment:', error);
         throw error;
-      } else {
-        console.log('✓ Added comment successfully:', data);
-        // Immediately refresh comments to get the latest data
-        await fetchComments();
       }
+
+      console.log('Comment added successfully');
+      // Refresh comments after adding
+      await fetchComments(applicationId);
     } catch (error) {
       console.error('Exception in addComment:', error);
       throw error;
     }
-  };
-
-  useEffect(() => {
-    if (applicationId && user) {
-      fetchComments();
-    }
-  }, [applicationId, user]);
+  }, [user, fetchComments]);
 
   return {
     comments,
     loading,
-    addComment,
-    refetch: fetchComments
+    fetchComments,
+    fetchCommentsByApplications,
+    addComment
   };
 };
