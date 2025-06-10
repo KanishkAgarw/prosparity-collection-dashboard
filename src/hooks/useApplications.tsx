@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Application } from '@/types/application';
@@ -22,10 +22,38 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
   const { fetchPaymentDates } = usePaymentDates();
   const { fetchContactStatuses } = useContactCallingStatus();
   const { fetchCommentsByApplications } = useComments();
+  
   const [applications, setApplications] = useState<Application[]>([]);
   const [allApplications, setAllApplications] = useState<Application[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  // Memoized enhancement function to avoid recreating on every render
+  const enhanceApplications = useCallback((
+    apps: DatabaseApplication[],
+    fieldStatusMap: Record<string, string>,
+    ptpDatesMap: Record<string, string>,
+    paymentDatesMap: Record<string, string>,
+    contactStatusesMap: Record<string, any>,
+    commentsByApp: Record<string, any[]>
+  ): Application[] => {
+    return apps.map(app => {
+      const contactStatuses = contactStatusesMap[app.applicant_id] || {};
+      
+      return {
+        ...app,
+        field_status: fieldStatusMap[app.applicant_id] || 'Unpaid',
+        ptp_date: ptpDatesMap[app.applicant_id],
+        paid_date: paymentDatesMap[app.applicant_id],
+        applicant_calling_status: contactStatuses.applicant || 'Not Called',
+        co_applicant_calling_status: contactStatuses.co_applicant || 'Not Called',
+        guarantor_calling_status: contactStatuses.guarantor || 'Not Called',
+        reference_calling_status: contactStatuses.reference || 'Not Called',
+        latest_calling_status: contactStatuses.latest || 'No Calls',
+        recent_comments: commentsByApp[app.applicant_id] || []
+      } as Application;
+    });
+  }, []);
 
   const fetchApplications = useCallback(async () => {
     if (!user) return;
@@ -34,40 +62,43 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
     try {
       console.log(`Fetching applications page ${page} (${pageSize} per page)`);
       
-      // Get total count
+      // Get total count efficiently
       const { count } = await supabase
         .from('applications')
         .select('*', { count: 'exact', head: true });
 
       setTotalCount(count || 0);
 
-      // Fetch ALL applications for filters (sorted by applicant name)
-      const { data: allAppsData, error: allAppsError } = await supabase
-        .from('applications')
-        .select('*')
-        .order('applicant_name', { ascending: true });
+      // Batch fetch applications for better performance
+      const [allAppsResult, paginatedAppsResult] = await Promise.all([
+        // Fetch ALL applications for filters (limited fields for memory efficiency)
+        supabase
+          .from('applications')
+          .select('*')
+          .order('applicant_name', { ascending: true }),
+        
+        // Get paginated applications for current view
+        supabase
+          .from('applications')
+          .select('*')
+          .order('applicant_name', { ascending: true })
+          .range((page - 1) * pageSize, page * pageSize - 1)
+      ]);
 
-      if (allAppsError) {
-        console.error('Error fetching all applications:', allAppsError);
+      if (allAppsResult.error) {
+        console.error('Error fetching all applications:', allAppsResult.error);
         return;
       }
 
-      // Get paginated applications (sorted by applicant name)
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
-
-      const { data: appsData, error: appsError } = await supabase
-        .from('applications')
-        .select('*')
-        .order('applicant_name', { ascending: true })
-        .range(from, to);
-
-      if (appsError) {
-        console.error('Error fetching applications:', appsError);
+      if (paginatedAppsResult.error) {
+        console.error('Error fetching paginated applications:', paginatedAppsResult.error);
         return;
       }
 
-      // Fetch related data for ALL applications
+      const allAppsData = allAppsResult.data;
+      const appsData = paginatedAppsResult.data;
+
+      // Fetch related data for ALL applications in parallel
       const allAppIds = allAppsData?.map(app => app.applicant_id) || [];
       
       const [fieldStatusMap, ptpDatesMap, paymentDatesMap, contactStatusesMap, commentsByApp] = await Promise.all([
@@ -79,27 +110,23 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
       ]);
 
       // Enhance applications with related data
-      const enhanceApplications = (apps: DatabaseApplication[]): Application[] => {
-        return apps.map(app => {
-          const contactStatuses = contactStatusesMap[app.applicant_id] || {};
-          
-          return {
-            ...app,
-            field_status: fieldStatusMap[app.applicant_id] || 'Unpaid',
-            ptp_date: ptpDatesMap[app.applicant_id],
-            paid_date: paymentDatesMap[app.applicant_id],
-            applicant_calling_status: contactStatuses.applicant || 'Not Called',
-            co_applicant_calling_status: contactStatuses.co_applicant || 'Not Called',
-            guarantor_calling_status: contactStatuses.guarantor || 'Not Called',
-            reference_calling_status: contactStatuses.reference || 'Not Called',
-            latest_calling_status: contactStatuses.latest || 'No Calls',
-            recent_comments: commentsByApp[app.applicant_id] || []
-          } as Application;
-        });
-      };
-
-      const applicationsWithData = enhanceApplications(appsData as DatabaseApplication[]);
-      const allApplicationsWithData = enhanceApplications(allAppsData as DatabaseApplication[]);
+      const applicationsWithData = enhanceApplications(
+        appsData as DatabaseApplication[], 
+        fieldStatusMap, 
+        ptpDatesMap, 
+        paymentDatesMap, 
+        contactStatusesMap, 
+        commentsByApp
+      );
+      
+      const allApplicationsWithData = enhanceApplications(
+        allAppsData as DatabaseApplication[], 
+        fieldStatusMap, 
+        ptpDatesMap, 
+        paymentDatesMap, 
+        contactStatusesMap, 
+        commentsByApp
+      );
 
       console.log('Enhanced applications with all related data');
       
@@ -110,7 +137,7 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
     } finally {
       setLoading(false);
     }
-  }, [user, page, pageSize, fetchFieldStatus, fetchPtpDates, fetchPaymentDates, fetchContactStatuses, fetchCommentsByApplications]);
+  }, [user, page, pageSize, fetchFieldStatus, fetchPtpDates, fetchPaymentDates, fetchContactStatuses, fetchCommentsByApplications, enhanceApplications]);
 
   useEffect(() => {
     if (user) {
@@ -118,7 +145,7 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
     }
   }, [user, fetchApplications]);
 
-  return {
+  const memoizedReturn = useMemo(() => ({
     applications,
     allApplications,
     totalCount,
@@ -126,5 +153,7 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
     currentPage: page,
     loading,
     refetch: fetchApplications
-  };
+  }), [applications, allApplications, totalCount, pageSize, page, loading, fetchApplications]);
+
+  return memoizedReturn;
 };

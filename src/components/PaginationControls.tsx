@@ -1,4 +1,5 @@
 
+import { memo, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -10,15 +11,41 @@ interface PaginationControlsProps {
   pageSize: number;
 }
 
-const PaginationControls = ({ 
+const PaginationControls = memo(({ 
   currentPage, 
   totalPages, 
   onPageChange, 
   totalCount, 
   pageSize 
 }: PaginationControlsProps) => {
-  const startRecord = (currentPage - 1) * pageSize + 1;
-  const endRecord = Math.min(currentPage * pageSize, totalCount);
+  const { startRecord, endRecord, pageNumbers } = useMemo(() => {
+    const startRecord = (currentPage - 1) * pageSize + 1;
+    const endRecord = Math.min(currentPage * pageSize, totalCount);
+    
+    // Calculate page numbers to show
+    const pageNumbers = [];
+    const maxPages = Math.min(5, totalPages);
+    
+    if (totalPages <= 5) {
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i);
+      }
+    } else if (currentPage <= 3) {
+      for (let i = 1; i <= 5; i++) {
+        pageNumbers.push(i);
+      }
+    } else if (currentPage >= totalPages - 2) {
+      for (let i = totalPages - 4; i <= totalPages; i++) {
+        pageNumbers.push(i);
+      }
+    } else {
+      for (let i = currentPage - 2; i <= currentPage + 2; i++) {
+        pageNumbers.push(i);
+      }
+    }
+    
+    return { startRecord, endRecord, pageNumbers };
+  }, [currentPage, totalPages, pageSize, totalCount]);
 
   return (
     <div className="flex items-center justify-between px-4 py-3 bg-white border-t">
@@ -40,30 +67,17 @@ const PaginationControls = ({
         </Button>
         
         <div className="flex items-center space-x-1">
-          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-            let pageNum;
-            if (totalPages <= 5) {
-              pageNum = i + 1;
-            } else if (currentPage <= 3) {
-              pageNum = i + 1;
-            } else if (currentPage >= totalPages - 2) {
-              pageNum = totalPages - 4 + i;
-            } else {
-              pageNum = currentPage - 2 + i;
-            }
-            
-            return (
-              <Button
-                key={pageNum}
-                variant={currentPage === pageNum ? "default" : "outline"}
-                size="sm"
-                onClick={() => onPageChange(pageNum)}
-                className="w-8 h-8 p-0"
-              >
-                {pageNum}
-              </Button>
-            );
-          })}
+          {pageNumbers.map((pageNum) => (
+            <Button
+              key={pageNum}
+              variant={currentPage === pageNum ? "default" : "outline"}
+              size="sm"
+              onClick={() => onPageChange(pageNum)}
+              className="w-8 h-8 p-0"
+            >
+              {pageNum}
+            </Button>
+          ))}
         </div>
         
         <Button
@@ -78,6 +92,8 @@ const PaginationControls = ({
       </div>
     </div>
   );
-};
+});
+
+PaginationControls.displayName = "PaginationControls";
 
 export default PaginationControls;
