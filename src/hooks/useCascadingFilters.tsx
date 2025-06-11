@@ -1,3 +1,4 @@
+
 import { useState, useMemo } from 'react';
 import { Application } from '@/types/application';
 import { FilterState, AvailableOptions } from '@/types/filters';

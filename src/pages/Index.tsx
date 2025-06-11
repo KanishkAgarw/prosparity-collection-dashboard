@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useEffect } from "react";
 import { useApplications } from "@/hooks/useApplications";
 import { useCascadingFilters } from "@/hooks/useCascadingFilters";
@@ -106,7 +105,7 @@ const Index = () => {
     filteredApplications,
     availableOptions,
     handleFilterChange
-  } = useCascadingFilters({ applications: allApplications });
+  } = useCascadingFilters(allApplications);
 
   // Save filters state when they change
   useEffect(() => {
@@ -296,3 +295,5 @@ function throttle(func: Function, limit: number) {
 }
 
 export default Index;
+
+}

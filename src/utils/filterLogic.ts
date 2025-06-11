@@ -2,7 +2,56 @@
 import { formatEmiMonth } from "@/utils/formatters";
 import { categorizePtpDate, type PtpDateCategory } from "@/utils/ptpDateUtils";
 import { formatRepayment, categorizeLastMonthBounce, isValidLastMonthBounceCategory, isValidPtpDateCategory } from "@/utils/filterUtils";
-import type { FilterState, LastMonthBounceCategory } from "@/types/filters";
+import type { FilterState, LastMonthBounceCategory, AvailableOptions } from "@/types/filters";
+
+// Get available filter options based on all applications and current filtered results
+export const getAvailableOptions = (allApplications: any[], filteredApplications: any[]): AvailableOptions => {
+  console.log('=== GETTING AVAILABLE OPTIONS ===');
+  console.log('All applications:', allApplications.length);
+  console.log('Filtered applications:', filteredApplications.length);
+
+  // Use all applications for generating options to show what's available
+  const apps = allApplications;
+
+  const branches = [...new Set(apps.map(app => app.branch_name).filter(Boolean))].sort();
+  const teamLeads = [...new Set(apps.map(app => app.team_lead).filter(Boolean))].sort();
+  const rms = [...new Set(apps.map(app => app.rm_name).filter(Boolean))].sort();
+  const dealers = [...new Set(apps.map(app => app.dealer_name).filter(Boolean))].sort();
+  const lenders = [...new Set(apps.map(app => app.lender_name).filter(Boolean))].sort();
+  const statuses = [...new Set(apps.map(app => app.field_status || 'Unpaid').filter(Boolean))].sort();
+  const emiMonths = [...new Set(apps.map(app => formatEmiMonth(app.demand_date)).filter(Boolean))].sort();
+  const repayments = [...new Set(apps.map(app => formatRepayment(app.repayment)).filter(Boolean))].sort();
+  const collectionRms = [...new Set(apps.map(app => app.collection_rm).filter(Boolean))].sort();
+
+  const lastMonthBounce: LastMonthBounceCategory[] = [
+    'Not paid',
+    'Paid on time', 
+    '1-5 days late',
+    '6-15 days late',
+    '15+ days late'
+  ];
+
+  const ptpDateOptions = [
+    "Today's PTP",
+    "Overdue PTP", 
+    "Upcoming PTPs",
+    "No PTP set"
+  ];
+
+  return {
+    branches,
+    teamLeads,
+    rms,
+    dealers,
+    lenders,
+    statuses,
+    emiMonths,
+    repayments,
+    lastMonthBounce,
+    ptpDateOptions,
+    collectionRms
+  };
+};
 
 // Filter applications based on current filter state
 export const filterApplications = (applications: any[], filters: FilterState) => {
