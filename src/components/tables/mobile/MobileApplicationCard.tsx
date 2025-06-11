@@ -85,7 +85,7 @@ const MobileApplicationCard = memo(({
           )}
         </div>
 
-        {/* Business Info */}
+        {/* Business Info - Updated to 2x3 grid to include Collection RM */}
         <div className="grid grid-cols-2 gap-3 text-xs mb-3">
           <div className="flex items-center gap-1">
             <Building className="h-3 w-3 text-gray-400" />
@@ -108,6 +108,15 @@ const MobileApplicationCard = memo(({
             <span className="text-gray-500">Branch:</span>
             <p className="font-medium truncate text-gray-800">{application.branch_name}</p>
           </div>
+          {application.collection_rm && (
+            <>
+              <div>
+                <span className="text-gray-500">Collection RM:</span>
+                <p className="font-medium truncate text-gray-800">{truncateText(application.collection_rm, 15)}</p>
+              </div>
+              <div></div> {/* Empty cell to maintain grid alignment */}
+            </>
+          )}
         </div>
 
         {/* PTP Date */}

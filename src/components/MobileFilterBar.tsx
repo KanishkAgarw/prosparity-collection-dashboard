@@ -17,6 +17,7 @@ interface MobileFilterBarProps {
     repayment: string[];
     lastMonthBounce: string[];
     ptpDate: string[];
+    collectionRm: string[];
   };
   onFilterChange: (key: string, values: string[]) => void;
   availableOptions: {
@@ -30,6 +31,7 @@ interface MobileFilterBarProps {
     repayments: string[];
     lastMonthBounce: string[];
     ptpDateOptions: string[];
+    collectionRms: string[];
   };
 }
 
@@ -48,6 +50,7 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
     repayments: availableOptions?.repayments || [],
     lastMonthBounce: availableOptions?.lastMonthBounce || [],
     ptpDateOptions: availableOptions?.ptpDateOptions || [],
+    collectionRms: availableOptions?.collectionRms || [],
   };
 
   // Ensure all filters have default empty arrays
@@ -62,6 +65,7 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
     repayment: filters?.repayment || [],
     lastMonthBounce: filters?.lastMonthBounce || [],
     ptpDate: filters?.ptpDate || [],
+    collectionRm: filters?.collectionRm || [],
   };
 
   // Count active filters
@@ -143,6 +147,16 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
                   options={safeFilterOptions.rms}
                   selected={safeFilters.rm}
                   onSelectionChange={(values) => onFilterChange('rm', values)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-gray-700">Collection RMs</label>
+                <CustomMultiSelectFilter
+                  label="Collection RMs"
+                  options={safeFilterOptions.collectionRms}
+                  selected={safeFilters.collectionRm}
+                  onSelectionChange={(values) => onFilterChange('collectionRm', values)}
                 />
               </div>
 
