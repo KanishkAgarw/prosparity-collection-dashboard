@@ -1,24 +1,21 @@
 
 import { useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { LogOut, Menu, Settings } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserProfiles } from "@/hooks/useUserProfiles";
 import { useUserRoles } from "@/hooks/useUserRoles";
-import UploadApplicationDialog from "@/components/UploadApplicationDialog";
-import AdminUserManagement from "@/components/AdminUserManagement";
 import ExportDialog from "@/components/ExportDialog";
 
 interface AppHeaderProps {
   onExportFull: () => void;
   onExportPtpComments: () => void;
-  onApplicationAdded: () => void;
 }
 
-const AppHeader = ({ onExportFull, onExportPtpComments, onApplicationAdded }: AppHeaderProps) => {
+const AppHeader = ({ onExportFull, onExportPtpComments }: AppHeaderProps) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { getUserName, fetchProfiles } = useUserProfiles();
@@ -74,8 +71,6 @@ const AppHeader = ({ onExportFull, onExportPtpComments, onApplicationAdded }: Ap
               onExportFull={onExportFull}
               onExportPtpComments={onExportPtpComments}
             />
-            {isAdmin && <UploadApplicationDialog onApplicationsAdded={onApplicationAdded} />}
-            {isAdmin && <AdminUserManagement isAdmin={isAdmin} />}
             {isAdmin && (
               <Button
                 variant="outline"

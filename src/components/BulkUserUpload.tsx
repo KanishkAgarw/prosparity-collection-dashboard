@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -17,12 +18,14 @@ interface ExcelUserData {
   'Email (User ID)': string;
   'Full Name': string;
   'Password': string;
+  'Role'?: string;
 }
 
 const BulkUserUpload = ({ onUsersAdded }: BulkUserUploadProps) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [defaultRole, setDefaultRole] = useState<'admin' | 'user'>('user');
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -38,12 +41,13 @@ const BulkUserUpload = ({ onUsersAdded }: BulkUserUploadProps) => {
   };
 
   const downloadTemplate = () => {
-    // Create template data with example row
+    // Create template data with example row including Role column
     const templateData = [
       {
         'Email (User ID)': 'user@example.com',
         'Full Name': 'John Doe',
-        'Password': 'SecurePassword123'
+        'Password': 'SecurePassword123',
+        'Role': 'user'
       }
     ];
 
@@ -55,7 +59,8 @@ const BulkUserUpload = ({ onUsersAdded }: BulkUserUploadProps) => {
     const colWidths = [
       { wch: 25 }, // Email (User ID)
       { wch: 20 }, // Full Name
-      { wch: 15 }  // Password
+      { wch: 15 }, // Password
+      { wch: 10 }  // Role
     ];
     
     worksheet['!cols'] = colWidths;
@@ -101,11 +106,12 @@ const BulkUserUpload = ({ onUsersAdded }: BulkUserUploadProps) => {
         return;
       }
 
-      // Prepare user data for the Edge Function
+      // Prepare user data for the Edge Function with role support
       const users = jsonData.map(row => ({
         email: String(row['Email (User ID)']).trim(),
         fullName: String(row['Full Name']).trim(),
-        password: String(row['Password']).trim()
+        password: String(row['Password']).trim(),
+        role: row['Role'] ? String(row['Role']).toLowerCase() : defaultRole
       }));
 
       console.log('Calling Edge Function with users:', users.length);
@@ -129,12 +135,12 @@ const BulkUserUpload = ({ onUsersAdded }: BulkUserUploadProps) => {
 
       // Show results
       if (results.successful > 0) {
-        toast.success(`Successfully created ${results.successful} users!`);
+        toast.success(`Successfully created/updated ${results.successful} users with roles!`);
       }
       
       if (results.failed > 0) {
-        toast.error(`Failed to create ${results.failed} users. Check console for details.`);
-        console.log('Failed user creation details:', results.errors);
+        toast.error(`Failed to process ${results.failed} users. Check console for details.`);
+        console.log('Failed user processing details:', results.errors);
       }
 
       if (results.successful > 0) {
@@ -163,7 +169,7 @@ const BulkUserUpload = ({ onUsersAdded }: BulkUserUploadProps) => {
         <DialogHeader>
           <DialogTitle>Bulk Upload Users</DialogTitle>
           <DialogDescription>
-            Upload multiple users using an Excel file. Download the template to get started.
+            Upload multiple users with role assignment using an Excel file. Download the template to get started.
           </DialogDescription>
         </DialogHeader>
         
@@ -174,7 +180,7 @@ const BulkUserUpload = ({ onUsersAdded }: BulkUserUploadProps) => {
               <div>
                 <h4 className="font-medium text-blue-900">Step 1: Download Template</h4>
                 <p className="text-sm text-blue-700 mt-1">
-                  Download the Excel template with the required format
+                  Download the Excel template with Role column for user management
                 </p>
               </div>
               <Button 
@@ -187,6 +193,23 @@ const BulkUserUpload = ({ onUsersAdded }: BulkUserUploadProps) => {
                 Download Template
               </Button>
             </div>
+          </div>
+
+          {/* Default Role Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="default-role">Default Role (if not specified in Excel)</Label>
+            <Select value={defaultRole} onValueChange={(value: 'admin' | 'user') => setDefaultRole(value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select default role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="user">User</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-gray-500">
+              This role will be assigned to users where the Role column is empty
+            </p>
           </div>
 
           {/* File Upload Section */}
