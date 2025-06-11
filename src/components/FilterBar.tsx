@@ -19,79 +19,79 @@ const FilterBar = ({ filters, availableOptions, onFilterChange }: FilterBarProps
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         <MultiSelectFilter
           label="Branch"
-          values={filters.branch}
+          selected={filters.branch}
           options={availableOptions.branches}
-          onChange={(values) => onFilterChange('branch', values)}
+          onSelectionChange={(values) => onFilterChange('branch', values)}
         />
         
         <MultiSelectFilter
           label="Team Lead"
-          values={filters.teamLead}
+          selected={filters.teamLead}
           options={availableOptions.teamLeads}
-          onChange={(values) => onFilterChange('teamLead', values)}
+          onSelectionChange={(values) => onFilterChange('teamLead', values)}
         />
         
         <MultiSelectFilter
           label="RM"
-          values={filters.rm}
+          selected={filters.rm}
           options={availableOptions.dealers}
-          onChange={(values) => onFilterChange('rm', values)}
+          onSelectionChange={(values) => onFilterChange('rm', values)}
         />
         
         <MultiSelectFilter
           label="Dealer"
-          values={filters.dealer}
+          selected={filters.dealer}
           options={availableOptions.dealers}
-          onChange={(values) => onFilterChange('dealer', values)}
+          onSelectionChange={(values) => onFilterChange('dealer', values)}
         />
         
         <MultiSelectFilter
           label="Lender"
-          values={filters.lender}
+          selected={filters.lender}
           options={availableOptions.lenders}
-          onChange={(values) => onFilterChange('lender', values)}
+          onSelectionChange={(values) => onFilterChange('lender', values)}
         />
         
         <MultiSelectFilter
           label="Status"
-          values={filters.status}
+          selected={filters.status}
           options={availableOptions.statuses}
-          onChange={(values) => onFilterChange('status', values)}
+          onSelectionChange={(values) => onFilterChange('status', values)}
         />
         
         <MultiSelectFilter
           label="EMI Range"
-          values={filters.emiMonth}
+          selected={filters.emiMonth}
           options={availableOptions.emiMonths}
-          onChange={(values) => onFilterChange('emiMonth', values)}
+          onSelectionChange={(values) => onFilterChange('emiMonth', values)}
         />
         
         <MultiSelectFilter
           label="Repayment"
-          values={filters.repayment}
+          selected={filters.repayment}
           options={availableOptions.repayments}
-          onChange={(values) => onFilterChange('repayment', values)}
+          onSelectionChange={(values) => onFilterChange('repayment', values)}
         />
         
         <MultiSelectFilter
           label="Last Month Bounce"
-          values={filters.lastMonthBounce}
+          selected={filters.lastMonthBounce}
           options={availableOptions.lastMonthBounce}
-          onChange={(values) => onFilterChange('lastMonthBounce', values)}
+          onSelectionChange={(values) => onFilterChange('lastMonthBounce', values)}
         />
         
         <MultiSelectFilter
           label="PTP Date"
-          values={filters.ptpDate}
+          selected={filters.ptpDate}
           options={ptpDateOptions}
-          onChange={(values) => onFilterChange('ptpDate', values)}
+          onSelectionChange={(values) => onFilterChange('ptpDate', values)}
         />
 
         <MultiSelectFilter
           label="Collection RM"
-          values={filters.collectionRM}
+          selected={filters.collectionRM}
           options={availableOptions.collectionRMs}
-          onChange={(values) => onFilterChange('collectionRM', values)}
+          onSelectionChange={(values) => onFilterChange('collectionRM', values)}
         />
       </div>
     </div>
