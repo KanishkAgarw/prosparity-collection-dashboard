@@ -1,8 +1,8 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
-export const processBulkApplications = async (applications: any[], user?: any, mode: 'add' | 'update' = 'add') => {
-  console.log('Processing bulk applications:', applications.length, 'Mode:', mode);
+export const processBulkApplications = async (applications: any[], user?: any) => {
+  console.log('Processing bulk applications:', applications.length);
   
   const results = {
     successful: 0,
@@ -67,14 +67,6 @@ export const processBulkApplications = async (applications: any[], user?: any, m
           }
         }
       } else {
-        // For update mode, skip new records
-        if (mode === 'update') {
-          console.log(`Skipping new application in update mode: ${app.applicant_id}`);
-          results.errors.push(`Application not found for update: ${app.applicant_id}`);
-          results.failed++;
-          continue;
-        }
-
         console.log(`Creating new application: ${app.applicant_id}`);
         
         // Insert new application (excluding status field)

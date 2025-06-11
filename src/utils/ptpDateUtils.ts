@@ -19,8 +19,6 @@ export const categorizePtpDate = (ptpDateStr?: string | null): PtpDateCategory =
   }
 };
 
-export const getPtpDateCategory = categorizePtpDate;
-
 export const getPtpDateCategoryLabel = (category: PtpDateCategory): string => {
   const labels = {
     'today': "Today's PTP",
@@ -43,8 +41,4 @@ export const getPtpDateCategoryColor = (category: PtpDateCategory): string => {
 
 export const getAllPtpDateCategories = (): PtpDateCategory[] => {
   return ['today', 'overdue', 'upcoming', 'no_date'];
-};
-
-export const getPtpDateOptions = (): string[] => {
-  return getAllPtpDateCategories().map(category => getPtpDateCategoryLabel(category));
 };

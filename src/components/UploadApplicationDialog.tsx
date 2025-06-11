@@ -1,10 +1,7 @@
-
 import { useState } from 'react';
 import { Upload, FileSpreadsheet, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -26,10 +23,9 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [uploadMode, setUploadMode] = useState<'add' | 'update'>('add');
 
   const downloadTemplate = () => {
-    // Create template data with example row and the exact 28 required columns (including Status and Collection RM)
+    // Create template data with example row and the exact 28 required columns (including Status)
     const templateData = [
       {
         'Applicant ID': 'PROSAPP250101000001',
@@ -58,8 +54,7 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
         'Last Month Bounce': 0,
         'Lender Name': 'Lender Name',
         'Status': 'Unpaid',
-        'Team Lead': 'Team Lead Name',
-        'Collection RM': 'Collection RM Name'
+        'Team Lead': 'Team Lead Name'
       }
     ];
 
@@ -67,14 +62,14 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
     const workbook = XLSX.utils.book_new();
     const worksheet = XLSX.utils.json_to_sheet(templateData);
 
-    // Set column widths for better readability (added one more column)
+    // Set column widths for better readability
     const colWidths = [
       { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 25 }, { wch: 25 },
       { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 25 }, { wch: 15 },
       { wch: 30 }, { wch: 25 }, { wch: 15 }, { wch: 30 }, { wch: 25 },
       { wch: 15 }, { wch: 30 }, { wch: 25 }, { wch: 12 }, { wch: 15 },
       { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 25 },
-      { wch: 15 }, { wch: 20 }, { wch: 20 }
+      { wch: 15 }, { wch: 20 }
     ];
     
     worksheet['!cols'] = colWidths;
@@ -146,7 +141,6 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
           fi_location: row['FI Submission Location'] || row['fi_location'],
           repayment: row['Repayment'] || row['repayment'],
           last_month_bounce: parseFloat(row['Last Month Bounce'] || row['last_month_bounce'] || '0'),
-          collection_rm: row['Collection RM'] || row['collection_rm'], // New Collection RM field
           // Status field for field_status table update
           status: row['Status'] || row['status']
         };
@@ -154,7 +148,7 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
 
       console.log('Transformed applications ready for processing:', applications.length);
 
-      const results = await processBulkApplications(applications, user, uploadMode);
+      const results = await processBulkApplications(applications, user);
       console.log('Bulk processing results:', results);
 
       // Provide detailed feedback based on results
@@ -215,37 +209,17 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
             Upload Applications
           </DialogTitle>
           <DialogDescription>
-            Upload Excel/CSV files containing application data. Choose to add new applications or update existing ones.
+            Upload Excel/CSV files containing application data. The system will automatically update existing applications or add new ones. Use the Status column to set field status.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          {/* Upload Mode Selection */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">Upload Mode</Label>
-            <RadioGroup value={uploadMode} onValueChange={(value: 'add' | 'update') => setUploadMode(value)}>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="add" id="add" />
-                <Label htmlFor="add" className="text-sm">Add New Applications</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="update" id="update" />
-                <Label htmlFor="update" className="text-sm">Update Existing Applications (by Applicant ID)</Label>
-              </div>
-            </RadioGroup>
-            <p className="text-xs text-gray-500">
-              {uploadMode === 'add' 
-                ? 'Creates new application records. Existing records with same Applicant ID will be updated.'
-                : 'Only updates existing records that match on Applicant ID. New records will be skipped.'}
-            </p>
-          </div>
-
           {/* Template Download Section */}
           <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
             <div className="flex items-center justify-between">
               <div>
                 <h4 className="font-medium text-blue-900">Step 1: Download Template</h4>
                 <p className="text-sm text-blue-700 mt-1">
-                  Download the Excel template with the required format (28 columns + Status)
+                  Download the Excel template with the required format (27 columns + Status)
                 </p>
               </div>
               <Button 
@@ -275,7 +249,7 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
           </div>
           <div className="text-xs text-gray-500">
             <p>Supported formats: Excel (.xlsx, .xls) and CSV (.csv)</p>
-            <p>The template now includes "Collection RM" field after "Team Lead".</p>
+            <p>The system will update existing applications based on Applicant ID and add new ones.</p>
             <p><strong>Status Values:</strong> Unpaid, Partially Paid, Cash Collected from Customer, Customer Deposited to Bank, Paid</p>
             <p><strong>Note:</strong> Invalid status values will default to 'Unpaid'</p>
           </div>

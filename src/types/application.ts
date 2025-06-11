@@ -33,7 +33,6 @@ export interface Application {
   fi_location?: string;
   repayment?: string;
   last_month_bounce?: number;
-  collection_rm?: string; // New Collection RM field
   // These are now fetched from separate tables
   ptp_date?: string; // From ptp_dates table
   paid_date?: string; // From payment_dates table
@@ -66,5 +65,4 @@ export interface FilterOptions {
   emiMonths: string[];
   repayments: string[];
   lastMonthBounce: string[];
-  collectionRMs: string[]; // New filter option for Collection RM
 }
