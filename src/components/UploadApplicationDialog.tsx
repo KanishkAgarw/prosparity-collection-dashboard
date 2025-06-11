@@ -1,7 +1,10 @@
+
 import { useState } from 'react';
 import { Upload, FileSpreadsheet, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -19,13 +22,16 @@ interface UploadApplicationDialogProps {
   onApplicationsAdded: () => void;
 }
 
+type UploadMode = 'add' | 'update' | 'mixed';
+
 const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialogProps) => {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadMode, setUploadMode] = useState<UploadMode>('mixed');
 
   const downloadTemplate = () => {
-    // Create template data with example row and the exact 28 required columns (including Status)
+    // Create template data with example row and the exact 29 required columns (including Collection RM and Status)
     const templateData = [
       {
         'Applicant ID': 'PROSAPP250101000001',
@@ -53,8 +59,9 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
         'EMI': 5000,
         'Last Month Bounce': 0,
         'Lender Name': 'Lender Name',
-        'Status': 'Unpaid',
-        'Team Lead': 'Team Lead Name'
+        'Team Lead': 'Team Lead Name',
+        'Collection RM': 'Collection RM Name',
+        'Status': 'Unpaid'
       }
     ];
 
@@ -69,7 +76,7 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
       { wch: 30 }, { wch: 25 }, { wch: 15 }, { wch: 30 }, { wch: 25 },
       { wch: 15 }, { wch: 30 }, { wch: 25 }, { wch: 12 }, { wch: 15 },
       { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 25 },
-      { wch: 15 }, { wch: 20 }
+      { wch: 20 }, { wch: 20 }, { wch: 15 }
     ];
     
     worksheet['!cols'] = colWidths;
@@ -95,7 +102,7 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
     toast.loading('Processing file...', { id: 'upload' });
 
     try {
-      console.log('Starting file upload process');
+      console.log('Starting file upload process with mode:', uploadMode);
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -141,8 +148,11 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
           fi_location: row['FI Submission Location'] || row['fi_location'],
           repayment: row['Repayment'] || row['repayment'],
           last_month_bounce: parseFloat(row['Last Month Bounce'] || row['last_month_bounce'] || '0'),
+          collection_rm: row['Collection RM'] || row['collection_rm'],
           // Status field for field_status table update
-          status: row['Status'] || row['status']
+          status: row['Status'] || row['status'],
+          // Upload mode for processing logic
+          uploadMode
         };
       });
 
@@ -202,24 +212,49 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
           Upload Applications
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5" />
             Upload Applications
           </DialogTitle>
           <DialogDescription>
-            Upload Excel/CSV files containing application data. The system will automatically update existing applications or add new ones. Use the Status column to set field status.
+            Upload Excel/CSV files containing application data. Choose your upload mode and download the template to get started.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="space-y-6">
+          {/* Upload Mode Selection */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Upload Mode</Label>
+            <RadioGroup value={uploadMode} onValueChange={(value: UploadMode) => setUploadMode(value)}>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="mixed" id="mixed" />
+                <Label htmlFor="mixed" className="text-sm">
+                  <strong>Smart Mode</strong> - Automatically add new or update existing (Recommended)
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="add" id="add" />
+                <Label htmlFor="add" className="text-sm">
+                  <strong>Add Only</strong> - Only create new applications
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="update" id="update" />
+                <Label htmlFor="update" className="text-sm">
+                  <strong>Update Only</strong> - Only update existing applications
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
           {/* Template Download Section */}
           <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
             <div className="flex items-center justify-between">
               <div>
                 <h4 className="font-medium text-blue-900">Step 1: Download Template</h4>
                 <p className="text-sm text-blue-700 mt-1">
-                  Download the Excel template with the required format (27 columns + Status)
+                  Download the Excel template with the required format (28 columns + Status)
                 </p>
               </div>
               <Button 
@@ -249,7 +284,7 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
           </div>
           <div className="text-xs text-gray-500">
             <p>Supported formats: Excel (.xlsx, .xls) and CSV (.csv)</p>
-            <p>The system will update existing applications based on Applicant ID and add new ones.</p>
+            <p><strong>New:</strong> Includes Collection RM field for assignment tracking</p>
             <p><strong>Status Values:</strong> Unpaid, Partially Paid, Cash Collected from Customer, Customer Deposited to Bank, Paid</p>
             <p><strong>Note:</strong> Invalid status values will default to 'Unpaid'</p>
           </div>

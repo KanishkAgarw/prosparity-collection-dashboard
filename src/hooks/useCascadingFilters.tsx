@@ -20,7 +20,8 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
     emiMonth: [],
     repayment: [],
     lastMonthBounce: [],
-    ptpDate: []
+    ptpDate: [],
+    collectionRm: []
   });
 
   // Get the currently filtered applications based on active filters

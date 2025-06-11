@@ -33,6 +33,7 @@ export interface Application {
   fi_location?: string;
   repayment?: string;
   last_month_bounce?: number;
+  collection_rm?: string;
   // These are now fetched from separate tables
   ptp_date?: string; // From ptp_dates table
   paid_date?: string; // From payment_dates table

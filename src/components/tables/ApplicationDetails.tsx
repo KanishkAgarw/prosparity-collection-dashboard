@@ -26,6 +26,11 @@ const ApplicationDetails = memo(({ application }: ApplicationDetailsProps) => {
         <span className="font-medium">TL:</span> {application.team_lead} | 
         <span className="font-medium"> RM:</span> {application.rm_name}
       </div>
+      {application.collection_rm && (
+        <div className="text-sm text-gray-600">
+          <span className="font-medium">Collection RM:</span> {application.collection_rm}
+        </div>
+      )}
       <div className="text-sm text-gray-600">
         <span className="font-medium">Dealer:</span> {application.dealer_name} | 
         <span className="font-medium"> Lender:</span> {formatLenderName(application.lender_name)}

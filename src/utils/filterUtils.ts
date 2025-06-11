@@ -77,7 +77,8 @@ export const calculateAvailableOptions = (applications: any[]): AvailableOptions
     emiMonths: [...new Set(safeApplications.map(app => formatEmiMonth(app.demand_date)).filter(Boolean))],
     repayments,
     lastMonthBounce: lastMonthBounceCategories,
-    ptpDateOptions
+    ptpDateOptions,
+    collectionRms: [...new Set(safeApplications.map(app => app.collection_rm).filter(Boolean))]
   };
   
   console.log('Available options calculated:', {
@@ -86,7 +87,8 @@ export const calculateAvailableOptions = (applications: any[]): AvailableOptions
     rms: options.rms.length,
     dealers: options.dealers.length,
     lenders: options.lenders.length,
-    ptpDateOptions: options.ptpDateOptions
+    ptpDateOptions: options.ptpDateOptions,
+    collectionRms: options.collectionRms.length
   });
   
   return options;

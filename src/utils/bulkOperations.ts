@@ -19,8 +19,8 @@ export const processBulkApplications = async (applications: any[], user?: any) =
     try {
       console.log(`Processing application: ${app.applicant_id}`);
       
-      // Separate status from application data
-      const { status: statusFromTemplate, ...applicationData } = app;
+      // Separate status and upload mode from application data
+      const { status: statusFromTemplate, uploadMode, ...applicationData } = app;
       
       // Validate status if provided
       if (statusFromTemplate && !validStatuses.includes(statusFromTemplate)) {
@@ -34,10 +34,27 @@ export const processBulkApplications = async (applications: any[], user?: any) =
         .eq('applicant_id', app.applicant_id)
         .maybeSingle();
 
+      const appExists = !!existingApp;
+
+      // Handle based on upload mode
+      if (uploadMode === 'add' && appExists) {
+        console.log(`Skipping existing application in add-only mode: ${app.applicant_id}`);
+        results.errors.push(`Application ${app.applicant_id} already exists (add-only mode)`);
+        results.failed++;
+        continue;
+      }
+
+      if (uploadMode === 'update' && !appExists) {
+        console.log(`Skipping non-existent application in update-only mode: ${app.applicant_id}`);
+        results.errors.push(`Application ${app.applicant_id} does not exist (update-only mode)`);
+        results.failed++;
+        continue;
+      }
+
       if (existingApp) {
         console.log(`Updating existing application: ${app.applicant_id}`);
         
-        // Update existing application (excluding status field)
+        // Update existing application (including collection_rm)
         const { error: updateError } = await supabase
           .from('applications')
           .update({
@@ -69,7 +86,7 @@ export const processBulkApplications = async (applications: any[], user?: any) =
       } else {
         console.log(`Creating new application: ${app.applicant_id}`);
         
-        // Insert new application (excluding status field)
+        // Insert new application (including collection_rm)
         const { error: insertError } = await supabase
           .from('applications')
           .insert([{

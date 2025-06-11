@@ -33,10 +33,11 @@ export const filterApplications = (applications: any[], filters: FilterState) =>
     const rmMatch = filters.rm.length === 0 || filters.rm.includes(app.rm_name);
     const dealerMatch = filters.dealer.length === 0 || filters.dealer.includes(app.dealer_name);
     const lenderMatch = filters.lender.length === 0 || filters.lender.includes(app.lender_name);
+    const collectionRmMatch = filters.collectionRm.length === 0 || filters.collectionRm.includes(app.collection_rm || '');
 
     return branchMatch && teamLeadMatch && rmMatch && dealerMatch && 
            lenderMatch && statusMatch && emiMonthMatch && repaymentMatch && 
-           lastMonthBounceMatch && ptpDateMatch;
+           lastMonthBounceMatch && ptpDateMatch && collectionRmMatch;
   });
   
   console.log('Filtered applications:', result.length);

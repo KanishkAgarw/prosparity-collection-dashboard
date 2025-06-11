@@ -12,6 +12,7 @@ export interface FilterState {
   repayment: string[];
   lastMonthBounce: LastMonthBounceCategory[];
   ptpDate: import('@/utils/ptpDateUtils').PtpDateCategory[];
+  collectionRm: string[];
 }
 
 export interface AvailableOptions {
@@ -25,4 +26,5 @@ export interface AvailableOptions {
   repayments: string[];
   lastMonthBounce: LastMonthBounceCategory[];
   ptpDateOptions: string[];
+  collectionRms: string[];
 }
