@@ -43,7 +43,8 @@ export const useBranchAnalyticsData = (applications: Application[]) => {
     
     applications.forEach(app => {
       const branchName = app.branch_name;
-      const rmName = app.rm_name || app.collection_rm || 'Unknown RM';
+      // Prioritize collection_rm over rm_name
+      const rmName = app.collection_rm || app.rm_name || 'Unknown RM';
       
       if (!branchMap.has(branchName)) {
         branchMap.set(branchName, {
@@ -97,12 +98,13 @@ export const useBranchAnalyticsData = (applications: Application[]) => {
           rmStats.paid_pending_approval++;
           branch.total_stats.paid_pending_approval++;
           break;
-        case 'Cash Collected from Customer':
-        case 'Customer Deposited to Bank':
         case 'Paid':
           rmStats.paid++;
           branch.total_stats.paid++;
           break;
+        // Move Cash Collected and Customer Deposited to Others category
+        case 'Cash Collected from Customer':
+        case 'Customer Deposited to Bank':
         default:
           rmStats.others++;
           branch.total_stats.others++;
@@ -113,15 +115,17 @@ export const useBranchAnalyticsData = (applications: Application[]) => {
     return Array.from(branchMap.values())
       .map(branch => ({
         ...branch,
-        rm_stats: branch.rm_stats.sort((a, b) => a.rm_name.localeCompare(b.rm_name))
+        // Sort RMs by total count (descending)
+        rm_stats: branch.rm_stats.sort((a, b) => b.total - a.total)
       }))
-      .sort((a, b) => a.branch_name.localeCompare(b.branch_name));
+      // Sort branches by total count (descending)
+      .sort((a, b) => b.total_stats.total - a.total_stats.total);
   }, [applications]);
 
   const branchPtpStatusData = useMemo(() => {
     // Filter out paid applications
     const unpaidApplications = applications.filter(app => 
-      !['Cash Collected from Customer', 'Customer Deposited to Bank', 'Paid'].includes(app.field_status || '')
+      !['Paid'].includes(app.field_status || '')
     );
     
     const branchMap = new Map<string, BranchPTPStatus>();
@@ -129,7 +133,8 @@ export const useBranchAnalyticsData = (applications: Application[]) => {
     
     unpaidApplications.forEach(app => {
       const branchName = app.branch_name;
-      const rmName = app.rm_name || app.collection_rm || 'Unknown RM';
+      // Prioritize collection_rm over rm_name
+      const rmName = app.collection_rm || app.rm_name || 'Unknown RM';
       
       if (!branchMap.has(branchName)) {
         branchMap.set(branchName, {
@@ -203,9 +208,11 @@ export const useBranchAnalyticsData = (applications: Application[]) => {
     return Array.from(branchMap.values())
       .map(branch => ({
         ...branch,
-        rm_stats: branch.rm_stats.sort((a, b) => a.rm_name.localeCompare(b.rm_name))
+        // Sort RMs by total count (descending)
+        rm_stats: branch.rm_stats.sort((a, b) => b.total - a.total)
       }))
-      .sort((a, b) => a.branch_name.localeCompare(b.branch_name));
+      // Sort branches by total count (descending)
+      .sort((a, b) => b.total_stats.total - a.total_stats.total);
   }, [applications]);
 
   return {

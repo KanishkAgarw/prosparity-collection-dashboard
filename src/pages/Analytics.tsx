@@ -40,9 +40,9 @@ const Analytics = () => {
       // Filter by branch
       if (app.branch_name !== selectedFilter.branch_name) return false;
 
-      // Filter by RM if specified
+      // Filter by RM if specified (prioritize collection_rm)
       if (selectedFilter.rm_name && 
-          (app.rm_name || app.collection_rm) !== selectedFilter.rm_name) {
+          (app.collection_rm || app.rm_name) !== selectedFilter.rm_name) {
         return false;
       }
 
@@ -55,9 +55,10 @@ const Analytics = () => {
         case 'paid_pending_approval':
           return app.field_status === 'Paid (Pending Approval)';
         case 'paid':
-          return ['Cash Collected from Customer', 'Customer Deposited to Bank', 'Paid'].includes(app.field_status || '');
+          return app.field_status === 'Paid';
         case 'others':
-          return !['Unpaid', 'Partially Paid', 'Paid (Pending Approval)', 'Cash Collected from Customer', 'Customer Deposited to Bank', 'Paid'].includes(app.field_status || '');
+          return ['Cash Collected from Customer', 'Customer Deposited to Bank'].includes(app.field_status || '') ||
+                 !['Unpaid', 'Partially Paid', 'Paid (Pending Approval)', 'Paid'].includes(app.field_status || '');
         case 'overdue':
           return selectedFilter.ptp_criteria === 'overdue' && app.ptp_date && new Date(app.ptp_date) < new Date();
         case 'today':
@@ -75,6 +76,9 @@ const Analytics = () => {
                  new Date(app.ptp_date) >= dayAfterTomorrow;
         case 'no_ptp_set':
           return selectedFilter.ptp_criteria === 'no_ptp_set' && !app.ptp_date;
+        case 'total':
+          // For total, return all applications in that branch/RM
+          return true;
         default:
           return false;
       }

@@ -1,3 +1,4 @@
+
 import { useState, useMemo, useEffect } from "react";
 import { useApplications } from "@/hooks/useApplications";
 import { useCascadingFilters } from "@/hooks/useCascadingFilters";
@@ -126,7 +127,7 @@ const Index = () => {
       app.applicant_id.toLowerCase().includes(lowerSearchTerm) ||
       app.dealer_name.toLowerCase().includes(lowerSearchTerm) ||
       (app.lender_name === 'Vivriti Capital Limited' ? 'vivriti' : app.lender_name.toLowerCase()).includes(lowerSearchTerm) ||
-      app.rm_name.toLowerCase().includes(lowerSearchTerm) ||
+      (app.rm_name || app.collection_rm || '').toLowerCase().includes(lowerSearchTerm) ||
       app.team_lead.toLowerCase().includes(lowerSearchTerm)
     );
   }, [filteredApplications, searchTerm]);
@@ -242,7 +243,6 @@ const Index = () => {
           <AppHeader 
             onExportFull={handleExportFull}
             onExportPtpComments={handleExportPtpComments}
-            applications={filteredApplications}
           />
 
           <FiltersSection

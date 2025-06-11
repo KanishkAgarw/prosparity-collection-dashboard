@@ -71,7 +71,7 @@ const ApplicationDetailsModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-[95vw] max-h-[90vh] flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
@@ -97,9 +97,9 @@ const ApplicationDetailsModal = ({
           </div>
         </DialogHeader>
         
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-hidden">
           {applications.length > 0 ? (
-            <div className="h-full overflow-auto">
+            <div className="h-full">
               <OptimizedApplicationsTable
                 applications={applications}
                 onRowClick={handleRowClick}

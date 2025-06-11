@@ -94,7 +94,7 @@ const StatusCards = ({ applications }: StatusCardsProps) => {
       className: "bg-green-50 border-green-200"
     },
     {
-      title: "Pending Approval",
+      title: "Paid (Pending Approval)",
       value: statusCounts.statusPendingApproval,
       className: "bg-purple-50 border-purple-200"
     }
