@@ -2,7 +2,7 @@
 import { useState, useMemo } from "react";
 import { calculateAvailableOptions } from "@/utils/filterUtils";
 import { filterApplications, processFilterChange } from "@/utils/filterLogic";
-import { getPtpDateCategoryLabel, type PtpDateCategory } from "@/utils/ptpDateUtils";
+import { getPtpDateCategoryLabel, getAllPtpDateCategories, type PtpDateCategory } from "@/utils/ptpDateUtils";
 import type { FilterState } from "@/types/filters";
 
 interface CascadingFiltersProps {
@@ -45,6 +45,18 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
       // Log the current filter state for debugging
       console.log('Current PTP date filter:', filters.ptpDate);
       console.log('Current filter state:', filters);
+      
+      // Convert display labels back to categories
+      const allCategories = getAllPtpDateCategories();
+      const categoryValues = values.map(label => {
+        const category = allCategories.find(cat => 
+          getPtpDateCategoryLabel(cat) === label
+        );
+        return category || label; // fallback to original if no match
+      });
+      
+      processFilterChange(key, categoryValues, setFilters);
+      return;
     }
     
     processFilterChange(key, values, setFilters);
@@ -54,7 +66,7 @@ export function useCascadingFilters({ applications }: CascadingFiltersProps) {
   const displayFilters = useMemo(() => {
     return {
       ...filters,
-      ptpDate: filters.ptpDate.map(category => getPtpDateCategoryLabel(category))
+      ptpDate: filters.ptpDate.map(category => getPtpDateCategoryLabel(category as PtpDateCategory))
     };
   }, [filters]);
 

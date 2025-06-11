@@ -19,77 +19,77 @@ const FilterBar = ({ filters, availableOptions, onFilterChange }: FilterBarProps
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         <MultiSelectFilter
           label="Branch"
-          value={filters.branch}
+          values={filters.branch}
           options={availableOptions.branches}
           onChange={(values) => onFilterChange('branch', values)}
         />
         
         <MultiSelectFilter
           label="Team Lead"
-          value={filters.teamLead}
+          values={filters.teamLead}
           options={availableOptions.teamLeads}
           onChange={(values) => onFilterChange('teamLead', values)}
         />
         
         <MultiSelectFilter
           label="RM"
-          value={filters.rm}
+          values={filters.rm}
           options={availableOptions.dealers}
           onChange={(values) => onFilterChange('rm', values)}
         />
         
         <MultiSelectFilter
           label="Dealer"
-          value={filters.dealer}
+          values={filters.dealer}
           options={availableOptions.dealers}
           onChange={(values) => onFilterChange('dealer', values)}
         />
         
         <MultiSelectFilter
           label="Lender"
-          value={filters.lender}
+          values={filters.lender}
           options={availableOptions.lenders}
           onChange={(values) => onFilterChange('lender', values)}
         />
         
         <MultiSelectFilter
           label="Status"
-          value={filters.status}
+          values={filters.status}
           options={availableOptions.statuses}
           onChange={(values) => onFilterChange('status', values)}
         />
         
         <MultiSelectFilter
           label="EMI Range"
-          value={filters.emiMonth}
+          values={filters.emiMonth}
           options={availableOptions.emiMonths}
           onChange={(values) => onFilterChange('emiMonth', values)}
         />
         
         <MultiSelectFilter
           label="Repayment"
-          value={filters.repayment}
+          values={filters.repayment}
           options={availableOptions.repayments}
           onChange={(values) => onFilterChange('repayment', values)}
         />
         
         <MultiSelectFilter
           label="Last Month Bounce"
-          value={filters.lastMonthBounce}
+          values={filters.lastMonthBounce}
           options={availableOptions.lastMonthBounce}
           onChange={(values) => onFilterChange('lastMonthBounce', values)}
         />
         
         <MultiSelectFilter
           label="PTP Date"
-          value={filters.ptpDate}
+          values={filters.ptpDate}
           options={ptpDateOptions}
           onChange={(values) => onFilterChange('ptpDate', values)}
         />
 
         <MultiSelectFilter
           label="Collection RM"
-          value={filters.collectionRM}
+          values={filters.collectionRM}
           options={availableOptions.collectionRMs}
           onChange={(values) => onFilterChange('collectionRM', values)}
         />
