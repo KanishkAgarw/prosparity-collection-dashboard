@@ -1,5 +1,6 @@
+
 import { useState } from 'react';
-import { Upload, FileSpreadsheet, Download, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Upload, FileSpreadsheet, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -12,20 +13,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
-import { processBulkApplications, recoverFinancialData, getRecoveryPreview } from '@/utils/bulkOperations';
+import { processBulkApplications } from '@/utils/bulkOperations';
 import { useAuth } from '@/hooks/useAuth';
 
 interface UploadApplicationDialogProps {
@@ -39,7 +29,6 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
   const [open, setOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadMode, setUploadMode] = useState<UploadMode>('mixed');
-  const [recovering, setRecovering] = useState(false);
 
   const downloadTemplate = () => {
     // Create template data with example row and the exact 29 required columns (including Collection RM and Status)
@@ -105,151 +94,6 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
     toast.success('Template downloaded successfully!');
   };
 
-  const handleDataRecovery = async () => {
-    setRecovering(true);
-    toast.loading('Recovering financial data...', { id: 'recovery' });
-
-    try {
-      const result = await recoverFinancialData();
-      
-      if (result.success) {
-        if (result.recoveredCount && result.recoveredCount > 0) {
-          toast.success(
-            `✅ Recovery completed!\n` +
-            `📊 ${result.recoveredCount} applications recovered\n` +
-            `📋 Total affected: ${result.totalAffected}` +
-            (result.errors ? `\n⚠️ ${result.errors.length} errors` : ''),
-            { 
-              id: 'recovery',
-              duration: 8000 
-            }
-          );
-          onApplicationsAdded(); // Refresh the data
-        } else {
-          toast.info('No data recovery needed - all financial fields appear to be correct.', { 
-            id: 'recovery',
-            duration: 5000 
-          });
-        }
-      } else {
-        toast.error(`Recovery failed: ${result.error}`, { 
-          id: 'recovery',
-          duration: 8000 
-        });
-      }
-    } catch (error) {
-      console.error('Recovery error:', error);
-      toast.error(`Recovery error: ${error}`, { 
-        id: 'recovery',
-        duration: 8000 
-      });
-    } finally {
-      setRecovering(false);
-    }
-  };
-
-  const showRecoveryPreview = async () => {
-    try {
-      const preview = await getRecoveryPreview();
-      
-      if (preview.success && preview.affectedApplications > 0) {
-        console.log('Recovery preview:', preview.preview);
-        toast.info(
-          `🔍 Recovery Preview:\n` +
-          `📊 ${preview.affectedApplications} applications need recovery\n` +
-          `💾 Financial fields will be restored from audit logs`,
-          { duration: 8000 }
-        );
-      } else {
-        toast.info('✅ No applications need financial data recovery.', { duration: 5000 });
-      }
-    } catch (error) {
-      toast.error(`Preview error: ${error}`, { duration: 5000 });
-    }
-  };
-
-  const parseApplicationData = (row: any, uploadMode: UploadMode) => {
-    const baseData: any = {
-      applicant_id: row['Applicant ID'] || row['applicant_id'],
-      uploadMode // Pass the upload mode to the processing function
-    };
-
-    // Always include user_id
-    if (user?.id) {
-      baseData.user_id = user.id;
-    }
-
-    // Field mapping with safe parsing
-    const fieldMappings = [
-      { excel: ['Applicant Name', 'applicant_name'], db: 'applicant_name' },
-      { excel: ['Branch Name', 'branch_name'], db: 'branch_name' },
-      { excel: ['Team Lead', 'team_lead'], db: 'team_lead' },
-      { excel: ['RM Name', 'rm_name'], db: 'rm_name' },
-      { excel: ['Dealer Name', 'dealer_name'], db: 'dealer_name' },
-      { excel: ['Lender Name', 'lender_name'], db: 'lender_name' },
-      { excel: ['LMS Status', 'lms_status'], db: 'lms_status' },
-      { excel: ['Demand Date', 'demand_date'], db: 'demand_date' },
-      { excel: ['Collection RM', 'collection_rm'], db: 'collection_rm' },
-      { excel: ['Status', 'status'], db: 'status' },
-      // Additional contact fields
-      { excel: ['Applicant Mobile Number', 'applicant_mobile'], db: 'applicant_mobile' },
-      { excel: ['Applicant Current Address', 'applicant_address'], db: 'applicant_address' },
-      { excel: ['House Ownership', 'house_ownership'], db: 'house_ownership' },
-      { excel: ['Co-Applicant Name', 'co_applicant_name'], db: 'co_applicant_name' },
-      { excel: ['Coapplicant Mobile Number', 'co_applicant_mobile'], db: 'co_applicant_mobile' },
-      { excel: ['Coapplicant Current Address', 'co_applicant_address'], db: 'co_applicant_address' },
-      { excel: ['Guarantor Name', 'guarantor_name'], db: 'guarantor_name' },
-      { excel: ['Guarantor Mobile Number', 'guarantor_mobile'], db: 'guarantor_mobile' },
-      { excel: ['Guarantor Current Address', 'guarantor_address'], db: 'guarantor_address' },
-      { excel: ['Reference Name', 'reference_name'], db: 'reference_name' },
-      { excel: ['Reference Mobile Number', 'reference_mobile'], db: 'reference_mobile' },
-      { excel: ['Reference Address', 'reference_address'], db: 'reference_address' },
-      { excel: ['FI Submission Location', 'fi_location'], db: 'fi_location' },
-      { excel: ['Repayment', 'repayment'], db: 'repayment' }
-    ];
-
-    // Financial fields - handle with extra care for update mode
-    const financialFields = [
-      { excel: ['EMI', 'EMI Amount', 'emi_amount'], db: 'emi_amount' },
-      { excel: ['Principle Due', 'principle_due'], db: 'principle_due' },
-      { excel: ['Interest Due', 'interest_due'], db: 'interest_due' },
-      { excel: ['Last Month Bounce', 'last_month_bounce'], db: 'last_month_bounce' }
-    ];
-
-    // Process regular fields
-    fieldMappings.forEach(({ excel, db }) => {
-      const value = excel.find(key => row[key] !== undefined && row[key] !== null && row[key] !== '')?.[0];
-      if (value !== undefined) {
-        const actualValue = row[value];
-        if (actualValue !== undefined && actualValue !== null && actualValue !== '') {
-          baseData[db] = actualValue;
-        }
-      }
-    });
-
-    // Process financial fields with special handling for update mode
-    financialFields.forEach(({ excel, db }) => {
-      const value = excel.find(key => row[key] !== undefined && row[key] !== null)?.[0];
-      if (value !== undefined) {
-        const actualValue = row[value];
-        const numericValue = parseFloat(actualValue);
-        
-        // For update mode, only include financial fields if they are explicitly provided and non-zero
-        if (uploadMode === 'update') {
-          if (!isNaN(numericValue) && numericValue > 0) {
-            baseData[db] = numericValue;
-          }
-          // Don't include the field if it's zero or empty in update mode
-        } else {
-          // For add and mixed modes, include with default value
-          baseData[db] = !isNaN(numericValue) ? numericValue : 0;
-        }
-      }
-    });
-
-    return baseData;
-  };
-
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !user) return;
@@ -271,10 +115,45 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
         return;
       }
 
-      // Transform data with safer parsing
+      // Transform data to match database schema, keeping status separate
       const applications = jsonData.map((row: any, index: number) => {
         console.log(`Transforming row ${index + 1}:`, row);
-        return parseApplicationData(row, uploadMode);
+        return {
+          applicant_id: row['Applicant ID'] || row['applicant_id'],
+          applicant_name: row['Applicant Name'] || row['applicant_name'],
+          branch_name: row['Branch Name'] || row['branch_name'],
+          team_lead: row['Team Lead'] || row['team_lead'],
+          rm_name: row['RM Name'] || row['rm_name'],
+          dealer_name: row['Dealer Name'] || row['dealer_name'],
+          lender_name: row['Lender Name'] || row['lender_name'],
+          lms_status: row['LMS Status'] || row['lms_status'] || 'Unpaid',
+          emi_amount: parseFloat(row['EMI'] || row['EMI Amount'] || row['emi_amount'] || '0'),
+          principle_due: parseFloat(row['Principle Due'] || row['principle_due'] || '0'),
+          interest_due: parseFloat(row['Interest Due'] || row['interest_due'] || '0'),
+          demand_date: row['Demand Date'] || row['demand_date'],
+          user_id: user.id,
+          // Additional application fields
+          applicant_mobile: row['Applicant Mobile Number'] || row['applicant_mobile'],
+          applicant_address: row['Applicant Current Address'] || row['applicant_address'],
+          house_ownership: row['House Ownership'] || row['house_ownership'],
+          co_applicant_name: row['Co-Applicant Name'] || row['co_applicant_name'],
+          co_applicant_mobile: row['Coapplicant Mobile Number'] || row['co_applicant_mobile'],
+          co_applicant_address: row['Coapplicant Current Address'] || row['co_applicant_address'],
+          guarantor_name: row['Guarantor Name'] || row['guarantor_name'],
+          guarantor_mobile: row['Guarantor Mobile Number'] || row['guarantor_mobile'],
+          guarantor_address: row['Guarantor Current Address'] || row['guarantor_address'],
+          reference_name: row['Reference Name'] || row['reference_name'],
+          reference_mobile: row['Reference Mobile Number'] || row['reference_mobile'],
+          reference_address: row['Reference Address'] || row['reference_address'],
+          fi_location: row['FI Submission Location'] || row['fi_location'],
+          repayment: row['Repayment'] || row['repayment'],
+          last_month_bounce: parseFloat(row['Last Month Bounce'] || row['last_month_bounce'] || '0'),
+          collection_rm: row['Collection RM'] || row['collection_rm'],
+          // Status field for field_status table update
+          status: row['Status'] || row['status'],
+          // Upload mode for processing logic
+          uploadMode
+        };
       });
 
       console.log('Transformed applications ready for processing:', applications.length);
@@ -297,7 +176,7 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
         
         toast.error(errorMessage, { 
           id: 'upload',
-          duration: 10000
+          duration: 10000 // Show for longer to allow reading
         });
       } else {
         let message = `🎉 Upload successful!\n`;
@@ -320,6 +199,7 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
       toast.error(`Failed to process file: ${error}`, { id: 'upload' });
     } finally {
       setUploading(false);
+      // Reset file input
       event.target.value = '';
     }
   };
@@ -343,65 +223,6 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-6">
-          {/* Data Recovery Section */}
-          <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
-              <div className="flex-1">
-                <h4 className="font-medium text-amber-900">Data Recovery Available</h4>
-                <p className="text-sm text-amber-700 mt-1">
-                  If financial fields were accidentally reset during bulk uploads, you can recover the original values.
-                </p>
-                <div className="flex gap-2 mt-3">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={showRecoveryPreview}
-                    className="border-amber-300 text-amber-700 hover:bg-amber-100"
-                  >
-                    Preview Recovery
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        disabled={recovering}
-                        className="border-amber-300 text-amber-700 hover:bg-amber-100"
-                      >
-                        {recovering ? (
-                          <>
-                            <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                            Recovering...
-                          </>
-                        ) : (
-                          'Recover Data'
-                        )}
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Confirm Data Recovery</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This will restore financial field values (principle_due, interest_due, emi_amount, last_month_bounce) 
-                          that were accidentally reset to 0 during bulk uploads. The system will use audit logs to find and restore the original values.
-                          
-                          This operation cannot be undone. Are you sure you want to proceed?
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDataRecovery}>
-                          Yes, Recover Data
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Upload Mode Selection */}
           <div className="space-y-3">
             <Label className="text-sm font-medium">Upload Mode</Label>
@@ -421,7 +242,7 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="update" id="update" />
                 <Label htmlFor="update" className="text-sm">
-                  <strong>Update Only</strong> - Only update existing applications (SAFE: preserves existing financial data)
+                  <strong>Update Only</strong> - Only update existing applications
                 </Label>
               </div>
             </RadioGroup>
@@ -464,7 +285,6 @@ const UploadApplicationDialog = ({ onApplicationsAdded }: UploadApplicationDialo
           <div className="text-xs text-gray-500">
             <p>Supported formats: Excel (.xlsx, .xls) and CSV (.csv)</p>
             <p><strong>New:</strong> Includes Collection RM field for assignment tracking</p>
-            <p><strong>Update Only Mode:</strong> Safely updates only provided fields, preserves existing financial data</p>
             <p><strong>Status Values:</strong> Unpaid, Partially Paid, Cash Collected from Customer, Customer Deposited to Bank, Paid</p>
             <p><strong>Note:</strong> Invalid status values will default to 'Unpaid'</p>
           </div>
