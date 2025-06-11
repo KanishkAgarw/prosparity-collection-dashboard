@@ -1,3 +1,4 @@
+
 import { useState, useMemo, useEffect } from "react";
 import { useApplications } from "@/hooks/useApplications";
 import { useCascadingFilters } from "@/hooks/useCascadingFilters";
@@ -295,5 +296,3 @@ function throttle(func: Function, limit: number) {
 }
 
 export default Index;
-
-}
