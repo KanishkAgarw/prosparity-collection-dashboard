@@ -1,10 +1,10 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, TrendingUp, Users, Clock, Target, BarChart3, Calendar } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { useApplications } from '@/hooks/useApplications';
 import BranchPaymentStatusTable from '@/components/analytics/BranchPaymentStatusTable';
 import BranchPTPStatusTable from '@/components/analytics/BranchPTPStatusTable';
@@ -109,51 +109,6 @@ const Analytics = () => {
     );
   }
 
-  const analyticsCards = [
-    {
-      title: "Payment Status",
-      description: "Track payment statuses across branches and RMs",
-      icon: BarChart3,
-      value: "payment-status",
-      color: "bg-blue-500"
-    },
-    {
-      title: "PTP Status", 
-      description: "Monitor PTP scheduling and compliance",
-      icon: Calendar,
-      value: "ptp-status",
-      color: "bg-green-500"
-    },
-    {
-      title: "PTP Effectiveness",
-      description: "Analyze conversion rates from PTP to payments",
-      icon: Target,
-      value: "ptp-effectiveness", 
-      color: "bg-purple-500"
-    },
-    {
-      title: "RM Performance",
-      description: "Individual RM metrics and comparisons", 
-      icon: Users,
-      value: "rm-performance",
-      color: "bg-orange-500"
-    },
-    {
-      title: "Collection Velocity",
-      description: "Speed of collections and cycle times",
-      icon: TrendingUp,
-      value: "collection-velocity",
-      color: "bg-red-500"
-    },
-    {
-      title: "Payment Patterns",
-      description: "Temporal and behavioral payment insights",
-      icon: Clock,
-      value: "payment-patterns",
-      color: "bg-teal-500"
-    }
-  ];
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
       <div className="container mx-auto px-4 py-6 max-w-7xl">
@@ -174,35 +129,15 @@ const Analytics = () => {
           </div>
         </div>
 
-        {/* Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-          {analyticsCards.map((card) => (
-            <Card key={card.value} className="hover:shadow-lg transition-shadow cursor-pointer bg-white/80 backdrop-blur-sm">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${card.color} text-white`}>
-                    <card.icon className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg">{card.title}</CardTitle>
-                    <CardDescription className="text-sm">{card.description}</CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-            </Card>
-          ))}
-        </div>
-
         {/* Analytics Content */}
         <Card className="bg-white/90 backdrop-blur-sm shadow-xl">
           <Tabs defaultValue="payment-status" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 bg-gray-100/80">
-              <TabsTrigger value="payment-status" className="text-xs lg:text-sm">Payment</TabsTrigger>
-              <TabsTrigger value="ptp-status" className="text-xs lg:text-sm">PTP Status</TabsTrigger>
-              <TabsTrigger value="ptp-effectiveness" className="text-xs lg:text-sm">Effectiveness</TabsTrigger>
-              <TabsTrigger value="rm-performance" className="text-xs lg:text-sm">RM Perf.</TabsTrigger>
-              <TabsTrigger value="collection-velocity" className="text-xs lg:text-sm">Velocity</TabsTrigger>
-              <TabsTrigger value="payment-patterns" className="text-xs lg:text-sm">Patterns</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-5 bg-gray-100/80">
+              <TabsTrigger value="payment-status" className="text-sm">Payment Status</TabsTrigger>
+              <TabsTrigger value="ptp-status" className="text-sm">PTP Status</TabsTrigger>
+              <TabsTrigger value="ptp-effectiveness" className="text-sm">PTP Effectiveness</TabsTrigger>
+              <TabsTrigger value="rm-performance" className="text-sm">RM Performance</TabsTrigger>
+              <TabsTrigger value="payment-patterns" className="text-sm">Payment Patterns</TabsTrigger>
             </TabsList>
             
             <TabsContent value="payment-status" className="space-y-4 p-6">
@@ -228,13 +163,6 @@ const Analytics = () => {
 
             <TabsContent value="rm-performance" className="space-y-4 p-6">
               <RMPerformanceTable 
-                applications={allApplications}
-                onDrillDown={handleDrillDown}
-              />
-            </TabsContent>
-
-            <TabsContent value="collection-velocity" className="space-y-4 p-6">
-              <CollectionVelocityTable 
                 applications={allApplications}
                 onDrillDown={handleDrillDown}
               />

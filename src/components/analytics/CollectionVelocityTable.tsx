@@ -140,6 +140,16 @@ const CollectionVelocityTable = ({ applications, onDrillDown }: CollectionVeloci
       : (bValue as number) - (aValue as number);
   });
 
+  const handleCellClick = (row: VelocityData, type: string) => {
+    if (onDrillDown) {
+      onDrillDown({
+        branch_name: row.branch_name,
+        rm_name: row.rm_name,
+        status_type: 'paid'
+      });
+    }
+  };
+
   const SortableHeader = ({ 
     field, 
     children, 
@@ -162,34 +172,36 @@ const CollectionVelocityTable = ({ applications, onDrillDown }: CollectionVeloci
       <CardHeader className="pb-3 bg-gradient-to-r from-red-50 to-orange-50">
         <div className="flex items-center gap-2">
           <TrendingUp className="h-5 w-5 text-red-600" />
-          <CardTitle className="text-lg text-red-900">Collection Velocity Analysis</CardTitle>
+          <CardTitle className="text-xl text-red-900">Collection Velocity Analysis</CardTitle>
         </div>
-        <CardDescription className="text-sm text-red-700">
+        <CardDescription className="text-red-700">
           Track speed of collections and identify fastest performing branches and RMs
         </CardDescription>
       </CardHeader>
-      <CardContent className="p-4">
+      <CardContent className="p-6">
         <div className="rounded-lg border border-gray-200 overflow-x-auto shadow-sm">
           <Table>
             <TableHeader>
-              <TableRow className="text-xs bg-gray-50/80">
-                <SortableHeader field="branch_name" className="min-w-[120px]">Branch</SortableHeader>
-                <SortableHeader field="rm_name" className="min-w-[120px]">RM</SortableHeader>
+              <TableRow className="bg-gray-50/80">
+                <SortableHeader field="branch_name" className="min-w-[100px]">Branch</SortableHeader>
+                <SortableHeader field="rm_name" className="min-w-[100px]">RM</SortableHeader>
                 <SortableHeader field="fastCollections" className="w-20 text-center">Fast (≤3d)</SortableHeader>
-                <TableHead className="w-20 text-center text-xs">Medium (4-7d)</TableHead>
-                <TableHead className="w-20 text-center text-xs">Slow (>7d)</TableHead>
+                <TableHead className="w-20 text-center">Medium (4-7d)</TableHead>
+                <TableHead className="w-20 text-center">Slow (&gt;7d)</TableHead>
                 <SortableHeader field="avgCollectionDays" className="w-24 text-center">Avg Days</SortableHeader>
                 <SortableHeader field="velocityScore" className="w-24 text-center">Velocity Score</SortableHeader>
               </TableRow>
             </TableHeader>
             <TableBody>
               {sortedData.map((row, index) => (
-                <TableRow key={`${row.branch_name}-${row.rm_name}`} className="text-sm hover:bg-gray-50/50">
-                  <TableCell className="py-3 text-xs font-medium">
+                <TableRow key={`${row.branch_name}-${row.rm_name}`} className="hover:bg-gray-50/50">
+                  <TableCell className="py-3 font-medium">
                     <div className="space-y-1">
-                      <div>{row.branch_name}</div>
+                      <div className="truncate max-w-[100px]" title={row.branch_name}>
+                        {row.branch_name}
+                      </div>
                       {index < 3 && (
-                        <div className="text-xs">
+                        <div>
                           <span className={`px-2 py-0.5 rounded-full text-xs ${
                             index === 0 ? 'bg-green-100 text-green-800' :
                             index === 1 ? 'bg-blue-100 text-blue-800' :
@@ -201,18 +213,37 @@ const CollectionVelocityTable = ({ applications, onDrillDown }: CollectionVeloci
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="py-3 text-xs">{row.rm_name}</TableCell>
-                  <TableCell className="text-center py-3 text-xs">
-                    <span className="text-green-600 font-medium">{row.fastCollections}</span>
+                  <TableCell className="py-3">
+                    <div className="truncate max-w-[100px]" title={row.rm_name}>
+                      {row.rm_name}
+                    </div>
                   </TableCell>
-                  <TableCell className="text-center py-3 text-xs">
-                    <span className="text-yellow-600">{row.mediumCollections}</span>
+                  <TableCell className="text-center py-3">
+                    <button 
+                      onClick={() => handleCellClick(row, 'fast')}
+                      className="text-green-600 font-medium hover:bg-green-50 px-2 py-1 rounded"
+                    >
+                      {row.fastCollections}
+                    </button>
                   </TableCell>
-                  <TableCell className="text-center py-3 text-xs">
-                    <span className="text-red-600">{row.slowCollections}</span>
+                  <TableCell className="text-center py-3">
+                    <button 
+                      onClick={() => handleCellClick(row, 'medium')}
+                      className="text-yellow-600 hover:bg-yellow-50 px-2 py-1 rounded"
+                    >
+                      {row.mediumCollections}
+                    </button>
                   </TableCell>
-                  <TableCell className="text-center py-3 text-xs">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  <TableCell className="text-center py-3">
+                    <button 
+                      onClick={() => handleCellClick(row, 'slow')}
+                      className="text-red-600 hover:bg-red-50 px-2 py-1 rounded"
+                    >
+                      {row.slowCollections}
+                    </button>
+                  </TableCell>
+                  <TableCell className="text-center py-3">
+                    <span className={`px-2 py-1 rounded-full font-medium ${
                       row.avgCollectionDays <= 3 ? 'bg-green-100 text-green-800' :
                       row.avgCollectionDays <= 5 ? 'bg-yellow-100 text-yellow-800' :
                       row.avgCollectionDays <= 7 ? 'bg-orange-100 text-orange-800' :
@@ -221,9 +252,9 @@ const CollectionVelocityTable = ({ applications, onDrillDown }: CollectionVeloci
                       {row.avgCollectionDays.toFixed(1)}d
                     </span>
                   </TableCell>
-                  <TableCell className="text-center py-3 text-xs">
+                  <TableCell className="text-center py-3">
                     <div className="flex items-center justify-center gap-2">
-                      <span className={`px-3 py-1.5 rounded-full text-xs font-medium ${
+                      <span className={`px-3 py-1.5 rounded-full font-medium ${
                         row.velocityScore >= 200 ? 'bg-green-100 text-green-800' :
                         row.velocityScore >= 150 ? 'bg-yellow-100 text-yellow-800' :
                         row.velocityScore >= 100 ? 'bg-orange-100 text-orange-800' :
@@ -244,7 +275,7 @@ const CollectionVelocityTable = ({ applications, onDrillDown }: CollectionVeloci
           <div className="text-center py-12 text-muted-foreground">
             <Clock className="h-12 w-12 mx-auto text-gray-300 mb-4" />
             <p className="text-lg font-medium text-gray-500">No velocity data available</p>
-            <p className="text-sm text-gray-400">Complete some collections to see velocity analysis</p>
+            <p className="text-gray-400">Complete some collections to see velocity analysis</p>
           </div>
         )}
       </CardContent>

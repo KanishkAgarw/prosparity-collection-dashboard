@@ -14,6 +14,8 @@ import { ArrowUpDown, Info, TrendingUp } from 'lucide-react';
 import { format, parseISO, isValid, isSameDay, isAfter } from 'date-fns';
 import { DrillDownFilter } from '@/pages/Analytics';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 interface PTPEffectivenessTableProps {
   applications: Application[];
@@ -36,6 +38,7 @@ type SortDirection = 'asc' | 'desc';
 const PTPEffectivenessTable = ({ applications, onDrillDown }: PTPEffectivenessTableProps) => {
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [useLatestPTP, setUseLatestPTP] = useState(true);
 
   const ptpEffectivenessData = useMemo(() => {
     const dateMap = new Map<string, PTPEffectivenessData>();
@@ -88,7 +91,7 @@ const PTPEffectivenessTable = ({ applications, onDrillDown }: PTPEffectivenessTa
     }));
 
     return result.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [applications]);
+  }, [applications, useLatestPTP]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -119,27 +122,31 @@ const PTPEffectivenessTable = ({ applications, onDrillDown }: PTPEffectivenessTa
       : (bValue as number) - (aValue as number);
   });
 
-  const CellButton = ({ 
-    value, 
-    onClick, 
-    className = "" 
-  }: { 
-    value: number; 
-    onClick?: () => void; 
-    className?: string; 
-  }) => {
-    if (!onClick) {
-      return <span className={`text-center ${className}`}>{value}</span>;
+  const handleCellClick = (date: string, type: string) => {
+    if (onDrillDown) {
+      // Find applications with PTP on this date
+      const appsWithPTPOnDate = applications.filter(app => {
+        if (!app.ptp_date) return false;
+        try {
+          const ptpDate = parseISO(app.ptp_date);
+          return format(ptpDate, 'yyyy-MM-dd') === date;
+        } catch {
+          return false;
+        }
+      });
+
+      if (appsWithPTPOnDate.length > 0) {
+        // Use the first app's branch for filtering
+        const firstApp = appsWithPTPOnDate[0];
+        onDrillDown({
+          branch_name: firstApp.branch_name,
+          status_type: type === 'paid_on_time' ? 'paid' : 
+                      type === 'paid_late' ? 'paid' :
+                      type === 'pending' ? 'unpaid' : 'total',
+          ptp_criteria: date
+        });
+      }
     }
-    
-    return (
-      <button
-        onClick={onClick}
-        className={`text-center hover:bg-blue-50 hover:text-blue-600 rounded px-1 py-0.5 transition-colors w-full ${className}`}
-      >
-        {value}
-      </button>
-    );
   };
 
   const SortableHeader = ({ 
@@ -181,36 +188,50 @@ const PTPEffectivenessTable = ({ applications, onDrillDown }: PTPEffectivenessTa
   const overallOnTimeRate = totals.ptpSetCount > 0 ? (totals.paidOnTimeCount / totals.ptpSetCount) * 100 : 0;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Explanation Card */}
       <Alert className="border-blue-200 bg-blue-50">
         <Info className="h-4 w-4" />
-        <AlertDescription>
-          <strong>PTP Effectiveness Analysis:</strong> This tracks how many applications with PTP (Promise to Pay) dates actually result in payments. 
+        <AlertDescription className="text-sm">
+          <strong>PTP Effectiveness Analysis:</strong> This tracks how many applications with PTP (Promise to Pay) dates actually result in payments.
           <br />
           <strong>Conversion Rate:</strong> Percentage of PTPs that resulted in any payment (on-time or late).
           <br />
           <strong>On-Time Rate:</strong> Percentage of PTPs paid exactly on the promised date.
           <br />
-          <em>Note: Current calculation assumes 'Paid' status indicates on-time payment. Actual payment dates would provide more accurate timing analysis.</em>
+          <strong>Paid on Time Logic:</strong> Status change date to "Paid" or "Paid (Pending Approval)" equals PTP date.
+          <br />
+          <em>Click on any metric to drill down into specific applications.</em>
         </AlertDescription>
       </Alert>
+
+      {/* Toggle for PTP Date Selection */}
+      <div className="flex items-center space-x-2">
+        <Switch
+          id="ptp-toggle"
+          checked={useLatestPTP}
+          onCheckedChange={setUseLatestPTP}
+        />
+        <Label htmlFor="ptp-toggle" className="text-sm">
+          Use Latest PTP Date (when off, uses Original PTP Date)
+        </Label>
+      </div>
 
       <Card className="shadow-lg border-0 bg-white/95 backdrop-blur-sm">
         <CardHeader className="pb-3 bg-gradient-to-r from-purple-50 to-blue-50">
           <div className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-purple-600" />
-            <CardTitle className="text-lg text-purple-900">PTP Effectiveness Analysis</CardTitle>
+            <CardTitle className="text-xl text-purple-900">PTP Effectiveness Analysis</CardTitle>
           </div>
-          <CardDescription className="text-sm text-purple-700">
+          <CardDescription className="text-purple-700">
             Track conversion rates from PTP dates to actual payments with timing analysis
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-4">
+        <CardContent className="p-6">
           <div className="rounded-lg border border-gray-200 overflow-x-auto shadow-sm">
             <Table>
               <TableHeader>
-                <TableRow className="text-xs bg-gray-50/80">
+                <TableRow className="bg-gray-50/80">
                   <SortableHeader field="date" className="w-24">PTP Date</SortableHeader>
                   <SortableHeader field="ptpSetCount" className="w-20 text-center">PTPs Set</SortableHeader>
                   <SortableHeader field="paidOnTimeCount" className="w-20 text-center">Paid On-Time</SortableHeader>
@@ -222,27 +243,36 @@ const PTPEffectivenessTable = ({ applications, onDrillDown }: PTPEffectivenessTa
               </TableHeader>
               <TableBody>
                 {sortedData.map((row) => (
-                  <TableRow key={row.date} className="text-sm hover:bg-gray-50/50">
-                    <TableCell className="py-3 text-xs font-medium">
+                  <TableRow key={row.date} className="hover:bg-gray-50/50">
+                    <TableCell className="py-3 font-medium">
                       {formatDate(row.date)}
                     </TableCell>
-                    <TableCell className="text-center py-3 text-xs">
-                      <CellButton value={row.ptpSetCount} />
+                    <TableCell className="text-center py-3">
+                      <button 
+                        onClick={() => handleCellClick(row.date, 'total')}
+                        className="hover:bg-blue-50 hover:text-blue-600 rounded px-2 py-1 transition-colors"
+                      >
+                        {row.ptpSetCount}
+                      </button>
                     </TableCell>
-                    <TableCell className="text-center py-3 text-xs">
-                      <CellButton 
-                        value={row.paidOnTimeCount}
-                        className="text-green-600 font-medium"
-                      />
+                    <TableCell className="text-center py-3">
+                      <button 
+                        onClick={() => handleCellClick(row.date, 'paid_on_time')}
+                        className="text-green-600 font-medium hover:bg-green-50 rounded px-2 py-1 transition-colors"
+                      >
+                        {row.paidOnTimeCount}
+                      </button>
                     </TableCell>
-                    <TableCell className="text-center py-3 text-xs">
-                      <CellButton 
-                        value={row.paidLateCount}
-                        className="text-orange-600 font-medium"
-                      />
+                    <TableCell className="text-center py-3">
+                      <button 
+                        onClick={() => handleCellClick(row.date, 'paid_late')}
+                        className="text-orange-600 font-medium hover:bg-orange-50 rounded px-2 py-1 transition-colors"
+                      >
+                        {row.paidLateCount}
+                      </button>
                     </TableCell>
-                    <TableCell className="text-center py-3 text-xs">
-                      <span className={`px-3 py-1.5 rounded-full text-xs font-medium ${
+                    <TableCell className="text-center py-3">
+                      <span className={`px-3 py-1.5 rounded-full font-medium ${
                         row.conversionRate >= 80 ? 'bg-green-100 text-green-800' :
                         row.conversionRate >= 60 ? 'bg-yellow-100 text-yellow-800' :
                         row.conversionRate >= 40 ? 'bg-orange-100 text-orange-800' :
@@ -251,8 +281,8 @@ const PTPEffectivenessTable = ({ applications, onDrillDown }: PTPEffectivenessTa
                         {row.conversionRate.toFixed(1)}%
                       </span>
                     </TableCell>
-                    <TableCell className="text-center py-3 text-xs">
-                      <span className={`px-3 py-1.5 rounded-full text-xs font-medium ${
+                    <TableCell className="text-center py-3">
+                      <span className={`px-3 py-1.5 rounded-full font-medium ${
                         row.onTimeRate >= 70 ? 'bg-green-100 text-green-800' :
                         row.onTimeRate >= 50 ? 'bg-yellow-100 text-yellow-800' :
                         row.onTimeRate >= 30 ? 'bg-orange-100 text-orange-800' :
@@ -261,24 +291,26 @@ const PTPEffectivenessTable = ({ applications, onDrillDown }: PTPEffectivenessTa
                         {row.onTimeRate.toFixed(1)}%
                       </span>
                     </TableCell>
-                    <TableCell className="text-center py-3 text-xs">
-                      <CellButton 
-                        value={row.pendingCount}
-                        className="text-red-600"
-                      />
+                    <TableCell className="text-center py-3">
+                      <button 
+                        onClick={() => handleCellClick(row.date, 'pending')}
+                        className="text-red-600 hover:bg-red-50 rounded px-2 py-1 transition-colors"
+                      >
+                        {row.pendingCount}
+                      </button>
                     </TableCell>
                   </TableRow>
                 ))}
 
                 {/* Total Row */}
                 {sortedData.length > 0 && (
-                  <TableRow className="bg-gradient-to-r from-gray-100 to-gray-50 font-bold border-t-2 text-sm">
-                    <TableCell className="font-bold py-3 text-xs">Total</TableCell>
-                    <TableCell className="text-center font-bold text-xs">{totals.ptpSetCount}</TableCell>
-                    <TableCell className="text-center font-bold text-xs text-green-600">{totals.paidOnTimeCount}</TableCell>
-                    <TableCell className="text-center font-bold text-xs text-orange-600">{totals.paidLateCount}</TableCell>
-                    <TableCell className="text-center font-bold text-xs">
-                      <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${
+                  <TableRow className="bg-gradient-to-r from-gray-100 to-gray-50 font-bold border-t-2">
+                    <TableCell className="font-bold py-3">Total</TableCell>
+                    <TableCell className="text-center font-bold">{totals.ptpSetCount}</TableCell>
+                    <TableCell className="text-center font-bold text-green-600">{totals.paidOnTimeCount}</TableCell>
+                    <TableCell className="text-center font-bold text-orange-600">{totals.paidLateCount}</TableCell>
+                    <TableCell className="text-center font-bold">
+                      <span className={`px-3 py-1.5 rounded-full font-bold ${
                         overallConversionRate >= 80 ? 'bg-green-100 text-green-800' :
                         overallConversionRate >= 60 ? 'bg-yellow-100 text-yellow-800' :
                         overallConversionRate >= 40 ? 'bg-orange-100 text-orange-800' :
@@ -287,8 +319,8 @@ const PTPEffectivenessTable = ({ applications, onDrillDown }: PTPEffectivenessTa
                         {overallConversionRate.toFixed(1)}%
                       </span>
                     </TableCell>
-                    <TableCell className="text-center font-bold text-xs">
-                      <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${
+                    <TableCell className="text-center font-bold">
+                      <span className={`px-3 py-1.5 rounded-full font-bold ${
                         overallOnTimeRate >= 70 ? 'bg-green-100 text-green-800' :
                         overallOnTimeRate >= 50 ? 'bg-yellow-100 text-yellow-800' :
                         overallOnTimeRate >= 30 ? 'bg-orange-100 text-orange-800' :
@@ -297,7 +329,7 @@ const PTPEffectivenessTable = ({ applications, onDrillDown }: PTPEffectivenessTa
                         {overallOnTimeRate.toFixed(1)}%
                       </span>
                     </TableCell>
-                    <TableCell className="text-center font-bold text-xs text-red-600">{totals.pendingCount}</TableCell>
+                    <TableCell className="text-center font-bold text-red-600">{totals.pendingCount}</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -308,7 +340,7 @@ const PTPEffectivenessTable = ({ applications, onDrillDown }: PTPEffectivenessTa
             <div className="text-center py-12 text-muted-foreground">
               <TrendingUp className="h-12 w-12 mx-auto text-gray-300 mb-4" />
               <p className="text-lg font-medium text-gray-500">No PTP data available</p>
-              <p className="text-sm text-gray-400">Set some PTP dates to see effectiveness analysis</p>
+              <p className="text-gray-400">Set some PTP dates to see effectiveness analysis</p>
             </div>
           )}
         </CardContent>
