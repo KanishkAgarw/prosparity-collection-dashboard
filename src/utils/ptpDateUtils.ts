@@ -1,7 +1,7 @@
 
-import { format, isToday, isBefore, startOfDay } from 'date-fns';
+import { format, isToday, isTomorrow, isBefore, isAfter, startOfDay } from 'date-fns';
 
-export type PtpDateCategory = 'today' | 'overdue' | 'upcoming' | 'no_date';
+export type PtpDateCategory = 'overdue' | 'today' | 'tomorrow' | 'future' | 'no_date';
 
 export const categorizePtpDate = (ptpDateStr?: string | null): PtpDateCategory => {
   if (!ptpDateStr) return 'no_date';
@@ -11,9 +11,10 @@ export const categorizePtpDate = (ptpDateStr?: string | null): PtpDateCategory =
     const today = startOfDay(new Date());
     
     if (isToday(ptpDate)) return 'today';
+    if (isTomorrow(ptpDate)) return 'tomorrow';
     if (isBefore(ptpDate, today)) return 'overdue';
-    // All future dates (beyond today) are now "upcoming"
-    return 'upcoming';
+    if (isAfter(ptpDate, today)) return 'future';
+    return 'no_date';
   } catch {
     return 'no_date';
   }
@@ -21,24 +22,26 @@ export const categorizePtpDate = (ptpDateStr?: string | null): PtpDateCategory =
 
 export const getPtpDateCategoryLabel = (category: PtpDateCategory): string => {
   const labels = {
-    'today': "Today's PTP",
     'overdue': 'Overdue PTP',
-    'upcoming': 'Upcoming PTPs',
-    'no_date': 'No PTP set'
+    'today': "Today's PTP",
+    'tomorrow': "Tomorrow's PTP", 
+    'future': 'Future PTP',
+    'no_date': 'No PTP'
   };
   return labels[category];
 };
 
 export const getPtpDateCategoryColor = (category: PtpDateCategory): string => {
   const colors = {
-    'today': 'text-blue-600',
     'overdue': 'text-red-600',
-    'upcoming': 'text-orange-600',
+    'today': 'text-blue-600',
+    'tomorrow': 'text-orange-600',
+    'future': 'text-green-600',
     'no_date': 'text-gray-500'
   };
   return colors[category];
 };
 
 export const getAllPtpDateCategories = (): PtpDateCategory[] => {
-  return ['today', 'overdue', 'upcoming', 'no_date'];
+  return ['overdue', 'today', 'tomorrow', 'future', 'no_date'];
 };

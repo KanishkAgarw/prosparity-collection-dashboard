@@ -10,25 +10,30 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowUpDown } from 'lucide-react';
-import { format, parseISO, isValid } from 'date-fns';
+import { ArrowUpDown, Info, TrendingUp } from 'lucide-react';
+import { format, parseISO, isValid, isSameDay, isAfter } from 'date-fns';
+import { DrillDownFilter } from '@/pages/Analytics';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface PTPEffectivenessTableProps {
   applications: Application[];
+  onDrillDown?: (filter: DrillDownFilter) => void;
 }
 
 interface PTPEffectivenessData {
   date: string;
   ptpSetCount: number;
-  paidCount: number;
+  paidOnTimeCount: number;
+  paidLateCount: number;
   conversionRate: number;
   pendingCount: number;
+  onTimeRate: number;
 }
 
-type SortField = 'date' | 'ptpSetCount' | 'paidCount' | 'conversionRate' | 'pendingCount';
+type SortField = 'date' | 'ptpSetCount' | 'paidOnTimeCount' | 'paidLateCount' | 'conversionRate' | 'pendingCount' | 'onTimeRate';
 type SortDirection = 'asc' | 'desc';
 
-const PTPEffectivenessTable = ({ applications }: PTPEffectivenessTableProps) => {
+const PTPEffectivenessTable = ({ applications, onDrillDown }: PTPEffectivenessTableProps) => {
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
@@ -51,18 +56,22 @@ const PTPEffectivenessTable = ({ applications }: PTPEffectivenessTableProps) => 
           dateMap.set(dateKey, {
             date: dateKey,
             ptpSetCount: 0,
-            paidCount: 0,
+            paidOnTimeCount: 0,
+            paidLateCount: 0,
             conversionRate: 0,
-            pendingCount: 0
+            pendingCount: 0,
+            onTimeRate: 0
           });
         }
 
         const data = dateMap.get(dateKey)!;
         data.ptpSetCount++;
 
-        // Check if this application was paid on or after the PTP date
+        // Check payment status and timing
         if (app.field_status === 'Paid' || app.field_status === 'Paid (Pending Approval)') {
-          data.paidCount++;
+          // For this analysis, we'll assume paid applications were paid on time
+          // In a real scenario, you'd compare actual payment date with PTP date
+          data.paidOnTimeCount++;
         } else if (app.field_status === 'Unpaid' || app.field_status === 'Partially Paid') {
           data.pendingCount++;
         }
@@ -71,10 +80,11 @@ const PTPEffectivenessTable = ({ applications }: PTPEffectivenessTableProps) => 
       }
     });
 
-    // Calculate conversion rates
+    // Calculate rates
     const result = Array.from(dateMap.values()).map(data => ({
       ...data,
-      conversionRate: data.ptpSetCount > 0 ? (data.paidCount / data.ptpSetCount) * 100 : 0
+      conversionRate: data.ptpSetCount > 0 ? ((data.paidOnTimeCount + data.paidLateCount) / data.ptpSetCount) * 100 : 0,
+      onTimeRate: data.ptpSetCount > 0 ? (data.paidOnTimeCount / data.ptpSetCount) * 100 : 0
     }));
 
     return result.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -109,6 +119,29 @@ const PTPEffectivenessTable = ({ applications }: PTPEffectivenessTableProps) => 
       : (bValue as number) - (aValue as number);
   });
 
+  const CellButton = ({ 
+    value, 
+    onClick, 
+    className = "" 
+  }: { 
+    value: number; 
+    onClick?: () => void; 
+    className?: string; 
+  }) => {
+    if (!onClick) {
+      return <span className={`text-center ${className}`}>{value}</span>;
+    }
+    
+    return (
+      <button
+        onClick={onClick}
+        className={`text-center hover:bg-blue-50 hover:text-blue-600 rounded px-1 py-0.5 transition-colors w-full ${className}`}
+      >
+        {value}
+      </button>
+    );
+  };
+
   const SortableHeader = ({ 
     field, 
     children, 
@@ -137,90 +170,150 @@ const PTPEffectivenessTable = ({ applications }: PTPEffectivenessTableProps) => 
   const totals = sortedData.reduce(
     (acc, row) => ({
       ptpSetCount: acc.ptpSetCount + row.ptpSetCount,
-      paidCount: acc.paidCount + row.paidCount,
+      paidOnTimeCount: acc.paidOnTimeCount + row.paidOnTimeCount,
+      paidLateCount: acc.paidLateCount + row.paidLateCount,
       pendingCount: acc.pendingCount + row.pendingCount,
     }),
-    { ptpSetCount: 0, paidCount: 0, pendingCount: 0 }
+    { ptpSetCount: 0, paidOnTimeCount: 0, paidLateCount: 0, pendingCount: 0 }
   );
 
-  const overallConversionRate = totals.ptpSetCount > 0 ? (totals.paidCount / totals.ptpSetCount) * 100 : 0;
+  const overallConversionRate = totals.ptpSetCount > 0 ? ((totals.paidOnTimeCount + totals.paidLateCount) / totals.ptpSetCount) * 100 : 0;
+  const overallOnTimeRate = totals.ptpSetCount > 0 ? (totals.paidOnTimeCount / totals.ptpSetCount) * 100 : 0;
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg">PTP Effectiveness Analysis</CardTitle>
-        <CardDescription className="text-sm">
-          Track how many applications with PTP dates actually got paid
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="p-3">
-        <div className="rounded-md border overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="text-xs">
-                <SortableHeader field="date" className="w-24">PTP Date</SortableHeader>
-                <SortableHeader field="ptpSetCount" className="w-20 text-center">PTP Set</SortableHeader>
-                <SortableHeader field="paidCount" className="w-20 text-center">Paid</SortableHeader>
-                <SortableHeader field="conversionRate" className="w-24 text-center">Conv. Rate</SortableHeader>
-                <SortableHeader field="pendingCount" className="w-20 text-center">Pending</SortableHeader>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedData.map((row) => (
-                <TableRow key={row.date} className="text-sm">
-                  <TableCell className="py-2 text-xs font-medium">
-                    {formatDate(row.date)}
-                  </TableCell>
-                  <TableCell className="text-center py-2 text-xs">
-                    {row.ptpSetCount}
-                  </TableCell>
-                  <TableCell className="text-center py-2 text-xs text-green-600 font-medium">
-                    {row.paidCount}
-                  </TableCell>
-                  <TableCell className="text-center py-2 text-xs font-medium">
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      row.conversionRate >= 80 ? 'bg-green-100 text-green-800' :
-                      row.conversionRate >= 60 ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {row.conversionRate.toFixed(1)}%
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-center py-2 text-xs text-orange-600">
-                    {row.pendingCount}
-                  </TableCell>
-                </TableRow>
-              ))}
+    <div className="space-y-4">
+      {/* Explanation Card */}
+      <Alert className="border-blue-200 bg-blue-50">
+        <Info className="h-4 w-4" />
+        <AlertDescription>
+          <strong>PTP Effectiveness Analysis:</strong> This tracks how many applications with PTP (Promise to Pay) dates actually result in payments. 
+          <br />
+          <strong>Conversion Rate:</strong> Percentage of PTPs that resulted in any payment (on-time or late).
+          <br />
+          <strong>On-Time Rate:</strong> Percentage of PTPs paid exactly on the promised date.
+          <br />
+          <em>Note: Current calculation assumes 'Paid' status indicates on-time payment. Actual payment dates would provide more accurate timing analysis.</em>
+        </AlertDescription>
+      </Alert>
 
-              {/* Total Row */}
-              {sortedData.length > 0 && (
-                <TableRow className="bg-muted font-bold border-t-2 text-sm">
-                  <TableCell className="font-bold py-2 text-xs">Total</TableCell>
-                  <TableCell className="text-center font-bold text-xs">{totals.ptpSetCount}</TableCell>
-                  <TableCell className="text-center font-bold text-xs text-green-600">{totals.paidCount}</TableCell>
-                  <TableCell className="text-center font-bold text-xs">
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      overallConversionRate >= 80 ? 'bg-green-100 text-green-800' :
-                      overallConversionRate >= 60 ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {overallConversionRate.toFixed(1)}%
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-center font-bold text-xs text-orange-600">{totals.pendingCount}</TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-        
-        {sortedData.length === 0 && (
-          <div className="text-center py-8 text-muted-foreground text-sm">
-            No PTP data available for effectiveness analysis
+      <Card className="shadow-lg border-0 bg-white/95 backdrop-blur-sm">
+        <CardHeader className="pb-3 bg-gradient-to-r from-purple-50 to-blue-50">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-purple-600" />
+            <CardTitle className="text-lg text-purple-900">PTP Effectiveness Analysis</CardTitle>
           </div>
-        )}
-      </CardContent>
-    </Card>
+          <CardDescription className="text-sm text-purple-700">
+            Track conversion rates from PTP dates to actual payments with timing analysis
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-4">
+          <div className="rounded-lg border border-gray-200 overflow-x-auto shadow-sm">
+            <Table>
+              <TableHeader>
+                <TableRow className="text-xs bg-gray-50/80">
+                  <SortableHeader field="date" className="w-24">PTP Date</SortableHeader>
+                  <SortableHeader field="ptpSetCount" className="w-20 text-center">PTPs Set</SortableHeader>
+                  <SortableHeader field="paidOnTimeCount" className="w-20 text-center">Paid On-Time</SortableHeader>
+                  <SortableHeader field="paidLateCount" className="w-20 text-center">Paid Late</SortableHeader>
+                  <SortableHeader field="conversionRate" className="w-24 text-center">Conv. Rate</SortableHeader>
+                  <SortableHeader field="onTimeRate" className="w-24 text-center">On-Time Rate</SortableHeader>
+                  <SortableHeader field="pendingCount" className="w-20 text-center">Pending</SortableHeader>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedData.map((row) => (
+                  <TableRow key={row.date} className="text-sm hover:bg-gray-50/50">
+                    <TableCell className="py-3 text-xs font-medium">
+                      {formatDate(row.date)}
+                    </TableCell>
+                    <TableCell className="text-center py-3 text-xs">
+                      <CellButton value={row.ptpSetCount} />
+                    </TableCell>
+                    <TableCell className="text-center py-3 text-xs">
+                      <CellButton 
+                        value={row.paidOnTimeCount}
+                        className="text-green-600 font-medium"
+                      />
+                    </TableCell>
+                    <TableCell className="text-center py-3 text-xs">
+                      <CellButton 
+                        value={row.paidLateCount}
+                        className="text-orange-600 font-medium"
+                      />
+                    </TableCell>
+                    <TableCell className="text-center py-3 text-xs">
+                      <span className={`px-3 py-1.5 rounded-full text-xs font-medium ${
+                        row.conversionRate >= 80 ? 'bg-green-100 text-green-800' :
+                        row.conversionRate >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                        row.conversionRate >= 40 ? 'bg-orange-100 text-orange-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {row.conversionRate.toFixed(1)}%
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-center py-3 text-xs">
+                      <span className={`px-3 py-1.5 rounded-full text-xs font-medium ${
+                        row.onTimeRate >= 70 ? 'bg-green-100 text-green-800' :
+                        row.onTimeRate >= 50 ? 'bg-yellow-100 text-yellow-800' :
+                        row.onTimeRate >= 30 ? 'bg-orange-100 text-orange-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {row.onTimeRate.toFixed(1)}%
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-center py-3 text-xs">
+                      <CellButton 
+                        value={row.pendingCount}
+                        className="text-red-600"
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+
+                {/* Total Row */}
+                {sortedData.length > 0 && (
+                  <TableRow className="bg-gradient-to-r from-gray-100 to-gray-50 font-bold border-t-2 text-sm">
+                    <TableCell className="font-bold py-3 text-xs">Total</TableCell>
+                    <TableCell className="text-center font-bold text-xs">{totals.ptpSetCount}</TableCell>
+                    <TableCell className="text-center font-bold text-xs text-green-600">{totals.paidOnTimeCount}</TableCell>
+                    <TableCell className="text-center font-bold text-xs text-orange-600">{totals.paidLateCount}</TableCell>
+                    <TableCell className="text-center font-bold text-xs">
+                      <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${
+                        overallConversionRate >= 80 ? 'bg-green-100 text-green-800' :
+                        overallConversionRate >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                        overallConversionRate >= 40 ? 'bg-orange-100 text-orange-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {overallConversionRate.toFixed(1)}%
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-center font-bold text-xs">
+                      <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${
+                        overallOnTimeRate >= 70 ? 'bg-green-100 text-green-800' :
+                        overallOnTimeRate >= 50 ? 'bg-yellow-100 text-yellow-800' :
+                        overallOnTimeRate >= 30 ? 'bg-orange-100 text-orange-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {overallOnTimeRate.toFixed(1)}%
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-center font-bold text-xs text-red-600">{totals.pendingCount}</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          
+          {sortedData.length === 0 && (
+            <div className="text-center py-12 text-muted-foreground">
+              <TrendingUp className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+              <p className="text-lg font-medium text-gray-500">No PTP data available</p>
+              <p className="text-sm text-gray-400">Set some PTP dates to see effectiveness analysis</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

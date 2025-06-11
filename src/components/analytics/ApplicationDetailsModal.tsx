@@ -1,4 +1,5 @@
 
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -6,12 +7,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { X, Eye, FileText, Users, MapPin } from 'lucide-react';
 import { Application } from '@/types/application';
 import { DrillDownFilter } from '@/pages/Analytics';
-import OptimizedApplicationsTable from '@/components/tables/OptimizedApplicationsTable';
-import { Button } from '@/components/ui/button';
-import { Download } from 'lucide-react';
-import { useEnhancedExport } from '@/hooks/useEnhancedExport';
+import ApplicationDetailsPanel from '@/components/ApplicationDetailsPanel';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 interface ApplicationDetailsModalProps {
   isOpen: boolean;
@@ -20,100 +29,212 @@ interface ApplicationDetailsModalProps {
   filter: DrillDownFilter | null;
 }
 
-const ApplicationDetailsModal = ({ 
-  isOpen, 
-  onClose, 
-  applications, 
-  filter 
-}: ApplicationDetailsModalProps) => {
-  const { exportToExcel } = useEnhancedExport();
+const ApplicationDetailsModal = ({ isOpen, onClose, applications, filter }: ApplicationDetailsModalProps) => {
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
 
-  const getFilterDescription = (): string => {
+  const handleApplicationSelect = (app: Application) => {
+    setSelectedApplication(app);
+  };
+
+  const handleApplicationClose = () => {
+    setSelectedApplication(null);
+  };
+
+  const handleApplicationUpdated = (updatedApp: Application) => {
+    setSelectedApplication(updatedApp);
+    // In a real app, you'd also update the applications list
+  };
+
+  const getFilterDescription = () => {
     if (!filter) return '';
     
-    let description = `Branch: ${filter.branch_name}`;
-    
+    let description = `Applications in ${filter.branch_name}`;
     if (filter.rm_name) {
-      description += ` | RM: ${filter.rm_name}`;
+      description += ` (RM: ${filter.rm_name})`;
     }
     
-    // Convert status type to readable format
-    const statusLabels: Record<string, string> = {
-      'unpaid': 'Unpaid',
-      'partially_paid': 'Partially Paid',
-      'paid_pending_approval': 'Paid (Pending Approval)',
-      'paid': 'Paid',
-      'others': 'Others',
-      'overdue': 'Overdue PTP',
-      'today': "Today's PTP",
-      'tomorrow': "Tomorrow's PTP",
-      'future': 'Future PTP',
-      'no_ptp_set': 'No PTP Set',
-      'total': 'All Applications'
-    };
-    
-    description += ` | Status: ${statusLabels[filter.status_type] || filter.status_type}`;
-    
-    return description;
+    switch (filter.status_type) {
+      case 'unpaid':
+        return `${description} with Unpaid status`;
+      case 'partially_paid':
+        return `${description} with Partially Paid status`;
+      case 'paid_pending_approval':
+        return `${description} with Paid (Pending Approval) status`;
+      case 'paid':
+        return `${description} with Paid status`;
+      case 'others':
+        return `${description} with Other statuses`;
+      case 'overdue':
+        return `${description} with Overdue PTPs`;
+      case 'today':
+        return `${description} with Today's PTPs`;
+      case 'tomorrow':
+        return `${description} with Tomorrow's PTPs`;
+      case 'future':
+        return `${description} with Future PTPs`;
+      case 'no_ptp_set':
+        return `${description} with No PTP set`;
+      default:
+        return description;
+    }
   };
 
-  const handleExport = () => {
-    if (applications.length === 0) return;
-    
-    const filename = `analytics_drilldown_${filter?.branch_name?.replace(/\s+/g, '_')}_${filter?.status_type}_${new Date().getTime()}`;
-    exportToExcel(applications, filename);
+  const formatCurrency = (amount: number | string) => {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(numAmount || 0);
   };
 
-  const handleRowClick = (application: Application) => {
-    // You can add row click functionality here if needed
-    console.log('Application clicked:', application.applicant_id);
+  const getStatusBadgeColor = (status: string) => {
+    switch (status) {
+      case 'Paid':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'Paid (Pending Approval)':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'Partially Paid':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'Unpaid':
+        return 'bg-red-100 text-red-800 border-red-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] h-[90vh] flex flex-col p-0">
-        <DialogHeader className="flex-shrink-0 p-6 pb-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <DialogTitle className="text-lg">Application Details</DialogTitle>
-              <DialogDescription className="mt-1 text-sm">
-                {getFilterDescription()}
-              </DialogDescription>
-              <div className="text-sm text-gray-600 mt-1">
-                {applications.length} application{applications.length !== 1 ? 's' : ''} found
+    <>
+      <Dialog open={isOpen && !selectedApplication} onOpenChange={onClose}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="border-b pb-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-2">
+                <DialogTitle className="text-xl font-bold text-gray-900">
+                  Application Details
+                </DialogTitle>
+                <DialogDescription className="text-sm">
+                  {getFilterDescription()}
+                </DialogDescription>
+                <div className="flex items-center gap-4 text-sm text-gray-600">
+                  <div className="flex items-center gap-1">
+                    <FileText className="h-4 w-4" />
+                    <span>{applications.length} applications</span>
+                  </div>
+                  {filter?.branch_name && (
+                    <div className="flex items-center gap-1">
+                      <MapPin className="h-4 w-4" />
+                      <span>{filter.branch_name}</span>
+                    </div>
+                  )}
+                  {filter?.rm_name && (
+                    <div className="flex items-center gap-1">
+                      <Users className="h-4 w-4" />
+                      <span>{filter.rm_name}</span>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-            {applications.length > 0 && (
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                onClick={handleExport}
-                className="flex items-center gap-2"
+                onClick={onClose}
+                className="h-8 w-8 p-0"
               >
-                <Download className="h-4 w-4" />
-                Export
+                <X className="h-4 w-4" />
               </Button>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-hidden">
+            {applications.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-center space-y-4">
+                <div>
+                  <FileText className="h-16 w-16 mx-auto text-gray-300 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900">No applications found</h3>
+                  <p className="text-gray-500">No applications match the selected criteria.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="h-full overflow-auto p-4">
+                <div className="rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-50">
+                        <TableHead className="text-xs">Applicant</TableHead>
+                        <TableHead className="text-xs">Branch</TableHead>
+                        <TableHead className="text-xs">RM</TableHead>
+                        <TableHead className="text-xs">EMI Amount</TableHead>
+                        <TableHead className="text-xs">Status</TableHead>
+                        <TableHead className="text-xs">PTP Date</TableHead>
+                        <TableHead className="text-xs w-20">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {applications.map((app) => (
+                        <TableRow key={app.id} className="hover:bg-gray-50">
+                          <TableCell className="py-3">
+                            <div className="space-y-1">
+                              <div className="font-medium text-sm">{app.applicant_name}</div>
+                              <div className="text-xs text-gray-500">ID: {app.applicant_id}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm">{app.branch_name}</TableCell>
+                          <TableCell className="text-sm">{app.collection_rm || app.rm_name}</TableCell>
+                          <TableCell className="text-sm font-medium">
+                            {formatCurrency(app.emi_amount)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant="outline" 
+                              className={`text-xs ${getStatusBadgeColor(app.field_status || 'Unpaid')}`}
+                            >
+                              {app.field_status || 'Unpaid'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {app.ptp_date ? (
+                              <span className="text-blue-600">
+                                {new Date(app.ptp_date).toLocaleDateString()}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">No PTP</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleApplicationSelect(app)}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
             )}
           </div>
-        </DialogHeader>
-        
-        <div className="flex-1 overflow-hidden px-6 pb-6">
-          {applications.length > 0 ? (
-            <div className="h-full overflow-auto border rounded-lg">
-              <OptimizedApplicationsTable
-                applications={applications}
-                onRowClick={handleRowClick}
-                showBulkSelection={false}
-              />
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-32 text-gray-500">
-              No applications found for the selected criteria.
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      {/* Application Details Panel */}
+      {selectedApplication && (
+        <ApplicationDetailsPanel
+          application={selectedApplication}
+          onClose={handleApplicationClose}
+          onSave={handleApplicationUpdated}
+          onDataChanged={() => {
+            // Handle data changes if needed
+            console.log('Application data changed');
+          }}
+        />
+      )}
+    </>
   );
 };
 

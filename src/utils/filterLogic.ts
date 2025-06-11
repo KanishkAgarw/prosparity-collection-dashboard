@@ -1,6 +1,6 @@
 
 import { formatEmiMonth } from "@/utils/formatters";
-import { categorizePtpDate, type PtpDateCategory } from "@/utils/ptpDateUtils";
+import { categorizePtpDate, type PtpDateCategory, getPtpDateCategoryLabel } from "@/utils/ptpDateUtils";
 import { formatRepayment, categorizeLastMonthBounce, isValidLastMonthBounceCategory, isValidPtpDateCategory } from "@/utils/filterUtils";
 import type { FilterState, LastMonthBounceCategory, AvailableOptions } from "@/types/filters";
 
@@ -32,10 +32,11 @@ export const getAvailableOptions = (allApplications: any[], filteredApplications
   ];
 
   const ptpDateOptions = [
+    "Overdue PTP",
     "Today's PTP",
-    "Overdue PTP", 
-    "Upcoming PTPs",
-    "No PTP set"
+    "Tomorrow's PTP",
+    "Future PTP",
+    "No PTP"
   ];
 
   return {
@@ -110,10 +111,11 @@ export const processFilterChange = (
   } else if (key === 'ptpDate') {
     // Convert labels back to categories for PTP date filter
     const labelToCategoryMap: { [key: string]: PtpDateCategory } = {
-      "Today's PTP": 'today',
       "Overdue PTP": 'overdue',
-      "Upcoming PTPs": 'upcoming',
-      "No PTP set": 'no_date'
+      "Today's PTP": 'today',
+      "Tomorrow's PTP": 'tomorrow',
+      "Future PTP": 'future',
+      "No PTP": 'no_date'
     };
     
     const validCategories = values
