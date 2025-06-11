@@ -19,6 +19,7 @@ export type Database = {
           co_applicant_address: string | null
           co_applicant_mobile: string | null
           co_applicant_name: string | null
+          collection_rm: string | null
           created_at: string | null
           dealer_name: string
           demand_date: string | null
@@ -52,6 +53,7 @@ export type Database = {
           co_applicant_address?: string | null
           co_applicant_mobile?: string | null
           co_applicant_name?: string | null
+          collection_rm?: string | null
           created_at?: string | null
           dealer_name: string
           demand_date?: string | null
@@ -85,6 +87,7 @@ export type Database = {
           co_applicant_address?: string | null
           co_applicant_mobile?: string | null
           co_applicant_name?: string | null
+          collection_rm?: string | null
           created_at?: string | null
           dealer_name?: string
           demand_date?: string | null

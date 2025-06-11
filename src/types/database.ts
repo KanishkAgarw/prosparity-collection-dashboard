@@ -1,4 +1,3 @@
-
 // Database application type without removed columns
 export interface DatabaseApplication {
   id: string;
@@ -32,6 +31,7 @@ export interface DatabaseApplication {
   fi_location?: string;
   repayment?: string;
   last_month_bounce?: number;
+  collection_rm?: string; // New Collection RM field
 }
 
 export interface UserProfile {

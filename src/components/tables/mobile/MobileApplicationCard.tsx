@@ -108,6 +108,12 @@ const MobileApplicationCard = memo(({
             <span className="text-gray-500">Branch:</span>
             <p className="font-medium truncate text-gray-800">{application.branch_name}</p>
           </div>
+          {application.collection_rm && (
+            <div className="col-span-2">
+              <span className="text-gray-500">Collection RM:</span>
+              <p className="font-medium truncate text-gray-800">{application.collection_rm}</p>
+            </div>
+          )}
         </div>
 
         {/* PTP Date */}

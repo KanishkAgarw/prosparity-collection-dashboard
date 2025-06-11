@@ -1,92 +1,102 @@
 
-import { formatEmiMonth } from "@/utils/formatters";
-import { categorizePtpDate, type PtpDateCategory } from "@/utils/ptpDateUtils";
-import { formatRepayment, categorizeLastMonthBounce, isValidLastMonthBounceCategory, isValidPtpDateCategory } from "@/utils/filterUtils";
-import type { FilterState, LastMonthBounceCategory } from "@/types/filters";
+import { Application } from "@/types/application";
+import { FilterState } from "@/types/filters";
+import { getPtpDateCategory } from "@/utils/ptpDateUtils";
 
-// Filter applications based on current filter state
-export const filterApplications = (applications: any[], filters: FilterState) => {
-  console.log('=== FILTERING APPLICATIONS ===');
-  console.log('Total applications:', applications.length);
-  console.log('Active filters:', filters);
-  
-  const result = applications.filter(app => {
-    const repaymentMatch = filters.repayment.length === 0 || 
-      filters.repayment.includes(formatRepayment(app.repayment));
-    
-    const appLastMonthBounceCategory = categorizeLastMonthBounce(app.last_month_bounce);
-    const lastMonthBounceMatch = filters.lastMonthBounce.length === 0 || 
-      filters.lastMonthBounce.includes(appLastMonthBounceCategory);
+// Function to filter applications based on filter state
+export function filterApplications(applications: Application[], filters: FilterState): Application[] {
+  return applications.filter(app => {
+    // Branch filter
+    if (filters.branch.length > 0 && !filters.branch.includes(app.branch_name)) {
+      return false;
+    }
 
-    const emiMonthMatch = filters.emiMonth.length === 0 || 
-      filters.emiMonth.includes(formatEmiMonth(app.demand_date));
+    // Team Lead filter
+    if (filters.teamLead.length > 0 && !filters.teamLead.includes(app.team_lead)) {
+      return false;
+    }
 
-    const statusMatch = filters.status.length === 0 || 
-      filters.status.includes(app.field_status || 'Unpaid');
+    // RM filter
+    if (filters.rm.length > 0 && !filters.rm.includes(app.rm_name)) {
+      return false;
+    }
 
-    const appPtpDateCategory = categorizePtpDate(app.ptp_date);
-    const ptpDateMatch = filters.ptpDate.length === 0 || 
-      filters.ptpDate.includes(appPtpDateCategory);
+    // Dealer filter
+    if (filters.dealer.length > 0 && !filters.dealer.includes(app.dealer_name)) {
+      return false;
+    }
 
-    const branchMatch = filters.branch.length === 0 || filters.branch.includes(app.branch_name);
-    const teamLeadMatch = filters.teamLead.length === 0 || filters.teamLead.includes(app.team_lead);
-    const rmMatch = filters.rm.length === 0 || filters.rm.includes(app.rm_name);
-    const dealerMatch = filters.dealer.length === 0 || filters.dealer.includes(app.dealer_name);
-    const lenderMatch = filters.lender.length === 0 || filters.lender.includes(app.lender_name);
+    // Lender filter
+    if (filters.lender.length > 0 && !filters.lender.includes(app.lender_name)) {
+      return false;
+    }
 
-    return branchMatch && teamLeadMatch && rmMatch && dealerMatch && 
-           lenderMatch && statusMatch && emiMonthMatch && repaymentMatch && 
-           lastMonthBounceMatch && ptpDateMatch;
+    // Status filter
+    if (filters.status.length > 0 && !filters.status.includes(app.field_status || 'Unpaid')) {
+      return false;
+    }
+
+    // EMI Month filter
+    if (filters.emiMonth.length > 0) {
+      const emiAmount = app.emi_amount;
+      const matchesEmiRange = filters.emiMonth.some(range => {
+        const [min, max] = range.split(' - ').map(val => parseInt(val.replace(/,/g, '')));
+        return emiAmount >= min && emiAmount <= max;
+      });
+      if (!matchesEmiRange) {
+        return false;
+      }
+    }
+
+    // Repayment filter
+    if (filters.repayment.length > 0 && app.repayment && !filters.repayment.includes(app.repayment)) {
+      return false;
+    }
+
+    // Last Month Bounce filter
+    if (filters.lastMonthBounce.length > 0) {
+      const bounce = (app.last_month_bounce || 0).toString();
+      if (!filters.lastMonthBounce.includes(bounce)) {
+        return false;
+      }
+    }
+
+    // Collection RM filter
+    if (filters.collectionRM.length > 0 && app.collection_rm && !filters.collectionRM.includes(app.collection_rm)) {
+      return false;
+    }
+
+    // PTP Date filter
+    if (filters.ptpDate.length > 0) {
+      if (!app.ptp_date) {
+        return false;
+      }
+      
+      const ptpCategory = getPtpDateCategory(app.ptp_date);
+      if (!filters.ptpDate.includes(ptpCategory)) {
+        return false;
+      }
+    }
+
+    return true;
   });
-  
-  console.log('Filtered applications:', result.length);
-  return result;
-};
+}
 
-// Handle filter changes with type-safe processing
-export const processFilterChange = (
-  key: keyof FilterState, 
-  values: string[], 
+// Function to process filter changes and update state
+export function processFilterChange(
+  key: keyof FilterState,
+  values: string[],
   setFilters: React.Dispatch<React.SetStateAction<FilterState>>
-) => {
-  console.log('=== FILTER CHANGE ===');
-  console.log(`Changing ${key} filter to:`, values);
+) {
+  console.log(`Processing filter change for ${key}:`, values);
   
-  if (key === 'lastMonthBounce') {
-    // Type-safe handling for lastMonthBounce filter
-    const validValues = values.filter(isValidLastMonthBounceCategory);
-    console.log('Valid lastMonthBounce values:', validValues);
-    setFilters(prev => ({ ...prev, [key]: validValues }));
-  } else if (key === 'ptpDate') {
-    // Convert labels back to categories for PTP date filter
-    const labelToCategoryMap: { [key: string]: PtpDateCategory } = {
-      "Today's PTP": 'today',
-      "Overdue PTP": 'overdue',
-      "Upcoming PTPs": 'upcoming',
-      "No PTP set": 'no_date'
+  setFilters(prevFilters => {
+    const newFilters = {
+      ...prevFilters,
+      [key]: values
     };
     
-    const validCategories = values
-      .map(label => {
-        // Handle both labels and direct category values for backwards compatibility
-        if (labelToCategoryMap[label]) {
-          return labelToCategoryMap[label];
-        }
-        // If it's already a category value, validate and use it
-        if (isValidPtpDateCategory(label)) {
-          return label as PtpDateCategory;
-        }
-        return undefined;
-      })
-      .filter((category): category is PtpDateCategory => 
-        category !== undefined
-      );
-    
-    console.log('PTP Date - Input values:', values);
-    console.log('PTP Date - Mapped categories:', validCategories);
-    setFilters(prev => ({ ...prev, [key]: validCategories }));
-  } else {
-    console.log(`Setting ${key} to:`, values);
-    setFilters(prev => ({ ...prev, [key]: values }));
-  }
-};
+    console.log('Updated filter state:', newFilters);
+    return newFilters;
+  });
+}
