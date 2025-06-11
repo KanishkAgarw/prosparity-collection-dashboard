@@ -1,15 +1,11 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { UserPlus, Trash2, Search } from "lucide-react";
-import { format } from "date-fns";
+import { UserPlus } from "lucide-react";
+import UserSearchFilter from "@/components/user/UserSearchFilter";
+import UserRoleManagementTable from "@/components/user/UserRoleManagementTable";
 
 interface UserWithRole {
   id: string;
@@ -23,11 +19,9 @@ const UserRoleManagement = () => {
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchEmail, setSearchEmail] = useState("");
-  const [selectedRole, setSelectedRole] = useState<'admin' | 'user'>('user');
 
   const fetchUsers = async () => {
     try {
-      // Get all profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('id, email, full_name')
@@ -44,7 +38,6 @@ const UserRoleManagement = () => {
         return;
       }
 
-      // Get user roles
       const { data: userRoles, error: rolesError } = await supabase
         .from('user_roles')
         .select('user_id, role, created_at');
@@ -55,7 +48,6 @@ const UserRoleManagement = () => {
         return;
       }
 
-      // Combine profiles with roles
       const usersWithRoles = profiles.map(profile => {
         const userRole = userRoles?.find(role => role.user_id === profile.id);
         return {
@@ -148,93 +140,18 @@ const UserRoleManagement = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {/* Search */}
           <div className="flex items-center gap-4 mb-6">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search by email or name..."
-                value={searchEmail}
-                onChange={(e) => setSearchEmail(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+            <UserSearchFilter 
+              searchTerm={searchEmail}
+              onSearchChange={setSearchEmail}
+            />
           </div>
 
-          {/* Users Table */}
-          <div className="border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Current Role</TableHead>
-                  <TableHead>Role Assigned</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUsers.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <div className="font-medium">
-                        {user.full_name || 'No name set'}
-                      </div>
-                    </TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                      <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
-                        {user.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {user.role_created_at ? (
-                        <span className="text-sm text-gray-600">
-                          {format(new Date(user.role_created_at), 'dd-MMM-yyyy')}
-                        </span>
-                      ) : (
-                        <span className="text-sm text-gray-400">Default</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Select
-                          value={user.role}
-                          onValueChange={(newRole: 'admin' | 'user') => 
-                            handleRoleChange(user.id, newRole)
-                          }
-                        >
-                          <SelectTrigger className="w-24">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="user">User</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        {user.role_created_at && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleRemoveRole(user.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          {filteredUsers.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              No users found matching your search criteria
-            </div>
-          )}
+          <UserRoleManagementTable 
+            users={filteredUsers}
+            onRoleChange={handleRoleChange}
+            onRemoveRole={handleRemoveRole}
+          />
         </CardContent>
       </Card>
     </div>

@@ -242,7 +242,6 @@ const Index = () => {
           <AppHeader 
             onExportFull={handleExportFull}
             onExportPtpComments={handleExportPtpComments}
-            onApplicationAdded={refetch}
           />
 
           <FiltersSection
