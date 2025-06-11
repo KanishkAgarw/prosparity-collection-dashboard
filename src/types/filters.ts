@@ -28,3 +28,6 @@ export interface AvailableOptions {
   ptpDateOptions: string[];
   collectionRms: string[];
 }
+
+// Export alias for compatibility
+export type Filters = FilterState;

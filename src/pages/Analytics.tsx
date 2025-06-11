@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useApplications } from '@/hooks/useApplications';
 import BranchPaymentStatusTable from '@/components/analytics/BranchPaymentStatusTable';
 import BranchPTPStatusTable from '@/components/analytics/BranchPTPStatusTable';
+import PTPEffectivenessTable from '@/components/analytics/PTPEffectivenessTable';
 import ApplicationDetailsModal from '@/components/analytics/ApplicationDetailsModal';
 import { Application } from '@/types/application';
 
@@ -36,14 +37,19 @@ const Analytics = () => {
   const getFilteredApplications = (): Application[] => {
     if (!selectedFilter) return [];
 
-    return allApplications.filter(app => {
+    console.log('Filtering applications with filter:', selectedFilter);
+    console.log('Total applications:', allApplications.length);
+
+    const filtered = allApplications.filter(app => {
       // Filter by branch
       if (app.branch_name !== selectedFilter.branch_name) return false;
 
       // Filter by RM if specified (prioritize collection_rm)
-      if (selectedFilter.rm_name && 
-          (app.collection_rm || app.rm_name) !== selectedFilter.rm_name) {
-        return false;
+      if (selectedFilter.rm_name) {
+        const actualRM = app.collection_rm || app.rm_name || 'Unknown RM';
+        if (actualRM !== selectedFilter.rm_name) {
+          return false;
+        }
       }
 
       // Filter by status type
@@ -83,6 +89,9 @@ const Analytics = () => {
           return false;
       }
     });
+
+    console.log('Filtered applications count:', filtered.length);
+    return filtered;
   };
 
   if (loading) {
@@ -116,9 +125,10 @@ const Analytics = () => {
 
       {/* Analytics Content */}
       <Tabs defaultValue="payment-status" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="payment-status">Payment Status</TabsTrigger>
           <TabsTrigger value="ptp-status">PTP Status</TabsTrigger>
+          <TabsTrigger value="ptp-effectiveness">PTP Effectiveness</TabsTrigger>
         </TabsList>
         
         <TabsContent value="payment-status" className="space-y-4">
@@ -132,6 +142,12 @@ const Analytics = () => {
           <BranchPTPStatusTable 
             applications={allApplications} 
             onDrillDown={handleDrillDown}
+          />
+        </TabsContent>
+
+        <TabsContent value="ptp-effectiveness" className="space-y-4">
+          <PTPEffectivenessTable 
+            applications={allApplications} 
           />
         </TabsContent>
       </Tabs>
