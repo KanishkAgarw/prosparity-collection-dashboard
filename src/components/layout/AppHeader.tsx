@@ -1,4 +1,3 @@
-
 import { useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { LogOut, Settings } from "lucide-react";
@@ -9,13 +8,16 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserProfiles } from "@/hooks/useUserProfiles";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import ExportDialog from "@/components/ExportDialog";
+import AnalyticsDialog from "@/components/AnalyticsDialog";
+import { Application } from "@/types/application";
 
 interface AppHeaderProps {
   onExportFull: () => void;
   onExportPtpComments: () => void;
+  applications: Application[];
 }
 
-const AppHeader = ({ onExportFull, onExportPtpComments }: AppHeaderProps) => {
+const AppHeader = ({ onExportFull, onExportPtpComments, applications }: AppHeaderProps) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { getUserName, fetchProfiles } = useUserProfiles();
@@ -67,6 +69,7 @@ const AppHeader = ({ onExportFull, onExportPtpComments }: AppHeaderProps) => {
         {/* Desktop Actions */}
         <div className="hidden sm:flex items-center gap-3">
           <div className="flex items-center gap-2">
+            <AnalyticsDialog applications={applications} />
             <ExportDialog 
               onExportFull={onExportFull}
               onExportPtpComments={onExportPtpComments}

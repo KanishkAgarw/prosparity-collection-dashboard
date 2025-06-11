@@ -237,11 +237,12 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto py-4 px-4 sm:py-6 sm:px-6 lg:px-8 max-w-7xl">
-        <div className="space-y-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <div className="space-y-4 sm:space-y-6">
           <AppHeader 
             onExportFull={handleExportFull}
             onExportPtpComments={handleExportPtpComments}
+            applications={filteredApplications}
           />
 
           <FiltersSection
