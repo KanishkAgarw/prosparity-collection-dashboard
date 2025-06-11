@@ -8,16 +8,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserProfiles } from "@/hooks/useUserProfiles";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import ExportDialog from "@/components/ExportDialog";
-import AnalyticsDialog from "@/components/AnalyticsDialog";
-import { Application } from "@/types/application";
+import { BarChart3 } from "lucide-react";
 
 interface AppHeaderProps {
   onExportFull: () => void;
   onExportPtpComments: () => void;
-  applications: Application[];
 }
 
-const AppHeader = ({ onExportFull, onExportPtpComments, applications }: AppHeaderProps) => {
+const AppHeader = ({ onExportFull, onExportPtpComments }: AppHeaderProps) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { getUserName, fetchProfiles } = useUserProfiles();
@@ -69,7 +67,15 @@ const AppHeader = ({ onExportFull, onExportPtpComments, applications }: AppHeade
         {/* Desktop Actions */}
         <div className="hidden sm:flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <AnalyticsDialog applications={applications} />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/analytics')}
+              className="h-8 text-xs"
+            >
+              <BarChart3 className="h-3 w-3 mr-1" />
+              Analytics
+            </Button>
             <ExportDialog 
               onExportFull={onExportFull}
               onExportPtpComments={onExportPtpComments}
