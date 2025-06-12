@@ -78,10 +78,10 @@ const Analytics = () => {
         }
       }
 
-      // Handle PTP criteria-based filtering (exclude only "Paid" status for PTP analysis)
+      // Handle PTP criteria-based filtering - ALWAYS exclude "Paid" status for ALL PTP criteria
       if (selectedFilter.ptp_criteria) {
-        // First exclude "Paid" status for all PTP criteria except 'total'
-        if (selectedFilter.ptp_criteria !== 'total' && app.field_status === 'Paid') {
+        // Exclude "Paid" status for ALL PTP criteria (including 'total')
+        if (app.field_status === 'Paid') {
           return false;
         }
 
@@ -122,6 +122,9 @@ const Analytics = () => {
             }
           case 'no_ptp_set':
             return !app.ptp_date;
+          case 'total':
+            // For total, return all unpaid applications (already filtered above)
+            return true;
           default:
             break;
         }
