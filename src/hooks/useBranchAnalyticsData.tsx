@@ -1,4 +1,3 @@
-
 import { useMemo } from 'react';
 import { Application } from '@/types/application';
 import { isToday, isTomorrow, isBefore, isAfter, startOfDay } from 'date-fns';
@@ -215,8 +214,58 @@ export const useBranchAnalyticsData = (applications: Application[]) => {
       .sort((a, b) => b.total_stats.total - a.total_stats.total);
   }, [applications]);
 
+  // Add the missing effectivenessBranchData
+  const effectivenessBranchData = useMemo(() => {
+    const branchMap = new Map<string, {
+      branch_name: string;
+      totals: { total_ptps: number; honored_ptps: number; broken_ptps: number };
+      rms: Array<{ rm_name: string; total_ptps: number; honored_ptps: number; broken_ptps: number }>;
+    }>();
+
+    applications.forEach(app => {
+      // Only count applications with PTPs
+      if (!app.ptp_date) return;
+
+      const branchName = app.branch_name || 'Unknown Branch';
+      const rmName = app.collection_rm || app.rm_name || 'Unknown RM';
+      
+      // Determine if PTP was honored (paid status) or broken (overdue)
+      const isPaid = app.field_status === 'Paid';
+      const isOverdue = app.ptp_date && new Date(app.ptp_date) < new Date() && !isPaid;
+
+      if (!branchMap.has(branchName)) {
+        branchMap.set(branchName, {
+          branch_name: branchName,
+          totals: { total_ptps: 0, honored_ptps: 0, broken_ptps: 0 },
+          rms: []
+        });
+      }
+
+      const branch = branchMap.get(branchName)!;
+      
+      // Update branch totals
+      branch.totals.total_ptps++;
+      if (isPaid) branch.totals.honored_ptps++;
+      if (isOverdue) branch.totals.broken_ptps++;
+
+      // Update RM stats
+      let rm = branch.rms.find(r => r.rm_name === rmName);
+      if (!rm) {
+        rm = { rm_name: rmName, total_ptps: 0, honored_ptps: 0, broken_ptps: 0 };
+        branch.rms.push(rm);
+      }
+      
+      rm.total_ptps++;
+      if (isPaid) rm.honored_ptps++;
+      if (isOverdue) rm.broken_ptps++;
+    });
+
+    return Array.from(branchMap.values()).sort((a, b) => a.branch_name.localeCompare(b.branch_name));
+  }, [applications]);
+
   return {
     branchPaymentStatusData,
-    branchPtpStatusData
+    branchPtpStatusData,
+    effectivenessBranchData
   };
 };

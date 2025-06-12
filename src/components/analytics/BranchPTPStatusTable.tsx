@@ -1,5 +1,7 @@
+
 import { Application } from '@/types/application';
 import { useBranchAnalyticsData } from '@/hooks/useBranchAnalyticsData';
+import { useExport } from '@/hooks/useExport';
 import {
   Table,
   TableBody,
@@ -9,18 +11,27 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChevronRight, ChevronDown } from 'lucide-react';
+import { ChevronRight, ChevronDown, ArrowUpDown, Download } from 'lucide-react';
 import { useState } from 'react';
 import { DrillDownFilter } from '@/pages/Analytics';
+import { Button } from '@/components/ui/button';
 
 interface BranchPTPStatusTableProps {
   applications: Application[];
   onDrillDown: (filter: DrillDownFilter) => void;
 }
 
+type SortField = 'branch_name' | 'total' | 'overdue' | 'today' | 'tomorrow' | 'future' | 'no_ptp_set';
+type SortDirection = 'asc' | 'desc';
+
 const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTableProps) => {
   const { branchPtpStatusData } = useBranchAnalyticsData(applications);
+  const { exportToExcel } = useExport();
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
+  const [sortField, setSortField] = useState<SortField>('branch_name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [rmSortField, setRmSortField] = useState<SortField>('branch_name');
+  const [rmSortDirection, setRmSortDirection] = useState<SortDirection>('asc');
 
   const toggleBranch = (branchName: string) => {
     const newExpanded = new Set(expandedBranches);
@@ -32,6 +43,24 @@ const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTabl
     setExpandedBranches(newExpanded);
   };
 
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const handleRmSort = (field: SortField) => {
+    if (rmSortField === field) {
+      setRmSortDirection(rmSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setRmSortField(field);
+      setRmSortDirection('asc');
+    }
+  };
+
   const handleCellClick = (branchName: string, rmName: string | undefined, statusType: string) => {
     onDrillDown({
       branch_name: branchName,
@@ -39,6 +68,96 @@ const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTabl
       status_type: statusType,
       ptp_criteria: statusType
     });
+  };
+
+  const sortedBranchData = [...branchPtpStatusData].sort((a, b) => {
+    let aValue: any, bValue: any;
+    
+    switch (sortField) {
+      case 'branch_name':
+        aValue = a.branch_name;
+        bValue = b.branch_name;
+        break;
+      case 'total':
+        aValue = a.total_stats.total;
+        bValue = b.total_stats.total;
+        break;
+      case 'overdue':
+        aValue = a.total_stats.overdue;
+        bValue = b.total_stats.overdue;
+        break;
+      case 'today':
+        aValue = a.total_stats.today;
+        bValue = b.total_stats.today;
+        break;
+      case 'tomorrow':
+        aValue = a.total_stats.tomorrow;
+        bValue = b.total_stats.tomorrow;
+        break;
+      case 'future':
+        aValue = a.total_stats.future;
+        bValue = b.total_stats.future;
+        break;
+      case 'no_ptp_set':
+        aValue = a.total_stats.no_ptp_set;
+        bValue = b.total_stats.no_ptp_set;
+        break;
+      default:
+        return 0;
+    }
+
+    if (typeof aValue === 'string') {
+      return sortDirection === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+    }
+    return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+  });
+
+  const getSortedRms = (rms: any[]) => {
+    return [...rms].sort((a, b) => {
+      let aValue: any, bValue: any;
+      
+      switch (rmSortField) {
+        case 'branch_name':
+          aValue = a.rm_name;
+          bValue = b.rm_name;
+          break;
+        case 'total':
+          aValue = a.total;
+          bValue = b.total;
+          break;
+        case 'overdue':
+          aValue = a.overdue;
+          bValue = b.overdue;
+          break;
+        case 'today':
+          aValue = a.today;
+          bValue = b.today;
+          break;
+        case 'tomorrow':
+          aValue = a.tomorrow;
+          bValue = b.tomorrow;
+          break;
+        case 'future':
+          aValue = a.future;
+          bValue = b.future;
+          break;
+        case 'no_ptp_set':
+          aValue = a.no_ptp_set;
+          bValue = b.no_ptp_set;
+          break;
+        default:
+          return 0;
+      }
+
+      if (typeof aValue === 'string') {
+        return rmSortDirection === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+      }
+      return rmSortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+    });
+  };
+
+  const handleExport = () => {
+    exportToExcel({ applications }, 'ptp-status-report');
   };
 
   const totals = branchPtpStatusData.reduce(
@@ -56,30 +175,99 @@ const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTabl
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-2xl">PTP Status by Branch</CardTitle>
-        <CardDescription className="text-lg">
-          Promise to Pay (PTP) status distribution across branches and RMs
-        </CardDescription>
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle className="text-xl">PTP Status by Branch</CardTitle>
+            <CardDescription className="text-sm">
+              Promise to Pay (PTP) status distribution across branches and RMs
+            </CardDescription>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            className="flex items-center gap-2"
+          >
+            <Download className="h-3 w-3" />
+            Export
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="font-semibold text-lg w-48">Branch/RM</TableHead>
-                <TableHead className="font-semibold text-lg text-center w-24">Total</TableHead>
-                <TableHead className="font-semibold text-lg text-center w-24">Overdue</TableHead>
-                <TableHead className="font-semibold text-lg text-center w-24">Today</TableHead>
-                <TableHead className="font-semibold text-lg text-center w-24">Tomorrow</TableHead>
-                <TableHead className="font-semibold text-lg text-center w-24">Future</TableHead>
-                <TableHead className="font-semibold text-lg text-center w-24">No PTP</TableHead>
+                <TableHead className="font-medium text-sm w-48">
+                  <button
+                    onClick={() => handleSort('branch_name')}
+                    className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                  >
+                    Branch/RM
+                    <ArrowUpDown className="h-3 w-3" />
+                  </button>
+                </TableHead>
+                <TableHead className="font-medium text-sm text-center w-24">
+                  <button
+                    onClick={() => handleSort('total')}
+                    className="flex items-center gap-1 hover:text-blue-600 transition-colors mx-auto"
+                  >
+                    Total
+                    <ArrowUpDown className="h-3 w-3" />
+                  </button>
+                </TableHead>
+                <TableHead className="font-medium text-sm text-center w-24">
+                  <button
+                    onClick={() => handleSort('overdue')}
+                    className="flex items-center gap-1 hover:text-blue-600 transition-colors mx-auto"
+                  >
+                    Overdue
+                    <ArrowUpDown className="h-3 w-3" />
+                  </button>
+                </TableHead>
+                <TableHead className="font-medium text-sm text-center w-24">
+                  <button
+                    onClick={() => handleSort('today')}
+                    className="flex items-center gap-1 hover:text-blue-600 transition-colors mx-auto"
+                  >
+                    Today
+                    <ArrowUpDown className="h-3 w-3" />
+                  </button>
+                </TableHead>
+                <TableHead className="font-medium text-sm text-center w-24">
+                  <button
+                    onClick={() => handleSort('tomorrow')}
+                    className="flex items-center gap-1 hover:text-blue-600 transition-colors mx-auto"
+                  >
+                    Tomorrow
+                    <ArrowUpDown className="h-3 w-3" />
+                  </button>
+                </TableHead>
+                <TableHead className="font-medium text-sm text-center w-24">
+                  <button
+                    onClick={() => handleSort('future')}
+                    className="flex items-center gap-1 hover:text-blue-600 transition-colors mx-auto"
+                  >
+                    Future
+                    <ArrowUpDown className="h-3 w-3" />
+                  </button>
+                </TableHead>
+                <TableHead className="font-medium text-sm text-center w-24">
+                  <button
+                    onClick={() => handleSort('no_ptp_set')}
+                    className="flex items-center gap-1 hover:text-blue-600 transition-colors mx-auto"
+                  >
+                    No PTP
+                    <ArrowUpDown className="h-3 w-3" />
+                  </button>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {branchPtpStatusData.map((branch) => (
+              {sortedBranchData.map((branch) => (
                 <>
                   <TableRow key={branch.branch_name} className="hover:bg-muted/50">
-                    <TableCell className="font-semibold text-base">
+                    <TableCell className="font-medium text-sm">
                       <button
                         onClick={() => toggleBranch(branch.branch_name)}
                         className="flex items-center gap-2 hover:text-blue-600 transition-colors"
@@ -93,80 +281,80 @@ const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTabl
                       </button>
                     </TableCell>
                     <TableCell 
-                      className="text-center text-base cursor-pointer hover:bg-blue-50 hover:text-blue-700 transition-colors font-medium"
+                      className="text-center text-sm cursor-pointer hover:bg-blue-50 hover:text-blue-700 transition-colors font-medium"
                       onClick={() => handleCellClick(branch.branch_name, undefined, 'total')}
                     >
                       {branch.total_stats.total}
                     </TableCell>
                     <TableCell 
-                      className="text-center text-base cursor-pointer hover:bg-red-50 hover:text-red-700 transition-colors font-medium text-red-600"
+                      className="text-center text-sm cursor-pointer hover:bg-red-50 hover:text-red-700 transition-colors font-medium text-red-600"
                       onClick={() => handleCellClick(branch.branch_name, undefined, 'overdue')}
                     >
                       {branch.total_stats.overdue}
                     </TableCell>
                     <TableCell 
-                      className="text-center text-base cursor-pointer hover:bg-orange-50 hover:text-orange-700 transition-colors font-medium text-orange-600"
+                      className="text-center text-sm cursor-pointer hover:bg-orange-50 hover:text-orange-700 transition-colors font-medium text-orange-600"
                       onClick={() => handleCellClick(branch.branch_name, undefined, 'today')}
                     >
                       {branch.total_stats.today}
                     </TableCell>
                     <TableCell 
-                      className="text-center text-base cursor-pointer hover:bg-yellow-50 hover:text-yellow-700 transition-colors font-medium text-yellow-600"
+                      className="text-center text-sm cursor-pointer hover:bg-yellow-50 hover:text-yellow-700 transition-colors font-medium text-yellow-600"
                       onClick={() => handleCellClick(branch.branch_name, undefined, 'tomorrow')}
                     >
                       {branch.total_stats.tomorrow}
                     </TableCell>
                     <TableCell 
-                      className="text-center text-base cursor-pointer hover:bg-green-50 hover:text-green-700 transition-colors font-medium text-green-600"
+                      className="text-center text-sm cursor-pointer hover:bg-green-50 hover:text-green-700 transition-colors font-medium text-green-600"
                       onClick={() => handleCellClick(branch.branch_name, undefined, 'future')}
                     >
                       {branch.total_stats.future}
                     </TableCell>
                     <TableCell 
-                      className="text-center text-base cursor-pointer hover:bg-gray-50 hover:text-gray-700 transition-colors font-medium"
+                      className="text-center text-sm cursor-pointer hover:bg-gray-50 hover:text-gray-700 transition-colors font-medium"
                       onClick={() => handleCellClick(branch.branch_name, undefined, 'no_ptp_set')}
                     >
                       {branch.total_stats.no_ptp_set}
                     </TableCell>
                   </TableRow>
                   
-                  {expandedBranches.has(branch.branch_name) && branch.rm_stats.map((rm) => (
+                  {expandedBranches.has(branch.branch_name) && getSortedRms(branch.rm_stats).map((rm) => (
                     <TableRow key={`${branch.branch_name}-${rm.rm_name}`} className="bg-muted/25 hover:bg-muted/40">
-                      <TableCell className="text-base pl-8">
+                      <TableCell className="text-sm pl-8">
                         {rm.rm_name}
                       </TableCell>
                       <TableCell 
-                        className="text-center text-base cursor-pointer hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                        className="text-center text-sm cursor-pointer hover:bg-blue-50 hover:text-blue-700 transition-colors"
                         onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'total')}
                       >
                         {rm.total}
                       </TableCell>
                       <TableCell 
-                        className="text-center text-base cursor-pointer hover:bg-red-50 hover:text-red-700 transition-colors text-red-600"
+                        className="text-center text-sm cursor-pointer hover:bg-red-50 hover:text-red-700 transition-colors text-red-600"
                         onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'overdue')}
                       >
                         {rm.overdue}
                       </TableCell>
                       <TableCell 
-                        className="text-center text-base cursor-pointer hover:bg-orange-50 hover:text-orange-700 transition-colors text-orange-600"
+                        className="text-center text-sm cursor-pointer hover:bg-orange-50 hover:text-orange-700 transition-colors text-orange-600"
                         onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'today')}
                       >
                         {rm.today}
                       </TableCell>
                       <TableCell 
-                        className="text-center text-base cursor-pointer hover:bg-yellow-50 hover:text-yellow-700 transition-colors text-yellow-600"
+                        className="text-center text-sm cursor-pointer hover:bg-yellow-50 hover:text-yellow-700 transition-colors text-yellow-600"
                         onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'tomorrow')}
                       >
                         {rm.tomorrow}
                       </TableCell>
                       <TableCell 
-                        className="text-center text-base cursor-pointer hover:bg-green-50 hover:text-green-700 transition-colors text-green-600"
+                        className="text-center text-sm cursor-pointer hover:bg-green-50 hover:text-green-700 transition-colors text-green-600"
                         onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'future')}
                       >
                         {rm.future}
                       </TableCell>
                       <TableCell 
-                        className="text-center text-base cursor-pointer hover:bg-gray-50 hover:text-gray-700 transition-colors"
+                        className="text-center text-sm cursor-pointer hover:bg-gray-50 hover:text-gray-700 transition-colors"
                         onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'no_ptp_set')}
                       >
                         {rm.no_ptp_set}
@@ -177,14 +365,14 @@ const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTabl
               ))}
               
               {branchPtpStatusData.length > 0 && (
-                <TableRow className="bg-muted/50 font-semibold">
-                  <TableCell colSpan={1} className="font-bold text-base">Total</TableCell>
-                  <TableCell className="text-center font-bold text-base">{totals.total}</TableCell>
-                  <TableCell className="text-center font-bold text-base text-red-600">{totals.overdue}</TableCell>
-                  <TableCell className="text-center font-bold text-base text-orange-600">{totals.today}</TableCell>
-                  <TableCell className="text-center font-bold text-base text-yellow-600">{totals.tomorrow}</TableCell>
-                  <TableCell className="text-center font-bold text-base text-green-600">{totals.future}</TableCell>
-                  <TableCell className="text-center font-bold text-base">{totals.no_ptp_set}</TableCell>
+                <TableRow className="bg-muted/50 font-medium">
+                  <TableCell colSpan={1} className="font-bold text-sm">Total</TableCell>
+                  <TableCell className="text-center font-bold text-sm">{totals.total}</TableCell>
+                  <TableCell className="text-center font-bold text-sm text-red-600">{totals.overdue}</TableCell>
+                  <TableCell className="text-center font-bold text-sm text-orange-600">{totals.today}</TableCell>
+                  <TableCell className="text-center font-bold text-sm text-yellow-600">{totals.tomorrow}</TableCell>
+                  <TableCell className="text-center font-bold text-sm text-green-600">{totals.future}</TableCell>
+                  <TableCell className="text-center font-bold text-sm">{totals.no_ptp_set}</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -193,7 +381,7 @@ const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTabl
         
         {branchPtpStatusData.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
-            <p className="text-lg">No data available for PTP status analysis</p>
+            <p className="text-sm">No data available for PTP status analysis</p>
           </div>
         )}
       </CardContent>
