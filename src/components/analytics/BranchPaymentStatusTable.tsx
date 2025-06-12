@@ -1,6 +1,5 @@
 import { Application } from '@/types/application';
 import { useBranchAnalyticsData } from '@/hooks/useBranchAnalyticsData';
-import { useExport } from '@/hooks/useExport';
 import {
   Table,
   TableBody,
@@ -10,29 +9,27 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChevronRight, ChevronDown, ArrowUpDown, Download } from 'lucide-react';
+import { ChevronRight, ChevronDown, ArrowUpDown } from 'lucide-react';
 import { useState } from 'react';
 import { DrillDownFilter } from '@/pages/Analytics';
-import { Button } from '@/components/ui/button';
 
 interface BranchPaymentStatusTableProps {
   applications: Application[];
   onDrillDown: (filter: DrillDownFilter) => void;
 }
 
-type SortField = 'branch_name' | 'total' | 'unpaid' | 'partially_paid' | 'paid_pending_approval' | 'paid' | 'others';
+type SortField = 'branch_name' | 'rm_name' | 'total' | 'unpaid' | 'partially_paid' | 'paid_pending_approval' | 'paid' | 'others';
 type SortDirection = 'asc' | 'desc';
 
 const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentStatusTableProps) => {
   const { branchPaymentStatusData } = useBranchAnalyticsData(applications);
-  const { exportToExcel } = useExport();
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('branch_name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [rmSortField, setRmSortField] = useState<SortField>('rm_name');
   const [rmSortDirection, setRmSortDirection] = useState<SortDirection>('asc');
 
-  const toggleBranch = (branchName: string) => {
+  function toggleBranch(branchName: string) {
     const newExpanded = new Set(expandedBranches);
     if (newExpanded.has(branchName)) {
       newExpanded.delete(branchName);
@@ -40,33 +37,33 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
       newExpanded.add(branchName);
     }
     setExpandedBranches(newExpanded);
-  };
+  }
 
-  const handleSort = (field: SortField) => {
+  function handleSort(field: SortField) {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
       setSortDirection('asc');
     }
-  };
+  }
 
-  const handleRmSort = (field: SortField) => {
+  function handleRmSort(field: SortField) {
     if (rmSortField === field) {
       setRmSortDirection(rmSortDirection === 'asc' ? 'desc' : 'asc');
     } else {
       setRmSortField(field);
       setRmSortDirection('asc');
     }
-  };
+  }
 
-  const handleCellClick = (branchName: string, rmName: string | undefined, statusType: string) => {
+  function handleCellClick(branchName: string, rmName: string | undefined, statusType: string) {
     onDrillDown({
       branch_name: branchName,
       rm_name: rmName,
       status_type: statusType
     });
-  };
+  }
 
   const sortedBranchData = [...branchPaymentStatusData].sort((a, b) => {
     let aValue: any, bValue: any;
@@ -115,7 +112,7 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
       let aValue: any, bValue: any;
       
       switch (rmSortField) {
-        case 'branch_name':
+        case 'rm_name':
           aValue = a.rm_name;
           bValue = b.rm_name;
           break;
@@ -154,10 +151,6 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
     });
   };
 
-  const handleExport = () => {
-    exportToExcel({ applications }, 'payment-status-report');
-  };
-
   const totals = branchPaymentStatusData.reduce(
     (acc, branch) => ({
       total: acc.total + branch.total_stats.total,
@@ -177,7 +170,7 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
           <div>
             <CardTitle className="text-lg">Payment Status by Branch</CardTitle>
             <CardDescription className="text-xs">
-              Breakdown of payment statuses across branches and relationship managers
+              Distribution of payment statuses across branches and RMs
             </CardDescription>
           </div>
         </div>
@@ -196,7 +189,7 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </TableHead>
-                <TableHead className="font-medium text-sm text-center w-24">
+                <TableHead className="font-medium text-sm text-center w-20">
                   <button
                     onClick={() => handleSort('total')}
                     className="flex items-center gap-1 hover:text-blue-600 transition-colors mx-auto"
@@ -205,7 +198,7 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </TableHead>
-                <TableHead className="font-medium text-sm text-center w-24">
+                <TableHead className="font-medium text-sm text-center w-20">
                   <button
                     onClick={() => handleSort('unpaid')}
                     className="flex items-center gap-1 hover:text-blue-600 transition-colors mx-auto"
@@ -219,20 +212,20 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
                     onClick={() => handleSort('partially_paid')}
                     className="flex items-center gap-1 hover:text-blue-600 transition-colors mx-auto"
                   >
-                    Partial
+                    Partially Paid
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </TableHead>
-                <TableHead className="font-medium text-sm text-center w-24">
+                <TableHead className="font-medium text-sm text-center w-28">
                   <button
                     onClick={() => handleSort('paid_pending_approval')}
                     className="flex items-center gap-1 hover:text-blue-600 transition-colors mx-auto"
                   >
-                    Pending
+                    Paid (Pending)
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </TableHead>
-                <TableHead className="font-medium text-sm text-center w-24">
+                <TableHead className="font-medium text-sm text-center w-16">
                   <button
                     onClick={() => handleSort('paid')}
                     className="flex items-center gap-1 hover:text-blue-600 transition-colors mx-auto"
@@ -241,7 +234,7 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </TableHead>
-                <TableHead className="font-medium text-sm text-center w-24">
+                <TableHead className="font-medium text-sm text-center w-20">
                   <button
                     onClick={() => handleSort('others')}
                     className="flex items-center gap-1 hover:text-blue-600 transition-colors mx-auto"

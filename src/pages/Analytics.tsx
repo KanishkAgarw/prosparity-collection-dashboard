@@ -11,12 +11,14 @@ import BranchPTPStatusTable from '@/components/analytics/BranchPTPStatusTable';
 import PTPEffectivenessTable from '@/components/analytics/PTPEffectivenessTable';
 import ApplicationDetailsModal from '@/components/analytics/ApplicationDetailsModal';
 import { Application } from '@/types/application';
+import { format } from 'date-fns';
 
 export interface DrillDownFilter {
   branch_name: string;
   rm_name?: string;
   status_type: string;
   ptp_criteria?: string;
+  ptp_date?: string;
 }
 
 const Analytics = () => {
@@ -42,8 +44,32 @@ const Analytics = () => {
     console.log('Total applications:', allApplications.length);
 
     const filtered = allApplications.filter(app => {
-      // Filter by branch
-      if (app.branch_name !== selectedFilter.branch_name) return false;
+      // Handle PTP date-specific filtering
+      if (selectedFilter.ptp_criteria === 'date_specific' && selectedFilter.ptp_date) {
+        if (!app.ptp_date) return false;
+        
+        try {
+          const appPtpDate = format(new Date(app.ptp_date), 'yyyy-MM-dd');
+          if (appPtpDate !== selectedFilter.ptp_date) return false;
+        } catch {
+          return false;
+        }
+        
+        // Apply status filter for the specific date
+        switch (selectedFilter.status_type) {
+          case 'paid':
+            return app.field_status === 'Paid';
+          case 'overdue':
+            return app.ptp_date && new Date(app.ptp_date) < new Date() && app.field_status !== 'Paid';
+          case 'total':
+            return true;
+          default:
+            return false;
+        }
+      }
+
+      // Filter by branch (skip for PTP date-based filtering without branch)
+      if (selectedFilter.branch_name && app.branch_name !== selectedFilter.branch_name) return false;
 
       // Filter by RM if specified (prioritize collection_rm)
       if (selectedFilter.rm_name) {

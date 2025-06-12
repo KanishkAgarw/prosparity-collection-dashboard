@@ -1,3 +1,4 @@
+
 import { Application } from '@/types/application';
 import { useBranchAnalyticsData } from '@/hooks/useBranchAnalyticsData';
 import { useExport } from '@/hooks/useExport';
@@ -10,22 +11,20 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChevronRight, ChevronDown, ArrowUpDown, Download } from 'lucide-react';
+import { ChevronRight, ChevronDown, ArrowUpDown } from 'lucide-react';
 import { useState } from 'react';
 import { DrillDownFilter } from '@/pages/Analytics';
-import { Button } from '@/components/ui/button';
 
 interface BranchPTPStatusTableProps {
   applications: Application[];
   onDrillDown: (filter: DrillDownFilter) => void;
 }
 
-type SortField = 'branch_name' | 'total' | 'overdue' | 'today' | 'tomorrow' | 'future' | 'no_ptp_set';
+type SortField = 'branch_name' | 'rm_name' | 'total' | 'overdue' | 'today' | 'tomorrow' | 'future' | 'no_ptp_set';
 type SortDirection = 'asc' | 'desc';
 
 const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTableProps) => {
   const { branchPtpStatusData } = useBranchAnalyticsData(applications);
-  const { exportToExcel } = useExport();
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('branch_name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -376,6 +375,141 @@ const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTabl
         )}
       </CardContent>
     </Card>
+  );
+
+  function toggleBranch(branchName: string) {
+    const newExpanded = new Set(expandedBranches);
+    if (newExpanded.has(branchName)) {
+      newExpanded.delete(branchName);
+    } else {
+      newExpanded.add(branchName);
+    }
+    setExpandedBranches(newExpanded);
+  }
+
+  function handleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  }
+
+  function handleRmSort(field: SortField) {
+    if (rmSortField === field) {
+      setRmSortDirection(rmSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setRmSortField(field);
+      setRmSortDirection('asc');
+    }
+  }
+
+  function handleCellClick(branchName: string, rmName: string | undefined, statusType: string) {
+    onDrillDown({
+      branch_name: branchName,
+      rm_name: rmName,
+      status_type: statusType,
+      ptp_criteria: statusType
+    });
+  }
+
+  const sortedBranchData = [...branchPtpStatusData].sort((a, b) => {
+    let aValue: any, bValue: any;
+    
+    switch (sortField) {
+      case 'branch_name':
+        aValue = a.branch_name;
+        bValue = b.branch_name;
+        break;
+      case 'total':
+        aValue = a.total_stats.total;
+        bValue = b.total_stats.total;
+        break;
+      case 'overdue':
+        aValue = a.total_stats.overdue;
+        bValue = b.total_stats.overdue;
+        break;
+      case 'today':
+        aValue = a.total_stats.today;
+        bValue = b.total_stats.today;
+        break;
+      case 'tomorrow':
+        aValue = a.total_stats.tomorrow;
+        bValue = b.total_stats.tomorrow;
+        break;
+      case 'future':
+        aValue = a.total_stats.future;
+        bValue = b.total_stats.future;
+        break;
+      case 'no_ptp_set':
+        aValue = a.total_stats.no_ptp_set;
+        bValue = b.total_stats.no_ptp_set;
+        break;
+      default:
+        return 0;
+    }
+
+    if (typeof aValue === 'string') {
+      return sortDirection === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+    }
+    return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+  });
+
+  const getSortedRms = (rms: any[]) => {
+    return [...rms].sort((a, b) => {
+      let aValue: any, bValue: any;
+      
+      switch (rmSortField) {
+        case 'rm_name':
+          aValue = a.rm_name;
+          bValue = b.rm_name;
+          break;
+        case 'total':
+          aValue = a.total;
+          bValue = b.total;
+          break;
+        case 'overdue':
+          aValue = a.overdue;
+          bValue = b.overdue;
+          break;
+        case 'today':
+          aValue = a.today;
+          bValue = b.today;
+          break;
+        case 'tomorrow':
+          aValue = a.tomorrow;
+          bValue = b.tomorrow;
+          break;
+        case 'future':
+          aValue = a.future;
+          bValue = b.future;
+          break;
+        case 'no_ptp_set':
+          aValue = a.no_ptp_set;
+          bValue = b.no_ptp_set;
+          break;
+        default:
+          return 0;
+      }
+
+      if (typeof aValue === 'string') {
+        return rmSortDirection === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+      }
+      return rmSortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+    });
+  };
+
+  const totals = branchPtpStatusData.reduce(
+    (acc, branch) => ({
+      total: acc.total + branch.total_stats.total,
+      overdue: acc.overdue + branch.total_stats.overdue,
+      today: acc.today + branch.total_stats.today,
+      tomorrow: acc.tomorrow + branch.total_stats.tomorrow,
+      future: acc.future + branch.total_stats.future,
+      no_ptp_set: acc.no_ptp_set + branch.total_stats.no_ptp_set,
+    }),
+    { total: 0, overdue: 0, today: 0, tomorrow: 0, future: 0, no_ptp_set: 0 }
   );
 };
 
