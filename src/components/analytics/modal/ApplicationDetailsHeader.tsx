@@ -28,17 +28,15 @@ const ApplicationDetailsHeader = ({ applicationsCount, filter, applications }: A
             Application Details
           </h2>
         </div>
-        <div className="flex-shrink-0 mr-8">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExport}
-            className="flex items-center gap-2"
-          >
-            <Download className="h-3 w-3" />
-            Export
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExport}
+          className="flex items-center gap-2 ml-auto"
+        >
+          <Download className="h-3 w-3" />
+          Export
+        </Button>
       </div>
       <p className="text-lg">
         <ModalFilterDescription filter={filter} />
