@@ -1,229 +1,217 @@
+
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card } from '@/components/ui/card';
+import { Application } from '@/types/application';
 import { useApplications } from '@/hooks/useApplications';
+import PaymentStatusTable from '@/components/analytics/PaymentStatusTable';
+import PTPStatusTable from '@/components/analytics/PTPStatusTable';
 import BranchPaymentStatusTable from '@/components/analytics/BranchPaymentStatusTable';
 import BranchPTPStatusTable from '@/components/analytics/BranchPTPStatusTable';
+import CollectionVelocityTable from '@/components/analytics/CollectionVelocityTable';
 import PTPEffectivenessTable from '@/components/analytics/PTPEffectivenessTable';
+import RMPerformanceTable from '@/components/analytics/RMPerformanceTable';
+import PaymentPatternTable from '@/components/analytics/PaymentPatternTable';
 import ApplicationDetailsModal from '@/components/analytics/ApplicationDetailsModal';
-import { Application } from '@/types/application';
-import { format } from 'date-fns';
+import { isToday, isTomorrow, isBefore, isAfter, startOfDay } from 'date-fns';
 
 export interface DrillDownFilter {
-  branch_name: string;
+  type: 'payment_status' | 'ptp_status' | 'branch_payment' | 'branch_ptp';
+  branch_name?: string;
   rm_name?: string;
-  status_type: string;
-  ptp_criteria?: string;
-  ptp_date?: string;
+  status?: string;
+  ptp_category?: string;
 }
 
 const Analytics = () => {
-  const navigate = useNavigate();
-  const { allApplications, loading } = useApplications();
-  const [selectedFilter, setSelectedFilter] = useState<DrillDownFilter | null>(null);
-  const [showModal, setShowModal] = useState(false);
+  const { data: applications = [] } = useApplications();
+  const [drillDownFilter, setDrillDownFilter] = useState<DrillDownFilter | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   const handleDrillDown = (filter: DrillDownFilter) => {
-    setSelectedFilter(filter);
-    setShowModal(true);
+    console.log('Analytics drill down triggered with filter:', filter);
+    setDrillDownFilter(filter);
+    setModalOpen(true);
   };
 
-  const handleCloseModal = () => {
-    setShowModal(false);
-    setSelectedFilter(null);
-  };
+  const getFilteredApplications = (filter: DrillDownFilter | null): Application[] => {
+    if (!filter) return [];
 
-  const getFilteredApplications = (): Application[] => {
-    if (!selectedFilter) return [];
+    console.log('Filtering applications with filter:', filter);
+    console.log('Total applications:', applications.length);
 
-    console.log('Filtering applications with filter:', selectedFilter);
-    console.log('Total applications:', allApplications.length);
+    let filtered = applications;
 
-    const filtered = allApplications.filter(app => {
-      // Handle PTP date-specific filtering
-      if (selectedFilter.ptp_criteria === 'date_specific' && selectedFilter.ptp_date) {
-        if (!app.ptp_date) return false;
-        
-        try {
-          const appPtpDate = format(new Date(app.ptp_date), 'yyyy-MM-dd');
-          if (appPtpDate !== selectedFilter.ptp_date) return false;
-        } catch {
-          return false;
-        }
-        
-        // Apply status filter for the specific date
-        switch (selectedFilter.status_type) {
-          case 'paid':
-            return app.field_status === 'Paid';
-          case 'overdue':
-            return app.ptp_date && new Date(app.ptp_date) < new Date() && app.field_status !== 'Paid';
-          case 'total':
-            return true;
-          default:
-            return false;
-        }
-      }
+    // Apply branch filter
+    if (filter.branch_name) {
+      filtered = filtered.filter(app => app.branch_name === filter.branch_name);
+      console.log('After branch filter:', filtered.length);
+    }
 
-      // Filter by branch (skip for PTP date-based filtering without branch)
-      if (selectedFilter.branch_name && app.branch_name !== selectedFilter.branch_name) return false;
+    // Apply RM filter
+    if (filter.rm_name) {
+      filtered = filtered.filter(app => {
+        const rmMatch = app.rm_name === filter.rm_name || app.collection_rm === filter.rm_name;
+        return rmMatch;
+      });
+      console.log('After RM filter:', filtered.length);
+    }
 
-      // Filter by RM if specified (prioritize collection_rm)
-      if (selectedFilter.rm_name) {
-        const actualRM = app.collection_rm || app.rm_name || 'Unknown RM';
-        if (actualRM !== selectedFilter.rm_name) {
-          return false;
-        }
-      }
+    // Apply specific filters based on type
+    if (filter.type === 'payment_status' && filter.status) {
+      filtered = filtered.filter(app => app.field_status === filter.status);
+      console.log('After payment status filter:', filtered.length);
+    } else if (filter.type === 'ptp_status' && filter.ptp_category) {
+      const today = startOfDay(new Date());
+      
+      // For PTP status, exclude paid applications
+      const unpaidApplications = filtered.filter(app => 
+        !['Paid'].includes(app.field_status || '')
+      );
+      console.log('Unpaid applications for PTP filter:', unpaidApplications.length);
 
-      // Handle PTP criteria-based filtering
-      if (selectedFilter.ptp_criteria) {
-        const today = new Date();
-        const todayStr = today.toDateString();
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowStr = tomorrow.toDateString();
-        
-        switch (selectedFilter.ptp_criteria) {
-          case 'overdue':
-            if (!app.ptp_date) return false;
-            try {
-              const ptpDate = new Date(app.ptp_date);
-              return ptpDate < today && app.field_status !== 'Paid';
-            } catch {
-              return false;
-            }
-          case 'today':
-            if (!app.ptp_date) return false;
-            try {
-              const ptpDate = new Date(app.ptp_date);
-              return ptpDate.toDateString() === todayStr;
-            } catch {
-              return false;
-            }
-          case 'tomorrow':
-            if (!app.ptp_date) return false;
-            try {
-              const ptpDate = new Date(app.ptp_date);
-              return ptpDate.toDateString() === tomorrowStr;
-            } catch {
-              return false;
-            }
-          case 'future':
-            if (!app.ptp_date) return false;
-            try {
-              const ptpDate = new Date(app.ptp_date);
-              const dayAfterTomorrow = new Date(today);
-              dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
-              return ptpDate >= dayAfterTomorrow;
-            } catch {
-              return false;
-            }
-          case 'no_ptp_set':
-            return !app.ptp_date;
-          default:
-            break;
-        }
-      }
-
-      // Filter by status type
-      switch (selectedFilter.status_type) {
-        case 'unpaid':
-          return app.field_status === 'Unpaid';
-        case 'partially_paid':
-          return app.field_status === 'Partially Paid';
-        case 'paid_pending_approval':
-          return app.field_status === 'Paid (Pending Approval)';
-        case 'paid':
-          return app.field_status === 'Paid';
-        case 'others':
-          return ['Cash Collected from Customer', 'Customer Deposited to Bank'].includes(app.field_status || '') ||
-                 !['Unpaid', 'Partially Paid', 'Paid (Pending Approval)', 'Paid'].includes(app.field_status || '');
-        case 'total':
-          // For total, return all applications in that branch/RM (already filtered above)
+      filtered = unpaidApplications.filter(app => {
+        if (!app.ptp_date && filter.ptp_category === 'no_ptp_set') {
           return true;
-        default:
+        }
+        
+        if (!app.ptp_date) {
           return false;
-      }
-    });
+        }
 
-    console.log('Filtered applications count:', filtered.length);
+        try {
+          const ptpDate = new Date(app.ptp_date);
+          
+          switch (filter.ptp_category) {
+            case 'overdue':
+              return isBefore(ptpDate, today);
+            case 'today':
+              return isToday(ptpDate);
+            case 'tomorrow':
+              return isTomorrow(ptpDate);
+            case 'future':
+              return isAfter(ptpDate, today) && !isTomorrow(ptpDate);
+            case 'no_ptp_set':
+              return false; // Already handled above
+            default:
+              return false;
+          }
+        } catch {
+          return filter.ptp_category === 'no_ptp_set';
+        }
+      });
+      console.log('After PTP category filter:', filtered.length);
+    } else if (filter.type === 'branch_payment' && filter.status) {
+      filtered = filtered.filter(app => app.field_status === filter.status);
+      console.log('After branch payment status filter:', filtered.length);
+    } else if (filter.type === 'branch_ptp' && filter.ptp_category) {
+      const today = startOfDay(new Date());
+      
+      // For branch PTP status, exclude paid applications
+      const unpaidApplications = filtered.filter(app => 
+        !['Paid'].includes(app.field_status || '')
+      );
+      console.log('Unpaid applications for branch PTP filter:', unpaidApplications.length);
+
+      filtered = unpaidApplications.filter(app => {
+        if (!app.ptp_date && filter.ptp_category === 'no_ptp_set') {
+          return true;
+        }
+        
+        if (!app.ptp_date) {
+          return false;
+        }
+
+        try {
+          const ptpDate = new Date(app.ptp_date);
+          
+          switch (filter.ptp_category) {
+            case 'overdue':
+              return isBefore(ptpDate, today);
+            case 'today':
+              return isToday(ptpDate);
+            case 'tomorrow':
+              return isTomorrow(ptpDate);
+            case 'future':
+              return isAfter(ptpDate, today) && !isTomorrow(ptpDate);
+            case 'no_ptp_set':
+              return false; // Already handled above
+            default:
+              return false;
+          }
+        } catch {
+          return filter.ptp_category === 'no_ptp_set';
+        }
+      });
+      console.log('After branch PTP category filter:', filtered.length);
+    }
+
+    console.log('Final filtered applications:', filtered.length);
     return filtered;
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="text-lg font-medium text-gray-700">Loading analytics...</p>
-        </div>
-      </div>
-    );
-  }
+  const filteredApplications = getFilteredApplications(drillDownFilter);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
-      <div className="container mx-auto px-4 py-6 max-w-6xl">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 hover:bg-white/80 transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
-          </Button>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Analytics Dashboard</h1>
-            <p className="text-gray-600">Comprehensive insights into payment collections and PTP performance</p>
-          </div>
+    <div className="container mx-auto py-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
+          <p className="text-muted-foreground">Comprehensive analysis of collections and performance</p>
         </div>
-
-        {/* Analytics Content */}
-        <Card className="bg-white/90 backdrop-blur-sm shadow-xl">
-          <Tabs defaultValue="payment-status" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 bg-gray-100/80 h-12">
-              <TabsTrigger value="payment-status" className="text-base font-medium">Payment Status</TabsTrigger>
-              <TabsTrigger value="ptp-status" className="text-base font-medium">PTP Status</TabsTrigger>
-              <TabsTrigger value="ptp-effectiveness" className="text-base font-medium">PTP Effectiveness</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="payment-status" className="space-y-4 p-6">
-              <BranchPaymentStatusTable 
-                applications={allApplications} 
-                onDrillDown={handleDrillDown}
-              />
-            </TabsContent>
-            
-            <TabsContent value="ptp-status" className="space-y-4 p-6">
-              <BranchPTPStatusTable 
-                applications={allApplications} 
-                onDrillDown={handleDrillDown}
-              />
-            </TabsContent>
-
-            <TabsContent value="ptp-effectiveness" className="space-y-4 p-6">
-              <PTPEffectivenessTable 
-                applications={allApplications}
-                onDrillDown={handleDrillDown}
-              />
-            </TabsContent>
-          </Tabs>
-        </Card>
-
-        {/* Drill-down Modal */}
-        <ApplicationDetailsModal
-          isOpen={showModal}
-          onClose={handleCloseModal}
-          applications={getFilteredApplications()}
-          filter={selectedFilter}
-        />
       </div>
+
+      <Tabs defaultValue="payment-status" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
+          <TabsTrigger value="payment-status">Payment Status</TabsTrigger>
+          <TabsTrigger value="ptp-status">PTP Status</TabsTrigger>
+          <TabsTrigger value="branch-payment">Branch Payment</TabsTrigger>
+          <TabsTrigger value="branch-ptp">Branch PTP</TabsTrigger>
+          <TabsTrigger value="collection-velocity">Collection Velocity</TabsTrigger>
+          <TabsTrigger value="ptp-effectiveness">PTP Effectiveness</TabsTrigger>
+          <TabsTrigger value="rm-performance">RM Performance</TabsTrigger>
+          <TabsTrigger value="payment-patterns">Payment Patterns</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="payment-status">
+          <PaymentStatusTable applications={applications} onDrillDown={handleDrillDown} />
+        </TabsContent>
+
+        <TabsContent value="ptp-status">
+          <PTPStatusTable applications={applications} onDrillDown={handleDrillDown} />
+        </TabsContent>
+
+        <TabsContent value="branch-payment">
+          <BranchPaymentStatusTable applications={applications} onDrillDown={handleDrillDown} />
+        </TabsContent>
+
+        <TabsContent value="branch-ptp">
+          <BranchPTPStatusTable applications={applications} onDrillDown={handleDrillDown} />
+        </TabsContent>
+
+        <TabsContent value="collection-velocity">
+          <CollectionVelocityTable applications={applications} />
+        </TabsContent>
+
+        <TabsContent value="ptp-effectiveness">
+          <PTPEffectivenessTable applications={applications} />
+        </TabsContent>
+
+        <TabsContent value="rm-performance">
+          <RMPerformanceTable applications={applications} />
+        </TabsContent>
+
+        <TabsContent value="payment-patterns">
+          <PaymentPatternTable applications={applications} />
+        </TabsContent>
+      </Tabs>
+
+      <ApplicationDetailsModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        applications={filteredApplications}
+        filter={drillDownFilter}
+      />
     </div>
   );
 };
