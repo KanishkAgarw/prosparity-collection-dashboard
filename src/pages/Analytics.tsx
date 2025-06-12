@@ -78,8 +78,13 @@ const Analytics = () => {
         }
       }
 
-      // Handle PTP criteria-based filtering
+      // Handle PTP criteria-based filtering (exclude only "Paid" status for PTP analysis)
       if (selectedFilter.ptp_criteria) {
+        // First exclude "Paid" status for all PTP criteria except 'total'
+        if (selectedFilter.ptp_criteria !== 'total' && app.field_status === 'Paid') {
+          return false;
+        }
+
         const today = new Date();
         const todayStr = today.toDateString();
         const tomorrow = new Date(today);
@@ -91,7 +96,7 @@ const Analytics = () => {
             if (!app.ptp_date) return false;
             try {
               const ptpDate = new Date(app.ptp_date);
-              return ptpDate < today && app.field_status !== 'Paid';
+              return ptpDate < today;
             } catch {
               return false;
             }

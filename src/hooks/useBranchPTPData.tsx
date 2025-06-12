@@ -22,8 +22,9 @@ export interface BranchPTPStatus {
 
 export const useBranchPTPData = (applications: Application[]) => {
   return useMemo(() => {
+    // Only exclude "Paid" status for PTP analysis
     const unpaidApplications = applications.filter(app => 
-      !['Paid'].includes(app.field_status || '')
+      app.field_status !== 'Paid'
     );
     
     const branchMap = new Map<string, BranchPTPStatus>();

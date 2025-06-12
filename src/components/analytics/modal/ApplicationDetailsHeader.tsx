@@ -22,21 +22,23 @@ const ApplicationDetailsHeader = ({ applicationsCount, filter, applications }: A
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-between items-start gap-6">
-        <div className="flex-1">
+      <div className="flex justify-between items-start gap-8">
+        <div className="flex-1 min-w-0">
           <h2 className="text-2xl font-bold text-gray-900">
             Application Details
           </h2>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleExport}
-          className="flex items-center gap-2 ml-auto"
-        >
-          <Download className="h-3 w-3" />
-          Export
-        </Button>
+        <div className="flex-shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            className="flex items-center gap-2"
+          >
+            <Download className="h-3 w-3" />
+            Export
+          </Button>
+        </div>
       </div>
       <p className="text-lg">
         <ModalFilterDescription filter={filter} />
