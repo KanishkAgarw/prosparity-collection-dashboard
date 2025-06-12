@@ -1,4 +1,3 @@
-
 import { Application } from '@/types/application';
 import { useBranchAnalyticsData } from '@/hooks/useBranchAnalyticsData';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -106,42 +105,49 @@ const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTabl
                   field="branch_name" 
                   onSort={branchSorting.handleSort}
                   className="w-48"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
                 />
                 <SortableTableHeader 
                   label="Total" 
                   field="total" 
                   onSort={branchSorting.handleSort}
                   className="text-center w-24"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
                 />
                 <SortableTableHeader 
                   label="Overdue" 
                   field="overdue" 
                   onSort={branchSorting.handleSort}
                   className="text-center w-24"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
                 />
                 <SortableTableHeader 
                   label="Today" 
                   field="today" 
                   onSort={branchSorting.handleSort}
                   className="text-center w-24"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
                 />
                 <SortableTableHeader 
                   label="Tomorrow" 
                   field="tomorrow" 
                   onSort={branchSorting.handleSort}
                   className="text-center w-24"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
                 />
                 <SortableTableHeader 
                   label="Future" 
                   field="future" 
                   onSort={branchSorting.handleSort}
                   className="text-center w-24"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
                 />
                 <SortableTableHeader 
                   label="No PTP" 
                   field="no_ptp_set" 
                   onSort={branchSorting.handleSort}
                   className="text-center w-24"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
                 />
               </TableRow>
             </TableHeader>

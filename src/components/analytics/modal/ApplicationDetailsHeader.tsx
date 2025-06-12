@@ -22,15 +22,17 @@ const ApplicationDetailsHeader = ({ applicationsCount, filter, applications }: A
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-between items-start">
-        <h2 className="text-2xl font-bold text-gray-900">
-          Application Details
-        </h2>
+      <div className="flex justify-between items-start gap-6">
+        <div className="flex-1">
+          <h2 className="text-2xl font-bold text-gray-900">
+            Application Details
+          </h2>
+        </div>
         <Button
           variant="outline"
           size="sm"
           onClick={handleExport}
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 ml-auto"
         >
           <Download className="h-3 w-3" />
           Export

@@ -1,4 +1,3 @@
-
 import { Application } from '@/types/application';
 import { useBranchAnalyticsData } from '@/hooks/useBranchAnalyticsData';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -105,42 +104,49 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
                   field="branch_name" 
                   onSort={branchSorting.handleSort}
                   className="w-48"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
                 />
                 <SortableTableHeader 
                   label="Total" 
                   field="total" 
                   onSort={branchSorting.handleSort}
                   className="text-center w-20"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
                 />
                 <SortableTableHeader 
                   label="Unpaid" 
                   field="unpaid" 
                   onSort={branchSorting.handleSort}
                   className="text-center w-20"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
                 />
                 <SortableTableHeader 
                   label="Partially Paid" 
                   field="partially_paid" 
                   onSort={branchSorting.handleSort}
                   className="text-center w-24"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
                 />
                 <SortableTableHeader 
                   label="Paid (Pending)" 
                   field="paid_pending_approval" 
                   onSort={branchSorting.handleSort}
                   className="text-center w-28"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
                 />
                 <SortableTableHeader 
                   label="Paid" 
                   field="paid" 
                   onSort={branchSorting.handleSort}
                   className="text-center w-16"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
                 />
                 <SortableTableHeader 
                   label="Others" 
                   field="others" 
                   onSort={branchSorting.handleSort}
                   className="text-center w-20"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
                 />
               </TableRow>
             </TableHeader>

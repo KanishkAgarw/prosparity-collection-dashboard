@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
@@ -79,6 +78,56 @@ const Analytics = () => {
         }
       }
 
+      // Handle PTP criteria-based filtering
+      if (selectedFilter.ptp_criteria) {
+        const today = new Date();
+        const todayStr = today.toDateString();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowStr = tomorrow.toDateString();
+        
+        switch (selectedFilter.ptp_criteria) {
+          case 'overdue':
+            if (!app.ptp_date) return false;
+            try {
+              const ptpDate = new Date(app.ptp_date);
+              return ptpDate < today && app.field_status !== 'Paid';
+            } catch {
+              return false;
+            }
+          case 'today':
+            if (!app.ptp_date) return false;
+            try {
+              const ptpDate = new Date(app.ptp_date);
+              return ptpDate.toDateString() === todayStr;
+            } catch {
+              return false;
+            }
+          case 'tomorrow':
+            if (!app.ptp_date) return false;
+            try {
+              const ptpDate = new Date(app.ptp_date);
+              return ptpDate.toDateString() === tomorrowStr;
+            } catch {
+              return false;
+            }
+          case 'future':
+            if (!app.ptp_date) return false;
+            try {
+              const ptpDate = new Date(app.ptp_date);
+              const dayAfterTomorrow = new Date(today);
+              dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
+              return ptpDate >= dayAfterTomorrow;
+            } catch {
+              return false;
+            }
+          case 'no_ptp_set':
+            return !app.ptp_date;
+          default:
+            break;
+        }
+      }
+
       // Filter by status type
       switch (selectedFilter.status_type) {
         case 'unpaid':
@@ -92,25 +141,8 @@ const Analytics = () => {
         case 'others':
           return ['Cash Collected from Customer', 'Customer Deposited to Bank'].includes(app.field_status || '') ||
                  !['Unpaid', 'Partially Paid', 'Paid (Pending Approval)', 'Paid'].includes(app.field_status || '');
-        case 'overdue':
-          return selectedFilter.ptp_criteria === 'overdue' && app.ptp_date && new Date(app.ptp_date) < new Date();
-        case 'today':
-          return selectedFilter.ptp_criteria === 'today' && app.ptp_date && 
-                 new Date(app.ptp_date).toDateString() === new Date().toDateString();
-        case 'tomorrow':
-          const tomorrow = new Date();
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          return selectedFilter.ptp_criteria === 'tomorrow' && app.ptp_date && 
-                 new Date(app.ptp_date).toDateString() === tomorrow.toDateString();
-        case 'future':
-          const dayAfterTomorrow = new Date();
-          dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
-          return selectedFilter.ptp_criteria === 'future' && app.ptp_date && 
-                 new Date(app.ptp_date) >= dayAfterTomorrow;
-        case 'no_ptp_set':
-          return selectedFilter.ptp_criteria === 'no_ptp_set' && !app.ptp_date;
         case 'total':
-          // For total, return all applications in that branch/RM
+          // For total, return all applications in that branch/RM (already filtered above)
           return true;
         default:
           return false;
