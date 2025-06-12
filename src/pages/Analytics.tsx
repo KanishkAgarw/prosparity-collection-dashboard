@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
@@ -6,10 +5,9 @@ import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
 import { useApplications } from '@/hooks/useApplications';
-import { useAuditLogs } from '@/hooks/useAuditLogs';
 import BranchPaymentStatusTable from '@/components/analytics/BranchPaymentStatusTable';
 import BranchPTPStatusTable from '@/components/analytics/BranchPTPStatusTable';
-import CollectionSummaryTable from '@/components/analytics/CollectionSummaryTable';
+import PTPEffectivenessTable from '@/components/analytics/PTPEffectivenessTable';
 import ApplicationDetailsModal from '@/components/analytics/ApplicationDetailsModal';
 import { Application } from '@/types/application';
 import { format, isToday, isTomorrow, isBefore, isAfter, startOfDay } from 'date-fns';
@@ -25,13 +23,10 @@ export interface DrillDownFilter {
 const Analytics = () => {
   const navigate = useNavigate();
   const { allApplications, loading } = useApplications();
-  // Get all audit logs for collection summary
-  const { auditLogs } = useAuditLogs();
   const [selectedFilter, setSelectedFilter] = useState<DrillDownFilter | null>(null);
   const [showModal, setShowModal] = useState(false);
 
   const handleDrillDown = (filter: DrillDownFilter) => {
-    console.log('Analytics drill-down with filter:', filter);
     setSelectedFilter(filter);
     setShowModal(true);
   };
@@ -47,52 +42,6 @@ const Analytics = () => {
     console.log('Filtering applications with filter:', selectedFilter);
     console.log('Total applications:', allApplications.length);
 
-    // Handle collection summary drill-down
-    if (selectedFilter.status_type === 'collection_summary') {
-      // Filter applications based on audit logs for collection status changes
-      const collectionStatuses = [
-        'Paid (Pending Approval)',
-        'Cash Collected from Customer', 
-        'Partially Paid',
-        'Customer Deposited to Bank'
-      ];
-
-      const relevantAuditLogs = auditLogs.filter(log => {
-        if (log.field !== 'Status' || !log.new_value || !collectionStatuses.includes(log.new_value)) {
-          return false;
-        }
-
-        // Filter by date if specified
-        if (selectedFilter.ptp_date && selectedFilter.ptp_date !== 'all') {
-          const logDate = format(new Date(log.created_at), 'dd-MMM-yy');
-          if (logDate !== selectedFilter.ptp_date) return false;
-        }
-
-        return true;
-      });
-
-      const applicationIds = new Set(relevantAuditLogs.map(log => log.application_id));
-      
-      const filtered = allApplications.filter(app => {
-        if (!applicationIds.has(app.applicant_id)) return false;
-        
-        // Filter by branch
-        if (selectedFilter.branch_name && app.branch_name !== selectedFilter.branch_name) return false;
-        
-        // Filter by RM
-        if (selectedFilter.rm_name) {
-          const actualRM = app.collection_rm || app.rm_name || 'Unknown RM';
-          if (actualRM !== selectedFilter.rm_name) return false;
-        }
-
-        return true;
-      });
-
-      console.log('Collection summary filtered applications:', filtered.length);
-      return filtered;
-    }
-
-    // Handle regular filtering (existing logic)
     const filtered = allApplications.filter(app => {
       // Handle PTP date-specific filtering
       if (selectedFilter.ptp_criteria === 'date_specific' && selectedFilter.ptp_date) {
@@ -118,8 +67,8 @@ const Analytics = () => {
         }
       }
 
-      // Filter by branch (handle total row drill-down)
-      if (selectedFilter.branch_name && selectedFilter.branch_name !== '' && app.branch_name !== selectedFilter.branch_name) return false;
+      // Filter by branch (skip for PTP date-based filtering without branch)
+      if (selectedFilter.branch_name && app.branch_name !== selectedFilter.branch_name) return false;
 
       // Filter by RM if specified (prioritize collection_rm)
       if (selectedFilter.rm_name) {
@@ -250,7 +199,7 @@ const Analytics = () => {
             <TabsList className="grid w-full grid-cols-3 bg-gray-100/80 h-12">
               <TabsTrigger value="payment-status" className="text-base font-medium">Payment Status</TabsTrigger>
               <TabsTrigger value="ptp-status" className="text-base font-medium">PTP Status</TabsTrigger>
-              <TabsTrigger value="collection-summary" className="text-base font-medium">Collection Summary</TabsTrigger>
+              <TabsTrigger value="ptp-effectiveness" className="text-base font-medium">PTP Effectiveness</TabsTrigger>
             </TabsList>
             
             <TabsContent value="payment-status" className="space-y-4 p-6">
@@ -267,10 +216,9 @@ const Analytics = () => {
               />
             </TabsContent>
 
-            <TabsContent value="collection-summary" className="space-y-4 p-6">
-              <CollectionSummaryTable 
+            <TabsContent value="ptp-effectiveness" className="space-y-4 p-6">
+              <PTPEffectivenessTable 
                 applications={allApplications}
-                auditLogs={auditLogs}
                 onDrillDown={handleDrillDown}
               />
             </TabsContent>

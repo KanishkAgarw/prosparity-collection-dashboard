@@ -1,33 +1,27 @@
-
 import { Application } from '@/types/application';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { useBranchAnalyticsData } from '@/hooks/useBranchAnalyticsData';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useState } from 'react';
 import { DrillDownFilter } from '@/pages/Analytics';
 import { useTableSorting } from '@/hooks/useTableSorting';
-import { useBranchPaymentData } from '@/hooks/useBranchPaymentData';
 import SortableTableHeader from './shared/SortableTableHeader';
-import ExpandableRow from './shared/ExpandableRow';
 import ClickableTableCell from './shared/ClickableTableCell';
+import ExpandableRow from './shared/ExpandableRow';
 
 interface BranchPaymentStatusTableProps {
   applications: Application[];
   onDrillDown: (filter: DrillDownFilter) => void;
 }
 
-type SortField = 'branch_name' | 'total';
+type SortField = 'branch_name' | 'rm_name' | 'total' | 'unpaid' | 'partially_paid' | 'paid_pending_approval' | 'paid' | 'others';
 
 const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentStatusTableProps) => {
-  const paymentData = useBranchPaymentData(applications);
-  const { sortField, sortDirection, handleSort, getSortedData } = useTableSorting<SortField>('total', 'desc');
+  const { branchPaymentStatusData } = useBranchAnalyticsData(applications);
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
+  
+  const branchSorting = useTableSorting<SortField>('branch_name');
+  const rmSorting = useTableSorting<SortField>('rm_name');
 
   const toggleBranch = (branchName: string) => {
     const newExpanded = new Set(expandedBranches);
@@ -39,75 +33,128 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
     setExpandedBranches(newExpanded);
   };
 
-  const handleCellClick = (branchName: string, rmName: string | null, statusType: string) => {
+  const handleCellClick = (branchName: string, rmName: string | undefined, statusType: string) => {
     onDrillDown({
       branch_name: branchName,
-      rm_name: rmName || undefined,
+      rm_name: rmName,
       status_type: statusType
     });
   };
 
-  const getValue = (item: any, field: SortField) => {
+  const getBranchValue = (branch: any, field: SortField) => {
     switch (field) {
-      case 'branch_name': return item.branch_name;
-      case 'total': return item.total_stats.total;
+      case 'branch_name': return branch.branch_name;
+      case 'total': return branch.total_stats.total;
+      case 'unpaid': return branch.total_stats.unpaid;
+      case 'partially_paid': return branch.total_stats.partially_paid;
+      case 'paid_pending_approval': return branch.total_stats.paid_pending_approval;
+      case 'paid': return branch.total_stats.paid;
+      case 'others': return branch.total_stats.others;
       default: return 0;
     }
   };
 
-  const sortedData = getSortedData(paymentData, getValue);
+  const getRmValue = (rm: any, field: SortField) => {
+    switch (field) {
+      case 'rm_name': return rm.rm_name;
+      case 'total': return rm.total;
+      case 'unpaid': return rm.unpaid;
+      case 'partially_paid': return rm.partially_paid;
+      case 'paid_pending_approval': return rm.paid_pending_approval;
+      case 'paid': return rm.paid;
+      case 'others': return rm.others;
+      default: return 0;
+    }
+  };
 
-  // Calculate totals for each status
-  const totals = paymentData.reduce((acc, branch) => ({
-    unpaid: acc.unpaid + branch.total_stats.unpaid,
-    partially_paid: acc.partially_paid + branch.total_stats.partially_paid,
-    paid_pending_approval: acc.paid_pending_approval + branch.total_stats.paid_pending_approval,
-    paid: acc.paid + branch.total_stats.paid,
-    others: acc.others + branch.total_stats.others,
-    total: acc.total + branch.total_stats.total,
-  }), { unpaid: 0, partially_paid: 0, paid_pending_approval: 0, paid: 0, others: 0, total: 0 });
+  const sortedBranchData = branchSorting.getSortedData(branchPaymentStatusData, getBranchValue);
+  const getSortedRms = (rms: any[]) => rmSorting.getSortedData(rms, getRmValue);
+
+  const totals = branchPaymentStatusData.reduce(
+    (acc, branch) => ({
+      total: acc.total + branch.total_stats.total,
+      unpaid: acc.unpaid + branch.total_stats.unpaid,
+      partially_paid: acc.partially_paid + branch.total_stats.partially_paid,
+      paid_pending_approval: acc.paid_pending_approval + branch.total_stats.paid_pending_approval,
+      paid: acc.paid + branch.total_stats.paid,
+      others: acc.others + branch.total_stats.others,
+    }),
+    { total: 0, unpaid: 0, partially_paid: 0, paid_pending_approval: 0, paid: 0, others: 0 }
+  );
 
   return (
     <Card>
       <CardHeader>
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle className="text-lg">Payment Status by Branch & RM</CardTitle>
+            <CardTitle className="text-lg">Payment Status by Branch</CardTitle>
             <CardDescription className="text-xs">
-              Shows the count of applications in each payment status category across branches and RMs. Click any number to drill down and see the detailed applications.
+              Distribution of payment statuses across branches and RMs
             </CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="rounded-md border overflow-x-auto">
+        <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
                 <SortableTableHeader 
-                  label="Branch / RM" 
+                  label="Branch/RM" 
                   field="branch_name" 
-                  onSort={handleSort}
-                  className="w-48 sticky left-0 bg-background"
+                  onSort={branchSorting.handleSort}
+                  className="w-48"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
                 />
                 <SortableTableHeader 
                   label="Total" 
                   field="total" 
-                  onSort={handleSort}
+                  onSort={branchSorting.handleSort}
                   className="text-center w-20"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
                 />
-                <TableHead className="text-center min-w-20">Unpaid</TableHead>
-                <TableHead className="text-center min-w-20">Partially Paid</TableHead>
-                <TableHead className="text-center min-w-24">Paid (Pending Approval)</TableHead>
-                <TableHead className="text-center min-w-16">Paid</TableHead>
-                <TableHead className="text-center min-w-16">Others</TableHead>
+                <SortableTableHeader 
+                  label="Unpaid" 
+                  field="unpaid" 
+                  onSort={branchSorting.handleSort}
+                  className="text-center w-20"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
+                />
+                <SortableTableHeader 
+                  label="Partially Paid" 
+                  field="partially_paid" 
+                  onSort={branchSorting.handleSort}
+                  className="text-center w-24"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
+                />
+                <SortableTableHeader 
+                  label="Paid (Pending)" 
+                  field="paid_pending_approval" 
+                  onSort={branchSorting.handleSort}
+                  className="text-center w-28"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
+                />
+                <SortableTableHeader 
+                  label="Paid" 
+                  field="paid" 
+                  onSort={branchSorting.handleSort}
+                  className="text-center w-16"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
+                />
+                <SortableTableHeader 
+                  label="Others" 
+                  field="others" 
+                  onSort={branchSorting.handleSort}
+                  className="text-center w-20"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
+                />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedData.map((branch) => (
+              {sortedBranchData.map((branch) => (
                 <>
                   <TableRow key={branch.branch_name} className="hover:bg-muted/50">
-                    <TableCell className="font-medium text-sm sticky left-0 bg-background">
+                    <TableCell className="font-medium text-sm">
                       <ExpandableRow
                         isExpanded={expandedBranches.has(branch.branch_name)}
                         onToggle={() => toggleBranch(branch.branch_name)}
@@ -116,35 +163,37 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
                     </TableCell>
                     <ClickableTableCell
                       value={branch.total_stats.total}
-                      onClick={() => handleCellClick(branch.branch_name, null, 'total')}
+                      onClick={() => handleCellClick(branch.branch_name, undefined, 'total')}
                     />
                     <ClickableTableCell
                       value={branch.total_stats.unpaid}
-                      onClick={() => handleCellClick(branch.branch_name, null, 'unpaid')}
+                      onClick={() => handleCellClick(branch.branch_name, undefined, 'unpaid')}
+                      colorClass="text-red-600"
                     />
                     <ClickableTableCell
                       value={branch.total_stats.partially_paid}
-                      onClick={() => handleCellClick(branch.branch_name, null, 'partially_paid')}
+                      onClick={() => handleCellClick(branch.branch_name, undefined, 'partially_paid')}
+                      colorClass="text-yellow-600"
                     />
                     <ClickableTableCell
                       value={branch.total_stats.paid_pending_approval}
-                      onClick={() => handleCellClick(branch.branch_name, null, 'paid_pending_approval')}
+                      onClick={() => handleCellClick(branch.branch_name, undefined, 'paid_pending_approval')}
+                      colorClass="text-orange-600"
                     />
                     <ClickableTableCell
                       value={branch.total_stats.paid}
-                      onClick={() => handleCellClick(branch.branch_name, null, 'paid')}
+                      onClick={() => handleCellClick(branch.branch_name, undefined, 'paid')}
+                      colorClass="text-green-600"
                     />
                     <ClickableTableCell
                       value={branch.total_stats.others}
-                      onClick={() => handleCellClick(branch.branch_name, null, 'others')}
+                      onClick={() => handleCellClick(branch.branch_name, undefined, 'others')}
                     />
                   </TableRow>
                   
-                  {expandedBranches.has(branch.branch_name) && branch.rm_stats.map((rm) => (
-                    <TableRow key={`${branch.branch_name}-${rm.rm_name}`} className="bg-muted/30">
-                      <TableCell className="text-sm pl-8 sticky left-0 bg-muted/30">
-                        {rm.rm_name}
-                      </TableCell>
+                  {expandedBranches.has(branch.branch_name) && getSortedRms(branch.rm_stats).map((rm) => (
+                    <TableRow key={`${branch.branch_name}-${rm.rm_name}`} className="bg-muted/25 hover:bg-muted/40">
+                      <TableCell className="text-sm pl-8">{rm.rm_name}</TableCell>
                       <ClickableTableCell
                         value={rm.total}
                         onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'total')}
@@ -152,18 +201,22 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
                       <ClickableTableCell
                         value={rm.unpaid}
                         onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'unpaid')}
+                        colorClass="text-red-600"
                       />
                       <ClickableTableCell
                         value={rm.partially_paid}
                         onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'partially_paid')}
+                        colorClass="text-yellow-600"
                       />
                       <ClickableTableCell
                         value={rm.paid_pending_approval}
                         onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'paid_pending_approval')}
+                        colorClass="text-orange-600"
                       />
                       <ClickableTableCell
                         value={rm.paid}
                         onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'paid')}
+                        colorClass="text-green-600"
                       />
                       <ClickableTableCell
                         value={rm.others}
@@ -174,51 +227,24 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
                 </>
               ))}
               
-              {paymentData.length > 0 && (
-                <TableRow className="bg-muted/50 font-medium border-t-2">
-                  <TableCell className="font-bold text-sm sticky left-0 bg-muted/50">
-                    Total
-                  </TableCell>
-                  <ClickableTableCell
-                    value={totals.total}
-                    onClick={() => handleCellClick('', null, 'total')}
-                    className="font-bold"
-                  />
-                  <ClickableTableCell
-                    value={totals.unpaid}
-                    onClick={() => handleCellClick('', null, 'unpaid')}
-                    className="font-bold"
-                  />
-                  <ClickableTableCell
-                    value={totals.partially_paid}
-                    onClick={() => handleCellClick('', null, 'partially_paid')}
-                    className="font-bold"
-                  />
-                  <ClickableTableCell
-                    value={totals.paid_pending_approval}
-                    onClick={() => handleCellClick('', null, 'paid_pending_approval')}
-                    className="font-bold"
-                  />
-                  <ClickableTableCell
-                    value={totals.paid}
-                    onClick={() => handleCellClick('', null, 'paid')}
-                    className="font-bold"
-                  />
-                  <ClickableTableCell
-                    value={totals.others}
-                    onClick={() => handleCellClick('', null, 'others')}
-                    className="font-bold"
-                  />
+              {branchPaymentStatusData.length > 0 && (
+                <TableRow className="bg-muted/50 font-medium">
+                  <TableCell colSpan={1} className="font-bold text-sm">Total</TableCell>
+                  <TableCell className="text-center font-bold text-sm">{totals.total}</TableCell>
+                  <TableCell className="text-center font-bold text-sm text-red-600">{totals.unpaid}</TableCell>
+                  <TableCell className="text-center font-bold text-sm text-yellow-600">{totals.partially_paid}</TableCell>
+                  <TableCell className="text-center font-bold text-sm text-orange-600">{totals.paid_pending_approval}</TableCell>
+                  <TableCell className="text-center font-bold text-sm text-green-600">{totals.paid}</TableCell>
+                  <TableCell className="text-center font-bold text-sm">{totals.others}</TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
         </div>
         
-        {paymentData.length === 0 && (
+        {branchPaymentStatusData.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
-            <p className="text-sm font-medium">No payment status data available</p>
-            <p className="text-xs mt-2">Data will appear when applications with different payment statuses are loaded</p>
+            <p className="text-sm">No data available for payment status analysis</p>
           </div>
         )}
       </CardContent>

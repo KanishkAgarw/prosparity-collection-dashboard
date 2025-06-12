@@ -3,9 +3,9 @@ import { useState } from 'react';
 
 export type SortDirection = 'asc' | 'desc';
 
-export const useTableSorting = <T extends string>(initialField: T, initialDirection: SortDirection = 'asc') => {
+export const useTableSorting = <T extends string>(initialField: T) => {
   const [sortField, setSortField] = useState<T>(initialField);
-  const [sortDirection, setSortDirection] = useState<SortDirection>(initialDirection);
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   const handleSort = (field: T) => {
     if (sortField === field) {

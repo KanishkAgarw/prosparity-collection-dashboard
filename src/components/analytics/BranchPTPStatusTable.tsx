@@ -1,33 +1,27 @@
-
 import { Application } from '@/types/application';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { useBranchAnalyticsData } from '@/hooks/useBranchAnalyticsData';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useState } from 'react';
 import { DrillDownFilter } from '@/pages/Analytics';
 import { useTableSorting } from '@/hooks/useTableSorting';
-import { useBranchPTPData } from '@/hooks/useBranchPTPData';
 import SortableTableHeader from './shared/SortableTableHeader';
-import ExpandableRow from './shared/ExpandableRow';
 import ClickableTableCell from './shared/ClickableTableCell';
+import ExpandableRow from './shared/ExpandableRow';
 
 interface BranchPTPStatusTableProps {
   applications: Application[];
   onDrillDown: (filter: DrillDownFilter) => void;
 }
 
-type SortField = 'branch_name' | 'total';
+type SortField = 'branch_name' | 'rm_name' | 'total' | 'overdue' | 'today' | 'tomorrow' | 'future' | 'no_ptp_set';
 
 const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTableProps) => {
-  const ptpData = useBranchPTPData(applications);
-  const { sortField, sortDirection, handleSort, getSortedData } = useTableSorting<SortField>('total', 'desc');
+  const { branchPtpStatusData } = useBranchAnalyticsData(applications);
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
+  
+  const branchSorting = useTableSorting<SortField>('branch_name');
+  const rmSorting = useTableSorting<SortField>('rm_name');
 
   const toggleBranch = (branchName: string) => {
     const newExpanded = new Set(expandedBranches);
@@ -39,76 +33,129 @@ const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTabl
     setExpandedBranches(newExpanded);
   };
 
-  const handleCellClick = (branchName: string, rmName: string | null, ptpCriteria: string) => {
+  const handleCellClick = (branchName: string, rmName: string | undefined, statusType: string) => {
     onDrillDown({
       branch_name: branchName,
-      rm_name: rmName || undefined,
-      status_type: 'ptp_analysis',
-      ptp_criteria: ptpCriteria
+      rm_name: rmName,
+      status_type: statusType,
+      ptp_criteria: statusType
     });
   };
 
-  const getValue = (item: any, field: SortField) => {
+  const getBranchValue = (branch: any, field: SortField) => {
     switch (field) {
-      case 'branch_name': return item.branch_name;
-      case 'total': return item.total_stats.total;
+      case 'branch_name': return branch.branch_name;
+      case 'total': return branch.total_stats.total;
+      case 'overdue': return branch.total_stats.overdue;
+      case 'today': return branch.total_stats.today;
+      case 'tomorrow': return branch.total_stats.tomorrow;
+      case 'future': return branch.total_stats.future;
+      case 'no_ptp_set': return branch.total_stats.no_ptp_set;
       default: return 0;
     }
   };
 
-  const sortedData = getSortedData(ptpData, getValue);
+  const getRmValue = (rm: any, field: SortField) => {
+    switch (field) {
+      case 'rm_name': return rm.rm_name;
+      case 'total': return rm.total;
+      case 'overdue': return rm.overdue;
+      case 'today': return rm.today;
+      case 'tomorrow': return rm.tomorrow;
+      case 'future': return rm.future;
+      case 'no_ptp_set': return rm.no_ptp_set;
+      default: return 0;
+    }
+  };
 
-  // Calculate totals for each PTP status
-  const totals = ptpData.reduce((acc, branch) => ({
-    overdue: acc.overdue + branch.total_stats.overdue,
-    today: acc.today + branch.total_stats.today,
-    tomorrow: acc.tomorrow + branch.total_stats.tomorrow,
-    future: acc.future + branch.total_stats.future,
-    no_ptp_set: acc.no_ptp_set + branch.total_stats.no_ptp_set,
-    total: acc.total + branch.total_stats.total,
-  }), { overdue: 0, today: 0, tomorrow: 0, future: 0, no_ptp_set: 0, total: 0 });
+  const sortedBranchData = branchSorting.getSortedData(branchPtpStatusData, getBranchValue);
+  const getSortedRms = (rms: any[]) => rmSorting.getSortedData(rms, getRmValue);
+
+  const totals = branchPtpStatusData.reduce(
+    (acc, branch) => ({
+      total: acc.total + branch.total_stats.total,
+      overdue: acc.overdue + branch.total_stats.overdue,
+      today: acc.today + branch.total_stats.today,
+      tomorrow: acc.tomorrow + branch.total_stats.tomorrow,
+      future: acc.future + branch.total_stats.future,
+      no_ptp_set: acc.no_ptp_set + branch.total_stats.no_ptp_set,
+    }),
+    { total: 0, overdue: 0, today: 0, tomorrow: 0, future: 0, no_ptp_set: 0 }
+  );
 
   return (
     <Card>
       <CardHeader>
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle className="text-lg">PTP Status by Branch & RM</CardTitle>
+            <CardTitle className="text-lg">PTP Status by Branch</CardTitle>
             <CardDescription className="text-xs">
-              Shows the count of applications by their Promise-to-Pay (PTP) dates across branches and RMs. Excludes applications with 'Paid' status. Click any number to drill down and see the detailed applications.
+              Promise to Pay scheduling status across branches and RMs
             </CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="rounded-md border overflow-x-auto">
+        <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
                 <SortableTableHeader 
-                  label="Branch / RM" 
+                  label="Branch/RM" 
                   field="branch_name" 
-                  onSort={handleSort}
-                  className="w-48 sticky left-0 bg-background"
+                  onSort={branchSorting.handleSort}
+                  className="w-48"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
                 />
                 <SortableTableHeader 
                   label="Total" 
                   field="total" 
-                  onSort={handleSort}
-                  className="text-center w-20"
+                  onSort={branchSorting.handleSort}
+                  className="text-center w-24"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
                 />
-                <TableHead className="text-center min-w-20">Overdue</TableHead>
-                <TableHead className="text-center min-w-16">Today</TableHead>
-                <TableHead className="text-center min-w-20">Tomorrow</TableHead>
-                <TableHead className="text-center min-w-16">Future</TableHead>
-                <TableHead className="text-center min-w-24">No PTP Set</TableHead>
+                <SortableTableHeader 
+                  label="Overdue" 
+                  field="overdue" 
+                  onSort={branchSorting.handleSort}
+                  className="text-center w-24"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
+                />
+                <SortableTableHeader 
+                  label="Today" 
+                  field="today" 
+                  onSort={branchSorting.handleSort}
+                  className="text-center w-24"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
+                />
+                <SortableTableHeader 
+                  label="Tomorrow" 
+                  field="tomorrow" 
+                  onSort={branchSorting.handleSort}
+                  className="text-center w-24"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
+                />
+                <SortableTableHeader 
+                  label="Future" 
+                  field="future" 
+                  onSort={branchSorting.handleSort}
+                  className="text-center w-24"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
+                />
+                <SortableTableHeader 
+                  label="No PTP" 
+                  field="no_ptp_set" 
+                  onSort={branchSorting.handleSort}
+                  className="text-center w-24"
+                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
+                />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedData.map((branch) => (
+              {sortedBranchData.map((branch) => (
                 <>
                   <TableRow key={branch.branch_name} className="hover:bg-muted/50">
-                    <TableCell className="font-medium text-sm sticky left-0 bg-background">
+                    <TableCell className="font-medium text-sm">
                       <ExpandableRow
                         isExpanded={expandedBranches.has(branch.branch_name)}
                         onToggle={() => toggleBranch(branch.branch_name)}
@@ -117,40 +164,37 @@ const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTabl
                     </TableCell>
                     <ClickableTableCell
                       value={branch.total_stats.total}
-                      onClick={() => handleCellClick(branch.branch_name, null, 'total')}
+                      onClick={() => handleCellClick(branch.branch_name, undefined, 'total')}
                     />
                     <ClickableTableCell
                       value={branch.total_stats.overdue}
-                      onClick={() => handleCellClick(branch.branch_name, null, 'overdue')}
-                      className="text-red-600"
+                      onClick={() => handleCellClick(branch.branch_name, undefined, 'overdue')}
+                      colorClass="text-red-600"
                     />
                     <ClickableTableCell
                       value={branch.total_stats.today}
-                      onClick={() => handleCellClick(branch.branch_name, null, 'today')}
-                      className="text-blue-600"
+                      onClick={() => handleCellClick(branch.branch_name, undefined, 'today')}
+                      colorClass="text-orange-600"
                     />
                     <ClickableTableCell
                       value={branch.total_stats.tomorrow}
-                      onClick={() => handleCellClick(branch.branch_name, null, 'tomorrow')}
-                      className="text-orange-600"
+                      onClick={() => handleCellClick(branch.branch_name, undefined, 'tomorrow')}
+                      colorClass="text-yellow-600"
                     />
                     <ClickableTableCell
                       value={branch.total_stats.future}
-                      onClick={() => handleCellClick(branch.branch_name, null, 'future')}
-                      className="text-green-600"
+                      onClick={() => handleCellClick(branch.branch_name, undefined, 'future')}
+                      colorClass="text-green-600"
                     />
                     <ClickableTableCell
                       value={branch.total_stats.no_ptp_set}
-                      onClick={() => handleCellClick(branch.branch_name, null, 'no_ptp_set')}
-                      className="text-gray-600"
+                      onClick={() => handleCellClick(branch.branch_name, undefined, 'no_ptp_set')}
                     />
                   </TableRow>
                   
-                  {expandedBranches.has(branch.branch_name) && branch.rm_stats.map((rm) => (
-                    <TableRow key={`${branch.branch_name}-${rm.rm_name}`} className="bg-muted/30">
-                      <TableCell className="text-sm pl-8 sticky left-0 bg-muted/30">
-                        {rm.rm_name}
-                      </TableCell>
+                  {expandedBranches.has(branch.branch_name) && getSortedRms(branch.rm_stats).map((rm) => (
+                    <TableRow key={`${branch.branch_name}-${rm.rm_name}`} className="bg-muted/25 hover:bg-muted/40">
+                      <TableCell className="text-sm pl-8">{rm.rm_name}</TableCell>
                       <ClickableTableCell
                         value={rm.total}
                         onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'total')}
@@ -158,78 +202,50 @@ const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTabl
                       <ClickableTableCell
                         value={rm.overdue}
                         onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'overdue')}
-                        className="text-red-600"
+                        colorClass="text-red-600"
                       />
                       <ClickableTableCell
                         value={rm.today}
                         onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'today')}
-                        className="text-blue-600"
+                        colorClass="text-orange-600"
                       />
                       <ClickableTableCell
                         value={rm.tomorrow}
                         onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'tomorrow')}
-                        className="text-orange-600"
+                        colorClass="text-yellow-600"
                       />
                       <ClickableTableCell
                         value={rm.future}
                         onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'future')}
-                        className="text-green-600"
+                        colorClass="text-green-600"
                       />
                       <ClickableTableCell
                         value={rm.no_ptp_set}
                         onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'no_ptp_set')}
-                        className="text-gray-600"
                       />
                     </TableRow>
                   ))}
                 </>
               ))}
               
-              {ptpData.length > 0 && (
-                <TableRow className="bg-muted/50 font-medium border-t-2">
-                  <TableCell className="font-bold text-sm sticky left-0 bg-muted/50">
-                    Total
-                  </TableCell>
-                  <ClickableTableCell
-                    value={totals.total}
-                    onClick={() => handleCellClick('', null, 'total')}
-                    className="font-bold"
-                  />
-                  <ClickableTableCell
-                    value={totals.overdue}
-                    onClick={() => handleCellClick('', null, 'overdue')}
-                    className="font-bold text-red-600"
-                  />
-                  <ClickableTableCell
-                    value={totals.today}
-                    onClick={() => handleCellClick('', null, 'today')}
-                    className="font-bold text-blue-600"
-                  />
-                  <ClickableTableCell
-                    value={totals.tomorrow}
-                    onClick={() => handleCellClick('', null, 'tomorrow')}
-                    className="font-bold text-orange-600"
-                  />
-                  <ClickableTableCell
-                    value={totals.future}
-                    onClick={() => handleCellClick('', null, 'future')}
-                    className="font-bold text-green-600"
-                  />
-                  <ClickableTableCell
-                    value={totals.no_ptp_set}
-                    onClick={() => handleCellClick('', null, 'no_ptp_set')}
-                    className="font-bold text-gray-600"
-                  />
+              {branchPtpStatusData.length > 0 && (
+                <TableRow className="bg-muted/50 font-medium">
+                  <TableCell colSpan={1} className="font-bold text-sm">Total</TableCell>
+                  <TableCell className="text-center font-bold text-sm">{totals.total}</TableCell>
+                  <TableCell className="text-center font-bold text-sm text-red-600">{totals.overdue}</TableCell>
+                  <TableCell className="text-center font-bold text-sm text-orange-600">{totals.today}</TableCell>
+                  <TableCell className="text-center font-bold text-sm text-yellow-600">{totals.tomorrow}</TableCell>
+                  <TableCell className="text-center font-bold text-sm text-green-600">{totals.future}</TableCell>
+                  <TableCell className="text-center font-bold text-sm">{totals.no_ptp_set}</TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
         </div>
         
-        {ptpData.length === 0 && (
+        {branchPtpStatusData.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
-            <p className="text-sm font-medium">No PTP status data available</p>
-            <p className="text-xs mt-2">Data will appear when applications have PTP dates set (excluding fully paid applications)</p>
+            <p className="text-sm">No data available for PTP status analysis</p>
           </div>
         )}
       </CardContent>
