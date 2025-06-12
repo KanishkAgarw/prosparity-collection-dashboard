@@ -10,7 +10,7 @@ import BranchPTPStatusTable from '@/components/analytics/BranchPTPStatusTable';
 import PTPEffectivenessTable from '@/components/analytics/PTPEffectivenessTable';
 import ApplicationDetailsModal from '@/components/analytics/ApplicationDetailsModal';
 import { Application } from '@/types/application';
-import { format } from 'date-fns';
+import { format, isToday, isTomorrow, isBefore, isAfter, startOfDay } from 'date-fns';
 
 export interface DrillDownFilter {
   branch_name: string;
@@ -85,18 +85,14 @@ const Analytics = () => {
           return false;
         }
 
-        const today = new Date();
-        const todayStr = today.toDateString();
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowStr = tomorrow.toDateString();
+        const today = startOfDay(new Date());
         
         switch (selectedFilter.ptp_criteria) {
           case 'overdue':
             if (!app.ptp_date) return false;
             try {
               const ptpDate = new Date(app.ptp_date);
-              return ptpDate < today;
+              return isBefore(ptpDate, today);
             } catch {
               return false;
             }
@@ -104,7 +100,7 @@ const Analytics = () => {
             if (!app.ptp_date) return false;
             try {
               const ptpDate = new Date(app.ptp_date);
-              return ptpDate.toDateString() === todayStr;
+              return isToday(ptpDate);
             } catch {
               return false;
             }
@@ -112,7 +108,7 @@ const Analytics = () => {
             if (!app.ptp_date) return false;
             try {
               const ptpDate = new Date(app.ptp_date);
-              return ptpDate.toDateString() === tomorrowStr;
+              return isTomorrow(ptpDate);
             } catch {
               return false;
             }
@@ -120,9 +116,7 @@ const Analytics = () => {
             if (!app.ptp_date) return false;
             try {
               const ptpDate = new Date(app.ptp_date);
-              const dayAfterTomorrow = new Date(today);
-              dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
-              return ptpDate >= dayAfterTomorrow;
+              return isAfter(ptpDate, today) && !isTomorrow(ptpDate);
             } catch {
               return false;
             }
@@ -155,6 +149,13 @@ const Analytics = () => {
     });
 
     console.log('Filtered applications count:', filtered.length);
+    console.log('Sample filtered applications:', filtered.slice(0, 3).map(app => ({
+      applicant_id: app.applicant_id,
+      ptp_date: app.ptp_date,
+      field_status: app.field_status,
+      branch_name: app.branch_name
+    })));
+    
     return filtered;
   };
 

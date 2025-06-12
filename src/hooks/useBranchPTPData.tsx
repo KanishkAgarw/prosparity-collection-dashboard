@@ -27,6 +27,9 @@ export const useBranchPTPData = (applications: Application[]) => {
       app.field_status !== 'Paid'
     );
     
+    console.log('PTP Data - Total applications:', applications.length);
+    console.log('PTP Data - Unpaid applications (excluding Paid):', unpaidApplications.length);
+    
     const branchMap = new Map<string, BranchPTPStatus>();
     const today = startOfDay(new Date());
     
@@ -87,7 +90,7 @@ export const useBranchPTPData = (applications: Application[]) => {
           } else if (isBefore(ptpDate, today)) {
             rmStats.overdue++;
             branch.total_stats.overdue++;
-          } else if (isAfter(ptpDate, today)) {
+          } else if (isAfter(ptpDate, today) && !isTomorrow(ptpDate)) {
             rmStats.future++;
             branch.total_stats.future++;
           } else {
@@ -101,11 +104,26 @@ export const useBranchPTPData = (applications: Application[]) => {
       }
     });
     
-    return Array.from(branchMap.values())
+    const result = Array.from(branchMap.values())
       .map(branch => ({
         ...branch,
         rm_stats: branch.rm_stats.sort((a, b) => b.total - a.total)
       }))
       .sort((a, b) => b.total_stats.total - a.total_stats.total);
+      
+    // Log Bhopal data for debugging
+    const bhopalBranch = result.find(branch => branch.branch_name === 'Bhopal');
+    if (bhopalBranch) {
+      console.log('Bhopal PTP Stats:', {
+        total: bhopalBranch.total_stats.total,
+        overdue: bhopalBranch.total_stats.overdue,
+        today: bhopalBranch.total_stats.today,
+        tomorrow: bhopalBranch.total_stats.tomorrow,
+        future: bhopalBranch.total_stats.future,
+        no_ptp_set: bhopalBranch.total_stats.no_ptp_set
+      });
+    }
+    
+    return result;
   }, [applications]);
 };
