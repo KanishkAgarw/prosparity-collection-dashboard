@@ -11,7 +11,7 @@ export interface FilterState {
   emiMonth: string[];
   repayment: string[];
   lastMonthBounce: LastMonthBounceCategory[];
-  ptpDate: import('@/utils/ptpDateUtils').PtpDateCategory[];
+  ptpDate: string[]; // Changed to string[] to handle display labels
   collectionRm: string[];
 }
 

@@ -74,9 +74,33 @@ export const filterApplications = (applications: any[], filters: FilterState) =>
     const statusMatch = filters.status.length === 0 || 
       filters.status.includes(app.field_status || 'Unpaid');
 
-    const appPtpDateCategory = categorizePtpDate(app.ptp_date);
-    const ptpDateMatch = filters.ptpDate.length === 0 || 
-      filters.ptpDate.includes(appPtpDateCategory);
+    // Fix PTP date filtering - handle both display labels and category codes
+    let ptpDateMatch = true;
+    if (filters.ptpDate.length > 0) {
+      const appPtpDateCategory = categorizePtpDate(app.ptp_date);
+      console.log('App PTP category:', appPtpDateCategory, 'for app:', app.applicant_name);
+      console.log('Filter PTP values:', filters.ptpDate);
+      
+      // Check if any of the selected filter values match the app's PTP category
+      ptpDateMatch = filters.ptpDate.some(filterValue => {
+        // Direct category match
+        if (filterValue === appPtpDateCategory) {
+          return true;
+        }
+        
+        // Convert display label to category and match
+        const labelToCategoryMap: { [key: string]: PtpDateCategory } = {
+          "Overdue PTP": 'overdue',
+          "Today's PTP": 'today',
+          "Tomorrow's PTP": 'tomorrow',
+          "Future PTP": 'future',
+          "No PTP": 'no_date'
+        };
+        
+        const categoryFromLabel = labelToCategoryMap[filterValue];
+        return categoryFromLabel === appPtpDateCategory;
+      });
+    }
 
     const branchMatch = filters.branch.length === 0 || filters.branch.includes(app.branch_name);
     const teamLeadMatch = filters.teamLead.length === 0 || filters.teamLead.includes(app.team_lead);
@@ -85,9 +109,15 @@ export const filterApplications = (applications: any[], filters: FilterState) =>
     const lenderMatch = filters.lender.length === 0 || filters.lender.includes(app.lender_name);
     const collectionRmMatch = filters.collectionRm.length === 0 || filters.collectionRm.includes(app.collection_rm || '');
 
-    return branchMatch && teamLeadMatch && rmMatch && dealerMatch && 
+    const matches = branchMatch && teamLeadMatch && rmMatch && dealerMatch && 
            lenderMatch && statusMatch && emiMonthMatch && repaymentMatch && 
            lastMonthBounceMatch && ptpDateMatch && collectionRmMatch;
+
+    if (!matches && filters.ptpDate.length > 0) {
+      console.log('PTP filter mismatch for:', app.applicant_name, 'Category:', categorizePtpDate(app.ptp_date), 'Filter:', filters.ptpDate);
+    }
+
+    return matches;
   });
   
   console.log('Filtered applications:', result.length);
@@ -109,34 +139,13 @@ export const processFilterChange = (
     console.log('Valid lastMonthBounce values:', validValues);
     setFilters(prev => ({ ...prev, [key]: validValues }));
   } else if (key === 'ptpDate') {
-    // Convert labels back to categories for PTP date filter
-    const labelToCategoryMap: { [key: string]: PtpDateCategory } = {
-      "Overdue PTP": 'overdue',
-      "Today's PTP": 'today',
-      "Tomorrow's PTP": 'tomorrow',
-      "Future PTP": 'future',
-      "No PTP": 'no_date'
-    };
-    
-    const validCategories = values
-      .map(label => {
-        // Handle both labels and direct category values for backwards compatibility
-        if (labelToCategoryMap[label]) {
-          return labelToCategoryMap[label];
-        }
-        // If it's already a category value, validate and use it
-        if (isValidPtpDateCategory(label)) {
-          return label as PtpDateCategory;
-        }
-        return undefined;
-      })
-      .filter((category): category is PtpDateCategory => 
-        category !== undefined
-      );
-    
-    console.log('PTP Date - Input values:', values);
-    console.log('PTP Date - Mapped categories:', validCategories);
-    setFilters(prev => ({ ...prev, [key]: validCategories }));
+    // For PTP date filter, store the display labels directly
+    // The filtering logic will handle the conversion
+    console.log('PTP Date - Storing display labels:', values);
+    setFilters(prev => ({ 
+      ...prev, 
+      [key]: values as PtpDateCategory[] // Cast needed for type compatibility
+    }));
   } else {
     console.log(`Setting ${key} to:`, values);
     setFilters(prev => ({ ...prev, [key]: values }));

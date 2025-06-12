@@ -71,6 +71,9 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
   // Count total active filters
   const activeFilterCount = Object.values(safeFilters).reduce((count, filterArray) => count + filterArray.length, 0);
 
+  console.log('FilterBar - PTP Date filter:', safeFilters.ptpDate);
+  console.log('FilterBar - PTP Date options:', safeFilterOptions.ptpDateOptions);
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200">
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -101,7 +104,10 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
                   label="PTP Date"
                   options={safeFilterOptions.ptpDateOptions}
                   selected={safeFilters.ptpDate}
-                  onSelectionChange={(values) => onFilterChange('ptpDate', values)}
+                  onSelectionChange={(values) => {
+                    console.log('PTP Date filter changed to:', values);
+                    onFilterChange('ptpDate', values);
+                  }}
                 />
               </div>
 
