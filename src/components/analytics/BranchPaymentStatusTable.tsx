@@ -1,4 +1,3 @@
-
 import { Application } from '@/types/application';
 import { useBranchAnalyticsData } from '@/hooks/useBranchAnalyticsData';
 import {
@@ -20,7 +19,7 @@ interface BranchPaymentStatusTableProps {
 }
 
 const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentStatusTableProps) => {
-  const { branchData } = useBranchAnalyticsData(applications);
+  const { branchPaymentStatusData } = useBranchAnalyticsData(applications);
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
 
   const toggleBranch = (branchName: string) => {
@@ -41,16 +40,21 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
     });
   };
 
-  const totals = branchData.reduce(
+  const calculatePercentage = (numerator: number, denominator: number) => {
+    if (denominator === 0) return '0%';
+    return `${Math.round((numerator / denominator) * 100)}%`;
+  };
+
+  const totals = branchPaymentStatusData.reduce(
     (acc, branch) => ({
-      unpaid: acc.unpaid + branch.totals.unpaid,
-      partially_paid: acc.partially_paid + branch.totals.partially_paid,
-      paid_pending_approval: acc.paid_pending_approval + branch.totals.paid_pending_approval,
-      paid: acc.paid + branch.totals.paid,
-      others: acc.others + branch.totals.others,
-      total: acc.total + branch.totals.total,
+      total: acc.total + branch.total_stats.total,
+      unpaid: acc.unpaid + branch.total_stats.unpaid,
+      partially_paid: acc.partially_paid + branch.total_stats.partially_paid,
+      paid_pending_approval: acc.paid_pending_approval + branch.total_stats.paid_pending_approval,
+      paid: acc.paid + branch.total_stats.paid,
+      others: acc.others + branch.total_stats.others,
     }),
-    { unpaid: 0, partially_paid: 0, paid_pending_approval: 0, paid: 0, others: 0, total: 0 }
+    { total: 0, unpaid: 0, partially_paid: 0, paid_pending_approval: 0, paid: 0, others: 0 }
   );
 
   return (
@@ -58,7 +62,7 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
       <CardHeader>
         <CardTitle className="text-2xl">Payment Status by Branch</CardTitle>
         <CardDescription className="text-lg">
-          Click any number to view details. Expand branches for RM breakdown.
+          Breakdown of application payment statuses across branches and RMs
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -67,16 +71,16 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
             <TableHeader>
               <TableRow>
                 <TableHead className="font-semibold text-lg w-48">Branch/RM</TableHead>
+                <TableHead className="font-semibold text-lg text-center w-24">Total</TableHead>
                 <TableHead className="font-semibold text-lg text-center w-24">Unpaid</TableHead>
-                <TableHead className="font-semibold text-lg text-center w-32">Partially Paid</TableHead>
-                <TableHead className="font-semibold text-lg text-center w-40">Paid (Pending Approval)</TableHead>
+                <TableHead className="font-semibold text-lg text-center w-24">Partial</TableHead>
+                <TableHead className="font-semibold text-lg text-center w-24">Pending</TableHead>
                 <TableHead className="font-semibold text-lg text-center w-24">Paid</TableHead>
                 <TableHead className="font-semibold text-lg text-center w-24">Others</TableHead>
-                <TableHead className="font-semibold text-lg text-center w-24">Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {branchData.map((branch) => (
+              {branchPaymentStatusData.map((branch) => (
                 <>
                   <TableRow key={branch.branch_name} className="hover:bg-muted/50">
                     <TableCell className="font-semibold text-base">
@@ -93,68 +97,74 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
                       </button>
                     </TableCell>
                     <TableCell 
-                      className="text-center text-base cursor-pointer hover:bg-red-50 hover:text-red-700 transition-colors font-medium"
+                      className="text-center text-base cursor-pointer hover:bg-blue-50 hover:text-blue-700 transition-colors font-medium"
+                      onClick={() => handleCellClick(branch.branch_name, undefined, 'total')}
+                    >
+                      {branch.total_stats.total}
+                    </TableCell>
+                    <TableCell 
+                      className="text-center text-base cursor-pointer hover:bg-red-50 hover:text-red-700 transition-colors font-medium text-red-600"
                       onClick={() => handleCellClick(branch.branch_name, undefined, 'unpaid')}
                     >
-                      {branch.totals.unpaid}
+                      {branch.total_stats.unpaid}
                     </TableCell>
                     <TableCell 
-                      className="text-center text-base cursor-pointer hover:bg-yellow-50 hover:text-yellow-700 transition-colors font-medium"
+                      className="text-center text-base cursor-pointer hover:bg-yellow-50 hover:text-yellow-700 transition-colors font-medium text-yellow-600"
                       onClick={() => handleCellClick(branch.branch_name, undefined, 'partially_paid')}
                     >
-                      {branch.totals.partially_paid}
+                      {branch.total_stats.partially_paid}
                     </TableCell>
                     <TableCell 
-                      className="text-center text-base cursor-pointer hover:bg-blue-50 hover:text-blue-700 transition-colors font-medium"
+                      className="text-center text-base cursor-pointer hover:bg-orange-50 hover:text-orange-700 transition-colors font-medium text-orange-600"
                       onClick={() => handleCellClick(branch.branch_name, undefined, 'paid_pending_approval')}
                     >
-                      {branch.totals.paid_pending_approval}
+                      {branch.total_stats.paid_pending_approval}
                     </TableCell>
                     <TableCell 
-                      className="text-center text-base cursor-pointer hover:bg-green-50 hover:text-green-700 transition-colors font-medium"
+                      className="text-center text-base cursor-pointer hover:bg-green-50 hover:text-green-700 transition-colors font-medium text-green-600"
                       onClick={() => handleCellClick(branch.branch_name, undefined, 'paid')}
                     >
-                      {branch.totals.paid}
+                      {branch.total_stats.paid}
                     </TableCell>
                     <TableCell 
                       className="text-center text-base cursor-pointer hover:bg-gray-50 hover:text-gray-700 transition-colors font-medium"
                       onClick={() => handleCellClick(branch.branch_name, undefined, 'others')}
                     >
-                      {branch.totals.others}
-                    </TableCell>
-                    <TableCell 
-                      className="text-center text-base cursor-pointer hover:bg-purple-50 hover:text-purple-700 transition-colors font-semibold"
-                      onClick={() => handleCellClick(branch.branch_name, undefined, 'total')}
-                    >
-                      {branch.totals.total}
+                      {branch.total_stats.others}
                     </TableCell>
                   </TableRow>
                   
-                  {expandedBranches.has(branch.branch_name) && branch.rms.map((rm) => (
+                  {expandedBranches.has(branch.branch_name) && branch.rm_stats.map((rm) => (
                     <TableRow key={`${branch.branch_name}-${rm.rm_name}`} className="bg-muted/25 hover:bg-muted/40">
                       <TableCell className="text-base pl-8">
                         {rm.rm_name}
                       </TableCell>
                       <TableCell 
-                        className="text-center text-base cursor-pointer hover:bg-red-50 hover:text-red-700 transition-colors"
+                        className="text-center text-base cursor-pointer hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                        onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'total')}
+                      >
+                        {rm.total}
+                      </TableCell>
+                      <TableCell 
+                        className="text-center text-base cursor-pointer hover:bg-red-50 hover:text-red-700 transition-colors text-red-600"
                         onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'unpaid')}
                       >
                         {rm.unpaid}
                       </TableCell>
                       <TableCell 
-                        className="text-center text-base cursor-pointer hover:bg-yellow-50 hover:text-yellow-700 transition-colors"
+                        className="text-center text-base cursor-pointer hover:bg-yellow-50 hover:text-yellow-700 transition-colors text-yellow-600"
                         onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'partially_paid')}
                       >
                         {rm.partially_paid}
                       </TableCell>
                       <TableCell 
-                        className="text-center text-base cursor-pointer hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                        className="text-center text-base cursor-pointer hover:bg-orange-50 hover:text-orange-700 transition-colors text-orange-600"
                         onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'paid_pending_approval')}
                       >
                         {rm.paid_pending_approval}
                       </TableCell>
                       <TableCell 
-                        className="text-center text-base cursor-pointer hover:bg-green-50 hover:text-green-700 transition-colors"
+                        className="text-center text-base cursor-pointer hover:bg-green-50 hover:text-green-700 transition-colors text-green-600"
                         onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'paid')}
                       >
                         {rm.paid}
@@ -165,33 +175,27 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
                       >
                         {rm.others}
                       </TableCell>
-                      <TableCell 
-                        className="text-center text-base cursor-pointer hover:bg-purple-50 hover:text-purple-700 transition-colors font-medium"
-                        onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'total')}
-                      >
-                        {rm.total}
-                      </TableCell>
                     </TableRow>
                   ))}
                 </>
               ))}
               
-              {branchData.length > 0 && (
+              {branchPaymentStatusData.length > 0 && (
                 <TableRow className="bg-muted/50 font-semibold">
                   <TableCell colSpan={1} className="font-bold text-base">Total</TableCell>
-                  <TableCell className="text-center font-bold text-base">{totals.unpaid}</TableCell>
-                  <TableCell className="text-center font-bold text-base">{totals.partially_paid}</TableCell>
-                  <TableCell className="text-center font-bold text-base">{totals.paid_pending_approval}</TableCell>
-                  <TableCell className="text-center font-bold text-base">{totals.paid}</TableCell>
-                  <TableCell className="text-center font-bold text-base">{totals.others}</TableCell>
                   <TableCell className="text-center font-bold text-base">{totals.total}</TableCell>
+                  <TableCell className="text-center font-bold text-base text-red-600">{totals.unpaid}</TableCell>
+                  <TableCell className="text-center font-bold text-base text-yellow-600">{totals.partially_paid}</TableCell>
+                  <TableCell className="text-center font-bold text-base text-orange-600">{totals.paid_pending_approval}</TableCell>
+                  <TableCell className="text-center font-bold text-base text-green-600">{totals.paid}</TableCell>
+                  <TableCell className="text-center font-bold text-base">{totals.others}</TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
         </div>
         
-        {branchData.length === 0 && (
+        {branchPaymentStatusData.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
             <p className="text-lg">No data available for payment status analysis</p>
           </div>
