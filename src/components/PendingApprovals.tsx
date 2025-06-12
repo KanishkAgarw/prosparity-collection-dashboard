@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -42,6 +43,8 @@ const PendingApprovals = ({ onUpdate }: PendingApprovalsProps) => {
   const [requests, setRequests] = useState<StatusChangeRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [reviewComments, setReviewComments] = useState<Record<string, string>>({});
+  const [selectedRequests, setSelectedRequests] = useState<string[]>([]);
+  const [bulkComments, setBulkComments] = useState("");
   const [isOpen, setIsOpen] = useState(() => {
     // Load saved state from localStorage
     const saved = localStorage.getItem('pendingApprovalsOpen');
@@ -222,6 +225,44 @@ const PendingApprovals = ({ onUpdate }: PendingApprovalsProps) => {
     }
   };
 
+  const handleBulkApproval = async (action: 'approved' | 'rejected') => {
+    if (!user || selectedRequests.length === 0) return;
+
+    setLoading(true);
+    try {
+      const selectedRequestObjects = requests.filter(r => selectedRequests.includes(r.id));
+      
+      for (const request of selectedRequestObjects) {
+        await handleApproval(request.id, action);
+      }
+
+      setSelectedRequests([]);
+      setBulkComments("");
+      toast.success(`Bulk ${action} completed for ${selectedRequests.length} requests`);
+    } catch (error) {
+      console.error('Error in bulk approval:', error);
+      toast.error('Failed to process bulk approval');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedRequests(requests.map(r => r.id));
+    } else {
+      setSelectedRequests([]);
+    }
+  };
+
+  const handleSelectRequest = (requestId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedRequests(prev => [...prev, requestId]);
+    } else {
+      setSelectedRequests(prev => prev.filter(id => id !== requestId));
+    }
+  };
+
   if (loading) {
     return (
       <Card>
@@ -264,18 +305,62 @@ const PendingApprovals = ({ onUpdate }: PendingApprovalsProps) => {
               <div className="text-center py-4 text-gray-500">No pending requests</div>
             ) : (
               <div className="space-y-4">
+                {/* Bulk Actions */}
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-4">
+                    <Checkbox
+                      checked={selectedRequests.length === requests.length}
+                      onCheckedChange={handleSelectAll}
+                    />
+                    <span className="text-sm font-medium">
+                      {selectedRequests.length > 0 ? `${selectedRequests.length} selected` : 'Select all'}
+                    </span>
+                  </div>
+                  
+                  {selectedRequests.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleBulkApproval('approved')}
+                        className="flex items-center gap-1 bg-green-600 hover:bg-green-700"
+                        disabled={loading}
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                        Bulk Approve ({selectedRequests.length})
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleBulkApproval('rejected')}
+                        className="flex items-center gap-1"
+                        disabled={loading}
+                      >
+                        <XCircle className="h-4 w-4" />
+                        Bulk Reject ({selectedRequests.length})
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Individual Requests */}
                 {requests.map((request) => (
                   <div key={request.id} className="border rounded-lg p-4 space-y-3">
                     <div className="flex items-start justify-between">
-                      <div className="space-y-1">
-                        <div className="font-semibold text-blue-900">
-                          {request.applicant_name} ({request.applicant_id})
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          Requested by: {request.requested_by_name || request.requested_by_email}
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          Requested: {format(new Date(request.request_timestamp), 'dd-MMM-yyyy HH:mm')}
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          checked={selectedRequests.includes(request.id)}
+                          onCheckedChange={(checked) => handleSelectRequest(request.id, checked as boolean)}
+                        />
+                        <div className="space-y-1">
+                          <div className="font-semibold text-blue-900">
+                            {request.applicant_name} ({request.applicant_id})
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            Requested by: {request.requested_by_name || request.requested_by_email}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            Requested: {format(new Date(request.request_timestamp), 'dd-MMM-yyyy HH:mm')}
+                          </div>
                         </div>
                       </div>
                       <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
@@ -308,6 +393,7 @@ const PendingApprovals = ({ onUpdate }: PendingApprovalsProps) => {
                         size="sm"
                         onClick={() => handleApproval(request.id, 'approved')}
                         className="flex items-center gap-1 bg-green-600 hover:bg-green-700"
+                        disabled={loading}
                       >
                         <CheckCircle className="h-4 w-4" />
                         Approve
@@ -317,6 +403,7 @@ const PendingApprovals = ({ onUpdate }: PendingApprovalsProps) => {
                         variant="destructive"
                         onClick={() => handleApproval(request.id, 'rejected')}
                         className="flex items-center gap-1"
+                        disabled={loading}
                       >
                         <XCircle className="h-4 w-4" />
                         Reject

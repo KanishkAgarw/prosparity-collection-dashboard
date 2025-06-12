@@ -7,9 +7,6 @@ interface ApplicationsTableProps {
   onRowClick: (application: Application) => void;
   onApplicationDeleted?: () => void;
   selectedApplicationId?: string;
-  selectedApplications?: Application[];
-  onSelectionChange?: (applications: Application[]) => void;
-  showBulkSelection?: boolean;
 }
 
 const ApplicationsTable = (props: ApplicationsTableProps) => {

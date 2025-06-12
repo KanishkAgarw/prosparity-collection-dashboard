@@ -1,7 +1,6 @@
 
 import { memo } from "react";
 import { TableCell, TableRow } from "@/components/ui/table";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Application } from "@/types/application";
 import { formatEmiMonth, formatCurrency, formatPtpDate } from "@/utils/formatters";
 import StatusBadge from "./StatusBadge";
@@ -11,31 +10,17 @@ import CommentsDisplay from "./CommentsDisplay";
 
 interface ApplicationRowProps {
   application: Application;
-  isSelected?: boolean;
-  showBulkSelection?: boolean;
   selectedApplicationId?: string;
   onRowClick: (application: Application) => void;
-  onSelectApplication?: (application: Application, checked: boolean) => void;
 }
 
 const ApplicationRow = memo(({ 
   application, 
-  isSelected, 
-  showBulkSelection, 
   selectedApplicationId, 
-  onRowClick, 
-  onSelectApplication 
+  onRowClick
 }: ApplicationRowProps) => {
-  const handleSelectChange = (checked: boolean) => {
-    if (onSelectApplication) {
-      onSelectApplication(application, checked);
-    }
-  };
-
   const handleRowClick = (e: React.MouseEvent) => {
-    if (!showBulkSelection || !(e.target as HTMLElement).closest('input[type="checkbox"]')) {
-      onRowClick(application);
-    }
+    onRowClick(application);
   };
 
   return (
@@ -47,15 +32,6 @@ const ApplicationRow = memo(({
       }`}
       onClick={handleRowClick}
     >
-      {showBulkSelection && (
-        <TableCell onClick={(e) => e.stopPropagation()}>
-          <Checkbox
-            checked={isSelected}
-            onCheckedChange={handleSelectChange}
-          />
-        </TableCell>
-      )}
-      
       <TableCell className="py-3">
         <ApplicationDetails application={application} />
       </TableCell>

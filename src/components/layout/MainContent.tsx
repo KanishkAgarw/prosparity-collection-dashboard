@@ -4,12 +4,9 @@ import { Application } from "@/types/application";
 import ApplicationsTable from "@/components/ApplicationsTable";
 import MobileOptimizedTable from "@/components/MobileOptimizedTable";
 import PaginationControls from "@/components/PaginationControls";
-import BulkStatusUpdate from "@/components/BulkStatusUpdate";
 import PendingApprovals from "@/components/PendingApprovals";
 import { useUserRoles } from "@/hooks/useUserRoles";
-import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { CheckSquare, Square } from "lucide-react";
 
 interface MainContentProps {
   applications: Application[];
@@ -36,18 +33,6 @@ const MainContent = ({
 }: MainContentProps) => {
   const { isAdmin } = useUserRoles();
   const isMobile = useIsMobile();
-  const [showBulkSelection, setShowBulkSelection] = useState(false);
-  const [selectedApplications, setSelectedApplications] = useState<Application[]>([]);
-
-  const handleBulkUpdate = () => {
-    setSelectedApplications([]);
-    setShowBulkSelection(false);
-  };
-
-  const handleCancelBulk = () => {
-    setSelectedApplications([]);
-    setShowBulkSelection(false);
-  };
 
   return (
     <div className="space-y-6">
@@ -57,40 +42,10 @@ const MainContent = ({
           {/* Pending Approvals */}
           <PendingApprovals onUpdate={() => window.location.reload()} />
           
-          {/* Bulk Operations */}
+          {/* Applications Management Header */}
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium">Applications Management</h3>
-            <div className="flex gap-2">
-              {!showBulkSelection ? (
-                <Button
-                  variant="outline"
-                  onClick={() => setShowBulkSelection(true)}
-                  className="flex items-center gap-2"
-                >
-                  <CheckSquare className="h-4 w-4" />
-                  Bulk Update
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  onClick={() => setShowBulkSelection(false)}
-                  className="flex items-center gap-2"
-                >
-                  <Square className="h-4 w-4" />
-                  Cancel Selection
-                </Button>
-              )}
-            </div>
           </div>
-
-          {/* Bulk Status Update Component */}
-          {showBulkSelection && selectedApplications.length > 0 && (
-            <BulkStatusUpdate
-              selectedApplications={selectedApplications}
-              onUpdate={handleBulkUpdate}
-              onCancel={handleCancelBulk}
-            />
-          )}
         </div>
       )}
 
@@ -108,9 +63,6 @@ const MainContent = ({
             onRowClick={onRowClick}
             onApplicationDeleted={onApplicationDeleted}
             selectedApplicationId={selectedApplicationId}
-            selectedApplications={selectedApplications}
-            onSelectionChange={setSelectedApplications}
-            showBulkSelection={showBulkSelection}
           />
         )}
       </div>
