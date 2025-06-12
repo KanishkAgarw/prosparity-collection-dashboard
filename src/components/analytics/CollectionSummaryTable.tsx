@@ -28,7 +28,7 @@ type SortField = 'branch_name' | 'total';
 
 const CollectionSummaryTable = ({ applications, auditLogs, onDrillDown }: CollectionSummaryTableProps) => {
   const { data: collectionData, uniqueDates } = useCollectionSummaryData(applications, auditLogs);
-  const { sortField, sortDirection, handleSort, getSortedData } = useTableSorting<SortField>('total');
+  const { sortField, sortDirection, handleSort, getSortedData } = useTableSorting<SortField>('total', 'desc');
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
 
   const toggleBranch = (branchName: string) => {
@@ -79,7 +79,7 @@ const CollectionSummaryTable = ({ applications, auditLogs, onDrillDown }: Collec
           <div>
             <CardTitle className="text-lg">Collection Summary by Date</CardTitle>
             <CardDescription className="text-xs">
-              Track status changes to collection-related statuses by date
+              Tracks daily collection activity by counting applications that had their status changed to collection-related statuses (Paid Pending Approval, Cash Collected, Partially Paid, Customer Deposited) on specific dates. Click any number to drill down and see the detailed applications.
             </CardDescription>
           </div>
         </div>
@@ -95,17 +95,17 @@ const CollectionSummaryTable = ({ applications, auditLogs, onDrillDown }: Collec
                   onSort={handleSort}
                   className="w-48 sticky left-0 bg-background"
                 />
+                <SortableTableHeader 
+                  label="Total" 
+                  field="total" 
+                  onSort={handleSort}
+                  className="text-center w-20"
+                />
                 {uniqueDates.map(date => (
                   <TableHead key={date} className="text-center min-w-24">
                     {date}
                   </TableHead>
                 ))}
-                <SortableTableHeader 
-                  label="Total" 
-                  field="total" 
-                  onSort={handleSort}
-                  className="text-center w-20 sticky right-0 bg-background"
-                />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -119,6 +119,10 @@ const CollectionSummaryTable = ({ applications, auditLogs, onDrillDown }: Collec
                         label={branch.branch_name}
                       />
                     </TableCell>
+                    <ClickableTableCell
+                      value={branch.total_stats.total}
+                      onClick={() => handleCellClick(branch.branch_name, null, 'all')}
+                    />
                     {uniqueDates.map(date => (
                       <ClickableTableCell
                         key={date}
@@ -126,11 +130,6 @@ const CollectionSummaryTable = ({ applications, auditLogs, onDrillDown }: Collec
                         onClick={() => handleCellClick(branch.branch_name, null, date)}
                       />
                     ))}
-                    <ClickableTableCell
-                      value={branch.total_stats.total}
-                      onClick={() => handleCellClick(branch.branch_name, null, 'all')}
-                      className="sticky right-0 bg-background"
-                    />
                   </TableRow>
                   
                   {expandedBranches.has(branch.branch_name) && branch.rm_stats.map((rm) => (
@@ -138,6 +137,10 @@ const CollectionSummaryTable = ({ applications, auditLogs, onDrillDown }: Collec
                       <TableCell className="text-sm pl-8 sticky left-0 bg-muted/30">
                         {rm.rm_name}
                       </TableCell>
+                      <ClickableTableCell
+                        value={rm.total}
+                        onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'all')}
+                      />
                       {uniqueDates.map(date => (
                         <ClickableTableCell
                           key={date}
@@ -145,11 +148,6 @@ const CollectionSummaryTable = ({ applications, auditLogs, onDrillDown }: Collec
                           onClick={() => handleCellClick(branch.branch_name, rm.rm_name, date)}
                         />
                       ))}
-                      <ClickableTableCell
-                        value={rm.total}
-                        onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'all')}
-                        className="sticky right-0 bg-muted/30"
-                      />
                     </TableRow>
                   ))}
                 </>
@@ -160,6 +158,11 @@ const CollectionSummaryTable = ({ applications, auditLogs, onDrillDown }: Collec
                   <TableCell className="font-bold text-sm sticky left-0 bg-muted/50">
                     Total
                   </TableCell>
+                  <ClickableTableCell
+                    value={grandTotal}
+                    onClick={() => handleCellClick('', null, 'all')}
+                    className="font-bold"
+                  />
                   {uniqueDates.map(date => (
                     <ClickableTableCell
                       key={date}
@@ -168,11 +171,6 @@ const CollectionSummaryTable = ({ applications, auditLogs, onDrillDown }: Collec
                       className="font-bold"
                     />
                   ))}
-                  <ClickableTableCell
-                    value={grandTotal}
-                    onClick={() => handleCellClick('', null, 'all')}
-                    className="font-bold sticky right-0 bg-muted/50"
-                  />
                 </TableRow>
               )}
             </TableBody>
@@ -181,7 +179,9 @@ const CollectionSummaryTable = ({ applications, auditLogs, onDrillDown }: Collec
         
         {collectionData.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
-            <p className="text-sm">No collection data available</p>
+            <p className="text-sm font-medium">No collection summary data available</p>
+            <p className="text-xs mt-2">Data appears when applications have status changes to collection-related statuses (Paid Pending Approval, Cash Collected, Partially Paid, Customer Deposited) tracked in the audit logs.</p>
+            <p className="text-xs mt-1 text-gray-500">Note: This data comes from tracking when users change application statuses to collection-related values.</p>
           </div>
         )}
       </CardContent>
