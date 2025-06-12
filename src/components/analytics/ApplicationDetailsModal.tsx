@@ -45,6 +45,7 @@ const ApplicationDetailsModal = ({ isOpen, onClose, applications, filter }: Appl
             <ApplicationDetailsHeader 
               applicationsCount={applications.length}
               filter={filter}
+              applications={applications}
             />
           </DialogHeader>
 

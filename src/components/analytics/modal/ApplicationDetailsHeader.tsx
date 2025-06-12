@@ -1,19 +1,41 @@
 
-import { FileText, Users, MapPin } from 'lucide-react';
+import { FileText, Users, MapPin, Download } from 'lucide-react';
 import { DrillDownFilter } from '@/pages/Analytics';
+import { Button } from '@/components/ui/button';
+import { useExport } from '@/hooks/useExport';
+import { Application } from '@/types/application';
 import ModalFilterDescription from './ModalFilterDescription';
 
 interface ApplicationDetailsHeaderProps {
   applicationsCount: number;
   filter: DrillDownFilter | null;
+  applications: Application[];
 }
 
-const ApplicationDetailsHeader = ({ applicationsCount, filter }: ApplicationDetailsHeaderProps) => {
+const ApplicationDetailsHeader = ({ applicationsCount, filter, applications }: ApplicationDetailsHeaderProps) => {
+  const { exportToExcel } = useExport();
+
+  const handleExport = () => {
+    const exportData = { applications };
+    exportToExcel(exportData, 'analytics-drill-down-report');
+  };
+
   return (
     <div className="space-y-3">
-      <h2 className="text-2xl font-bold text-gray-900">
-        Application Details
-      </h2>
+      <div className="flex justify-between items-start">
+        <h2 className="text-2xl font-bold text-gray-900">
+          Application Details
+        </h2>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExport}
+          className="flex items-center gap-2"
+        >
+          <Download className="h-3 w-3" />
+          Export
+        </Button>
+      </div>
       <p className="text-lg">
         <ModalFilterDescription filter={filter} />
       </p>

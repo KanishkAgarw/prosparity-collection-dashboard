@@ -1,7 +1,6 @@
 
 import { Application } from '@/types/application';
 import { useBranchAnalyticsData } from '@/hooks/useBranchAnalyticsData';
-import { useExport } from '@/hooks/useExport';
 import {
   Table,
   TableBody,
@@ -11,22 +10,20 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChevronRight, ChevronDown, ArrowUpDown, Download } from 'lucide-react';
+import { ChevronRight, ChevronDown, ArrowUpDown } from 'lucide-react';
 import { useState } from 'react';
 import { DrillDownFilter } from '@/pages/Analytics';
-import { Button } from '@/components/ui/button';
 
 interface PTPEffectivenessTableProps {
   applications: Application[];
   onDrillDown: (filter: DrillDownFilter) => void;
 }
 
-type SortField = 'branch_name' | 'total_ptps' | 'honored_ptps' | 'broken_ptps' | 'effectiveness';
+type SortField = 'branch_name' | 'rm_name' | 'total_ptps' | 'honored_ptps' | 'broken_ptps' | 'effectiveness';
 type SortDirection = 'asc' | 'desc';
 
 const PTPEffectivenessTable = ({ applications, onDrillDown }: PTPEffectivenessTableProps) => {
   const { effectivenessBranchData } = useBranchAnalyticsData(applications);
-  const { exportToExcel } = useExport();
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('branch_name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -145,13 +142,6 @@ const PTPEffectivenessTable = ({ applications, onDrillDown }: PTPEffectivenessTa
     });
   };
 
-  const handleExport = () => {
-    const exportData = {
-      applications: applications.filter(app => app.ptp_date)
-    };
-    exportToExcel(exportData, 'ptp-effectiveness-report');
-  };
-
   const totals = effectivenessBranchData.reduce(
     (acc, branch) => ({
       total_ptps: acc.total_ptps + branch.totals.total_ptps,
@@ -166,20 +156,11 @@ const PTPEffectivenessTable = ({ applications, onDrillDown }: PTPEffectivenessTa
       <CardHeader>
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle className="text-xl">PTP Effectiveness by Branch</CardTitle>
-            <CardDescription className="text-sm">
+            <CardTitle className="text-lg">PTP Effectiveness by Branch</CardTitle>
+            <CardDescription className="text-xs">
               Analysis of PTP promise keeping behavior across branches and RMs
             </CardDescription>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExport}
-            className="flex items-center gap-2"
-          >
-            <Download className="h-3 w-3" />
-            Export
-          </Button>
         </div>
       </CardHeader>
       <CardContent>
@@ -187,7 +168,7 @@ const PTPEffectivenessTable = ({ applications, onDrillDown }: PTPEffectivenessTa
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="font-medium text-sm w-48">
+                <TableHead className="font-medium text-xs w-40">
                   <button
                     onClick={() => handleSort('branch_name')}
                     className="flex items-center gap-1 hover:text-blue-600 transition-colors"
@@ -196,7 +177,7 @@ const PTPEffectivenessTable = ({ applications, onDrillDown }: PTPEffectivenessTa
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </TableHead>
-                <TableHead className="font-medium text-sm text-center w-32">
+                <TableHead className="font-medium text-xs text-center w-24">
                   <button
                     onClick={() => handleSort('total_ptps')}
                     className="flex items-center gap-1 hover:text-blue-600 transition-colors mx-auto"
@@ -205,30 +186,30 @@ const PTPEffectivenessTable = ({ applications, onDrillDown }: PTPEffectivenessTa
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </TableHead>
-                <TableHead className="font-medium text-sm text-center w-32">
+                <TableHead className="font-medium text-xs text-center w-24">
                   <button
                     onClick={() => handleSort('honored_ptps')}
                     className="flex items-center gap-1 hover:text-blue-600 transition-colors mx-auto"
                   >
-                    Honored
+                    Paid on PTP
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </TableHead>
-                <TableHead className="font-medium text-sm text-center w-32">
+                <TableHead className="font-medium text-xs text-center w-24">
                   <button
                     onClick={() => handleSort('broken_ptps')}
                     className="flex items-center gap-1 hover:text-blue-600 transition-colors mx-auto"
                   >
-                    Broken
+                    Paid after PTP
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </TableHead>
-                <TableHead className="font-medium text-sm text-center w-32">
+                <TableHead className="font-medium text-xs text-center w-32">
                   <button
                     onClick={() => handleSort('effectiveness')}
                     className="flex items-center gap-1 hover:text-blue-600 transition-colors mx-auto"
                   >
-                    Effectiveness
+                    Unpaid and Others
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </TableHead>
@@ -238,7 +219,7 @@ const PTPEffectivenessTable = ({ applications, onDrillDown }: PTPEffectivenessTa
               {sortedBranchData.map((branch) => (
                 <>
                   <TableRow key={branch.branch_name} className="hover:bg-muted/50">
-                    <TableCell className="font-medium text-sm">
+                    <TableCell className="font-medium text-xs">
                       <button
                         onClick={() => toggleBranch(branch.branch_name)}
                         className="flex items-center gap-2 hover:text-blue-600 transition-colors"
@@ -252,53 +233,53 @@ const PTPEffectivenessTable = ({ applications, onDrillDown }: PTPEffectivenessTa
                       </button>
                     </TableCell>
                     <TableCell 
-                      className="text-center text-sm cursor-pointer hover:bg-blue-50 hover:text-blue-700 transition-colors font-medium"
+                      className="text-center text-xs cursor-pointer hover:bg-blue-50 hover:text-blue-700 transition-colors font-medium"
                       onClick={() => handleCellClick(branch.branch_name, undefined, 'total')}
                     >
                       {branch.totals.total_ptps}
                     </TableCell>
                     <TableCell 
-                      className="text-center text-sm cursor-pointer hover:bg-green-50 hover:text-green-700 transition-colors font-medium text-green-600"
+                      className="text-center text-xs cursor-pointer hover:bg-green-50 hover:text-green-700 transition-colors font-medium text-green-600"
                       onClick={() => handleCellClick(branch.branch_name, undefined, 'paid')}
                     >
                       {branch.totals.honored_ptps}
                     </TableCell>
                     <TableCell 
-                      className="text-center text-sm cursor-pointer hover:bg-red-50 hover:text-red-700 transition-colors font-medium text-red-600"
+                      className="text-center text-xs cursor-pointer hover:bg-red-50 hover:text-red-700 transition-colors font-medium text-red-600"
                       onClick={() => handleCellClick(branch.branch_name, undefined, 'overdue')}
                     >
                       {branch.totals.broken_ptps}
                     </TableCell>
-                    <TableCell className="text-center text-sm font-medium">
-                      {calculatePercentage(branch.totals.honored_ptps, branch.totals.total_ptps)}
+                    <TableCell className="text-center text-xs font-medium">
+                      {branch.totals.total_ptps - branch.totals.honored_ptps - branch.totals.broken_ptps}
                     </TableCell>
                   </TableRow>
                   
                   {expandedBranches.has(branch.branch_name) && getSortedRms(branch.rms).map((rm) => (
                     <TableRow key={`${branch.branch_name}-${rm.rm_name}`} className="bg-muted/25 hover:bg-muted/40">
-                      <TableCell className="text-sm pl-8">
+                      <TableCell className="text-xs pl-8">
                         {rm.rm_name}
                       </TableCell>
                       <TableCell 
-                        className="text-center text-sm cursor-pointer hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                        className="text-center text-xs cursor-pointer hover:bg-blue-50 hover:text-blue-700 transition-colors"
                         onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'total')}
                       >
                         {rm.total_ptps}
                       </TableCell>
                       <TableCell 
-                        className="text-center text-sm cursor-pointer hover:bg-green-50 hover:text-green-700 transition-colors text-green-600"
+                        className="text-center text-xs cursor-pointer hover:bg-green-50 hover:text-green-700 transition-colors text-green-600"
                         onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'paid')}
                       >
                         {rm.honored_ptps}
                       </TableCell>
                       <TableCell 
-                        className="text-center text-sm cursor-pointer hover:bg-red-50 hover:text-red-700 transition-colors text-red-600"
+                        className="text-center text-xs cursor-pointer hover:bg-red-50 hover:text-red-700 transition-colors text-red-600"
                         onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'overdue')}
                       >
                         {rm.broken_ptps}
                       </TableCell>
-                      <TableCell className="text-center text-sm font-medium">
-                        {calculatePercentage(rm.honored_ptps, rm.total_ptps)}
+                      <TableCell className="text-center text-xs font-medium">
+                        {rm.total_ptps - rm.honored_ptps - rm.broken_ptps}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -307,12 +288,12 @@ const PTPEffectivenessTable = ({ applications, onDrillDown }: PTPEffectivenessTa
               
               {effectivenessBranchData.length > 0 && (
                 <TableRow className="bg-muted/50 font-medium">
-                  <TableCell colSpan={1} className="font-bold text-sm">Total</TableCell>
-                  <TableCell className="text-center font-bold text-sm">{totals.total_ptps}</TableCell>
-                  <TableCell className="text-center font-bold text-sm text-green-600">{totals.honored_ptps}</TableCell>
-                  <TableCell className="text-center font-bold text-sm text-red-600">{totals.broken_ptps}</TableCell>
-                  <TableCell className="text-center font-bold text-sm">
-                    {calculatePercentage(totals.honored_ptps, totals.total_ptps)}
+                  <TableCell colSpan={1} className="font-bold text-xs">Total</TableCell>
+                  <TableCell className="text-center font-bold text-xs">{totals.total_ptps}</TableCell>
+                  <TableCell className="text-center font-bold text-xs text-green-600">{totals.honored_ptps}</TableCell>
+                  <TableCell className="text-center font-bold text-xs text-red-600">{totals.broken_ptps}</TableCell>
+                  <TableCell className="text-center font-bold text-xs">
+                    {totals.total_ptps - totals.honored_ptps - totals.broken_ptps}
                   </TableCell>
                 </TableRow>
               )}
@@ -322,7 +303,7 @@ const PTPEffectivenessTable = ({ applications, onDrillDown }: PTPEffectivenessTa
         
         {effectivenessBranchData.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
-            <p className="text-sm">No data available for PTP effectiveness analysis</p>
+            <p className="text-xs">No data available for PTP effectiveness analysis</p>
           </div>
         )}
       </CardContent>

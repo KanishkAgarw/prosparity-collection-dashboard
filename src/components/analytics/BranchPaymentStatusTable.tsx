@@ -1,4 +1,3 @@
-
 import { Application } from '@/types/application';
 import { useBranchAnalyticsData } from '@/hooks/useBranchAnalyticsData';
 import { useExport } from '@/hooks/useExport';
@@ -30,7 +29,7 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('branch_name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const [rmSortField, setRmSortField] = useState<SortField>('branch_name');
+  const [rmSortField, setRmSortField] = useState<SortField>('rm_name');
   const [rmSortDirection, setRmSortDirection] = useState<SortDirection>('asc');
 
   const toggleBranch = (branchName: string) => {
@@ -176,20 +175,11 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
       <CardHeader>
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle className="text-xl">Payment Status by Branch</CardTitle>
-            <CardDescription className="text-sm">
-              Breakdown of application payment statuses across branches and RMs
+            <CardTitle className="text-lg">Payment Status by Branch</CardTitle>
+            <CardDescription className="text-xs">
+              Breakdown of payment statuses across branches and relationship managers
             </CardDescription>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExport}
-            className="flex items-center gap-2"
-          >
-            <Download className="h-3 w-3" />
-            Export
-          </Button>
         </div>
       </CardHeader>
       <CardContent>
