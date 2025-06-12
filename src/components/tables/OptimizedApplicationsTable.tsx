@@ -1,79 +1,46 @@
 
-import { memo, useMemo, useCallback } from "react";
-import { Table, TableBody } from "@/components/ui/table";
+import { memo } from "react";
 import { Application } from "@/types/application";
 import TableHeader from "./TableHeader";
 import ApplicationRow from "./ApplicationRow";
+import { Table, TableBody } from "@/components/ui/table";
 
 interface OptimizedApplicationsTableProps {
   applications: Application[];
   onRowClick: (application: Application) => void;
+  onApplicationDeleted?: () => void;
   selectedApplicationId?: string;
-  selectedApplications?: Application[];
-  onSelectionChange?: (applications: Application[]) => void;
-  showBulkSelection?: boolean;
 }
 
-const OptimizedApplicationsTable = memo(({ 
-  applications, 
-  onRowClick, 
-  selectedApplicationId,
-  selectedApplications = [],
-  onSelectionChange,
-  showBulkSelection = false
+const OptimizedApplicationsTable = memo(({
+  applications,
+  onRowClick,
+  selectedApplicationId
 }: OptimizedApplicationsTableProps) => {
-
-  const handleSelectAll = useCallback((checked: boolean) => {
-    if (onSelectionChange) {
-      onSelectionChange(checked ? applications : []);
-    }
-  }, [onSelectionChange, applications]);
-
-  const handleSelectApplication = useCallback((application: Application, checked: boolean) => {
-    if (!onSelectionChange) return;
-    
-    if (checked) {
-      onSelectionChange([...selectedApplications, application]);
-    } else {
-      onSelectionChange(selectedApplications.filter(app => app.id !== application.id));
-    }
-  }, [onSelectionChange, selectedApplications]);
-
-  const isApplicationSelected = useCallback((application: Application) => {
-    return selectedApplications.some(app => app.id === application.id);
-  }, [selectedApplications]);
-
-  const { allSelected, someSelected } = useMemo(() => {
-    const allSelected = applications.length > 0 && selectedApplications.length === applications.length;
-    const someSelected = selectedApplications.length > 0 && selectedApplications.length < applications.length;
-    return { allSelected, someSelected };
-  }, [applications.length, selectedApplications.length]);
-
   return (
-    <div className="px-4 sm:px-6 lg:px-8">
+    <div className="rounded-lg border border-gray-200 overflow-hidden shadow-sm">
       <div className="overflow-x-auto">
         <Table>
-          <TableHeader
-            showBulkSelection={showBulkSelection}
-            allSelected={allSelected}
-            someSelected={someSelected}
-            onSelectAll={handleSelectAll}
-          />
+          <TableHeader />
           <TableBody>
-            {applications.map((app) => (
+            {applications.map((application) => (
               <ApplicationRow
-                key={app.id}
-                application={app}
-                isSelected={isApplicationSelected(app)}
-                showBulkSelection={showBulkSelection}
+                key={application.id}
+                application={application}
                 selectedApplicationId={selectedApplicationId}
                 onRowClick={onRowClick}
-                onSelectApplication={handleSelectApplication}
               />
             ))}
           </TableBody>
         </Table>
       </div>
+      
+      {applications.length === 0 && (
+        <div className="text-center py-12 text-muted-foreground">
+          <p className="text-lg font-medium text-gray-500">No applications found</p>
+          <p className="text-sm text-gray-400">Try adjusting your filters</p>
+        </div>
+      )}
     </div>
   );
 });

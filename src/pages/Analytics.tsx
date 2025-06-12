@@ -9,9 +9,6 @@ import { useApplications } from '@/hooks/useApplications';
 import BranchPaymentStatusTable from '@/components/analytics/BranchPaymentStatusTable';
 import BranchPTPStatusTable from '@/components/analytics/BranchPTPStatusTable';
 import PTPEffectivenessTable from '@/components/analytics/PTPEffectivenessTable';
-import RMPerformanceTable from '@/components/analytics/RMPerformanceTable';
-import CollectionVelocityTable from '@/components/analytics/CollectionVelocityTable';
-import PaymentPatternTable from '@/components/analytics/PaymentPatternTable';
 import ApplicationDetailsModal from '@/components/analytics/ApplicationDetailsModal';
 import { Application } from '@/types/application';
 
@@ -111,7 +108,7 @@ const Analytics = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
+      <div className="container mx-auto px-4 py-6 max-w-6xl">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <Button
@@ -132,12 +129,10 @@ const Analytics = () => {
         {/* Analytics Content */}
         <Card className="bg-white/90 backdrop-blur-sm shadow-xl">
           <Tabs defaultValue="payment-status" className="w-full">
-            <TabsList className="grid w-full grid-cols-5 bg-gray-100/80">
-              <TabsTrigger value="payment-status" className="text-sm">Payment Status</TabsTrigger>
-              <TabsTrigger value="ptp-status" className="text-sm">PTP Status</TabsTrigger>
-              <TabsTrigger value="ptp-effectiveness" className="text-sm">PTP Effectiveness</TabsTrigger>
-              <TabsTrigger value="rm-performance" className="text-sm">RM Performance</TabsTrigger>
-              <TabsTrigger value="payment-patterns" className="text-sm">Payment Patterns</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3 bg-gray-100/80 h-12">
+              <TabsTrigger value="payment-status" className="text-base font-medium">Payment Status</TabsTrigger>
+              <TabsTrigger value="ptp-status" className="text-base font-medium">PTP Status</TabsTrigger>
+              <TabsTrigger value="ptp-effectiveness" className="text-base font-medium">PTP Effectiveness</TabsTrigger>
             </TabsList>
             
             <TabsContent value="payment-status" className="space-y-4 p-6">
@@ -156,20 +151,6 @@ const Analytics = () => {
 
             <TabsContent value="ptp-effectiveness" className="space-y-4 p-6">
               <PTPEffectivenessTable 
-                applications={allApplications}
-                onDrillDown={handleDrillDown}
-              />
-            </TabsContent>
-
-            <TabsContent value="rm-performance" className="space-y-4 p-6">
-              <RMPerformanceTable 
-                applications={allApplications}
-                onDrillDown={handleDrillDown}
-              />
-            </TabsContent>
-
-            <TabsContent value="payment-patterns" className="space-y-4 p-6">
-              <PaymentPatternTable 
                 applications={allApplications}
                 onDrillDown={handleDrillDown}
               />
