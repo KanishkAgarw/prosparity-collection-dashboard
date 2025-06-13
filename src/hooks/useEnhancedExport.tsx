@@ -4,12 +4,15 @@ import * as XLSX from 'xlsx';
 import { Application } from '@/types/application';
 import { format } from 'date-fns';
 import { formatPtpDate } from '@/utils/formatters';
+import { usePlanVsAchievementData } from './usePlanVsAchievementData';
 
 interface ExportData {
   applications: Application[];
 }
 
 export const useEnhancedExport = () => {
+  const { fetchPlanVsAchievementData } = usePlanVsAchievementData();
+
   const formatCommentTrail = (comments: Array<{content: string; user_name: string}>) => {
     if (!comments || comments.length === 0) {
       return 'No comments';
@@ -168,9 +171,68 @@ export const useEnhancedExport = () => {
     XLSX.writeFile(workbook, `${fileName}-${timestamp}.xlsx`);
   }, []);
 
+  const exportPlanVsAchievementReport = useCallback(async (selectedDateTime: Date, fileName: string = 'plan-vs-achievement-report') => {
+    try {
+      console.log('Starting Plan vs Achievement export for:', selectedDateTime);
+      
+      const planVsAchievementData = await fetchPlanVsAchievementData(selectedDateTime);
+      
+      if (planVsAchievementData.length === 0) {
+        console.warn('No applications found for the selected date/time');
+        return;
+      }
+
+      const workbook = XLSX.utils.book_new();
+
+      // Create export data with Plan vs Achievement specific columns
+      const exportData = planVsAchievementData.map((app: any) => ({
+        'Applicant ID': app.applicant_id,
+        'Branch Name': app.branch_name,
+        'RM Name': app.rm_name,
+        'Collection RM': app.collection_rm || '',
+        'Dealer Name': app.dealer_name,
+        'Applicant Name': app.applicant_name,
+        'PTP Date': formatPtpDate(app.ptp_date),
+        'Status on Selected Date': app.status_on_selected_date,
+        'Status as of Export': app.current_status,
+        'Comment Trail': app.comment_trail
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      
+      // Set column widths for better readability
+      const colWidths = [
+        { wch: 20 }, // Applicant ID
+        { wch: 20 }, // Branch Name
+        { wch: 20 }, // RM Name
+        { wch: 20 }, // Collection RM
+        { wch: 25 }, // Dealer Name
+        { wch: 25 }, // Applicant Name
+        { wch: 15 }, // PTP Date
+        { wch: 25 }, // Status on Selected Date
+        { wch: 25 }, // Status as of Export
+        { wch: 60 }  // Comment Trail
+      ];
+      
+      worksheet['!cols'] = colWidths;
+      
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Plan vs Achievement');
+
+      // Export the file with timestamp
+      const timestamp = format(new Date(), 'yyyy-MM-dd-HHmm');
+      const selectedDateFormatted = format(selectedDateTime, 'yyyy-MM-dd-HHmm');
+      XLSX.writeFile(workbook, `${fileName}-${selectedDateFormatted}-exported-${timestamp}.xlsx`);
+      
+      console.log('Plan vs Achievement export completed successfully');
+    } catch (error) {
+      console.error('Error exporting Plan vs Achievement report:', error);
+    }
+  }, [fetchPlanVsAchievementData]);
+
   return {
     exportPtpCommentsReport,
     exportFullReport,
+    exportPlanVsAchievementReport,
     exportToExcel
   };
 };

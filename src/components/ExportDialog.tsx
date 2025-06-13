@@ -6,26 +6,36 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import PlanVsAchievementDatePicker from "@/components/analytics/PlanVsAchievementDatePicker";
 
 interface ExportDialogProps {
   onExportFull: () => void;
   onExportPtpComments: () => void;
+  onExportPlanVsAchievement?: (selectedDateTime: Date) => void;
 }
 
-type ExportType = 'full' | 'ptp-comments';
+type ExportType = 'full' | 'ptp-comments' | 'plan-vs-achievement';
 
-const ExportDialog = ({ onExportFull, onExportPtpComments }: ExportDialogProps) => {
+const ExportDialog = ({ onExportFull, onExportPtpComments, onExportPlanVsAchievement }: ExportDialogProps) => {
   const [selectedType, setSelectedType] = useState<ExportType>('ptp-comments');
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedDateTime, setSelectedDateTime] = useState<Date | null>(null);
 
   const handleExport = () => {
     if (selectedType === 'full') {
       onExportFull();
-    } else {
+    } else if (selectedType === 'ptp-comments') {
       onExportPtpComments();
+    } else if (selectedType === 'plan-vs-achievement' && selectedDateTime && onExportPlanVsAchievement) {
+      onExportPlanVsAchievement(selectedDateTime);
+    } else {
+      console.error('Plan vs Achievement export requires date/time selection');
+      return;
     }
     setIsOpen(false);
   };
+
+  const canExport = selectedType !== 'plan-vs-achievement' || selectedDateTime;
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -35,7 +45,7 @@ const ExportDialog = ({ onExportFull, onExportPtpComments }: ExportDialogProps) 
           Export
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[525px]">
         <DialogHeader>
           <DialogTitle>Export Report</DialogTitle>
         </DialogHeader>
@@ -57,6 +67,22 @@ const ExportDialog = ({ onExportFull, onExportPtpComments }: ExportDialogProps) 
               </CardContent>
             </Card>
 
+            <Card className={`cursor-pointer transition-colors ${selectedType === 'plan-vs-achievement' ? 'ring-2 ring-blue-500' : ''}`}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="plan-vs-achievement" id="plan-vs-achievement" />
+                  <Label htmlFor="plan-vs-achievement" className="cursor-pointer">
+                    <CardTitle className="text-sm">Plan vs Achievement</CardTitle>
+                  </Label>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <CardDescription className="text-xs">
+                  Applications where PTP was set on selected date/time with status comparison and comment trail
+                </CardDescription>
+              </CardContent>
+            </Card>
+
             <Card className={`cursor-pointer transition-colors ${selectedType === 'full' ? 'ring-2 ring-blue-500' : ''}`}>
               <CardHeader className="pb-3">
                 <div className="flex items-center space-x-2">
@@ -74,11 +100,20 @@ const ExportDialog = ({ onExportFull, onExportPtpComments }: ExportDialogProps) 
             </Card>
           </RadioGroup>
 
+          {selectedType === 'plan-vs-achievement' && (
+            <div className="mt-4 p-4 border rounded-lg bg-gray-50">
+              <PlanVsAchievementDatePicker 
+                selectedDateTime={selectedDateTime}
+                onDateTimeChange={setSelectedDateTime}
+              />
+            </div>
+          )}
+
           <div className="flex justify-end gap-3 pt-4">
             <Button variant="outline" onClick={() => setIsOpen(false)} size="sm">
               Cancel
             </Button>
-            <Button onClick={handleExport} size="sm">
+            <Button onClick={handleExport} size="sm" disabled={!canExport}>
               <Download className="h-3 w-3 mr-1" />
               Export
             </Button>
