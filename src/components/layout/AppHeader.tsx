@@ -13,10 +13,9 @@ import { BarChart3 } from "lucide-react";
 interface AppHeaderProps {
   onExportFull: () => void;
   onExportPtpComments: () => void;
-  onExportPlanVsAchievement?: (selectedDateTime: Date) => void;
 }
 
-const AppHeader = ({ onExportFull, onExportPtpComments, onExportPlanVsAchievement }: AppHeaderProps) => {
+const AppHeader = ({ onExportFull, onExportPtpComments }: AppHeaderProps) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { getUserName, fetchProfiles } = useUserProfiles();
@@ -80,7 +79,6 @@ const AppHeader = ({ onExportFull, onExportPtpComments, onExportPlanVsAchievemen
             <ExportDialog 
               onExportFull={onExportFull}
               onExportPtpComments={onExportPtpComments}
-              onExportPlanVsAchievement={onExportPlanVsAchievement}
             />
             {isAdmin && (
               <Button

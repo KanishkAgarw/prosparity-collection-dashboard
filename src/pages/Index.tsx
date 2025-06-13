@@ -1,3 +1,4 @@
+
 import { useState, useMemo, useEffect } from "react";
 import { useApplications } from "@/hooks/useApplications";
 import { useCascadingFilters } from "@/hooks/useCascadingFilters";
@@ -44,11 +45,7 @@ const Index = () => {
     pageSize: 50 
   });
 
-  const { 
-    exportPtpCommentsReport, 
-    exportFullReport, 
-    exportPlanVsAchievementReport 
-  } = useEnhancedExport();
+  const { exportPtpCommentsReport, exportFullReport } = useEnhancedExport();
 
   // Restore state on component mount
   useEffect(() => {
@@ -212,11 +209,6 @@ const Index = () => {
     }
   };
 
-  const handleExportPlanVsAchievement = async (selectedDateTime: Date) => {
-    console.log('Exporting Plan vs Achievement for:', selectedDateTime);
-    await exportPlanVsAchievementReport(selectedDateTime);
-  };
-
   // Show loading screen while auth is loading
   if (authLoading || rolesLoading) {
     return (
@@ -245,35 +237,36 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
-        <AppHeader 
-          onExportFull={handleExportFull}
-          onExportPtpComments={handleExportPtpComments}
-          onExportPlanVsAchievement={handleExportPlanVsAchievement}
-        />
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <div className="space-y-4 sm:space-y-6">
+          <AppHeader 
+            onExportFull={handleExportFull}
+            onExportPtpComments={handleExportPtpComments}
+          />
 
-        <FiltersSection
-          filters={filters}
-          availableOptions={availableOptions}
-          onFilterChange={handleFilterChange}
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-        />
+          <FiltersSection
+            filters={filters}
+            availableOptions={availableOptions}
+            onFilterChange={handleFilterChange}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+          />
 
-        <StatusCards applications={finalFilteredApplications} />
+          <StatusCards applications={finalFilteredApplications} />
 
-        <MainContent
-          applications={paginatedFilteredApplications}
-          onRowClick={handleApplicationSelect}
-          onApplicationDeleted={handleApplicationDeleted}
-          selectedApplicationId={selectedApplication?.id}
-          currentPage={currentPage}
-          totalPages={filteredTotalPages}
-          onPageChange={setCurrentPage}
-          totalCount={filteredTotalCount}
-          pageSize={50}
-        />
+          <MainContent
+            applications={paginatedFilteredApplications}
+            onRowClick={handleApplicationSelect}
+            onApplicationDeleted={handleApplicationDeleted}
+            selectedApplicationId={selectedApplication?.id}
+            currentPage={currentPage}
+            totalPages={filteredTotalPages}
+            onPageChange={setCurrentPage}
+            totalCount={filteredTotalCount}
+            pageSize={50}
+          />
+        </div>
       </div>
 
       <PWAInstallPrompt />
