@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
 import { CalendarIcon, Clock, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -22,6 +23,7 @@ const HistoricalDateSelector = ({
 }: HistoricalDateSelectorProps) => {
   const [open, setOpen] = useState(false);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
+  const [selectedTime, setSelectedTime] = useState('00:00');
   const { getAvailableDates, loading } = useHistoricalAnalytics();
 
   useEffect(() => {
@@ -33,24 +35,79 @@ const HistoricalDateSelector = ({
     loadAvailableDates();
   }, []);
 
+  useEffect(() => {
+    // Extract time from selected date if it includes time
+    if (selectedDate && selectedDate.includes('T')) {
+      const dateTime = new Date(selectedDate);
+      setSelectedTime(format(dateTime, 'HH:mm'));
+    }
+  }, [selectedDate]);
+
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
-      const dateStr = format(date, 'yyyy-MM-dd');
-      onDateChange(dateStr);
+      // Combine selected date with selected time
+      const [hours, minutes] = selectedTime.split(':');
+      const dateWithTime = new Date(date);
+      dateWithTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      
+      const dateTimeStr = format(dateWithTime, "yyyy-MM-dd'T'HH:mm:ss");
+      onDateChange(dateTimeStr);
     } else {
       onDateChange(undefined);
     }
     setOpen(false);
   };
 
+  const handleTimeChange = (time: string) => {
+    setSelectedTime(time);
+    
+    // Update the selected date with new time if a date is already selected
+    if (selectedDate) {
+      const currentDate = selectedDate.includes('T') 
+        ? new Date(selectedDate) 
+        : new Date(selectedDate + 'T00:00:00');
+      
+      const [hours, minutes] = time.split(':');
+      currentDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      
+      const dateTimeStr = format(currentDate, "yyyy-MM-dd'T'HH:mm:ss");
+      onDateChange(dateTimeStr);
+    }
+  };
+
   const handleGenerateSnapshot = () => {
     if (selectedDate && onGenerateSnapshot) {
-      onGenerateSnapshot(selectedDate);
+      // For snapshot generation, use just the date part
+      const dateOnly = selectedDate.split('T')[0];
+      onGenerateSnapshot(dateOnly);
     }
   };
 
   const isHistoricalMode = !!selectedDate;
-  const hasSnapshotForDate = selectedDate ? availableDates.includes(selectedDate) : false;
+  const dateOnly = selectedDate ? selectedDate.split('T')[0] : undefined;
+  const hasSnapshotForDate = dateOnly ? availableDates.includes(dateOnly) : false;
+
+  const getDisplayDate = () => {
+    if (!selectedDate) return undefined;
+    
+    try {
+      const date = new Date(selectedDate);
+      return date;
+    } catch {
+      return undefined;
+    }
+  };
+
+  const formatDisplayText = () => {
+    if (!selectedDate) return "Select historical date & time";
+    
+    try {
+      const date = new Date(selectedDate);
+      return format(date, 'PPP p'); // Date and time format
+    } catch {
+      return "Invalid date";
+    }
+  };
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
@@ -60,26 +117,35 @@ const HistoricalDateSelector = ({
             <Button
               variant="outline"
               className={cn(
-                "w-[240px] justify-start text-left font-normal",
+                "w-[280px] justify-start text-left font-normal",
                 !selectedDate && "text-muted-foreground"
               )}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {selectedDate ? (
-                format(new Date(selectedDate), 'PPP')
-              ) : (
-                <span>Select historical date</span>
-              )}
+              {formatDisplayText()}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={selectedDate ? new Date(selectedDate) : undefined}
-              onSelect={handleDateSelect}
-              disabled={(date) => date > new Date()}
-              initialFocus
-            />
+            <div className="space-y-4 p-4">
+              <Calendar
+                mode="single"
+                selected={getDisplayDate()}
+                onSelect={handleDateSelect}
+                disabled={(date) => date > new Date()}
+                initialFocus
+                className="pointer-events-auto"
+              />
+              
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="time"
+                  value={selectedTime}
+                  onChange={(e) => handleTimeChange(e.target.value)}
+                  className="w-32"
+                />
+              </div>
+            </div>
           </PopoverContent>
         </Popover>
 
