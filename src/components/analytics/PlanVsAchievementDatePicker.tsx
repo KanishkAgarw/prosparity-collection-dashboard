@@ -42,7 +42,12 @@ const PlanVsAchievementDatePicker = ({ selectedDateTime, onDateTimeChange }: Pla
 
   return (
     <div className="space-y-3">
-      <Label className="text-sm font-medium">Select Date & Time when PTPs were set</Label>
+      <Label className="text-sm font-medium">Select Criteria for Plan vs Achievement Report</Label>
+      <div className="text-xs text-gray-600 mb-2">
+        Find applications where:
+        <br />• PTP date is set to the selected date
+        <br />• PTP was created on or before the selected date/time
+      </div>
       <div className="flex gap-2">
         <Popover open={isOpen} onOpenChange={setIsOpen}>
           <PopoverTrigger asChild>
@@ -75,9 +80,13 @@ const PlanVsAchievementDatePicker = ({ selectedDateTime, onDateTimeChange }: Pla
         </div>
       </div>
       {selectedDateTime && (
-        <p className="text-xs text-gray-600">
-          Will find applications where PTP was set on {format(selectedDateTime, 'PPP')} at {format(selectedDateTime, 'HH:mm')}
-        </p>
+        <div className="text-xs text-gray-600 p-2 bg-blue-50 rounded">
+          <strong>Report will include:</strong>
+          <br />
+          Applications with PTP date = <strong>{format(selectedDateTime, 'PPP')}</strong>
+          <br />
+          Where PTP was set on or before <strong>{format(selectedDateTime, 'PPP')} at {format(selectedDateTime, 'HH:mm')}</strong>
+        </div>
       )}
     </div>
   );

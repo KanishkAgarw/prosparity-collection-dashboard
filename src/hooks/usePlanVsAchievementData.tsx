@@ -18,13 +18,22 @@ export const usePlanVsAchievementData = () => {
     try {
       console.log('Fetching Plan vs Achievement data for:', selectedDateTime);
 
-      // First, find applications where PTP was set on the selected date/time
+      // Extract date part for PTP date matching
+      const selectedDate = format(selectedDateTime, 'yyyy-MM-dd');
+      const selectedDateTimeString = selectedDateTime.toISOString();
+
+      console.log('Looking for PTP date:', selectedDate);
+      console.log('Created on or before:', selectedDateTimeString);
+
+      // First, find applications where PTP date matches selected date AND was set on or before selected datetime
       const { data: ptpRecords, error: ptpError } = await supabase
         .from('ptp_dates')
         .select('application_id, ptp_date, created_at')
-        .gte('created_at', format(selectedDateTime, 'yyyy-MM-dd HH:mm:00'))
-        .lt('created_at', format(new Date(selectedDateTime.getTime() + 60000), 'yyyy-MM-dd HH:mm:00')) // 1 minute window
-        .not('ptp_date', 'is', null);
+        .not('ptp_date', 'is', null)
+        .gte('ptp_date', `${selectedDate} 00:00:00`)
+        .lt('ptp_date', `${selectedDate} 23:59:59`)
+        .lte('created_at', selectedDateTimeString)
+        .order('application_id, created_at', { ascending: false });
 
       if (ptpError) {
         console.error('Error fetching PTP records:', ptpError);
@@ -32,12 +41,21 @@ export const usePlanVsAchievementData = () => {
       }
 
       if (!ptpRecords || ptpRecords.length === 0) {
-        console.log('No PTP records found for the selected date/time');
+        console.log('No PTP records found for the selected criteria');
+        console.log('Criteria: PTP date =', selectedDate, 'AND created_at <=', selectedDateTimeString);
         return [];
       }
 
-      const applicationIds = ptpRecords.map(record => record.application_id);
-      console.log('Found', applicationIds.length, 'applications with PTP set on selected date/time');
+      // Get the most recent PTP record for each application (since we ordered by created_at DESC)
+      const uniquePtpRecords = ptpRecords.reduce((acc, record) => {
+        if (!acc[record.application_id]) {
+          acc[record.application_id] = record;
+        }
+        return acc;
+      }, {} as Record<string, any>);
+
+      const applicationIds = Object.keys(uniquePtpRecords);
+      console.log('Found', applicationIds.length, 'unique applications with PTP set for', selectedDate, 'on or before', selectedDateTimeString);
 
       // Fetch application details
       const { data: applications, error: appError } = await supabase
@@ -61,7 +79,7 @@ export const usePlanVsAchievementData = () => {
         console.error('Error fetching current statuses:', statusError);
       }
 
-      // Create a map of current statuses
+      // Create a map of current statuses (latest status per application)
       const currentStatusMap: Record<string, string> = {};
       currentStatuses?.forEach(status => {
         if (!currentStatusMap[status.application_id]) {
@@ -74,7 +92,7 @@ export const usePlanVsAchievementData = () => {
         .from('field_status')
         .select('application_id, status, created_at')
         .in('application_id', applicationIds)
-        .lte('created_at', selectedDateTime.toISOString())
+        .lte('created_at', selectedDateTimeString)
         .order('created_at', { ascending: false });
 
       if (histError) {
@@ -115,7 +133,7 @@ export const usePlanVsAchievementData = () => {
 
       // Combine all data
       const planVsAchievementData: PlanVsAchievementApplication[] = applications?.map(app => {
-        const ptpRecord = ptpRecords.find(ptp => ptp.application_id === app.applicant_id);
+        const ptpRecord = uniquePtpRecords[app.applicant_id];
         const commentTrail = commentsMap[app.applicant_id]?.map(comment => 
           `${format(new Date(comment.created_at), 'dd/MM/yyyy HH:mm')} - ${comment.user_email}: ${comment.content}`
         ).join(' | ') || 'No comments';
@@ -130,6 +148,7 @@ export const usePlanVsAchievementData = () => {
       }) || [];
 
       console.log('Plan vs Achievement data processed:', planVsAchievementData.length, 'applications');
+      console.log('Sample data:', planVsAchievementData.slice(0, 2));
       return planVsAchievementData;
 
     } catch (error) {

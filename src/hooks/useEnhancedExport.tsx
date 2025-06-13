@@ -1,10 +1,10 @@
-
 import { useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import { Application } from '@/types/application';
 import { format } from 'date-fns';
 import { formatPtpDate } from '@/utils/formatters';
 import { usePlanVsAchievementData } from './usePlanVsAchievementData';
+import { toast } from 'sonner';
 
 interface ExportData {
   applications: Application[];
@@ -175,12 +175,18 @@ export const useEnhancedExport = () => {
     try {
       console.log('Starting Plan vs Achievement export for:', selectedDateTime);
       
+      toast.loading('Finding applications with PTP set for selected date...', { id: 'plan-vs-achievement' });
+      
       const planVsAchievementData = await fetchPlanVsAchievementData(selectedDateTime);
       
       if (planVsAchievementData.length === 0) {
-        console.warn('No applications found for the selected date/time');
+        const selectedDate = format(selectedDateTime, 'yyyy-MM-dd');
+        console.warn('No applications found for the selected criteria');
+        toast.error(`No applications found with PTP set for ${selectedDate} on or before ${format(selectedDateTime, 'PPP HH:mm')}`, { id: 'plan-vs-achievement' });
         return;
       }
+
+      toast.loading(`Exporting ${planVsAchievementData.length} applications...`, { id: 'plan-vs-achievement' });
 
       const workbook = XLSX.utils.book_new();
 
@@ -223,9 +229,11 @@ export const useEnhancedExport = () => {
       const selectedDateFormatted = format(selectedDateTime, 'yyyy-MM-dd-HHmm');
       XLSX.writeFile(workbook, `${fileName}-${selectedDateFormatted}-exported-${timestamp}.xlsx`);
       
+      toast.success(`Successfully exported ${planVsAchievementData.length} applications`, { id: 'plan-vs-achievement' });
       console.log('Plan vs Achievement export completed successfully');
     } catch (error) {
       console.error('Error exporting Plan vs Achievement report:', error);
+      toast.error('Failed to export Plan vs Achievement report', { id: 'plan-vs-achievement' });
     }
   }, [fetchPlanVsAchievementData]);
 
