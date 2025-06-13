@@ -5,13 +5,9 @@ import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
 import { useApplications } from '@/hooks/useApplications';
-import { useHistoricalAnalytics } from '@/hooks/useHistoricalAnalytics';
 import BranchPaymentStatusTable from '@/components/analytics/BranchPaymentStatusTable';
 import BranchPTPStatusTable from '@/components/analytics/BranchPTPStatusTable';
 import PTPEffectivenessTable from '@/components/analytics/PTPEffectivenessTable';
-import HistoricalBranchPaymentStatusTable from '@/components/analytics/HistoricalBranchPaymentStatusTable';
-import HistoricalBranchPTPStatusTable from '@/components/analytics/HistoricalBranchPTPStatusTable';
-import HistoricalDateSelector from '@/components/analytics/HistoricalDateSelector';
 import ApplicationDetailsModal from '@/components/analytics/ApplicationDetailsModal';
 import { Application } from '@/types/application';
 import { format, isToday, isTomorrow, isBefore, isAfter, startOfDay } from 'date-fns';
@@ -29,13 +25,6 @@ const Analytics = () => {
   const { allApplications, loading } = useApplications();
   const [selectedFilter, setSelectedFilter] = useState<DrillDownFilter | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string | undefined>(undefined);
-  
-  const { 
-    snapshots, 
-    loading: historicalLoading, 
-    generateSnapshot 
-  } = useHistoricalAnalytics(selectedDate);
 
   const handleDrillDown = (filter: DrillDownFilter) => {
     setSelectedFilter(filter);
@@ -45,14 +34,6 @@ const Analytics = () => {
   const handleCloseModal = () => {
     setShowModal(false);
     setSelectedFilter(null);
-  };
-
-  const handleDateChange = (date: string | undefined) => {
-    setSelectedDate(date);
-  };
-
-  const handleGenerateSnapshot = async (date: string) => {
-    await generateSnapshot(date);
   };
 
   const getFilteredApplications = (): Application[] => {
@@ -181,17 +162,12 @@ const Analytics = () => {
     return filtered;
   };
 
-  const isHistoricalMode = !!selectedDate;
-  const isLoading = loading || historicalLoading;
-
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="text-lg font-medium text-gray-700">
-            {historicalLoading ? 'Loading historical analytics...' : 'Loading analytics...'}
-          </p>
+          <p className="text-lg font-medium text-gray-700">Loading analytics...</p>
         </div>
       </div>
     );
@@ -217,15 +193,6 @@ const Analytics = () => {
           </div>
         </div>
 
-        {/* Historical Date Selector */}
-        <div className="mb-6">
-          <HistoricalDateSelector
-            selectedDate={selectedDate}
-            onDateChange={handleDateChange}
-            onGenerateSnapshot={handleGenerateSnapshot}
-          />
-        </div>
-
         {/* Analytics Content */}
         <Card className="bg-white/90 backdrop-blur-sm shadow-xl">
           <Tabs defaultValue="payment-status" className="w-full">
@@ -236,58 +203,35 @@ const Analytics = () => {
             </TabsList>
             
             <TabsContent value="payment-status" className="space-y-4 p-6">
-              {isHistoricalMode ? (
-                <HistoricalBranchPaymentStatusTable 
-                  snapshots={snapshots}
-                  selectedDate={selectedDate}
-                />
-              ) : (
-                <BranchPaymentStatusTable 
-                  applications={allApplications} 
-                  onDrillDown={handleDrillDown}
-                />
-              )}
+              <BranchPaymentStatusTable 
+                applications={allApplications} 
+                onDrillDown={handleDrillDown}
+              />
             </TabsContent>
             
             <TabsContent value="ptp-status" className="space-y-4 p-6">
-              {isHistoricalMode ? (
-                <HistoricalBranchPTPStatusTable 
-                  snapshots={snapshots}
-                  selectedDate={selectedDate}
-                />
-              ) : (
-                <BranchPTPStatusTable 
-                  applications={allApplications} 
-                  onDrillDown={handleDrillDown}
-                />
-              )}
+              <BranchPTPStatusTable 
+                applications={allApplications} 
+                onDrillDown={handleDrillDown}
+              />
             </TabsContent>
 
             <TabsContent value="ptp-effectiveness" className="space-y-4 p-6">
-              {isHistoricalMode ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p className="text-sm">PTP Effectiveness analysis is not available for historical data</p>
-                  <p className="text-xs mt-2">This feature requires live application data for accurate calculations</p>
-                </div>
-              ) : (
-                <PTPEffectivenessTable 
-                  applications={allApplications}
-                  onDrillDown={handleDrillDown}
-                />
-              )}
+              <PTPEffectivenessTable 
+                applications={allApplications}
+                onDrillDown={handleDrillDown}
+              />
             </TabsContent>
           </Tabs>
         </Card>
 
-        {/* Drill-down Modal - Only show for live data */}
-        {!isHistoricalMode && (
-          <ApplicationDetailsModal
-            isOpen={showModal}
-            onClose={handleCloseModal}
-            applications={getFilteredApplications()}
-            filter={selectedFilter}
-          />
-        )}
+        {/* Drill-down Modal */}
+        <ApplicationDetailsModal
+          isOpen={showModal}
+          onClose={handleCloseModal}
+          applications={getFilteredApplications()}
+          filter={selectedFilter}
+        />
       </div>
     </div>
   );
