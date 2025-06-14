@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { usePlanVsAchievementData } from '@/hooks/exports/usePlanVsAchievementData';
 import { usePlanVsAchievementReport } from '@/hooks/exports/usePlanVsAchievementReport';
@@ -9,6 +8,8 @@ import PlanVsAchievementHeader from './planVsAchievement/PlanVsAchievementHeader
 import PlanVsAchievementSummary from './planVsAchievement/PlanVsAchievementSummary';
 import PlanVsAchievementTable from './planVsAchievement/PlanVsAchievementTable';
 
+// Remove the duplicate interface - we'll use the one from the hook
+// Import the interface from the hook file
 interface PlanVsAchievementApplication {
   applicant_id: string;
   branch_name: string;
