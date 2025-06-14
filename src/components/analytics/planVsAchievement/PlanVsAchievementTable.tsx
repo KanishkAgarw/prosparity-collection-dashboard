@@ -3,25 +3,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Download, FileText, Filter } from 'lucide-react';
 import { format } from 'date-fns';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Application } from '@/types/application';
-import ApplicationDetails from '@/components/tables/ApplicationDetails';
-import StatusBadge from '@/components/tables/StatusBadge';
-import { formatPtpDate } from '@/utils/formatters';
-
-interface PlanVsAchievementApplication {
-  applicant_id: string;
-  branch_name: string;
-  rm_name: string;
-  collection_rm: string;
-  dealer_name: string;
-  applicant_name: string;
-  previous_ptp_date: string | null;
-  previous_status: string | null;
-  updated_ptp_date: string | null;
-  updated_status: string | null;
-  comment_trail: string;
-}
+import { PlanVsAchievementApplication } from '@/types/planVsAchievement';
+import PlanVsAchievementRow from './PlanVsAchievementRow';
+import { getChangeSummary } from '@/utils/planVsAchievementUtils';
 
 interface PlanVsAchievementTableProps {
   loading: boolean;
@@ -33,25 +19,7 @@ interface PlanVsAchievementTableProps {
   selectedApplication: Application | null;
   onExportReport: () => void;
   onApplicationSelect: (app: Application) => void;
-  getChangeSummary: (item: PlanVsAchievementApplication) => string;
 }
-
-const CommentChangesDisplay = ({ comments }: { comments?: Array<{content: string; user_name: string}> }) => {
-  if (!comments || comments.length === 0) {
-    return <div className="text-xs text-gray-400 italic">No comment changes</div>;
-  }
-
-  return (
-    <div className="space-y-1">
-      {comments.map((comment, index) => (
-        <div key={index} className="text-xs p-2 rounded bg-gray-50 border-l-2 border-blue-200">
-          <div className="font-medium text-blue-700 mb-1">{comment.user_name}</div>
-          <div className="text-gray-600 break-words">{comment.content}</div>
-        </div>
-      ))}
-    </div>
-  );
-};
 
 const PlanVsAchievementTable = ({
   loading,
@@ -62,8 +30,7 @@ const PlanVsAchievementTable = ({
   selectedDate,
   selectedApplication,
   onExportReport,
-  onApplicationSelect,
-  getChangeSummary
+  onApplicationSelect
 }: PlanVsAchievementTableProps) => {
   return (
     <Card className="bg-white border-gray-200">
@@ -130,83 +97,18 @@ const PlanVsAchievementTable = ({
                   const application = applications.find(app => app.applicant_id === item.applicant_id);
                   const changeSummary = getChangeSummary(item);
                   const comments = commentsByApp[item.applicant_id] || [];
+                  
                   return (
-                    <TableRow 
+                    <PlanVsAchievementRow
                       key={item.applicant_id}
-                      className={`
-                        cursor-pointer transition-all duration-200 border-b border-gray-100
-                        ${selectedApplication?.applicant_id === item.applicant_id 
-                          ? 'bg-blue-50 border-l-4 border-l-blue-500' 
-                          : 'hover:bg-gray-50'
-                        }
-                        ${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'}
-                      `}
-                      onClick={() => application && onApplicationSelect(application)}
-                    >
-                      <TableCell className="py-4">
-                        {application && <ApplicationDetails application={application} />}
-                      </TableCell>
-                      
-                      <TableCell className="text-center py-4">
-                        <span className={`
-                          font-medium whitespace-nowrap px-3 py-1 rounded-full text-sm
-                          ${item.previous_ptp_date 
-                            ? 'text-blue-700 bg-blue-100' 
-                            : 'text-gray-500 bg-gray-100'
-                          }
-                        `}>
-                          {item.previous_ptp_date ? formatPtpDate(item.previous_ptp_date) : 'Not Set'}
-                        </span>
-                      </TableCell>
-                      
-                      <TableCell className="text-center py-4">
-                        {item.previous_status ? (
-                          <StatusBadge status={item.previous_status} />
-                        ) : (
-                          <span className="text-gray-500 bg-gray-100 px-3 py-1 rounded-full text-sm font-medium">Unknown</span>
-                        )}
-                      </TableCell>
-                      
-                      <TableCell className="text-center py-4">
-                        <span className={`
-                          font-medium whitespace-nowrap px-3 py-1 rounded-full text-sm
-                          ${item.updated_ptp_date 
-                            ? 'text-blue-700 bg-blue-100' 
-                            : 'text-gray-500 bg-gray-100'
-                          }
-                        `}>
-                          {item.updated_ptp_date ? formatPtpDate(item.updated_ptp_date) : 'Not Set'}
-                        </span>
-                      </TableCell>
-                      
-                      <TableCell className="text-center py-4">
-                        {item.updated_status ? (
-                          <StatusBadge status={item.updated_status} />
-                        ) : (
-                          <span className="text-gray-500 bg-gray-100 px-3 py-1 rounded-full text-sm font-medium">Unknown</span>
-                        )}
-                      </TableCell>
-                      
-                      <TableCell className="text-center py-4">
-                        <span className={`
-                          px-3 py-2 rounded-full text-sm font-semibold whitespace-nowrap
-                          ${changeSummary === 'No Change' 
-                            ? 'bg-gray-100 text-gray-600'
-                            : changeSummary.includes('Status Changed') && changeSummary.includes('PTP')
-                            ? 'bg-purple-100 text-purple-700'
-                            : changeSummary.includes('Status Changed')
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-blue-100 text-blue-700'
-                          }
-                        `}>
-                          {changeSummary}
-                        </span>
-                      </TableCell>
-                      
-                      <TableCell className="max-w-[300px] py-4">
-                        <CommentChangesDisplay comments={comments} />
-                      </TableCell>
-                    </TableRow>
+                      item={item}
+                      index={index}
+                      application={application}
+                      changeSummary={changeSummary}
+                      comments={comments}
+                      selectedApplication={selectedApplication}
+                      onApplicationSelect={onApplicationSelect}
+                    />
                   );
                 })}
               </TableBody>
