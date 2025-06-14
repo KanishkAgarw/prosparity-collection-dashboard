@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
@@ -8,6 +9,7 @@ import { useApplications } from '@/hooks/useApplications';
 import BranchPaymentStatusTable from '@/components/analytics/BranchPaymentStatusTable';
 import BranchPTPStatusTable from '@/components/analytics/BranchPTPStatusTable';
 import PTPEffectivenessTable from '@/components/analytics/PTPEffectivenessTable';
+import PlanVsAchievementTab from '@/components/analytics/PlanVsAchievementTab';
 import ApplicationDetailsModal from '@/components/analytics/ApplicationDetailsModal';
 import { Application } from '@/types/application';
 import { format, isToday, isTomorrow, isBefore, isAfter, startOfDay } from 'date-fns';
@@ -196,10 +198,11 @@ const Analytics = () => {
         {/* Analytics Content */}
         <Card className="bg-white/90 backdrop-blur-sm shadow-xl">
           <Tabs defaultValue="payment-status" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 bg-gray-100/80 h-12">
+            <TabsList className="grid w-full grid-cols-4 bg-gray-100/80 h-12">
               <TabsTrigger value="payment-status" className="text-base font-medium">Payment Status</TabsTrigger>
               <TabsTrigger value="ptp-status" className="text-base font-medium">PTP Status</TabsTrigger>
               <TabsTrigger value="ptp-effectiveness" className="text-base font-medium">PTP Effectiveness</TabsTrigger>
+              <TabsTrigger value="plan-vs-achievement" className="text-base font-medium">Plan vs Achievement</TabsTrigger>
             </TabsList>
             
             <TabsContent value="payment-status" className="space-y-4 p-6">
@@ -221,6 +224,10 @@ const Analytics = () => {
                 applications={allApplications}
                 onDrillDown={handleDrillDown}
               />
+            </TabsContent>
+
+            <TabsContent value="plan-vs-achievement" className="space-y-4 p-6">
+              <PlanVsAchievementTab />
             </TabsContent>
           </Tabs>
         </Card>
