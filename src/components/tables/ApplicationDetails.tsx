@@ -1,7 +1,7 @@
 
 import { memo } from "react";
 import { Application } from "@/types/application";
-import { formatEmiMonth } from "@/utils/formatters";
+import { formatEmiMonth, formatCurrency } from "@/utils/formatters";
 
 interface ApplicationDetailsProps {
   application: Application;
@@ -20,7 +20,10 @@ const ApplicationDetails = memo(({ application }: ApplicationDetailsProps) => {
       </div>
       <div className="text-sm text-gray-600">
         <span className="font-medium">EMI Month:</span> {formatEmiMonth(application.demand_date)} | 
-        <span className="font-medium"> Branch:</span> {application.branch_name}
+        <span className="font-medium"> EMI Due:</span> {formatCurrency(application.emi_amount)}
+      </div>
+      <div className="text-sm text-gray-600">
+        <span className="font-medium">Branch:</span> {application.branch_name}
       </div>
       <div className="text-sm text-gray-600">
         <span className="font-medium">TL:</span> {application.team_lead} | 

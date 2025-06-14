@@ -81,19 +81,34 @@ export const useComments = () => {
     }
   }, [user, fetchProfiles, getUserName]);
 
-  const fetchCommentsByApplications = useCallback(async (applicationIds: string[]): Promise<Record<string, Array<{content: string; user_name: string}>>> => {
+  const fetchCommentsByApplications = useCallback(async (
+    applicationIds: string[], 
+    startDate?: Date, 
+    endDate?: Date
+  ): Promise<Record<string, Array<{content: string; user_name: string}>>> => {
     if (!user || applicationIds.length === 0) return {};
 
     try {
       console.log('=== FETCHING COMMENTS FOR MULTIPLE APPLICATIONS ===');
       console.log('Application IDs:', applicationIds);
+      console.log('Date range:', startDate, 'to', endDate);
 
-      // Fetch recent comments (max 2 per application)
-      const { data: commentsData, error: commentsError } = await supabase
+      // Build query with date filtering if provided
+      let query = supabase
         .from('comments')
         .select('*')
-        .in('application_id', applicationIds)
-        .order('created_at', { ascending: false });
+        .in('application_id', applicationIds);
+
+      // Add date filtering if both dates are provided
+      if (startDate && endDate) {
+        query = query
+          .gte('created_at', startDate.toISOString())
+          .lte('created_at', endDate.toISOString());
+      }
+
+      query = query.order('created_at', { ascending: false });
+
+      const { data: commentsData, error: commentsError } = await query;
 
       if (commentsError) {
         console.error('Error fetching comments:', commentsError);
@@ -101,7 +116,7 @@ export const useComments = () => {
       }
 
       if (!commentsData || commentsData.length === 0) {
-        console.log('No comments found for applications');
+        console.log('No comments found for applications in date range');
         return {};
       }
 
