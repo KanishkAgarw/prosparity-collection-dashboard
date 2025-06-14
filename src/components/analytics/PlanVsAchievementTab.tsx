@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { usePlanVsAchievementData } from '@/hooks/exports/usePlanVsAchievementData';
 import { usePlanVsAchievementReport } from '@/hooks/exports/usePlanVsAchievementReport';
@@ -246,14 +247,16 @@ const PlanVsAchievementTab = () => {
 
       {/* Application Details Panel - Fixed positioning */}
       {selectedApplication && (
-        <ApplicationDetailsPanel
-          application={selectedApplication}
-          onClose={handleClosePanel}
-          onSave={handleApplicationUpdate}
-          onDataChanged={() => {
-            console.log('Application data changed');
-          }}
-        />
+        <div className="fixed right-0 top-0 h-full w-[500px] md:w-[600px] z-50">
+          <ApplicationDetailsPanel
+            application={selectedApplication}
+            onClose={handleClosePanel}
+            onSave={handleApplicationUpdate}
+            onDataChanged={() => {
+              console.log('Application data changed');
+            }}
+          />
+        </div>
       )}
     </div>
   );

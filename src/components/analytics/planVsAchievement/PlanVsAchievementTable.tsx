@@ -7,7 +7,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Application } from '@/types/application';
 import ApplicationDetails from '@/components/tables/ApplicationDetails';
 import StatusBadge from '@/components/tables/StatusBadge';
-import CommentsDisplay from '@/components/tables/CommentsDisplay';
 import { formatPtpDate } from '@/utils/formatters';
 
 interface PlanVsAchievementApplication {
@@ -36,6 +35,23 @@ interface PlanVsAchievementTableProps {
   onApplicationSelect: (app: Application) => void;
   getChangeSummary: (item: PlanVsAchievementApplication) => string;
 }
+
+const CommentChangesDisplay = ({ comments }: { comments?: Array<{content: string; user_name: string}> }) => {
+  if (!comments || comments.length === 0) {
+    return <div className="text-xs text-gray-400 italic">No comment changes</div>;
+  }
+
+  return (
+    <div className="space-y-1">
+      {comments.map((comment, index) => (
+        <div key={index} className="text-xs p-2 rounded bg-gray-50 border-l-2 border-blue-200">
+          <div className="font-medium text-blue-700 mb-1">{comment.user_name}</div>
+          <div className="text-gray-600 break-words">{comment.content}</div>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 const PlanVsAchievementTable = ({
   loading,
@@ -106,7 +122,7 @@ const PlanVsAchievementTable = ({
                   <TableHead className="font-bold text-gray-900 text-center py-4">Updated PTP Date</TableHead>
                   <TableHead className="font-bold text-gray-900 text-center py-4">Updated Status</TableHead>
                   <TableHead className="font-bold text-gray-900 text-center py-4">Change Summary</TableHead>
-                  <TableHead className="font-bold text-gray-900 py-4">Comments</TableHead>
+                  <TableHead className="font-bold text-gray-900 py-4">Comment Changes</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -188,7 +204,7 @@ const PlanVsAchievementTable = ({
                       </TableCell>
                       
                       <TableCell className="max-w-[300px] py-4">
-                        <CommentsDisplay comments={comments} />
+                        <CommentChangesDisplay comments={comments} />
                       </TableCell>
                     </TableRow>
                   );
