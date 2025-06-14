@@ -9,6 +9,78 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      analytics_snapshots: {
+        Row: {
+          branch_name: string
+          created_at: string
+          id: string
+          others_count: number
+          paid_count: number
+          paid_pending_approval_count: number
+          partially_paid_count: number
+          ptp_future: number
+          ptp_no_ptp_set: number
+          ptp_overdue: number
+          ptp_today: number
+          ptp_tomorrow: number
+          ptp_total: number
+          rm_name: string | null
+          snapshot_date: string
+          total_applications: number
+          total_emi_amount: number | null
+          total_interest_due: number | null
+          total_principle_due: number | null
+          unpaid_count: number
+          updated_at: string
+        }
+        Insert: {
+          branch_name: string
+          created_at?: string
+          id?: string
+          others_count?: number
+          paid_count?: number
+          paid_pending_approval_count?: number
+          partially_paid_count?: number
+          ptp_future?: number
+          ptp_no_ptp_set?: number
+          ptp_overdue?: number
+          ptp_today?: number
+          ptp_tomorrow?: number
+          ptp_total?: number
+          rm_name?: string | null
+          snapshot_date: string
+          total_applications?: number
+          total_emi_amount?: number | null
+          total_interest_due?: number | null
+          total_principle_due?: number | null
+          unpaid_count?: number
+          updated_at?: string
+        }
+        Update: {
+          branch_name?: string
+          created_at?: string
+          id?: string
+          others_count?: number
+          paid_count?: number
+          paid_pending_approval_count?: number
+          partially_paid_count?: number
+          ptp_future?: number
+          ptp_no_ptp_set?: number
+          ptp_overdue?: number
+          ptp_today?: number
+          ptp_tomorrow?: number
+          ptp_total?: number
+          rm_name?: string | null
+          snapshot_date?: string
+          total_applications?: number
+          total_emi_amount?: number | null
+          total_interest_due?: number | null
+          total_principle_due?: number | null
+          unpaid_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       applications: {
         Row: {
           applicant_address: string | null
@@ -446,6 +518,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      backfill_analytics_snapshots: {
+        Args: { start_date: string; end_date?: string }
+        Returns: string
+      }
+      generate_analytics_snapshot: {
+        Args: { target_date?: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _user_id: string

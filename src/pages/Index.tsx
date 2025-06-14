@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useEffect } from "react";
 import { useApplications } from "@/hooks/useApplications";
 import { useCascadingFilters } from "@/hooks/useCascadingFilters";
@@ -45,7 +44,7 @@ const Index = () => {
     pageSize: 50 
   });
 
-  const { exportPtpCommentsReport, exportFullReport } = useEnhancedExport();
+  const { exportPtpCommentsReport, exportFullReport, exportPlanVsAchievementReport, planVsAchievementLoading } = useEnhancedExport();
 
   // Restore state on component mount
   useEffect(() => {
@@ -209,6 +208,18 @@ const Index = () => {
     }
   };
 
+  const handleExportPlanVsAchievement = async (plannedDateTime: Date) => {
+    try {
+      toast.loading('Preparing Plan vs Achievement report...', { id: 'export-plan' });
+      
+      const count = await exportPlanVsAchievementReport(plannedDateTime, 'plan-vs-achievement-report');
+      toast.success(`Plan vs Achievement report exported successfully! Found ${count} applications.`, { id: 'export-plan' });
+    } catch (error) {
+      console.error('Plan vs Achievement export error:', error);
+      toast.error('Failed to export Plan vs Achievement data', { id: 'export-plan' });
+    }
+  };
+
   // Show loading screen while auth is loading
   if (authLoading || rolesLoading) {
     return (
@@ -243,6 +254,7 @@ const Index = () => {
           <AppHeader 
             onExportFull={handleExportFull}
             onExportPtpComments={handleExportPtpComments}
+            onExportPlanVsAchievement={handleExportPlanVsAchievement}
           />
 
           <FiltersSection
