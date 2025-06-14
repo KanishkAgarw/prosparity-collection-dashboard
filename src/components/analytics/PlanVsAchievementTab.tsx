@@ -14,7 +14,9 @@ import ApplicationDetailsPanel from '@/components/ApplicationDetailsPanel';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import ApplicationDetails from '@/components/tables/ApplicationDetails';
 import StatusBadge from '@/components/tables/StatusBadge';
+import CommentsDisplay from '@/components/tables/CommentsDisplay';
 import { formatPtpDate } from '@/utils/formatters';
+import { useComments } from '@/hooks/useComments';
 
 interface PlanVsAchievementApplication {
   applicant_id: string;
@@ -42,9 +44,11 @@ const PlanVsAchievementTab = () => {
   const [reportData, setReportData] = useState<PlanVsAchievementApplication[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
+  const [commentsByApp, setCommentsByApp] = useState<Record<string, Array<{content: string; user_name: string}>>>({});
 
   const { fetchPlanVsAchievementData, loading } = usePlanVsAchievementData();
   const { exportPlanVsAchievementReport } = usePlanVsAchievementReport();
+  const { fetchCommentsByApplications } = useComments();
 
   const handleDateSelect = (date: Date | undefined) => {
     setSelectedDate(date);
@@ -147,11 +151,20 @@ const PlanVsAchievementTab = () => {
 
       const data = await fetchPlanVsAchievementData(dateTime);
       setReportData(data);
-      setApplications(convertToApplications(data));
+      
+      const convertedApps = convertToApplications(data);
+      setApplications(convertedApps);
+
+      // Fetch comments for all applications
+      const appIds = data.map(item => item.applicant_id);
+      if (appIds.length > 0) {
+        const comments = await fetchCommentsByApplications(appIds);
+        setCommentsByApp(comments);
+      }
     };
 
     runReport();
-  }, [selectedDate, selectedTime, fetchPlanVsAchievementData]);
+  }, [selectedDate, selectedTime, fetchPlanVsAchievementData, fetchCommentsByApplications]);
 
   const handleExportReport = async () => {
     const dateTime = getSelectedDateTime();
@@ -178,20 +191,17 @@ const PlanVsAchievementTab = () => {
   return (
     <div className="space-y-8">
       {/* Header Section with Date/Time Controls */}
-      <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 rounded-2xl p-8 border border-blue-100">
+      <div className="bg-white rounded-lg p-6 border border-gray-200">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2">
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            <h2 className="text-2xl font-bold text-gray-900">
               Plan vs Achievement Analysis
             </h2>
-            <p className="text-lg text-gray-600 max-w-2xl">
-              Track the effectiveness of your planned follow-ups by comparing intended actions with actual achievements
-            </p>
           </div>
           
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-gray-700 block">
+              <label className="text-sm font-medium text-gray-700 block">
                 Analysis Date
               </label>
               <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
@@ -200,11 +210,11 @@ const PlanVsAchievementTab = () => {
                     variant="outline"
                     size="lg"
                     className={cn(
-                      "w-full sm:w-48 justify-start text-left font-medium bg-white shadow-sm hover:shadow-md transition-all",
+                      "w-full sm:w-48 justify-start text-left font-medium bg-white",
                       !selectedDate && "text-muted-foreground"
                     )}
                   >
-                    <CalendarIcon className="mr-3 h-5 w-5 text-blue-500" />
+                    <CalendarIcon className="mr-3 h-4 w-4" />
                     {selectedDate ? format(selectedDate, "MMM dd, yyyy") : "Pick a date"}
                   </Button>
                 </PopoverTrigger>
@@ -221,93 +231,77 @@ const PlanVsAchievementTab = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-gray-700 block">
+              <label className="text-sm font-medium text-gray-700 block">
                 Planned Time
               </label>
               <div className="relative">
-                <Clock className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-blue-500" />
+                <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
                   type="time"
                   value={selectedTime}
                   onChange={(e) => handleTimeChange(e.target.value)}
-                  className="w-full sm:w-32 pl-12 pr-4 py-3 border border-gray-200 rounded-lg font-medium bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="w-full sm:w-32 pl-10 pr-4 py-3 border border-gray-200 rounded-lg font-medium bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
             </div>
           </div>
         </div>
-
-        {getSelectedDateTime() && (
-          <div className="mt-6 p-4 bg-white/70 backdrop-blur-sm rounded-xl border border-blue-200">
-            <div className="flex items-center gap-3">
-              <TrendingUp className="h-5 w-5 text-blue-600" />
-              <div>
-                <p className="font-semibold text-blue-900">
-                  Analyzing: {format(getSelectedDateTime()!, "EEEE, MMMM dd, yyyy 'at' HH:mm")}
-                </p>
-                <p className="text-sm text-blue-700">
-                  Comparing planned vs actual achievements for this specific date and time
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Summary Statistics Cards */}
       {!loading && reportData.length > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="border-gray-200">
+            <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-500 rounded-lg">
-                  <Users className="h-5 w-5 text-white" />
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Users className="h-4 w-4 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-blue-700">{stats.total}</p>
-                  <p className="text-sm font-medium text-blue-600">Total Applications</p>
+                  <p className="text-xl font-bold text-gray-900">{stats.total}</p>
+                  <p className="text-sm font-medium text-gray-600">Total Applications</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
+          <Card className="border-gray-200">
+            <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-500 rounded-lg">
-                  <TrendingUp className="h-5 w-5 text-white" />
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <TrendingUp className="h-4 w-4 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-green-700">{stats.statusChanged}</p>
-                  <p className="text-sm font-medium text-green-600">Status Updated</p>
+                  <p className="text-xl font-bold text-gray-900">{stats.statusChanged}</p>
+                  <p className="text-sm font-medium text-gray-600">Status Updated</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
+          <Card className="border-gray-200">
+            <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-500 rounded-lg">
-                  <CalendarIcon className="h-5 w-5 text-white" />
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <CalendarIcon className="h-4 w-4 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-purple-700">{stats.ptpUpdated}</p>
-                  <p className="text-sm font-medium text-purple-600">PTP Updated</p>
+                  <p className="text-xl font-bold text-gray-900">{stats.ptpUpdated}</p>
+                  <p className="text-sm font-medium text-gray-600">PTP Updated</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
+          <Card className="border-gray-200">
+            <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-500 rounded-lg">
-                  <FileText className="h-5 w-5 text-white" />
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <FileText className="h-4 w-4 text-gray-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-orange-700">{stats.noChange}</p>
-                  <p className="text-sm font-medium text-orange-600">No Changes</p>
+                  <p className="text-xl font-bold text-gray-900">{stats.noChange}</p>
+                  <p className="text-sm font-medium text-gray-600">No Changes</p>
                 </div>
               </div>
             </CardContent>
@@ -316,25 +310,25 @@ const PlanVsAchievementTab = () => {
       )}
 
       {/* Main Data Table */}
-      <Card className="bg-white shadow-xl border-0 overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50 border-b border-gray-100">
+      <Card className="bg-white border-gray-200">
+        <CardHeader className="bg-gray-50 border-b border-gray-200">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div>
-              <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                <Filter className="h-6 w-6 text-blue-600" />
+              <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
+                <Filter className="h-5 w-5 text-gray-600" />
                 {loading ? 'Loading Analysis...' : `Analysis Results (${reportData.length} applications)`}
               </CardTitle>
-              <CardDescription className="text-base text-gray-600 mt-2">
-                Detailed breakdown of planned vs actual achievements for {selectedDate && format(selectedDate, "MMMM dd, yyyy")}
+              <CardDescription className="text-gray-600 mt-1">
+                Plan vs achievement analysis for {selectedDate && format(selectedDate, "MMMM dd, yyyy")}
               </CardDescription>
             </div>
             {reportData.length > 0 && (
               <Button 
                 onClick={handleExportReport}
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+                className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
                 size="lg"
               >
-                <Download className="h-5 w-5" />
+                <Download className="h-4 w-4" />
                 Export Report
               </Button>
             )}
@@ -365,28 +359,29 @@ const PlanVsAchievementTab = () => {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-gradient-to-r from-gray-50 to-slate-50 border-b-2 border-gray-200">
-                    <TableHead className="font-bold text-gray-900 text-base w-80 py-4">Application Details</TableHead>
-                    <TableHead className="font-bold text-gray-900 text-base text-center py-4">Previous PTP Date</TableHead>
-                    <TableHead className="font-bold text-gray-900 text-base text-center py-4">Previous Status</TableHead>
-                    <TableHead className="font-bold text-gray-900 text-base text-center py-4">Updated PTP Date</TableHead>
-                    <TableHead className="font-bold text-gray-900 text-base text-center py-4">Updated Status</TableHead>
-                    <TableHead className="font-bold text-gray-900 text-base text-center py-4">Change Summary</TableHead>
-                    <TableHead className="font-bold text-gray-900 text-base py-4">Comment Trail</TableHead>
+                  <TableRow className="bg-gray-50 border-b-2 border-gray-200">
+                    <TableHead className="font-bold text-gray-900 w-80 py-4">Application Details</TableHead>
+                    <TableHead className="font-bold text-gray-900 text-center py-4">Previous PTP Date</TableHead>
+                    <TableHead className="font-bold text-gray-900 text-center py-4">Previous Status</TableHead>
+                    <TableHead className="font-bold text-gray-900 text-center py-4">Updated PTP Date</TableHead>
+                    <TableHead className="font-bold text-gray-900 text-center py-4">Updated Status</TableHead>
+                    <TableHead className="font-bold text-gray-900 text-center py-4">Change Summary</TableHead>
+                    <TableHead className="font-bold text-gray-900 py-4">Comments</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {reportData.map((item, index) => {
                     const application = applications.find(app => app.applicant_id === item.applicant_id);
                     const changeSummary = getChangeSummary(item);
+                    const comments = commentsByApp[item.applicant_id] || [];
                     return (
                       <TableRow 
                         key={item.applicant_id}
                         className={`
                           cursor-pointer transition-all duration-200 border-b border-gray-100
                           ${selectedApplication?.applicant_id === item.applicant_id 
-                            ? 'bg-blue-50 border-l-4 border-l-blue-500 shadow-md' 
-                            : 'hover:bg-gray-50 hover:shadow-sm'
+                            ? 'bg-blue-50 border-l-4 border-l-blue-500' 
+                            : 'hover:bg-gray-50'
                           }
                           ${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'}
                         `}
@@ -453,9 +448,7 @@ const PlanVsAchievementTab = () => {
                         </TableCell>
                         
                         <TableCell className="max-w-[300px] py-4">
-                          <div className="text-sm text-gray-700 truncate bg-gray-50 px-3 py-2 rounded-lg" title={item.comment_trail}>
-                            {item.comment_trail || 'No comments available'}
-                          </div>
+                          <CommentsDisplay comments={comments} />
                         </TableCell>
                       </TableRow>
                     );
@@ -467,20 +460,16 @@ const PlanVsAchievementTab = () => {
         </CardContent>
       </Card>
 
-      {/* Application Details Panel - Fixed positioning */}
+      {/* Application Details Panel */}
       {selectedApplication && (
-        <div className="fixed inset-0 z-50 pointer-events-none">
-          <div className="pointer-events-auto">
-            <ApplicationDetailsPanel
-              application={selectedApplication}
-              onClose={handleClosePanel}
-              onSave={handleApplicationUpdate}
-              onDataChanged={() => {
-                console.log('Application data changed');
-              }}
-            />
-          </div>
-        </div>
+        <ApplicationDetailsPanel
+          application={selectedApplication}
+          onClose={handleClosePanel}
+          onSave={handleApplicationUpdate}
+          onDataChanged={() => {
+            console.log('Application data changed');
+          }}
+        />
       )}
     </div>
   );
