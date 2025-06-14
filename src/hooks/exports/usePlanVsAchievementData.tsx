@@ -28,7 +28,7 @@ export const usePlanVsAchievementData = () => {
 
     setLoading(true);
     try {
-      console.log('=== PLAN VS ACHIEVEMENT DATA FETCH - OPTION 2 LOGIC ===');
+      console.log('=== PLAN VS ACHIEVEMENT DATA FETCH - UPDATED LOGIC ===');
       console.log('Input planned date/time:', plannedDateTime.toISOString());
 
       // Get the planned date (just date part, no time) for PTP comparison
@@ -36,8 +36,7 @@ export const usePlanVsAchievementData = () => {
       plannedDateOnly.setHours(0, 0, 0, 0);
       const plannedDateStr = plannedDateOnly.toISOString().split('T')[0];
       
-      console.log('Planned date string for current PTP matching:', plannedDateStr);
-      console.log('Planned timestamp for historical status cutoff:', plannedDateTime.toISOString());
+      console.log('Looking for applications that CURRENTLY have PTP =', plannedDateStr);
 
       // Step 1: Get CURRENT (latest) PTP dates for all applications
       const { data: currentPtpData, error: ptpError } = await supabase
@@ -76,13 +75,6 @@ export const usePlanVsAchievementData = () => {
         }
       });
 
-      console.log('Current PTP by application:');
-      Object.entries(currentPtpByApp).forEach(([appId, ptpDate]) => {
-        const ptpDateOnly = new Date(ptpDate);
-        const ptpDateStr = ptpDateOnly.toISOString().split('T')[0];
-        console.log(`  App ${appId}: Current PTP=${ptpDateStr}, Matches=${ptpDateStr === plannedDateStr}`);
-      });
-
       // Step 3: Filter to only applications that CURRENTLY have PTP set for the planned date
       const applicationsWithMatchingPtp = Object.entries(currentPtpByApp).filter(([appId, ptpDate]) => {
         const ptpDateOnly = new Date(ptpDate);
@@ -91,8 +83,6 @@ export const usePlanVsAchievementData = () => {
         
         if (matches) {
           console.log(`✓ INCLUDED: App ${appId} currently has PTP=${ptpDateStr} (matches ${plannedDateStr})`);
-        } else {
-          console.log(`✗ EXCLUDED: App ${appId} currently has PTP=${ptpDateStr} (≠ ${plannedDateStr})`);
         }
         
         return matches;
@@ -139,19 +129,6 @@ export const usePlanVsAchievementData = () => {
         console.error('Error fetching historical status:', statusError);
       }
 
-      // Get historical PTP as of planned time (for "previous PTP")
-      const { data: historicalPtp, error: historicalPtpError } = await supabase
-        .from('ptp_dates')
-        .select('application_id, ptp_date, created_at')
-        .in('application_id', applicationIds)
-        .lte('created_at', plannedDateTime.toISOString())
-        .order('application_id')
-        .order('created_at', { ascending: false });
-
-      if (historicalPtpError) {
-        console.error('Error fetching historical PTP:', historicalPtpError);
-      }
-
       // Get current status
       const { data: currentStatus, error: currentStatusError } = await supabase
         .from('field_status')
@@ -192,15 +169,6 @@ export const usePlanVsAchievementData = () => {
         }
       });
 
-      const historicalPtpMap: Record<string, string> = {};
-      const processedHistoricalPtp = new Set<string>();
-      historicalPtp?.forEach(ptp => {
-        if (!processedHistoricalPtp.has(ptp.application_id)) {
-          historicalPtpMap[ptp.application_id] = ptp.ptp_date;
-          processedHistoricalPtp.add(ptp.application_id);
-        }
-      });
-
       const currentStatusMap: Record<string, string> = {};
       const processedCurrentStatus = new Set<string>();
       currentStatus?.forEach(status => {
@@ -225,15 +193,14 @@ export const usePlanVsAchievementData = () => {
 
       // Combine all data
       const result: PlanVsAchievementApplication[] = applications?.map(app => {
-        const previousPtpDate = historicalPtpMap[app.applicant_id];
         const previousStatus = historicalStatusMap[app.applicant_id] || app.lms_status;
-        const updatedPtpDate = currentPtpMap[app.applicant_id];
         const updatedStatus = currentStatusMap[app.applicant_id] || app.lms_status;
+        const currentPtpDate = currentPtpMap[app.applicant_id];
         
         console.log(`FINAL RESULT - App ${app.applicant_id} (${app.applicant_name}):`);
-        console.log(`  Previous PTP (as of ${plannedDateTime.toISOString()}): ${previousPtpDate}`);
-        console.log(`  Current PTP: ${updatedPtpDate}`);
-        console.log(`  Previous Status: ${previousStatus}`);
+        console.log(`  Previous PTP Date: ${currentPtpDate} (same as current since this app currently has PTP for planned date)`);
+        console.log(`  Current PTP Date: ${currentPtpDate}`);
+        console.log(`  Previous Status (as of ${plannedDateTime.toISOString()}): ${previousStatus}`);
         console.log(`  Current Status: ${updatedStatus}`);
 
         return {
@@ -243,9 +210,9 @@ export const usePlanVsAchievementData = () => {
           collection_rm: app.collection_rm || '',
           dealer_name: app.dealer_name,
           applicant_name: app.applicant_name,
-          previous_ptp_date: previousPtpDate || null,
+          previous_ptp_date: currentPtpDate, // Show the current PTP date since that's what we're analyzing
           previous_status: previousStatus,
-          updated_ptp_date: updatedPtpDate || null,
+          updated_ptp_date: currentPtpDate, // Same as previous since we're looking at current state
           updated_status: updatedStatus,
           comment_trail: commentsByApp[app.applicant_id] || 'No comments'
         };
@@ -254,7 +221,7 @@ export const usePlanVsAchievementData = () => {
       console.log('=== FINAL SUMMARY ===');
       console.log('Total applications in result:', result.length);
       console.log('Logic: Applications that CURRENTLY have PTP =', plannedDateStr);
-      console.log('Expected: Should match the count of applications with today\'s PTP in live dashboard');
+      console.log('Previous PTP Date = Current PTP Date since we are analyzing current state');
       
       return result;
     } catch (error) {
