@@ -28,7 +28,7 @@ export const usePlanVsAchievementData = () => {
 
     setLoading(true);
     try {
-      console.log('=== PLAN VS ACHIEVEMENT DATA FETCH - CORRECTED LOGIC ===');
+      console.log('=== PLAN VS ACHIEVEMENT DATA FETCH - FIXED LOGIC ===');
       console.log('Input planned date/time:', plannedDateTime.toISOString());
 
       // Get the planned date (just date part, no time) for PTP comparison
@@ -81,11 +81,15 @@ export const usePlanVsAchievementData = () => {
         const ptpDateStr = new Date(ptpDate).toISOString().split('T')[0];
         const matches = ptpDateStr === plannedDateStr;
         
-        if (matches) {
-          console.log(`✓ INCLUDED: App ${appId} had PTP=${ptpDateStr} as of ${plannedDateTime.toISOString()}`);
-        }
+        console.log(`App ${appId}: PTP as of timestamp = ${ptpDateStr}, Planned date = ${plannedDateStr}, Matches = ${matches}`);
         
         return matches;
+      });
+
+      console.log('APPLICATIONS WITH MATCHING PTP:');
+      applicationsWithMatchingPtp.forEach(([appId, ptpDate]) => {
+        const ptpDateStr = new Date(ptpDate!).toISOString().split('T')[0];
+        console.log(`✓ App ${appId}: PTP = ${ptpDateStr} (matches planned date ${plannedDateStr})`);
       });
 
       console.log('FINAL FILTER RESULT:', applicationsWithMatchingPtp.length, 'applications had PTP matching planned date as of the timestamp');
@@ -245,8 +249,23 @@ export const usePlanVsAchievementData = () => {
       console.log('=== FINAL SUMMARY ===');
       console.log('Total applications in result:', result.length);
       console.log('Logic: Applications that had PTP =', plannedDateStr, 'as of', plannedDateTime.toISOString());
-      console.log('Previous PTP Date = Historical PTP as of timestamp');
-      console.log('Updated PTP Date = Current PTP date');
+      console.log('Expected: All previous_ptp_date values should be', plannedDateStr);
+      
+      // Validate the results
+      const invalidResults = result.filter(app => {
+        const appPtpDateStr = app.previous_ptp_date ? new Date(app.previous_ptp_date).toISOString().split('T')[0] : null;
+        return appPtpDateStr !== plannedDateStr;
+      });
+      
+      if (invalidResults.length > 0) {
+        console.error('❌ VALIDATION FAILED: Found applications with incorrect previous_ptp_date:');
+        invalidResults.forEach(app => {
+          const appPtpDateStr = app.previous_ptp_date ? new Date(app.previous_ptp_date).toISOString().split('T')[0] : null;
+          console.error(`- ${app.applicant_name}: previous_ptp_date = ${appPtpDateStr}, expected = ${plannedDateStr}`);
+        });
+      } else {
+        console.log('✅ VALIDATION PASSED: All applications have correct previous_ptp_date');
+      }
       
       return result;
     } catch (error) {
