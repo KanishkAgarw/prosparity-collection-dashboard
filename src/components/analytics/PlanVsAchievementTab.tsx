@@ -10,8 +10,11 @@ import { cn } from '@/lib/utils';
 import { usePlanVsAchievementData } from '@/hooks/exports/usePlanVsAchievementData';
 import { usePlanVsAchievementReport } from '@/hooks/exports/usePlanVsAchievementReport';
 import { Application } from '@/types/application';
-import ApplicationsTable from '@/components/ApplicationsTable';
 import ApplicationDetailsPanel from '@/components/ApplicationDetailsPanel';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import ApplicationDetails from '@/components/tables/ApplicationDetails';
+import StatusBadge from '@/components/tables/StatusBadge';
+import { formatPtpDate } from '@/utils/formatters';
 
 interface PlanVsAchievementApplication {
   applicant_id: string;
@@ -105,6 +108,22 @@ const PlanVsAchievementTab = () => {
       latest_calling_status: 'No Calls',
       recent_comments: []
     }));
+  };
+
+  // Generate change summary
+  const getChangeSummary = (item: PlanVsAchievementApplication): string => {
+    const statusChanged = item.previous_status !== item.updated_status;
+    const ptpChanged = item.previous_ptp_date !== item.updated_ptp_date;
+
+    if (statusChanged && ptpChanged) {
+      return 'Status Changed & PTP Updated';
+    } else if (statusChanged) {
+      return 'Status Changed';
+    } else if (ptpChanged) {
+      return 'PTP Updated';
+    } else {
+      return 'No Change';
+    }
   };
 
   // Automatically run report when date/time changes
@@ -226,7 +245,7 @@ const PlanVsAchievementTab = () => {
       <Card>
         <CardHeader>
           <CardTitle>
-            {loading ? 'Loading Report...' : `Report Results (${applications.length} applications)`}
+            {loading ? 'Loading Report...' : `Report Results (${reportData.length} applications)`}
           </CardTitle>
           <CardDescription>
             Applications that had PTP set for {selectedDate && format(selectedDate, "PPP")} as of {format(getSelectedDateTime() || new Date(), "PPP 'at' HH:mm")}
@@ -237,31 +256,113 @@ const PlanVsAchievementTab = () => {
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
-          ) : applications.length === 0 ? (
+          ) : reportData.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               No applications found matching the criteria
             </div>
           ) : (
-            <ApplicationsTable
-              applications={applications}
-              onRowClick={handleApplicationSelect}
-              selectedApplicationId={selectedApplication?.id}
-            />
+            <div className="rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-gray-50">
+                      <TableHead className="font-semibold text-gray-900 w-80">Application Details</TableHead>
+                      <TableHead className="font-semibold text-gray-900 text-center">Previous PTP Date</TableHead>
+                      <TableHead className="font-semibold text-gray-900 text-center">Previous Status</TableHead>
+                      <TableHead className="font-semibold text-gray-900 text-center">Updated PTP Date</TableHead>
+                      <TableHead className="font-semibold text-gray-900 text-center">Updated Status</TableHead>
+                      <TableHead className="font-semibold text-gray-900 text-center">Change History</TableHead>
+                      <TableHead className="font-semibold text-gray-900">Comment Trail</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {reportData.map((item) => {
+                      const application = applications.find(app => app.applicant_id === item.applicant_id);
+                      return (
+                        <TableRow 
+                          key={item.applicant_id}
+                          className={`cursor-pointer transition-colors ${
+                            selectedApplication?.applicant_id === item.applicant_id 
+                              ? 'bg-blue-50 border-l-4 border-l-blue-500 hover:bg-blue-100' 
+                              : 'hover:bg-gray-50'
+                          }`}
+                          onClick={() => application && handleApplicationSelect(application)}
+                        >
+                          <TableCell className="py-3">
+                            {application && <ApplicationDetails application={application} />}
+                          </TableCell>
+                          
+                          <TableCell className="text-center">
+                            <span className={`${item.previous_ptp_date ? 'text-blue-600 font-medium' : 'text-gray-400'} whitespace-nowrap`}>
+                              {item.previous_ptp_date ? formatPtpDate(item.previous_ptp_date) : 'Not Set'}
+                            </span>
+                          </TableCell>
+                          
+                          <TableCell className="text-center">
+                            {item.previous_status ? (
+                              <StatusBadge status={item.previous_status} />
+                            ) : (
+                              <span className="text-gray-400">Unknown</span>
+                            )}
+                          </TableCell>
+                          
+                          <TableCell className="text-center">
+                            <span className={`${item.updated_ptp_date ? 'text-blue-600 font-medium' : 'text-gray-400'} whitespace-nowrap`}>
+                              {item.updated_ptp_date ? formatPtpDate(item.updated_ptp_date) : 'Not Set'}
+                            </span>
+                          </TableCell>
+                          
+                          <TableCell className="text-center">
+                            {item.updated_status ? (
+                              <StatusBadge status={item.updated_status} />
+                            ) : (
+                              <span className="text-gray-400">Unknown</span>
+                            )}
+                          </TableCell>
+                          
+                          <TableCell className="text-center">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              getChangeSummary(item) === 'No Change' 
+                                ? 'bg-gray-100 text-gray-600'
+                                : getChangeSummary(item).includes('Status Changed')
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-blue-100 text-blue-700'
+                            }`}>
+                              {getChangeSummary(item)}
+                            </span>
+                          </TableCell>
+                          
+                          <TableCell className="max-w-[300px]">
+                            <div className="text-sm text-gray-600 truncate" title={item.comment_trail}>
+                              {item.comment_trail || 'No comments'}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Application Details Panel */}
+      {/* Application Details Panel - Fixed positioning */}
       {selectedApplication && (
-        <ApplicationDetailsPanel
-          application={selectedApplication}
-          onClose={handleClosePanel}
-          onSave={handleApplicationUpdate}
-          onDataChanged={() => {
-            // Handle data changes if needed
-            console.log('Application data changed');
-          }}
-        />
+        <div className="fixed inset-0 z-50 pointer-events-none">
+          <div className="pointer-events-auto">
+            <ApplicationDetailsPanel
+              application={selectedApplication}
+              onClose={handleClosePanel}
+              onSave={handleApplicationUpdate}
+              onDataChanged={() => {
+                // Handle data changes if needed
+                console.log('Application data changed');
+              }}
+            />
+          </div>
+        </div>
       )}
     </div>
   );
