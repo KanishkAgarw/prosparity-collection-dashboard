@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Clock, Download } from 'lucide-react';
+import { CalendarIcon, Clock, Download, TrendingUp, Users, FileText, Filter } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { usePlanVsAchievementData } from '@/hooks/exports/usePlanVsAchievementData';
@@ -126,6 +126,19 @@ const PlanVsAchievementTab = () => {
     }
   };
 
+  // Calculate summary statistics
+  const getSummaryStats = () => {
+    const total = reportData.length;
+    const statusChanged = reportData.filter(item => item.previous_status !== item.updated_status).length;
+    const ptpUpdated = reportData.filter(item => item.previous_ptp_date !== item.updated_ptp_date).length;
+    const noChange = reportData.filter(item => 
+      item.previous_status === item.updated_status && 
+      item.previous_ptp_date === item.updated_ptp_date
+    ).length;
+
+    return { total, statusChanged, ptpUpdated, noChange };
+  };
+
   // Automatically run report when date/time changes
   useEffect(() => {
     const runReport = async () => {
@@ -160,32 +173,39 @@ const PlanVsAchievementTab = () => {
     // In a real app, you'd update the applications list here
   };
 
+  const stats = getSummaryStats();
+
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Plan vs Achievement Analysis</CardTitle>
-          <CardDescription>
-            Compare planned follow-ups (PTP dates set for a specific date/time) vs actual achievements including status and comment changes
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
-                Planned Date
+    <div className="space-y-8">
+      {/* Header Section with Date/Time Controls */}
+      <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 rounded-2xl p-8 border border-blue-100">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              Plan vs Achievement Analysis
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl">
+              Track the effectiveness of your planned follow-ups by comparing intended actions with actual achievements
+            </p>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700 block">
+                Analysis Date
               </label>
               <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
+                    size="lg"
                     className={cn(
-                      "w-full justify-start text-left font-normal",
+                      "w-full sm:w-48 justify-start text-left font-medium bg-white shadow-sm hover:shadow-md transition-all",
                       !selectedDate && "text-muted-foreground"
                     )}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
+                    <CalendarIcon className="mr-3 h-5 w-5 text-blue-500" />
+                    {selectedDate ? format(selectedDate, "MMM dd, yyyy") : "Pick a date"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -194,155 +214,254 @@ const PlanVsAchievementTab = () => {
                     selected={selectedDate}
                     onSelect={handleDateSelect}
                     initialFocus
-                    className="p-3"
+                    className="p-3 pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
             </div>
 
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700 block">
                 Planned Time
               </label>
               <div className="relative">
-                <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Clock className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-blue-500" />
                 <input
                   type="time"
                   value={selectedTime}
                   onChange={(e) => handleTimeChange(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full sm:w-32 pl-12 pr-4 py-3 border border-gray-200 rounded-lg font-medium bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 />
               </div>
             </div>
+          </div>
+        </div>
 
-            <div>
-              {reportData.length > 0 && (
-                <Button 
-                  variant="outline" 
-                  onClick={handleExportReport}
-                  className="flex items-center gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  Export to Excel
-                </Button>
-              )}
+        {getSelectedDateTime() && (
+          <div className="mt-6 p-4 bg-white/70 backdrop-blur-sm rounded-xl border border-blue-200">
+            <div className="flex items-center gap-3">
+              <TrendingUp className="h-5 w-5 text-blue-600" />
+              <div>
+                <p className="font-semibold text-blue-900">
+                  Analyzing: {format(getSelectedDateTime()!, "EEEE, MMMM dd, yyyy 'at' HH:mm")}
+                </p>
+                <p className="text-sm text-blue-700">
+                  Comparing planned vs actual achievements for this specific date and time
+                </p>
+              </div>
             </div>
           </div>
+        )}
+      </div>
 
-          {getSelectedDateTime() && (
-            <div className="p-3 bg-blue-50 rounded-md">
-              <p className="text-sm text-blue-800">
-                <strong>Analyzing:</strong> {format(getSelectedDateTime()!, "PPP 'at' HH:mm")}
-              </p>
-              <p className="text-xs text-blue-600 mt-1">
-                Showing applications that had PTP dates set for this date/time and their status changes
-              </p>
+      {/* Summary Statistics Cards */}
+      {!loading && reportData.length > 0 && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-500 rounded-lg">
+                  <Users className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-blue-700">{stats.total}</p>
+                  <p className="text-sm font-medium text-blue-600">Total Applications</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-500 rounded-lg">
+                  <TrendingUp className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-green-700">{stats.statusChanged}</p>
+                  <p className="text-sm font-medium text-green-600">Status Updated</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-500 rounded-lg">
+                  <CalendarIcon className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-purple-700">{stats.ptpUpdated}</p>
+                  <p className="text-sm font-medium text-purple-600">PTP Updated</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-orange-500 rounded-lg">
+                  <FileText className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-orange-700">{stats.noChange}</p>
+                  <p className="text-sm font-medium text-orange-600">No Changes</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Main Data Table */}
+      <Card className="bg-white shadow-xl border-0 overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50 border-b border-gray-100">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                <Filter className="h-6 w-6 text-blue-600" />
+                {loading ? 'Loading Analysis...' : `Analysis Results (${reportData.length} applications)`}
+              </CardTitle>
+              <CardDescription className="text-base text-gray-600 mt-2">
+                Detailed breakdown of planned vs actual achievements for {selectedDate && format(selectedDate, "MMMM dd, yyyy")}
+              </CardDescription>
             </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            {loading ? 'Loading Report...' : `Report Results (${reportData.length} applications)`}
-          </CardTitle>
-          <CardDescription>
-            Applications that had PTP set for {selectedDate && format(selectedDate, "PPP")} as of {format(getSelectedDateTime() || new Date(), "PPP 'at' HH:mm")}
-          </CardDescription>
+            {reportData.length > 0 && (
+              <Button 
+                onClick={handleExportReport}
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+                size="lg"
+              >
+                <Download className="h-5 w-5" />
+                Export Report
+              </Button>
+            )}
+          </div>
         </CardHeader>
-        <CardContent>
+        
+        <CardContent className="p-0">
           {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="flex items-center justify-center py-16">
+              <div className="text-center space-y-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-lg font-medium text-gray-600">Analyzing planned vs achievements...</p>
+              </div>
             </div>
           ) : reportData.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              No applications found matching the criteria
+            <div className="text-center py-16 text-gray-500">
+              <div className="space-y-4">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+                  <FileText className="h-8 w-8 text-gray-400" />
+                </div>
+                <div>
+                  <p className="text-xl font-medium text-gray-600">No Data Found</p>
+                  <p className="text-gray-500 mt-2">No applications found with PTP set for the selected date and time</p>
+                </div>
+              </div>
             </div>
           ) : (
-            <div className="rounded-lg border border-gray-200 overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-gray-50">
-                      <TableHead className="font-semibold text-gray-900 w-80">Application Details</TableHead>
-                      <TableHead className="font-semibold text-gray-900 text-center">Previous PTP Date</TableHead>
-                      <TableHead className="font-semibold text-gray-900 text-center">Previous Status</TableHead>
-                      <TableHead className="font-semibold text-gray-900 text-center">Updated PTP Date</TableHead>
-                      <TableHead className="font-semibold text-gray-900 text-center">Updated Status</TableHead>
-                      <TableHead className="font-semibold text-gray-900 text-center">Change History</TableHead>
-                      <TableHead className="font-semibold text-gray-900">Comment Trail</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {reportData.map((item) => {
-                      const application = applications.find(app => app.applicant_id === item.applicant_id);
-                      return (
-                        <TableRow 
-                          key={item.applicant_id}
-                          className={`cursor-pointer transition-colors ${
-                            selectedApplication?.applicant_id === item.applicant_id 
-                              ? 'bg-blue-50 border-l-4 border-l-blue-500 hover:bg-blue-100' 
-                              : 'hover:bg-gray-50'
-                          }`}
-                          onClick={() => application && handleApplicationSelect(application)}
-                        >
-                          <TableCell className="py-3">
-                            {application && <ApplicationDetails application={application} />}
-                          </TableCell>
-                          
-                          <TableCell className="text-center">
-                            <span className={`${item.previous_ptp_date ? 'text-blue-600 font-medium' : 'text-gray-400'} whitespace-nowrap`}>
-                              {item.previous_ptp_date ? formatPtpDate(item.previous_ptp_date) : 'Not Set'}
-                            </span>
-                          </TableCell>
-                          
-                          <TableCell className="text-center">
-                            {item.previous_status ? (
-                              <StatusBadge status={item.previous_status} />
-                            ) : (
-                              <span className="text-gray-400">Unknown</span>
-                            )}
-                          </TableCell>
-                          
-                          <TableCell className="text-center">
-                            <span className={`${item.updated_ptp_date ? 'text-blue-600 font-medium' : 'text-gray-400'} whitespace-nowrap`}>
-                              {item.updated_ptp_date ? formatPtpDate(item.updated_ptp_date) : 'Not Set'}
-                            </span>
-                          </TableCell>
-                          
-                          <TableCell className="text-center">
-                            {item.updated_status ? (
-                              <StatusBadge status={item.updated_status} />
-                            ) : (
-                              <span className="text-gray-400">Unknown</span>
-                            )}
-                          </TableCell>
-                          
-                          <TableCell className="text-center">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              getChangeSummary(item) === 'No Change' 
-                                ? 'bg-gray-100 text-gray-600'
-                                : getChangeSummary(item).includes('Status Changed')
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-blue-100 text-blue-700'
-                            }`}>
-                              {getChangeSummary(item)}
-                            </span>
-                          </TableCell>
-                          
-                          <TableCell className="max-w-[300px]">
-                            <div className="text-sm text-gray-600 truncate" title={item.comment_trail}>
-                              {item.comment_trail || 'No comments'}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-gradient-to-r from-gray-50 to-slate-50 border-b-2 border-gray-200">
+                    <TableHead className="font-bold text-gray-900 text-base w-80 py-4">Application Details</TableHead>
+                    <TableHead className="font-bold text-gray-900 text-base text-center py-4">Previous PTP Date</TableHead>
+                    <TableHead className="font-bold text-gray-900 text-base text-center py-4">Previous Status</TableHead>
+                    <TableHead className="font-bold text-gray-900 text-base text-center py-4">Updated PTP Date</TableHead>
+                    <TableHead className="font-bold text-gray-900 text-base text-center py-4">Updated Status</TableHead>
+                    <TableHead className="font-bold text-gray-900 text-base text-center py-4">Change Summary</TableHead>
+                    <TableHead className="font-bold text-gray-900 text-base py-4">Comment Trail</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {reportData.map((item, index) => {
+                    const application = applications.find(app => app.applicant_id === item.applicant_id);
+                    const changeSummary = getChangeSummary(item);
+                    return (
+                      <TableRow 
+                        key={item.applicant_id}
+                        className={`
+                          cursor-pointer transition-all duration-200 border-b border-gray-100
+                          ${selectedApplication?.applicant_id === item.applicant_id 
+                            ? 'bg-blue-50 border-l-4 border-l-blue-500 shadow-md' 
+                            : 'hover:bg-gray-50 hover:shadow-sm'
+                          }
+                          ${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'}
+                        `}
+                        onClick={() => application && handleApplicationSelect(application)}
+                      >
+                        <TableCell className="py-4">
+                          {application && <ApplicationDetails application={application} />}
+                        </TableCell>
+                        
+                        <TableCell className="text-center py-4">
+                          <span className={`
+                            font-medium whitespace-nowrap px-3 py-1 rounded-full text-sm
+                            ${item.previous_ptp_date 
+                              ? 'text-blue-700 bg-blue-100' 
+                              : 'text-gray-500 bg-gray-100'
+                            }
+                          `}>
+                            {item.previous_ptp_date ? formatPtpDate(item.previous_ptp_date) : 'Not Set'}
+                          </span>
+                        </TableCell>
+                        
+                        <TableCell className="text-center py-4">
+                          {item.previous_status ? (
+                            <StatusBadge status={item.previous_status} />
+                          ) : (
+                            <span className="text-gray-500 bg-gray-100 px-3 py-1 rounded-full text-sm font-medium">Unknown</span>
+                          )}
+                        </TableCell>
+                        
+                        <TableCell className="text-center py-4">
+                          <span className={`
+                            font-medium whitespace-nowrap px-3 py-1 rounded-full text-sm
+                            ${item.updated_ptp_date 
+                              ? 'text-blue-700 bg-blue-100' 
+                              : 'text-gray-500 bg-gray-100'
+                            }
+                          `}>
+                            {item.updated_ptp_date ? formatPtpDate(item.updated_ptp_date) : 'Not Set'}
+                          </span>
+                        </TableCell>
+                        
+                        <TableCell className="text-center py-4">
+                          {item.updated_status ? (
+                            <StatusBadge status={item.updated_status} />
+                          ) : (
+                            <span className="text-gray-500 bg-gray-100 px-3 py-1 rounded-full text-sm font-medium">Unknown</span>
+                          )}
+                        </TableCell>
+                        
+                        <TableCell className="text-center py-4">
+                          <span className={`
+                            px-3 py-2 rounded-full text-sm font-semibold whitespace-nowrap
+                            ${changeSummary === 'No Change' 
+                              ? 'bg-gray-100 text-gray-600'
+                              : changeSummary.includes('Status Changed') && changeSummary.includes('PTP')
+                              ? 'bg-purple-100 text-purple-700'
+                              : changeSummary.includes('Status Changed')
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-blue-100 text-blue-700'
+                            }
+                          `}>
+                            {changeSummary}
+                          </span>
+                        </TableCell>
+                        
+                        <TableCell className="max-w-[300px] py-4">
+                          <div className="text-sm text-gray-700 truncate bg-gray-50 px-3 py-2 rounded-lg" title={item.comment_trail}>
+                            {item.comment_trail || 'No comments available'}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>
@@ -357,7 +476,6 @@ const PlanVsAchievementTab = () => {
               onClose={handleClosePanel}
               onSave={handleApplicationUpdate}
               onDataChanged={() => {
-                // Handle data changes if needed
                 console.log('Application data changed');
               }}
             />

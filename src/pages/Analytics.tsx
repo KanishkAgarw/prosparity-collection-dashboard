@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
@@ -7,7 +8,6 @@ import { Card } from '@/components/ui/card';
 import { useApplications } from '@/hooks/useApplications';
 import BranchPaymentStatusTable from '@/components/analytics/BranchPaymentStatusTable';
 import BranchPTPStatusTable from '@/components/analytics/BranchPTPStatusTable';
-import PTPEffectivenessTable from '@/components/analytics/PTPEffectivenessTable';
 import PlanVsAchievementTab from '@/components/analytics/PlanVsAchievementTab';
 import ApplicationDetailsModal from '@/components/analytics/ApplicationDetailsModal';
 import { Application } from '@/types/application';
@@ -176,7 +176,8 @@ const Analytics = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
-      <div className="container mx-auto px-4 py-6 max-w-6xl">
+      {/* Use same container width as main applications table */}
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <Button
@@ -195,29 +196,44 @@ const Analytics = () => {
         </div>
 
         {/* Analytics Content */}
-        <Card className="bg-white/90 backdrop-blur-sm shadow-xl">
+        <Card className="bg-white/95 backdrop-blur-sm shadow-xl border-0">
           <Tabs defaultValue="payment-status" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 bg-gray-100/80 h-12">
-              <TabsTrigger value="payment-status" className="text-base font-medium">Payment Status</TabsTrigger>
-              <TabsTrigger value="ptp-status" className="text-base font-medium">PTP Status</TabsTrigger>
-              <TabsTrigger value="plan-vs-achievement" className="text-base font-medium">Plan vs Achievement</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-slate-100 to-blue-50 h-14 rounded-lg p-1">
+              <TabsTrigger 
+                value="payment-status" 
+                className="text-base font-semibold data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-200"
+              >
+                Payment Status
+              </TabsTrigger>
+              <TabsTrigger 
+                value="ptp-status" 
+                className="text-base font-semibold data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-200"
+              >
+                PTP Status
+              </TabsTrigger>
+              <TabsTrigger 
+                value="plan-vs-achievement" 
+                className="text-base font-semibold data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-200"
+              >
+                Plan vs Achievement
+              </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="payment-status" className="space-y-4 p-6">
+            <TabsContent value="payment-status" className="space-y-4 p-8">
               <BranchPaymentStatusTable 
                 applications={allApplications} 
                 onDrillDown={handleDrillDown}
               />
             </TabsContent>
             
-            <TabsContent value="ptp-status" className="space-y-4 p-6">
+            <TabsContent value="ptp-status" className="space-y-4 p-8">
               <BranchPTPStatusTable 
                 applications={allApplications} 
                 onDrillDown={handleDrillDown}
               />
             </TabsContent>
 
-            <TabsContent value="plan-vs-achievement" className="space-y-4 p-6">
+            <TabsContent value="plan-vs-achievement" className="space-y-4 p-8">
               <PlanVsAchievementTab />
             </TabsContent>
           </Tabs>
