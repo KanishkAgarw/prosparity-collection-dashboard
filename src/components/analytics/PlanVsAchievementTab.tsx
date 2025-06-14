@@ -1,16 +1,17 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CalendarIcon, Clock, Download, Play } from 'lucide-react';
+import { CalendarIcon, Clock, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { usePlanVsAchievementData } from '@/hooks/exports/usePlanVsAchievementData';
 import { usePlanVsAchievementReport } from '@/hooks/exports/usePlanVsAchievementReport';
-import { formatPtpDate } from '@/utils/formatters';
+import { Application } from '@/types/application';
+import ApplicationsTable from '@/components/ApplicationsTable';
+import ApplicationDetailsPanel from '@/components/ApplicationDetailsPanel';
 
 interface PlanVsAchievementApplication {
   applicant_id: string;
@@ -27,11 +28,17 @@ interface PlanVsAchievementApplication {
 }
 
 const PlanVsAchievementTab = () => {
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
-  const [selectedTime, setSelectedTime] = useState<string>('10:30');
+  // Set default to today and 11AM
+  const today = new Date();
+  const defaultDateTime = new Date(today);
+  defaultDateTime.setHours(11, 0, 0, 0);
+  
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(today);
+  const [selectedTime, setSelectedTime] = useState<string>('11:00');
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [reportData, setReportData] = useState<PlanVsAchievementApplication[]>([]);
-  const [hasRunReport, setHasRunReport] = useState(false);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
 
   const { fetchPlanVsAchievementData, loading } = usePlanVsAchievementData();
   const { exportPlanVsAchievementReport } = usePlanVsAchievementReport();
@@ -53,14 +60,66 @@ const PlanVsAchievementTab = () => {
     return dateTime;
   };
 
-  const handleRunReport = async () => {
-    const dateTime = getSelectedDateTime();
-    if (!dateTime) return;
-
-    const data = await fetchPlanVsAchievementData(dateTime);
-    setReportData(data);
-    setHasRunReport(true);
+  // Convert report data to Application format for the table
+  const convertToApplications = (data: PlanVsAchievementApplication[]): Application[] => {
+    return data.map(item => ({
+      id: item.applicant_id,
+      applicant_id: item.applicant_id,
+      applicant_name: item.applicant_name,
+      branch_name: item.branch_name,
+      rm_name: item.rm_name,
+      collection_rm: item.collection_rm,
+      dealer_name: item.dealer_name,
+      field_status: item.updated_status || 'Unknown',
+      ptp_date: item.updated_ptp_date,
+      // Add other required fields with default values
+      user_id: '',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      lms_status: 'Unknown',
+      lender_name: '',
+      team_lead: '',
+      emi_amount: 0,
+      principle_due: 0,
+      interest_due: 0,
+      last_month_bounce: 0,
+      applicant_mobile: '',
+      co_applicant_name: '',
+      co_applicant_mobile: '',
+      co_applicant_address: '',
+      guarantor_name: '',
+      guarantor_mobile: '',
+      guarantor_address: '',
+      reference_name: '',
+      reference_mobile: '',
+      reference_address: '',
+      applicant_address: '',
+      house_ownership: '',
+      repayment: '',
+      fi_location: '',
+      demand_date: '',
+      applicant_calling_status: 'Not Called',
+      co_applicant_calling_status: 'Not Called',
+      guarantor_calling_status: 'Not Called',
+      reference_calling_status: 'Not Called',
+      latest_calling_status: 'No Calls',
+      recent_comments: []
+    }));
   };
+
+  // Automatically run report when date/time changes
+  useEffect(() => {
+    const runReport = async () => {
+      const dateTime = getSelectedDateTime();
+      if (!dateTime) return;
+
+      const data = await fetchPlanVsAchievementData(dateTime);
+      setReportData(data);
+      setApplications(convertToApplications(data));
+    };
+
+    runReport();
+  }, [selectedDate, selectedTime, fetchPlanVsAchievementData]);
 
   const handleExportReport = async () => {
     const dateTime = getSelectedDateTime();
@@ -69,7 +128,18 @@ const PlanVsAchievementTab = () => {
     await exportPlanVsAchievementReport(dateTime, 'plan-vs-achievement-report');
   };
 
-  const canRunReport = selectedDate !== undefined;
+  const handleApplicationSelect = (app: Application) => {
+    setSelectedApplication(app);
+  };
+
+  const handleClosePanel = () => {
+    setSelectedApplication(null);
+  };
+
+  const handleApplicationUpdate = (updatedApp: Application) => {
+    setSelectedApplication(updatedApp);
+    // In a real app, you'd update the applications list here
+  };
 
   return (
     <div className="space-y-6">
@@ -81,7 +151,7 @@ const PlanVsAchievementTab = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">
                 Planned Date
@@ -125,118 +195,73 @@ const PlanVsAchievementTab = () => {
                 />
               </div>
             </div>
+
+            <div>
+              {reportData.length > 0 && (
+                <Button 
+                  variant="outline" 
+                  onClick={handleExportReport}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Export to Excel
+                </Button>
+              )}
+            </div>
           </div>
 
           {getSelectedDateTime() && (
             <div className="p-3 bg-blue-50 rounded-md">
               <p className="text-sm text-blue-800">
-                <strong>Selected:</strong> {format(getSelectedDateTime()!, "PPP 'at' HH:mm")}
+                <strong>Analyzing:</strong> {format(getSelectedDateTime()!, "PPP 'at' HH:mm")}
               </p>
               <p className="text-xs text-blue-600 mt-1">
-                This will show applications that had PTP dates set for this date/time and compare their status changes
+                Showing applications that had PTP dates set for this date/time and their status changes
               </p>
             </div>
           )}
-
-          <div className="flex gap-3">
-            <Button 
-              onClick={handleRunReport} 
-              disabled={!canRunReport || loading}
-              className="flex items-center gap-2"
-            >
-              <Play className="h-4 w-4" />
-              {loading ? 'Running Report...' : 'Run Report'}
-            </Button>
-
-            {hasRunReport && reportData.length > 0 && (
-              <Button 
-                variant="outline" 
-                onClick={handleExportReport}
-                className="flex items-center gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Export to Excel
-              </Button>
-            )}
-          </div>
         </CardContent>
       </Card>
 
-      {hasRunReport && (
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              Report Results ({reportData.length} applications)
-            </CardTitle>
-            <CardDescription>
-              Applications that had PTP set for {selectedDate && format(selectedDate, "PPP")} as of {format(getSelectedDateTime()!, "PPP 'at' HH:mm")}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {reportData.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                No applications found matching the criteria
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Branch</TableHead>
-                      <TableHead>RM</TableHead>
-                      <TableHead>Collection RM</TableHead>
-                      <TableHead>Dealer</TableHead>
-                      <TableHead>Applicant</TableHead>
-                      <TableHead>Previous PTP</TableHead>
-                      <TableHead>Previous Status</TableHead>
-                      <TableHead>Updated PTP</TableHead>
-                      <TableHead>Updated Status</TableHead>
-                      <TableHead>Comments</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {reportData.map((app) => (
-                      <TableRow key={app.applicant_id}>
-                        <TableCell className="font-medium">{app.branch_name}</TableCell>
-                        <TableCell>{app.rm_name}</TableCell>
-                        <TableCell>{app.collection_rm || '-'}</TableCell>
-                        <TableCell>{app.dealer_name}</TableCell>
-                        <TableCell>{app.applicant_name}</TableCell>
-                        <TableCell>{formatPtpDate(app.previous_ptp_date)}</TableCell>
-                        <TableCell>
-                          <span className={cn(
-                            "px-2 py-1 rounded-full text-xs font-medium",
-                            app.previous_status === 'Paid' ? "bg-green-100 text-green-800" :
-                            app.previous_status === 'Unpaid' ? "bg-red-100 text-red-800" :
-                            app.previous_status === 'Partially Paid' ? "bg-yellow-100 text-yellow-800" :
-                            "bg-gray-100 text-gray-800"
-                          )}>
-                            {app.previous_status}
-                          </span>
-                        </TableCell>
-                        <TableCell>{formatPtpDate(app.updated_ptp_date)}</TableCell>
-                        <TableCell>
-                          <span className={cn(
-                            "px-2 py-1 rounded-full text-xs font-medium",
-                            app.updated_status === 'Paid' ? "bg-green-100 text-green-800" :
-                            app.updated_status === 'Unpaid' ? "bg-red-100 text-red-800" :
-                            app.updated_status === 'Partially Paid' ? "bg-yellow-100 text-yellow-800" :
-                            "bg-gray-100 text-gray-800"
-                          )}>
-                            {app.updated_status}
-                          </span>
-                        </TableCell>
-                        <TableCell className="max-w-xs truncate" title={app.comment_trail}>
-                          {app.comment_trail}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            {loading ? 'Loading Report...' : `Report Results (${applications.length} applications)`}
+          </CardTitle>
+          <CardDescription>
+            Applications that had PTP set for {selectedDate && format(selectedDate, "PPP")} as of {format(getSelectedDateTime() || new Date(), "PPP 'at' HH:mm")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : applications.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No applications found matching the criteria
+            </div>
+          ) : (
+            <ApplicationsTable
+              applications={applications}
+              onRowClick={handleApplicationSelect}
+              selectedApplicationId={selectedApplication?.id}
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Application Details Panel */}
+      {selectedApplication && (
+        <ApplicationDetailsPanel
+          application={selectedApplication}
+          onClose={handleClosePanel}
+          onSave={handleApplicationUpdate}
+          onDataChanged={() => {
+            // Handle data changes if needed
+            console.log('Application data changed');
+          }}
+        />
       )}
     </div>
   );
