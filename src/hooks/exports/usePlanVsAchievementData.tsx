@@ -32,9 +32,11 @@ export const usePlanVsAchievementData = () => {
       console.log('Input planned date/time:', plannedDateTime.toISOString());
 
       // Get the planned date (just date part, no time) for PTP comparison
-      const plannedDateOnly = new Date(plannedDateTime);
-      plannedDateOnly.setHours(0, 0, 0, 0);
-      const plannedDateStr = plannedDateOnly.toISOString().split('T')[0];
+      // Fix: Use the date directly from the input without timezone manipulation
+      const year = plannedDateTime.getFullYear();
+      const month = String(plannedDateTime.getMonth() + 1).padStart(2, '0');
+      const day = String(plannedDateTime.getDate()).padStart(2, '0');
+      const plannedDateStr = `${year}-${month}-${day}`;
       
       console.log('Looking for applications that had PTP =', plannedDateStr, 'as of', plannedDateTime.toISOString());
 
