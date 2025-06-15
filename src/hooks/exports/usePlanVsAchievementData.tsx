@@ -3,20 +3,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfiles } from '@/hooks/useUserProfiles';
-
-interface PlanVsAchievementApplication {
-  applicant_id: string;
-  branch_name: string;
-  rm_name: string;
-  collection_rm: string;
-  dealer_name: string;
-  applicant_name: string;
-  previous_ptp_date: string | null;
-  previous_status: string | null;
-  updated_ptp_date: string | null;
-  updated_status: string | null;
-  comment_trail: string;
-}
+import { PlanVsAchievementApplication } from '@/types/planVsAchievement';
 
 export const usePlanVsAchievementData = () => {
   const { user } = useAuth();
@@ -247,7 +234,7 @@ export const usePlanVsAchievementData = () => {
         }
       });
 
-      // Combine all data
+      // Combine all data into the comprehensive interface
       const result: PlanVsAchievementApplication[] = filteredApplications?.map(app => {
         const previousStatus = historicalStatusMap[app.applicant_id] || app.lms_status;
         const updatedStatus = currentStatusMap[app.applicant_id] || app.lms_status;
@@ -271,7 +258,28 @@ export const usePlanVsAchievementData = () => {
           previous_status: previousStatus,
           updated_ptp_date: currentPtpDate,
           updated_status: updatedStatus,
-          comment_trail: commentsByApp[app.applicant_id] || 'No comments'
+          comment_trail: commentsByApp[app.applicant_id] || 'No comments',
+          emi_amount: app.emi_amount,
+          demand_date: app.demand_date,
+          lender_name: app.lender_name,
+          team_lead: app.team_lead,
+          principle_due: app.principle_due,
+          interest_due: app.interest_due,
+          last_month_bounce: app.last_month_bounce,
+          applicant_mobile: app.applicant_mobile,
+          co_applicant_name: app.co_applicant_name,
+          co_applicant_mobile: app.co_applicant_mobile,
+          co_applicant_address: app.co_applicant_address,
+          guarantor_name: app.guarantor_name,
+          guarantor_mobile: app.guarantor_mobile,
+          guarantor_address: app.guarantor_address,
+          reference_name: app.reference_name,
+          reference_mobile: app.reference_mobile,
+          reference_address: app.reference_address,
+          applicant_address: app.applicant_address,
+          house_ownership: app.house_ownership,
+          repayment: app.repayment,
+          fi_location: app.fi_location
         };
       }) || [];
 
