@@ -1,4 +1,3 @@
-
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Application } from '@/types/application';
 import { PlanVsAchievementApplication } from '@/types/planVsAchievement';
@@ -34,7 +33,7 @@ interface PlanVsAchievementRowProps {
   changeSummary: string;
   comments: Array<{content: string; user_name: string}>;
   selectedApplication: Application | null;
-  onApplicationSelect: (app: Application) => void;
+  onApplicationSelect: (app: Application, event: React.MouseEvent<HTMLTableRowElement>) => void;
 }
 
 const PlanVsAchievementRow = ({
@@ -56,7 +55,7 @@ const PlanVsAchievementRow = ({
         }
         ${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'}
       `}
-      onClick={() => application && onApplicationSelect(application)}
+      onClick={event => application && onApplicationSelect(application, event)}
     >
       <TableCell className="py-4">
         {application && <ApplicationDetails application={application} />}

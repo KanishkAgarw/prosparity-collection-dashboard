@@ -8,6 +8,8 @@ import { useTableSorting } from '@/hooks/useTableSorting';
 import SortableTableHeader from './shared/SortableTableHeader';
 import ClickableTableCell from './shared/ClickableTableCell';
 import ExpandableRow from './shared/ExpandableRow';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
+import { formatEmiMonth } from '@/utils/formatters';
 
 interface BranchPaymentStatusTableProps {
   applications: Application[];
@@ -17,7 +19,19 @@ interface BranchPaymentStatusTableProps {
 type SortField = 'branch_name' | 'rm_name' | 'total' | 'unpaid' | 'partially_paid' | 'paid_pending_approval' | 'paid' | 'others';
 
 const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentStatusTableProps) => {
-  const { branchPaymentStatusData } = useBranchAnalyticsData(applications);
+  const [selectedEmiMonth, setSelectedEmiMonth] = useState<string>('all');
+  
+  // Get unique EMI months from applications
+  const emiMonths = Array.from(
+    new Set(applications.map(app => formatEmiMonth(app.demand_date)).filter(month => month && month !== 'NA'))
+  ).sort();
+
+  // Filter applications by selected EMI month
+  const filteredApplications = selectedEmiMonth && selectedEmiMonth !== 'all'
+    ? applications.filter(app => formatEmiMonth(app.demand_date) === selectedEmiMonth)
+    : applications;
+
+  const { branchPaymentStatusData } = useBranchAnalyticsData(filteredApplications);
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
   
   const branchSorting = useTableSorting<SortField>('branch_name');
@@ -91,6 +105,20 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
             <CardDescription className="text-xs">
               Distribution of payment statuses across branches and RMs
             </CardDescription>
+          </div>
+          <div className="w-48">
+            <label className="block text-xs font-medium text-gray-700 mb-1">EMI Month</label>
+            <Select value={selectedEmiMonth} onValueChange={setSelectedEmiMonth}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                {emiMonths.map(month => (
+                  <SelectItem key={month} value={month}>{month}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </CardHeader>

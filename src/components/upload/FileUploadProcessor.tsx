@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,6 +6,7 @@ import * as XLSX from 'xlsx';
 import { processBulkApplications } from '@/utils/bulkOperations';
 import { useAuth } from '@/hooks/useAuth';
 import { UploadMode } from './UploadModeSelector';
+import { supabase } from '@/integrations/supabase/client';
 
 interface FileUploadProcessorProps {
   uploadMode: UploadMode;
@@ -25,6 +25,14 @@ const FileUploadProcessor = ({
 }: FileUploadProcessorProps) => {
   const { user } = useAuth();
 
+  const parseNumericValue = (value: any): number | null => {
+    if (value === undefined || value === null || value === '') {
+      return null;
+    }
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? null : parsed;
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !user) return;
@@ -36,18 +44,20 @@ const FileUploadProcessor = ({
       console.log('Starting file upload process with mode:', uploadMode);
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      
+      // Process Applications sheet
+      const applicationsWorksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const applicationsData = XLSX.utils.sheet_to_json(applicationsWorksheet);
 
-      console.log('Parsed data from file:', jsonData.length, 'rows');
+      console.log('Parsed applications data from file:', applicationsData.length, 'rows');
 
-      if (jsonData.length === 0) {
-        toast.error('No data found in the file', { id: 'upload' });
+      if (applicationsData.length === 0) {
+        toast.error('No application data found in the file', { id: 'upload' });
         return;
       }
 
-      const applications = jsonData.map((row: any, index: number) => {
-        console.log(`Transforming row ${index + 1}:`, row);
+      const applications = applicationsData.map((row: any, index: number) => {
+        console.log(`Transforming application row ${index + 1}:`, row);
         return {
           applicant_id: row['Applicant ID'] || row['applicant_id'],
           applicant_name: row['Applicant Name'] || row['applicant_name'],
@@ -57,10 +67,13 @@ const FileUploadProcessor = ({
           dealer_name: row['Dealer Name'] || row['dealer_name'],
           lender_name: row['Lender Name'] || row['lender_name'],
           lms_status: row['LMS Status'] || row['lms_status'] || 'Unpaid',
-          emi_amount: parseFloat(row['EMI'] || row['EMI Amount'] || row['emi_amount'] || '0'),
-          principle_due: parseFloat(row['Principle Due'] || row['principle_due'] || '0'),
-          interest_due: parseFloat(row['Interest Due'] || row['interest_due'] || '0'),
+          emi_amount: parseNumericValue(row['EMI'] || row['EMI Amount'] || row['emi_amount']),
+          principle_due: parseNumericValue(row['Principle Due'] || row['principle_due']),
+          interest_due: parseNumericValue(row['Interest Due'] || row['interest_due']),
           demand_date: row['Demand Date'] || row['demand_date'],
+          disbursement_date: row['Disbursement Date'] || row['disbursement_date'],
+          loan_amount: parseNumericValue(row['Loan Amount'] || row['loan_amount']),
+          vehicle_status: row['Vehicle Status'] || row['vehicle_status'],
           user_id: user.id,
           applicant_mobile: row['Applicant Mobile Number'] || row['applicant_mobile'],
           applicant_address: row['Applicant Current Address'] || row['applicant_address'],
@@ -76,7 +89,7 @@ const FileUploadProcessor = ({
           reference_address: row['Reference Address'] || row['reference_address'],
           fi_location: row['FI Submission Location'] || row['fi_location'],
           repayment: row['Repayment'] || row['repayment'],
-          last_month_bounce: parseFloat(row['Last Month Bounce'] || row['last_month_bounce'] || '0'),
+          last_month_bounce: parseNumericValue(row['Last Month Bounce'] || row['last_month_bounce']),
           collection_rm: row['Collection RM'] || row['collection_rm'],
           status: row['Status'] || row['status'],
           uploadMode
@@ -97,7 +110,7 @@ const FileUploadProcessor = ({
         if (results.statusUpdated > 0) {
           errorMessage += `✅ ${results.statusUpdated} statuses updated\n`;
         }
-        errorMessage += `❌ ${results.failed} failed\n`;
+        errorMessage += `❌ ${results.failed} applications failed\n`;
         errorMessage += `\nFirst few errors:\n${results.errors.slice(0, 3).join('\n')}`;
         
         toast.error(errorMessage, { 

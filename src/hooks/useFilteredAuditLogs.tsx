@@ -11,12 +11,12 @@ export const useFilteredAuditLogs = (auditLogs: AuditLog[]) => {
     const statusRelatedLogs = auditLogs.filter(log => {
       const isStatusField = log.field === 'Status';
       const isPtpField = log.field === 'PTP Date';
+      const isAmountCollected = log.field === 'Amount Collected';
       
-      console.log(`Log ${log.id}: field="${log.field}" -> include=${isStatusField || isPtpField}`);
+      console.log(`Log ${log.id}: field="${log.field}" -> include=${isStatusField || isPtpField || isAmountCollected}`);
       
-      return isStatusField || isPtpField;
+      return isStatusField || isPtpField || isAmountCollected;
     });
-    
     console.log('Filtered status-related logs:', statusRelatedLogs.length);
     console.log('Status-related logs:', statusRelatedLogs.map(log => ({ 
       id: log.id, 

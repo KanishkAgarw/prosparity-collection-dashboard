@@ -52,9 +52,9 @@ export const getChangeSummary = (item: PlanVsAchievementApplication): string => 
   const ptpChanged = item.previous_ptp_date !== item.updated_ptp_date;
 
   if (statusChanged && ptpChanged) {
-    return 'Status Changed & PTP Updated';
+    return 'Status Updated & PTP Updated';
   } else if (statusChanged) {
-    return 'Status Changed';
+    return 'Status Updated';
   } else if (ptpChanged) {
     return 'PTP Updated';
   } else {

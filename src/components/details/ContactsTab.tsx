@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,7 +18,7 @@ interface ContactsTabProps {
 
 const ContactsTab = ({ application, callingLogs, onCallingStatusChange }: ContactsTabProps) => {
   const [showLogDialog, setShowLogDialog] = useState(false);
-  const { getStatusForContact } = useContactCallingStatus(application.applicant_id);
+  const { getStatusForContact, refetch } = useContactCallingStatus(application.applicant_id);
 
   const formatDateTime = (dateStr: string) => {
     try {
@@ -71,7 +70,7 @@ const ContactsTab = ({ application, callingLogs, onCallingStatusChange }: Contac
   return (
     <div className="space-y-4">
       {/* Contact Cards */}
-      <div className="space-y-3">
+      <div className="space-y-4">
         {contacts.map((contact, index) => (
           <ContactCard
             key={index}
@@ -79,7 +78,10 @@ const ContactsTab = ({ application, callingLogs, onCallingStatusChange }: Contac
             name={contact.name}
             mobile={contact.mobile}
             currentStatus={contact.callingStatus}
-            onStatusChange={(newStatus) => onCallingStatusChange(contact.type, newStatus, contact.callingStatus)}
+            onStatusChange={async (newStatus) => {
+              await onCallingStatusChange(contact.type, newStatus, contact.callingStatus);
+              await refetch();
+            }}
           />
         ))}
       </div>

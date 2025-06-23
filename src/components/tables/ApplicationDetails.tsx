@@ -1,4 +1,3 @@
-
 import { memo } from "react";
 import { Application } from "@/types/application";
 import { formatEmiMonth, formatCurrency } from "@/utils/formatters";
@@ -14,7 +13,14 @@ const formatLenderName = (lenderName: string) => {
 const ApplicationDetails = memo(({ application }: ApplicationDetailsProps) => {
   return (
     <div className="space-y-1">
-      <div className="font-semibold text-blue-900">{application.applicant_name}</div>
+      <div className="flex items-center space-x-2">
+        <div className="font-semibold text-blue-900">{application.applicant_name}</div>
+        {application.vehicle_status && (
+          <span className="text-xs font-medium bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
+            {application.vehicle_status}
+          </span>
+        )}
+      </div>
       <div className="text-sm text-gray-600">
         <span className="font-medium">ID:</span> {application.applicant_id}
       </div>

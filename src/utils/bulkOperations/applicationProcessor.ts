@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface ProcessingResults {
@@ -78,12 +77,20 @@ const updateExistingApplication = async (
 ) => {
   console.log(`Updating existing application: ${app.applicant_id}`);
   
+  // Filter out null/undefined/empty-string values to preserve existing data
+  const updateData = Object.fromEntries(
+    Object.entries(applicationData).filter(([_, value]) => 
+      value !== null && value !== undefined && value !== ''
+    )
+  );
+  // Add updated_at timestamp
+  updateData.updated_at = new Date().toISOString();
+  
+  console.log('Update data (filtered):', updateData);
+  
   const { error: updateError } = await supabase
     .from('applications')
-    .update({
-      ...applicationData,
-      updated_at: new Date().toISOString()
-    })
+    .update(updateData)
     .eq('applicant_id', app.applicant_id);
 
   if (updateError) {

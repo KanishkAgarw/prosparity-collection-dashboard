@@ -254,6 +254,8 @@ export const useApplicationHandlers = (
           user_id: user.id,
           user_email: user.email,
           updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'application_id,contact_type'
         });
 
       if (error) {

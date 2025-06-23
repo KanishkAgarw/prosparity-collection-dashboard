@@ -1,4 +1,3 @@
-
 export type LastMonthBounceCategory = 'Not paid' | 'Paid on time' | '1-5 days late' | '6-15 days late' | '15+ days late';
 
 export interface FilterState {
@@ -13,6 +12,7 @@ export interface FilterState {
   lastMonthBounce: LastMonthBounceCategory[];
   ptpDate: string[]; // Changed to string[] to handle display labels
   collectionRm: string[];
+  vehicleStatus: string[];
 }
 
 export interface AvailableOptions {
@@ -27,6 +27,7 @@ export interface AvailableOptions {
   lastMonthBounce: LastMonthBounceCategory[];
   ptpDateOptions: string[];
   collectionRms: string[];
+  vehicleStatusOptions: string[];
 }
 
 // Export alias for compatibility

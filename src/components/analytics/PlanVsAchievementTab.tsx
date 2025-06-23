@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePlanVsAchievementData } from '@/hooks/exports/usePlanVsAchievementData';
 import { usePlanVsAchievementReport } from '@/hooks/exports/usePlanVsAchievementReport';
 import { Application } from '@/types/application';
@@ -10,6 +9,7 @@ import PlanVsAchievementHeader from './planVsAchievement/PlanVsAchievementHeader
 import PlanVsAchievementSummary from './planVsAchievement/PlanVsAchievementSummary';
 import PlanVsAchievementTable from './planVsAchievement/PlanVsAchievementTable';
 import { convertToApplications, getChangePriority } from '@/utils/planVsAchievementUtils';
+import ReactDOM from 'react-dom';
 
 const PlanVsAchievementTab = () => {
   // Set default to today and 11AM
@@ -45,13 +45,22 @@ const PlanVsAchievementTab = () => {
   const getSummaryStats = () => {
     const total = reportData.length;
     const statusChanged = reportData.filter(item => item.previous_status !== item.updated_status).length;
-    const ptpUpdated = reportData.filter(item => item.previous_ptp_date !== item.updated_ptp_date).length;
+    const ptpUpdated = reportData.filter(
+      item =>
+        item.previous_ptp_date !== item.updated_ptp_date &&
+        item.previous_status === item.updated_status
+    ).length;
+    const statusAndPtpUpdated = reportData.filter(
+      item =>
+        item.previous_status !== item.updated_status &&
+        item.previous_ptp_date !== item.updated_ptp_date
+    ).length;
     const noChange = reportData.filter(item => 
       item.previous_status === item.updated_status && 
       item.previous_ptp_date === item.updated_ptp_date
     ).length;
 
-    return { total, statusChanged, ptpUpdated, noChange };
+    return { total, statusChanged, ptpUpdated, statusAndPtpUpdated, noChange };
   };
 
   // Filter comments by date range - only between planned date/time and today
@@ -110,8 +119,8 @@ const PlanVsAchievementTab = () => {
   const stats = getSummaryStats();
 
   return (
-    <div className="relative">
-      <div className={`space-y-8 transition-all duration-300 ${selectedApplication ? 'mr-[500px] md:mr-[600px]' : ''}`}>
+    <div className="relative w-full">
+      <div className="space-y-8 transition-all duration-300">
         <PlanVsAchievementHeader
           selectedDate={selectedDate}
           selectedTime={selectedTime}
@@ -138,18 +147,25 @@ const PlanVsAchievementTab = () => {
         />
       </div>
 
-      {/* Application Details Panel - Fixed positioning */}
-      {selectedApplication && (
-        <div className="fixed right-0 top-0 h-full w-[500px] md:w-[600px] z-50">
-          <ApplicationDetailsPanel
-            application={selectedApplication}
-            onClose={handleClosePanel}
-            onSave={handleApplicationUpdate}
-            onDataChanged={() => {
-              console.log('Application data changed');
-            }}
-          />
-        </div>
+      {/* Application Details Panel - Portal for true docked drawer */}
+      {selectedApplication && ReactDOM.createPortal(
+        <>
+          {/* Subtle overlay for focus, does not block scroll */}
+          <div className="fixed inset-0 bg-black/10 z-40 transition-opacity animate-fade-in pointer-events-none" />
+          <div
+            className="fixed right-0 top-0 h-screen min-w-[350px] max-w-[500px] w-[35vw] z-50 bg-white shadow-2xl border-l-2 border-gray-300 flex flex-col animate-slide-in overflow-y-auto rounded-none m-0 p-0"
+          >
+            <ApplicationDetailsPanel
+              application={selectedApplication}
+              onClose={handleClosePanel}
+              onSave={handleApplicationUpdate}
+              onDataChanged={() => {
+                console.log('Application data changed');
+              }}
+            />
+          </div>
+        </>,
+        document.body
       )}
     </div>
   );

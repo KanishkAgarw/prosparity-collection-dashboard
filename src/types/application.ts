@@ -1,4 +1,3 @@
-
 export interface Application {
   id: string;
   applicant_id: string;
@@ -43,6 +42,10 @@ export interface Application {
   reference_calling_status?: string;
   latest_calling_status?: string;
   recent_comments?: Array<{content: string; user_name: string}>;
+  disbursement_date?: string;
+  loan_amount?: number;
+  vehicle_status?: string;
+  amount_collected?: number;
 }
 
 export interface AuditLog {
@@ -66,4 +69,11 @@ export interface FilterOptions {
   emiMonths: string[];
   repayments: string[];
   lastMonthBounce: string[];
+}
+
+export interface RepaymentHistory {
+  id: string;
+  application_id: string;
+  repayment_number: number;
+  delay_in_days: number;
 }

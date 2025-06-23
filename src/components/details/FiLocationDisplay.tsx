@@ -1,4 +1,3 @@
-
 import { MapPin, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -53,7 +52,7 @@ const FiLocationDisplay = ({ fiLocation }: FiLocationDisplayProps) => {
       <CardHeader className="pb-3">
         <CardTitle className="text-sm flex items-center gap-2">
           <MapPin className="h-4 w-4 text-blue-600" />
-          Field Investigator Location
+          Field Investigation Location
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
@@ -74,11 +73,6 @@ const FiLocationDisplay = ({ fiLocation }: FiLocationDisplayProps) => {
               <ExternalLink className="h-3 w-3" />
               View on Map
             </Button>
-          </div>
-          
-          <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
-            <strong>Latitude:</strong> {coordinates.lat.toFixed(6)} <br />
-            <strong>Longitude:</strong> {coordinates.lng.toFixed(6)}
           </div>
         </div>
       </CardContent>

@@ -1,8 +1,8 @@
-
 import { formatEmiMonth } from "@/utils/formatters";
 import { categorizePtpDate, type PtpDateCategory, getPtpDateCategoryLabel } from "@/utils/ptpDateUtils";
 import { formatRepayment, categorizeLastMonthBounce, isValidLastMonthBounceCategory, isValidPtpDateCategory } from "@/utils/filterUtils";
 import type { FilterState, LastMonthBounceCategory, AvailableOptions } from "@/types/filters";
+import { VEHICLE_STATUS_OPTIONS } from "@/constants/options";
 
 // Get available filter options based on all applications and current filtered results
 export const getAvailableOptions = (allApplications: any[], filteredApplications: any[]): AvailableOptions => {
@@ -39,6 +39,8 @@ export const getAvailableOptions = (allApplications: any[], filteredApplications
     "No PTP"
   ];
 
+  const vehicleStatusOptions = VEHICLE_STATUS_OPTIONS.map(opt => opt.value);
+
   return {
     branches,
     teamLeads,
@@ -50,7 +52,8 @@ export const getAvailableOptions = (allApplications: any[], filteredApplications
     repayments,
     lastMonthBounce,
     ptpDateOptions,
-    collectionRms
+    collectionRms,
+    vehicleStatusOptions
   };
 };
 
@@ -109,9 +112,13 @@ export const filterApplications = (applications: any[], filters: FilterState) =>
     const lenderMatch = filters.lender.length === 0 || filters.lender.includes(app.lender_name);
     const collectionRmMatch = filters.collectionRm.length === 0 || filters.collectionRm.includes(app.collection_rm || '');
 
+    const vehicleStatusMatch = filters.vehicleStatus.length === 0 || 
+      (filters.vehicleStatus.includes('None') && !app.vehicle_status) ||
+      filters.vehicleStatus.includes(app.vehicle_status || '');
+
     const matches = branchMatch && teamLeadMatch && rmMatch && dealerMatch && 
            lenderMatch && statusMatch && emiMonthMatch && repaymentMatch && 
-           lastMonthBounceMatch && ptpDateMatch && collectionRmMatch;
+           lastMonthBounceMatch && ptpDateMatch && collectionRmMatch && vehicleStatusMatch;
 
     if (!matches && filters.ptpDate.length > 0) {
       console.log('PTP filter mismatch for:', app.applicant_name, 'Category:', categorizePtpDate(app.ptp_date), 'Filter:', filters.ptpDate);

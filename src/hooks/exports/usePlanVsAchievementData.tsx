@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -15,7 +14,7 @@ export const usePlanVsAchievementData = () => {
 
     setLoading(true);
     try {
-      console.log('=== PLAN VS ACHIEVEMENT DATA FETCH - WITH PAID STATUS FILTER ===');
+      console.log('=== PLAN VS ACHIEVEMENT DATA FETCH - INCLUDING ALL APPLICATIONS ===');
       console.log('Input planned date/time:', plannedDateTime.toISOString());
 
       // Get the planned date (just date part, no time) for PTP comparison
@@ -26,7 +25,7 @@ export const usePlanVsAchievementData = () => {
       const plannedDateStr = `${year}-${month}-${day}`;
       
       console.log('Looking for applications that had PTP =', plannedDateStr, 'as of', plannedDateTime.toISOString());
-      console.log('Excluding applications that were already "Paid" as of the planned timestamp');
+      console.log('Including ALL applications regardless of their status at the planned timestamp');
 
       // Step 1: Get ALL PTP records created before or at the planned timestamp
       const { data: historicalPtpData, error: ptpError } = await supabase
@@ -91,8 +90,26 @@ export const usePlanVsAchievementData = () => {
 
       const applicationIds = applicationsWithMatchingPtp.map(([appId]) => appId);
 
-      // Step 4: Get historical status as of planned time to exclude already "Paid" applications
-      const { data: historicalStatus, error: statusError } = await supabase
+      // Step 4: Get historical status from audit logs as of planned time (instead of field_status which gets overwritten)
+      const { data: historicalAuditLogs, error: auditError } = await supabase
+        .from('audit_logs')
+        .select('application_id, field, previous_value, new_value, created_at')
+        .in('application_id', applicationIds)
+        .eq('field', 'Status')
+        .lte('created_at', plannedDateTime.toISOString())
+        .order('application_id')
+        .order('created_at', { ascending: false });
+
+      if (auditError) {
+        console.error('Error fetching historical audit logs:', auditError);
+      }
+
+      // Create map of latest status as of planned timestamp from audit logs
+      const historicalStatusMap: Record<string, string> = {};
+      const processedHistoricalStatus = new Set<string>();
+      
+      // First, get the initial status from field_status (for applications with no audit logs)
+      const { data: initialStatusData, error: initialStatusError } = await supabase
         .from('field_status')
         .select('application_id, status, created_at')
         .in('application_id', applicationIds)
@@ -100,17 +117,35 @@ export const usePlanVsAchievementData = () => {
         .order('application_id')
         .order('created_at', { ascending: false });
 
-      if (statusError) {
-        console.error('Error fetching historical status:', statusError);
+      if (initialStatusError) {
+        console.error('Error fetching initial status:', initialStatusError);
       }
 
-      // Create map of latest status as of planned timestamp
-      const historicalStatusMap: Record<string, string> = {};
-      const processedHistoricalStatus = new Set<string>();
-      historicalStatus?.forEach(status => {
-        if (!processedHistoricalStatus.has(status.application_id)) {
-          historicalStatusMap[status.application_id] = status.status;
-          processedHistoricalStatus.add(status.application_id);
+      // Build historical status map from audit logs
+      // For each application, find the latest audit log (field='Status') with created_at <= plannedDateTime
+      const auditLogsByApp: Record<string, any[]> = {};
+      historicalAuditLogs?.forEach(auditLog => {
+        if (!auditLogsByApp[auditLog.application_id]) {
+          auditLogsByApp[auditLog.application_id] = [];
+        }
+        auditLogsByApp[auditLog.application_id].push(auditLog);
+      });
+
+      applicationIds.forEach(appId => {
+        // Sort logs for this app by created_at DESC (latest first)
+        const logs = (auditLogsByApp[appId] || []).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        if (logs.length > 0) {
+          // Use the new_value of the latest audit log before plannedDateTime
+          historicalStatusMap[appId] = logs[0].new_value || 'Unpaid';
+          processedHistoricalStatus.add(appId);
+        }
+      });
+
+      // For applications without audit logs, set previous status to 'Unpaid'
+      applicationIds.forEach(appId => {
+        if (!processedHistoricalStatus.has(appId)) {
+          historicalStatusMap[appId] = 'Unpaid';
+          processedHistoricalStatus.add(appId);
         }
       });
 
@@ -125,46 +160,34 @@ export const usePlanVsAchievementData = () => {
         return [];
       }
 
-      // Step 5: Filter out applications that were already "Paid" as of the planned timestamp
-      const nonPaidApplicationIds: string[] = [];
+      // Step 5: Include ALL applications with matching PTP dates (removed paid status filter)
+      const allApplicationIds: string[] = [];
       const historicalPtpMap: Record<string, string> = {};
 
       applicationsWithMatchingPtp.forEach(([appId, ptpDate]) => {
-        const app = applications?.find(a => a.applicant_id === appId);
-        const statusAsOfTimestamp = historicalStatusMap[appId] || app?.lms_status;
-        
-        const wasPaidAsOfTimestamp = statusAsOfTimestamp === 'Paid';
-        
-        console.log(`PAID STATUS CHECK - App ${appId} (${app?.applicant_name}):`);
-        console.log(`  Status as of ${plannedDateTime.toISOString()}: ${statusAsOfTimestamp}`);
-        console.log(`  Was Paid as of timestamp: ${wasPaidAsOfTimestamp}`);
-        console.log(`  Include in report: ${!wasPaidAsOfTimestamp}`);
-        
-        if (!wasPaidAsOfTimestamp) {
-          nonPaidApplicationIds.push(appId);
-          if (ptpDate) {
-            historicalPtpMap[appId] = ptpDate;
-          }
+        allApplicationIds.push(appId);
+        if (ptpDate) {
+          historicalPtpMap[appId] = ptpDate;
         }
       });
 
-      console.log('AFTER PAID STATUS FILTER:', nonPaidApplicationIds.length, 'applications remaining (excluded', applicationIds.length - nonPaidApplicationIds.length, 'already paid applications)');
+      console.log('INCLUDING ALL APPLICATIONS:', allApplicationIds.length, 'applications with matching PTP dates (including paid ones)');
 
-      if (nonPaidApplicationIds.length === 0) {
-        console.log('No applications found after excluding already paid applications');
+      if (allApplicationIds.length === 0) {
+        console.log('No applications found with matching PTP dates');
         return [];
       }
 
-      // Filter applications to only non-paid ones
-      const filteredApplications = applications?.filter(app => nonPaidApplicationIds.includes(app.applicant_id));
+      // Use all applications (not filtered by paid status)
+      const allApplications = applications?.filter(app => allApplicationIds.includes(app.applicant_id));
 
-      console.log('Proceeding with application IDs:', nonPaidApplicationIds);
+      console.log('Proceeding with application IDs:', allApplicationIds);
 
-      // Get current status
+      // Get current status for all applications
       const { data: currentStatus, error: currentStatusError } = await supabase
         .from('field_status')
         .select('application_id, status, created_at')
-        .in('application_id', nonPaidApplicationIds)
+        .in('application_id', allApplicationIds)
         .order('application_id')
         .order('created_at', { ascending: false });
 
@@ -176,7 +199,7 @@ export const usePlanVsAchievementData = () => {
       const { data: currentPtpData, error: currentPtpError } = await supabase
         .from('ptp_dates')
         .select('application_id, ptp_date, created_at')
-        .in('application_id', nonPaidApplicationIds)
+        .in('application_id', allApplicationIds)
         .order('application_id')
         .order('created_at', { ascending: false });
 
@@ -184,11 +207,11 @@ export const usePlanVsAchievementData = () => {
         console.error('Error fetching current PTP data:', currentPtpError);
       }
 
-      // Get comments between planned time and now
+      // Get comments between planned time and now for all applications
       const { data: comments, error: commentsError } = await supabase
         .from('comments')
         .select('application_id, content, user_id, user_email, created_at')
-        .in('application_id', nonPaidApplicationIds)
+        .in('application_id', allApplicationIds)
         .gte('created_at', plannedDateTime.toISOString())
         .order('created_at', { ascending: true });
 
@@ -235,7 +258,7 @@ export const usePlanVsAchievementData = () => {
       });
 
       // Combine all data into the comprehensive interface
-      const result: PlanVsAchievementApplication[] = filteredApplications?.map(app => {
+      const result: PlanVsAchievementApplication[] = allApplications?.map(app => {
         const previousStatus = historicalStatusMap[app.applicant_id] || app.lms_status;
         const updatedStatus = currentStatusMap[app.applicant_id] || app.lms_status;
         const historicalPtpDate = historicalPtpMap[app.applicant_id];
@@ -285,29 +308,23 @@ export const usePlanVsAchievementData = () => {
 
       console.log('=== FINAL SUMMARY ===');
       console.log('Total applications in result:', result.length);
-      console.log('Logic: Applications that had PTP =', plannedDateStr, 'as of', plannedDateTime.toISOString(), 'AND were NOT already "Paid"');
-      console.log('Expected: All previous_ptp_date values should be', plannedDateStr, 'and no previous_status should be "Paid"');
+      console.log('Logic: Applications that had PTP =', plannedDateStr, 'as of', plannedDateTime.toISOString(), '(including paid applications)');
+      console.log('Expected: All previous_ptp_date values should be', plannedDateStr);
       
-      // Validate the results
+      // Validate the results (removed paid status validation)
       const invalidResults = result.filter(app => {
         const appPtpDateStr = app.previous_ptp_date ? new Date(app.previous_ptp_date).toISOString().split('T')[0] : null;
-        const isPaidStatus = app.previous_status === 'Paid';
-        return appPtpDateStr !== plannedDateStr || isPaidStatus;
+        return appPtpDateStr !== plannedDateStr;
       });
       
       if (invalidResults.length > 0) {
-        console.error('❌ VALIDATION FAILED: Found applications with incorrect data:');
+        console.error('❌ VALIDATION FAILED: Found applications with incorrect PTP dates:');
         invalidResults.forEach(app => {
           const appPtpDateStr = app.previous_ptp_date ? new Date(app.previous_ptp_date).toISOString().split('T')[0] : null;
-          if (appPtpDateStr !== plannedDateStr) {
-            console.error(`- ${app.applicant_name}: previous_ptp_date = ${appPtpDateStr}, expected = ${plannedDateStr}`);
-          }
-          if (app.previous_status === 'Paid') {
-            console.error(`- ${app.applicant_name}: previous_status = "Paid" (should be excluded)`);
-          }
+          console.error(`- ${app.applicant_name}: previous_ptp_date = ${appPtpDateStr}, expected = ${plannedDateStr}`);
         });
       } else {
-        console.log('✅ VALIDATION PASSED: All applications have correct previous_ptp_date and none were already "Paid"');
+        console.log('✅ VALIDATION PASSED: All applications have correct previous_ptp_date');
       }
       
       return result;

@@ -1,8 +1,8 @@
-
 import { useState, useMemo } from 'react';
 import { Application } from '@/types/application';
 import { FilterState, AvailableOptions } from '@/types/filters';
 import { filterApplications, getAvailableOptions } from '@/utils/filterLogic';
+import { VEHICLE_STATUS_OPTIONS } from '@/constants/options';
 
 export const useCascadingFilters = (applications: Application[]) => {
   const [filters, setFilters] = useState<FilterState>({
@@ -16,7 +16,8 @@ export const useCascadingFilters = (applications: Application[]) => {
     repayment: [],
     lastMonthBounce: [],
     ptpDate: [],
-    collectionRm: []
+    collectionRm: [],
+    vehicleStatus: []
   });
 
   const filteredApplications = useMemo(() => {
@@ -24,7 +25,11 @@ export const useCascadingFilters = (applications: Application[]) => {
   }, [applications, filters]);
 
   const availableOptions = useMemo<AvailableOptions>(() => {
-    return getAvailableOptions(applications, filteredApplications);
+    const dynamicOptions = getAvailableOptions(applications, filteredApplications);
+    return {
+      ...dynamicOptions,
+      vehicleStatusOptions: VEHICLE_STATUS_OPTIONS.map(opt => opt.value)
+    };
   }, [applications, filteredApplications]);
 
   const handleFilterChange = (key: string, values: string[]) => {
@@ -46,7 +51,8 @@ export const useCascadingFilters = (applications: Application[]) => {
       repayment: [],
       lastMonthBounce: [],
       ptpDate: [],
-      collectionRm: []
+      collectionRm: [],
+      vehicleStatus: []
     });
   };
 

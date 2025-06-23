@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -13,18 +12,24 @@ import { History, Clock, AlertCircle } from "lucide-react";
 import { useFilteredAuditLogs } from "@/hooks/useFilteredAuditLogs";
 import { toast } from "sonner";
 import LogDialog from "./LogDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface StatusTabProps {
   application: Application;
   auditLogs: AuditLog[];
   onStatusChange: (newStatus: string) => void;
   onPtpDateChange: (newDate: string) => void;
+  addAuditLog: (appId: string, field: string, previousValue: string | null, newValue: string | null) => Promise<void>;
 }
 
-const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: StatusTabProps) => {
+const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, addAuditLog }: StatusTabProps) => {
   const [ptpDate, setPtpDate] = useState('');
   const [showLogDialog, setShowLogDialog] = useState(false);
   const [isUpdatingPtp, setIsUpdatingPtp] = useState(false);
+  const { user } = useAuth();
+  const [amountCollected, setAmountCollected] = useState<number | ''>(application.amount_collected ?? '');
+  const [isUpdatingAmount, setIsUpdatingAmount] = useState(false);
   
   // PTP date synchronization - improved to handle cleared dates
   useEffect(() => {
@@ -70,6 +75,10 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
       setPtpDate('');
     }
   }, [application.ptp_date]);
+  
+  useEffect(() => {
+    setAmountCollected(application.amount_collected ?? '');
+  }, [application.amount_collected]);
   
   // Use the hook directly without wrapping in useMemo
   const statusAndPtpLogs = useFilteredAuditLogs(auditLogs);
@@ -124,6 +133,38 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
 
   const handleStatusChange = (newStatus: string) => {
     onStatusChange(newStatus);
+  };
+
+  const handleAmountCollectedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value === '') {
+      setAmountCollected('');
+    } else if (/^\d*\.?\d*$/.test(value)) {
+      setAmountCollected(Number(value));
+    }
+  };
+
+  const saveAmountCollected = async () => {
+    if (!user || !application) return;
+    setIsUpdatingAmount(true);
+    const prev = application.amount_collected ?? '';
+    const newVal = amountCollected === '' ? null : Number(amountCollected);
+    try {
+      const { error } = await supabase
+        .from('applications')
+        .update({ amount_collected: newVal })
+        .eq('applicant_id', application.applicant_id);
+      if (error) throw error;
+      if (prev !== newVal) {
+        await addAuditLog(application.applicant_id, 'Amount Collected', prev?.toString() ?? '', newVal?.toString() ?? '');
+      }
+      toast.success('Amount Collected updated');
+      window.location.reload();
+    } catch (err) {
+      toast.error('Failed to update Amount Collected');
+    } finally {
+      setIsUpdatingAmount(false);
+    }
   };
 
   // Optimized date formatting function
@@ -243,6 +284,34 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange }: 
                 {!application.ptp_date && !isUpdatingPtp && (
                   <div className="text-xs text-gray-500">No PTP date set</div>
                 )}
+              </div>
+            </div>
+            {/* AMOUNT COLLECTED INPUT */}
+            <div>
+              <Label htmlFor="amountCollected">Amount Collected</Label>
+              <div className="flex gap-2 items-center mt-1">
+                <span className="inline-flex items-center px-3 h-10 border border-r-0 border-input bg-muted text-base rounded-l-md text-gray-600 select-none">
+                  ₹
+                </span>
+                <Input
+                  id="amountCollected"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={amountCollected}
+                  onChange={handleAmountCollectedChange}
+                  className="rounded-l-none"
+                  disabled={isUpdatingAmount}
+                  placeholder="Enter amount"
+                  style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}
+                />
+                <Button
+                  size="sm"
+                  onClick={saveAmountCollected}
+                  disabled={isUpdatingAmount || amountCollected === application.amount_collected}
+                >
+                  {isUpdatingAmount ? 'Saving...' : 'Save'}
+                </Button>
               </div>
             </div>
           </div>

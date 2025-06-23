@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -8,6 +7,38 @@ export interface UserProfile {
   full_name: string | null;
   email: string | null;
 }
+
+// Helper function to extract display name from email
+export const extractDisplayNameFromEmail = (email: string): string => {
+  if (!email || !email.includes('@')) {
+    return email || 'Unknown User';
+  }
+  // Extract the part before @
+  const localPart = email.split('@')[0];
+  // Handle common email patterns
+  if (localPart.includes('.')) {
+    // Convert "john.doe" to "John Doe"
+    return localPart
+      .split('.')
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+      .join(' ');
+  } else if (localPart.includes('_')) {
+    // Convert "john_doe" to "John Doe"
+    return localPart
+      .split('_')
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+      .join(' ');
+  } else if (localPart.includes('-')) {
+    // Convert "john-doe" to "John Doe"
+    return localPart
+      .split('-')
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+      .join(' ');
+  } else {
+    // Single word email, capitalize first letter
+    return localPart.charAt(0).toUpperCase() + localPart.slice(1).toLowerCase();
+  }
+};
 
 export const useUserProfiles = () => {
   const { user } = useAuth();
@@ -96,25 +127,17 @@ export const useUserProfiles = () => {
         profile.full_name.trim() !== '' && 
         profile.full_name !== 'null' &&
         profile.full_name.toLowerCase() !== 'unknown user') {
-      const name = profile.full_name.trim();
-      console.log(`✓ Returning full_name: "${name}"`);
-      return name;
+      return profile.full_name.trim();
     }
     
-    // Priority 2: Use profile email if available
-    if (profile?.email && 
-        profile.email.trim() !== '' && 
-        profile.email !== 'null') {
-      const email = profile.email.trim();
-      console.log(`✓ Returning profile email: "${email}"`);
-      return email;
+    // Priority 2: Extract display name from profile email if available
+    if (profile?.email && profile.email.trim() !== '' && profile.email !== 'null') {
+      return extractDisplayNameFromEmail(profile.email.trim());
     }
     
-    // Priority 3: Use fallback email if provided
+    // Priority 3: Extract display name from fallback email if provided
     if (fallbackEmail && fallbackEmail.trim() !== '') {
-      const fallback = fallbackEmail.trim();
-      console.log(`✓ Returning fallback email: "${fallback}"`);
-      return fallback;
+      return extractDisplayNameFromEmail(fallbackEmail.trim());
     }
     
     console.log(`✗ Returning Unknown User for ${userId}`);

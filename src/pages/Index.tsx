@@ -88,15 +88,21 @@ const Index = () => {
 
   // Set up real-time updates with optimized refresh logic
   const { isActive: realtimeActive } = useRealtimeUpdates({
-    onApplicationUpdate: () => {
+    onApplicationUpdate: async () => {
       // Only refetch if tab is active to prevent unnecessary network calls
       if (!document.hidden) {
-        refetch();
+        await refetch();
       }
     },
-    onCommentUpdate: refetch,
-    onAuditLogUpdate: refetch,
-    onCallingLogUpdate: refetch
+    onCommentUpdate: async () => {
+      await refetch();
+    },
+    onAuditLogUpdate: async () => {
+      await refetch();
+    },
+    onCallingLogUpdate: async () => {
+      await refetch();
+    }
   });
 
   // Use allApplications for filter generation and get filtered results
@@ -162,8 +168,16 @@ const Index = () => {
     refetch();
   };
 
-  const handleDataChanged = () => {
-    refetch();
+  const handleDataChanged = async () => {
+    await refetch();
+    // After refetch, update the selected application with the latest data
+    if (selectedApplication) {
+      // Find the updated application in the refetched data
+      const updatedApp = applications.find(app => app.applicant_id === selectedApplication.applicant_id);
+      if (updatedApp) {
+        setSelectedApplication(updatedApp);
+      }
+    }
   };
 
   const handleApplicationSelect = (app: Application) => {
@@ -283,13 +297,24 @@ const Index = () => {
 
       <PWAInstallPrompt />
 
+      {/* Application Details Panel with proper overlay positioning */}
       {selectedApplication && (
-        <ApplicationDetailsPanel
-          application={selectedApplication}
-          onClose={handleApplicationClose}
-          onSave={handleApplicationUpdated}
-          onDataChanged={handleDataChanged}
-        />
+        <>
+          {/* Overlay */}
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-40"
+            onClick={handleApplicationClose}
+          />
+          {/* Panel */}
+          <div className="fixed inset-y-0 right-0 w-full sm:w-96 lg:w-[500px] z-50">
+            <ApplicationDetailsPanel
+              application={selectedApplication}
+              onClose={handleApplicationClose}
+              onSave={handleApplicationUpdated}
+              onDataChanged={handleDataChanged}
+            />
+          </div>
+        </>
       )}
     </div>
   );

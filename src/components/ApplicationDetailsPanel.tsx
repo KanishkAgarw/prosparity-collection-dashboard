@@ -1,4 +1,3 @@
-
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,8 +12,11 @@ import ApplicationHeader from "./details/ApplicationHeader";
 import ContactsTab from "./details/ContactsTab";
 import StatusTab from "./details/StatusTab";
 import CommentsTab from "./details/CommentsTab";
+import DetailsTab from "./details/DetailsTab";
 import { useApplicationHandlers } from "./details/ApplicationHandlers";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useRepaymentHistory } from "@/hooks/useRepaymentHistory";
+import { supabase } from '@/integrations/supabase/client';
 
 interface ApplicationDetailsPanelProps {
   application: Application | null;
@@ -25,50 +27,58 @@ interface ApplicationDetailsPanelProps {
 
 const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }: ApplicationDetailsPanelProps) => {
   const { user } = useAuth();
+  const [currentApplication, setCurrentApplication] = useState<Application | null>(application);
 
-  const { comments, fetchComments, addComment } = useComments();
-  const { auditLogs, addAuditLog, refetch: refetchAuditLogs } = useAuditLogs(application?.applicant_id);
-  const { callingLogs, addCallingLog, refetch: refetchCallingLogs } = useCallingLogs(application?.applicant_id);
-
-  // Fetch comments when application changes
   useEffect(() => {
-    if (application?.applicant_id) {
-      fetchComments(application.applicant_id);
-    }
-  }, [application?.applicant_id, fetchComments]);
+    setCurrentApplication(application);
+  }, [application]);
+  
+  const { repaymentHistory } = useRepaymentHistory(currentApplication?.applicant_id);
+  const { comments, fetchComments, addComment } = useComments();
+  const { auditLogs, addAuditLog, refetch: refetchAuditLogs } = useAuditLogs(currentApplication?.applicant_id);
+  const { callingLogs, addCallingLog, refetch: refetchCallingLogs } = useCallingLogs(currentApplication?.applicant_id);
 
-  // Set up ENHANCED real-time updates with immediate and aggressive refresh logic
+  useEffect(() => {
+    if (currentApplication?.applicant_id) {
+      fetchComments(currentApplication.applicant_id);
+    }
+  }, [currentApplication?.applicant_id, fetchComments]);
+
   useRealtimeUpdates({
-    onCallingLogUpdate: () => {
-      console.log('📞 Real-time: Calling log updated');
-      refetchCallingLogs();
-      onDataChanged?.();
+    onCallingLogUpdate: async () => { 
+      refetchCallingLogs(); 
+      await onDataChanged?.(); 
     },
-    onAuditLogUpdate: () => {
-      console.log('📋 Real-time: Audit log updated - refreshing immediately');
-      refetchAuditLogs();
-      onDataChanged?.();
+    onAuditLogUpdate: async () => { 
+      refetchAuditLogs(); 
+      await onDataChanged?.(); 
     },
-    onCommentUpdate: () => {
-      console.log('💬 Real-time: Comment updated');
-      if (application?.applicant_id) {
-        fetchComments(application.applicant_id);
+    onCommentUpdate: async () => { 
+      if (currentApplication?.applicant_id) fetchComments(currentApplication.applicant_id); 
+      await onDataChanged?.(); 
+    },
+    onApplicationUpdate: async () => {
+      // When application data changes from real-time, update both local state and parent
+      if (currentApplication?.applicant_id) {
+        // Fetch the latest application data
+        supabase
+          .from('applications')
+          .select('*')
+          .eq('applicant_id', currentApplication.applicant_id)
+          .single()
+          .then(({ data, error }) => {
+            if (data && !error) {
+              const updatedApp = { ...currentApplication, ...data };
+              setCurrentApplication(updatedApp);
+              onSave(updatedApp);
+            }
+          });
       }
-      onDataChanged?.();
+      await onDataChanged?.();
     },
-    onApplicationUpdate: () => {
-      console.log('🔄 Real-time: Application updated - triggering main list refresh');
-      onDataChanged?.();
-    },
-    onPtpDateUpdate: () => {
-      console.log('📅 Real-time: PTP date updated - triggering comprehensive refresh');
-      refetchAuditLogs(); // Refresh audit logs to show PTP changes
-      onDataChanged?.(); // Refresh main list immediately
-      // Additional refresh after a short delay to ensure consistency
-      setTimeout(() => {
-        console.log('📅 Delayed refresh for PTP consistency');
-        onDataChanged?.();
-      }, 1000);
+    onPtpDateUpdate: async () => { 
+      refetchAuditLogs(); 
+      await onDataChanged?.(); 
     }
   });
 
@@ -76,79 +86,114 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }
     handleStatusChange,
     handlePtpDateChange,
     handleCallingStatusChange
-  } = useApplicationHandlers(application, user, addAuditLog, addCallingLog, (updatedApp) => {
-    console.log('🔄 Application saved, triggering immediate data refresh');
+  } = useApplicationHandlers(currentApplication, user, addAuditLog, addCallingLog, (updatedApp) => {
+    setCurrentApplication(updatedApp);
     onSave(updatedApp);
     onDataChanged?.();
-    // Additional refresh for PTP changes to ensure main list updates
-    setTimeout(() => {
-      console.log('🔄 Additional refresh to ensure main list consistency');
-      onDataChanged?.();
-    }, 500);
   });
 
-  if (!application) return null;
+  if (!currentApplication) return null;
 
   const handleAddComment = async (content: string) => {
-    if (application?.applicant_id) {
-      await addComment(application.applicant_id, content);
-      toast.success('Comment added successfully');
-      onDataChanged?.();
+    if (currentApplication?.applicant_id) {
+      await addComment(currentApplication.applicant_id, content);
+      toast.success('Comment added');
+      await onDataChanged?.();
+    }
+  };
+
+  const handleVehicleStatusChange = async (newStatus: string) => {
+    if (!currentApplication || !user) return;
+
+    const originalApplication = currentApplication;
+    const previousStatus = originalApplication.vehicle_status || 'None';
+    const updatedApplication = { ...currentApplication, vehicle_status: newStatus };
+    
+    // 1. Optimistic UI update - update both local state and parent
+    setCurrentApplication(updatedApplication);
+    onSave(updatedApplication);
+
+    try {
+      // 2. Safe database update
+      const { error } = await supabase
+        .from('applications')
+        .update({ vehicle_status: newStatus })
+        .eq('applicant_id', originalApplication.applicant_id);
+
+      if (error) throw error;
+      
+      // Add to audit log on success
+      await addAuditLog(
+        originalApplication.applicant_id,
+        'Vehicle Status',
+        previousStatus,
+        newStatus || 'None'
+      );
+      
+      toast.success('Vehicle status updated successfully');
+      // 3. Inform parent to refetch data to stay in sync with other components
+      await onDataChanged?.();
+    } catch (error) {
+      console.error('Failed to update vehicle status:', error);
+      toast.error('Failed to update status. Reverting change.');
+      // 4. Revert UI on failure - update both local state and parent
+      setCurrentApplication(originalApplication);
+      onSave(originalApplication);
     }
   };
 
   return (
-    <div className="fixed inset-0 sm:right-0 sm:top-0 sm:left-auto h-full w-full sm:w-[500px] md:w-[600px] bg-white shadow-xl border-l z-50 overflow-hidden flex flex-col">
-      {/* Header */}
+    <div className="application-details-panel bg-white flex flex-col">
       <div className="flex-shrink-0 p-4 sm:p-6 border-b bg-white">
         <div className="flex items-center justify-between mb-3 sm:mb-6">
           <h2 className="text-lg sm:text-xl font-semibold">Application Details</h2>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={onClose}
-            className="hover:bg-gray-100 rounded-full h-8 w-8 p-0"
-          >
+          <Button variant="ghost" size="sm" onClick={onClose} className="hover:bg-gray-100 rounded-full h-8 w-8 p-0">
             <X className="h-4 w-4" />
           </Button>
         </div>
-
-        <ApplicationHeader application={application} />
+        <ApplicationHeader application={currentApplication} />
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 flex-col-min-h-0">
         <Tabs defaultValue="contacts" className="h-full flex flex-col">
-          <div className="flex-shrink-0 px-4 sm:px-6 pt-3 sm:pt-4">
-            <TabsList className="grid w-full grid-cols-3 text-xs sm:text-sm h-8 sm:h-10">
-              <TabsTrigger value="contacts" className="px-2 py-1 sm:px-3 sm:py-2">Contacts</TabsTrigger>
-              <TabsTrigger value="status" className="px-2 py-1 sm:px-3 sm:py-2">Status</TabsTrigger>
-              <TabsTrigger value="comments" className="px-2 py-1 sm:px-3 sm:py-2">Comments</TabsTrigger>
+          <div className="flex-shrink-0 pt-3 sm:pt-4 border-b">
+            <TabsList className="grid w-full grid-cols-4 text-xs sm:text-sm h-auto">
+              <TabsTrigger value="contacts" className="py-2">Contacts</TabsTrigger>
+              <TabsTrigger value="status" className="py-2">Status</TabsTrigger>
+              <TabsTrigger value="comments" className="py-2">Comments</TabsTrigger>
+              <TabsTrigger value="details" className="py-2">Details</TabsTrigger>
             </TabsList>
           </div>
           
-          <div className="flex-1 overflow-y-auto">
-            <TabsContent value="contacts" className="space-y-3 p-4 sm:p-6 pt-3 sm:pt-4 m-0">
+          <div className="application-details-content flex-1 overflow-y-auto p-4 sm:p-4">
+            <TabsContent value="contacts" className="m-0">
               <ContactsTab 
-                application={application}
+                application={currentApplication}
                 callingLogs={callingLogs}
                 onCallingStatusChange={handleCallingStatusChange}
               />
             </TabsContent>
-
-            <TabsContent value="status" className="space-y-3 p-4 sm:p-6 pt-3 sm:pt-4 m-0">
+            <TabsContent value="status" className="m-0">
               <StatusTab 
-                application={application}
+                application={currentApplication}
                 auditLogs={auditLogs}
                 onStatusChange={handleStatusChange}
                 onPtpDateChange={handlePtpDateChange}
+                addAuditLog={addAuditLog}
               />
             </TabsContent>
-
-            <TabsContent value="comments" className="space-y-3 p-4 sm:p-6 pt-3 sm:pt-4 m-0">
+            <TabsContent value="comments" className="m-0">
               <CommentsTab 
                 comments={comments}
                 onAddComment={handleAddComment}
+              />
+            </TabsContent>
+            <TabsContent value="details" className="m-0">
+              <DetailsTab 
+                application={currentApplication}
+                repaymentHistory={repaymentHistory}
+                auditLogs={auditLogs}
+                onVehicleStatusChange={handleVehicleStatusChange}
               />
             </TabsContent>
           </div>

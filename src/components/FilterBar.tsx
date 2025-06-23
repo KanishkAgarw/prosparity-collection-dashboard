@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronDown, ChevronUp, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -18,6 +17,7 @@ interface FilterBarProps {
     lastMonthBounce: string[];
     ptpDate: string[];
     collectionRm: string[];
+    vehicleStatus: string[];
   };
   onFilterChange: (key: string, values: string[]) => void;
   availableOptions: {
@@ -32,11 +32,20 @@ interface FilterBarProps {
     lastMonthBounce: string[];
     ptpDateOptions: string[];
     collectionRms: string[];
+    vehicleStatusOptions: string[];
   };
 }
 
 const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps) => {
   const [isOpen, setIsOpen] = useState(false);
+
+  // Local state for pending filters
+  const [pendingFilters, setPendingFilters] = useState({ ...filters });
+
+  // Sync local state when filters prop changes (e.g., after apply)
+  useEffect(() => {
+    setPendingFilters({ ...filters });
+  }, [filters]);
 
   // Ensure all filter options have default empty arrays
   const safeFilterOptions = {
@@ -51,25 +60,43 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
     lastMonthBounce: availableOptions?.lastMonthBounce || [],
     ptpDateOptions: availableOptions?.ptpDateOptions || [],
     collectionRms: availableOptions?.collectionRms || [],
+    vehicleStatusOptions: availableOptions?.vehicleStatusOptions || [],
   };
 
-  // Ensure all filters have default empty arrays
+  // Use pendingFilters for UI
   const safeFilters = {
-    branch: filters?.branch || [],
-    teamLead: filters?.teamLead || [],
-    rm: filters?.rm || [],
-    dealer: filters?.dealer || [],
-    lender: filters?.lender || [],
-    status: filters?.status || [],
-    emiMonth: filters?.emiMonth || [],
-    repayment: filters?.repayment || [],
-    lastMonthBounce: filters?.lastMonthBounce || [],
-    ptpDate: filters?.ptpDate || [],
-    collectionRm: filters?.collectionRm || [],
+    branch: pendingFilters?.branch || [],
+    teamLead: pendingFilters?.teamLead || [],
+    rm: pendingFilters?.rm || [],
+    dealer: pendingFilters?.dealer || [],
+    lender: pendingFilters?.lender || [],
+    status: pendingFilters?.status || [],
+    emiMonth: pendingFilters?.emiMonth || [],
+    repayment: pendingFilters?.repayment || [],
+    lastMonthBounce: pendingFilters?.lastMonthBounce || [],
+    ptpDate: pendingFilters?.ptpDate || [],
+    collectionRm: pendingFilters?.collectionRm || [],
+    vehicleStatus: pendingFilters?.vehicleStatus || [],
   };
 
   // Count total active filters
   const activeFilterCount = Object.values(safeFilters).reduce((count, filterArray) => count + filterArray.length, 0);
+
+  // Handler for local filter changes
+  const handlePendingFilterChange = (key: string, values: string[]) => {
+    setPendingFilters(prev => ({
+      ...prev,
+      [key]: values
+    }));
+  };
+
+  // Handler for Done button
+  const handleApplyFilters = () => {
+    Object.entries(pendingFilters).forEach(([key, values]) => {
+      onFilterChange(key, values as string[]);
+    });
+    setIsOpen(false);
+  };
 
   console.log('FilterBar - PTP Date filter:', safeFilters.ptpDate);
   console.log('FilterBar - PTP Date options:', safeFilterOptions.ptpDateOptions);
@@ -104,10 +131,7 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
                   label="PTP Date"
                   options={safeFilterOptions.ptpDateOptions}
                   selected={safeFilters.ptpDate}
-                  onSelectionChange={(values) => {
-                    console.log('PTP Date filter changed to:', values);
-                    onFilterChange('ptpDate', values);
-                  }}
+                  onSelectionChange={(values) => handlePendingFilterChange('ptpDate', values)}
                 />
               </div>
 
@@ -117,7 +141,7 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
                   label="EMI Months"
                   options={safeFilterOptions.emiMonths}
                   selected={safeFilters.emiMonth}
-                  onSelectionChange={(values) => onFilterChange('emiMonth', values)}
+                  onSelectionChange={(values) => handlePendingFilterChange('emiMonth', values)}
                 />
               </div>
 
@@ -127,7 +151,7 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
                   label="Branches"
                   options={safeFilterOptions.branches}
                   selected={safeFilters.branch}
-                  onSelectionChange={(values) => onFilterChange('branch', values)}
+                  onSelectionChange={(values) => handlePendingFilterChange('branch', values)}
                 />
               </div>
 
@@ -137,7 +161,7 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
                   label="Team Leads"
                   options={safeFilterOptions.teamLeads}
                   selected={safeFilters.teamLead}
-                  onSelectionChange={(values) => onFilterChange('teamLead', values)}
+                  onSelectionChange={(values) => handlePendingFilterChange('teamLead', values)}
                 />
               </div>
 
@@ -147,7 +171,7 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
                   label="RMs"
                   options={safeFilterOptions.rms}
                   selected={safeFilters.rm}
-                  onSelectionChange={(values) => onFilterChange('rm', values)}
+                  onSelectionChange={(values) => handlePendingFilterChange('rm', values)}
                 />
               </div>
 
@@ -157,7 +181,7 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
                   label="Collection RMs"
                   options={safeFilterOptions.collectionRms}
                   selected={safeFilters.collectionRm}
-                  onSelectionChange={(values) => onFilterChange('collectionRm', values)}
+                  onSelectionChange={(values) => handlePendingFilterChange('collectionRm', values)}
                 />
               </div>
 
@@ -167,7 +191,7 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
                   label="Dealers"
                   options={safeFilterOptions.dealers}
                   selected={safeFilters.dealer}
-                  onSelectionChange={(values) => onFilterChange('dealer', values)}
+                  onSelectionChange={(values) => handlePendingFilterChange('dealer', values)}
                 />
               </div>
 
@@ -177,7 +201,7 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
                   label="Lenders"
                   options={safeFilterOptions.lenders}
                   selected={safeFilters.lender}
-                  onSelectionChange={(values) => onFilterChange('lender', values)}
+                  onSelectionChange={(values) => handlePendingFilterChange('lender', values)}
                 />
               </div>
 
@@ -187,7 +211,7 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
                   label="Status"
                   options={safeFilterOptions.statuses}
                   selected={safeFilters.status}
-                  onSelectionChange={(values) => onFilterChange('status', values)}
+                  onSelectionChange={(values) => handlePendingFilterChange('status', values)}
                 />
               </div>
 
@@ -197,7 +221,7 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
                   label="Repayment"
                   options={safeFilterOptions.repayments}
                   selected={safeFilters.repayment}
-                  onSelectionChange={(values) => onFilterChange('repayment', values)}
+                  onSelectionChange={(values) => handlePendingFilterChange('repayment', values)}
                 />
               </div>
 
@@ -207,8 +231,30 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
                   label="Last Month Status"
                   options={safeFilterOptions.lastMonthBounce}
                   selected={safeFilters.lastMonthBounce}
-                  onSelectionChange={(values) => onFilterChange('lastMonthBounce', values)}
+                  onSelectionChange={(values) => handlePendingFilterChange('lastMonthBounce', values)}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Vehicle Status</label>
+                <CustomMultiSelectFilter
+                  label="Vehicle Status"
+                  options={safeFilterOptions.vehicleStatusOptions}
+                  selected={safeFilters.vehicleStatus}
+                  onSelectionChange={(values) => handlePendingFilterChange('vehicleStatus', values)}
+                />
+              </div>
+            </div>
+            {/* Done button with border and background */}
+            <div className="mt-6 flex justify-end">
+              <div className="border border-blue-500 rounded-lg p-2 bg-blue-50">
+                <Button
+                  variant="primary"
+                  className="px-8 py-2 text-base font-semibold"
+                  onClick={handleApplyFilters}
+                >
+                  Done
+                </Button>
               </div>
             </div>
           </div>

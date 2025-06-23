@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
@@ -7,7 +6,7 @@ import { format } from "date-fns";
 interface LogEntry {
   id: string;
   created_at: string;
-  user_name: string | null;
+  user_name?: string | null;
   field?: string;
   previous_value?: string | null;
   new_value?: string | null;

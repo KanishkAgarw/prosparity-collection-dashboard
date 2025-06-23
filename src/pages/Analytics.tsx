@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
@@ -196,48 +195,50 @@ const Analytics = () => {
         </div>
 
         {/* Analytics Content */}
-        <Card className="bg-white/95 backdrop-blur-sm shadow-xl border-0">
-          <Tabs defaultValue="payment-status" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-slate-100 to-blue-50 h-14 rounded-lg p-1">
-              <TabsTrigger 
-                value="payment-status" 
-                className="text-base font-semibold data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-200"
-              >
-                Payment Status
-              </TabsTrigger>
-              <TabsTrigger 
-                value="ptp-status" 
-                className="text-base font-semibold data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-200"
-              >
-                PTP Status
-              </TabsTrigger>
-              <TabsTrigger 
-                value="plan-vs-achievement" 
-                className="text-base font-semibold data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-200"
-              >
-                Plan vs Achievement
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="payment-status" className="space-y-4 p-8">
-              <BranchPaymentStatusTable 
-                applications={allApplications} 
-                onDrillDown={handleDrillDown}
-              />
-            </TabsContent>
-            
-            <TabsContent value="ptp-status" className="space-y-4 p-8">
-              <BranchPTPStatusTable 
-                applications={allApplications} 
-                onDrillDown={handleDrillDown}
-              />
-            </TabsContent>
+        <div className="relative">
+          <Card className="bg-white/95 backdrop-blur-sm shadow-xl border-0">
+            <Tabs defaultValue="payment-status" className="w-full">
+              <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-slate-100 to-blue-50 h-14 rounded-lg p-1">
+                <TabsTrigger 
+                  value="payment-status" 
+                  className="text-base font-semibold data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-200"
+                >
+                  Payment Status
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="ptp-status" 
+                  className="text-base font-semibold data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-200"
+                >
+                  PTP Status
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="plan-vs-achievement" 
+                  className="text-base font-semibold data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-200"
+                >
+                  Plan vs Achievement
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="payment-status" className="space-y-4 p-8">
+                <BranchPaymentStatusTable 
+                  applications={allApplications} 
+                  onDrillDown={handleDrillDown}
+                />
+              </TabsContent>
+              
+              <TabsContent value="ptp-status" className="space-y-4 p-8">
+                <BranchPTPStatusTable 
+                  applications={allApplications} 
+                  onDrillDown={handleDrillDown}
+                />
+              </TabsContent>
 
-            <TabsContent value="plan-vs-achievement" className="space-y-4 p-8">
-              <PlanVsAchievementTab />
-            </TabsContent>
-          </Tabs>
-        </Card>
+              <TabsContent value="plan-vs-achievement" className="space-y-4 p-8">
+                <PlanVsAchievementTab />
+              </TabsContent>
+            </Tabs>
+          </Card>
+        </div>
 
         {/* Drill-down Modal */}
         <ApplicationDetailsModal
