@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import {
   Dialog,
@@ -58,17 +57,27 @@ const ApplicationDetailsModal = ({ isOpen, onClose, applications, filter }: Appl
         </DialogContent>
       </Dialog>
 
-      {/* Application Details Panel */}
+      {/* Application Details Panel with proper side panel positioning */}
       {selectedApplication && (
-        <ApplicationDetailsPanel
-          application={selectedApplication}
-          onClose={handleApplicationClose}
-          onSave={handleApplicationUpdated}
-          onDataChanged={() => {
-            // Handle data changes if needed
-            console.log('Application data changed');
-          }}
-        />
+        <>
+          {/* Overlay */}
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-40"
+            onClick={handleApplicationClose}
+          />
+          {/* Panel */}
+          <div className="fixed inset-y-0 right-0 w-full sm:w-96 lg:w-[500px] z-50">
+            <ApplicationDetailsPanel
+              application={selectedApplication}
+              onClose={handleApplicationClose}
+              onSave={handleApplicationUpdated}
+              onDataChanged={() => {
+                // Handle data changes if needed
+                console.log('Application data changed');
+              }}
+            />
+          </div>
+        </>
       )}
     </>
   );
