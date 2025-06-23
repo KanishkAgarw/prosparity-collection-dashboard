@@ -38,6 +38,7 @@ const ApplicationDetailsModal = ({ isOpen, onClose, applications, filter }: Appl
 
   return (
     <>
+      {/* Only show Dialog when no application is selected */}
       <Dialog open={isOpen && !selectedApplication} onOpenChange={onClose}>
         <DialogContent className="max-w-7xl h-[90vh] flex flex-col p-0">
           <DialogHeader className="border-b pb-4 px-6 pt-6">
