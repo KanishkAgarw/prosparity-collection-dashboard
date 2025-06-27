@@ -255,7 +255,7 @@ export const useApplicationHandlers = (
         return;
       }
 
-      // Update calling status
+      // Update calling status with demand date
       const { error } = await supabase
         .from('contact_calling_status')
         .upsert({
