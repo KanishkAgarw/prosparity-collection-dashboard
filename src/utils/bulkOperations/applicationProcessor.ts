@@ -24,46 +24,60 @@ export const processApplicationBatch = async (applications: any[], user?: any): 
   for (const app of applications) {
     try {
       const { status: statusFromTemplate, uploadMode, ...applicationData } = app;
-      
-      if (statusFromTemplate && !validStatuses.includes(statusFromTemplate)) {
-        console.warn(`Invalid status value: ${statusFromTemplate}. Using 'Unpaid' as default.`);
-      }
+      // Prepare collection data
+      const collectionData = {
+        application_id: app.applicant_id,
+        demand_date: app.demand_date,
+        team_lead: app.team_lead,
+        rm_name: app.rm_name,
+        repayment: app.repayment,
+        emi_amount: app.emi_amount,
+        last_month_bounce: app.last_month_bounce,
+        lms_status: app.lms_status,
+        collection_rm: app.collection_rm,
+        amount_collected: app.amount_collected || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
 
-      const { data: existingApp } = await supabase
+      // Check if application exists
+      const { data: existingApp, error: selectError } = await supabase
         .from('applications')
-        .select('id, applicant_id')
+        .select('applicant_id')
         .eq('applicant_id', app.applicant_id)
         .maybeSingle();
-
       const appExists = !!existingApp;
 
-      if (uploadMode === 'add' && appExists) {
-        console.log(`Skipping existing application in add-only mode: ${app.applicant_id}`);
-        results.errors.push(`Application ${app.applicant_id} already exists (add-only mode)`);
-        results.failed++;
-        continue;
-      }
-
-      if (uploadMode === 'update' && !appExists) {
-        console.log(`Skipping non-existent application in update-only mode: ${app.applicant_id}`);
-        results.errors.push(`Application ${app.applicant_id} does not exist (update-only mode)`);
-        results.failed++;
-        continue;
-      }
-
-      if (existingApp) {
-        await updateExistingApplication(app, applicationData, statusFromTemplate, validStatuses, user, results);
+      // Only insert into applications if it does not exist
+      if (!appExists) {
+        const { error: insertError } = await supabase
+          .from('applications')
+          .insert([{ ...applicationData, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }]);
+        if (insertError) {
+          results.failed++;
+          results.errors.push(`Failed to insert application ${app.applicant_id}: ${insertError.message}`);
+          continue; // Don't insert into collection if application insert fails
+        } else {
+          results.successful++;
+        }
       } else {
-        await createNewApplication(app, applicationData, statusFromTemplate, validStatuses, user, results);
+        results.updated++; // Count as monthly update
+      }
+
+      // Now insert into collection table
+      const { error: collectionError } = await supabase
+        .from('collection')
+        .insert([collectionData]);
+      if (collectionError) {
+        results.failed++;
+        results.errors.push(`Failed to insert into collection for ${app.applicant_id}: ${collectionError.message}`);
+        continue;
       }
     } catch (error) {
-      console.error('Unexpected error processing application:', error);
       results.failed++;
       results.errors.push(`Unexpected error for ${app.applicant_id}: ${error}`);
     }
   }
-
-  console.log('Bulk processing completed:', results);
   return results;
 };
 

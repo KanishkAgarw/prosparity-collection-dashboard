@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -14,9 +13,10 @@ export interface CallingLog {
   user_email: string | null;
   user_name: string | null;
   created_at: string;
+  demand_date?: string;
 }
 
-export const useCallingLogs = (applicationId?: string) => {
+export const useCallingLogs = (applicationId?: string, selectedMonth?: string) => {
   const { user } = useAuth();
   const { fetchProfiles, getUserName } = useUserProfiles();
   const [rawCallingLogs, setRawCallingLogs] = useState<Omit<CallingLog, 'user_name'>[]>([]);
@@ -29,12 +29,22 @@ export const useCallingLogs = (applicationId?: string) => {
     try {
       console.log('=== FETCHING CALLING LOGS ===');
       console.log('Application ID:', applicationId);
+      console.log('Selected Month:', selectedMonth);
       
-      const { data, error } = await supabase
+      // Build query with month filtering if selectedMonth is provided
+      let query = supabase
         .from('calling_logs')
         .select('*')
-        .eq('application_id', applicationId)
-        .order('created_at', { ascending: false });
+        .eq('application_id', applicationId);
+
+      // Add month filtering if selectedMonth is provided
+      if (selectedMonth) {
+        query = query.eq('demand_date', selectedMonth);
+      }
+
+      query = query.order('created_at', { ascending: false });
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('Error fetching calling logs:', error);
@@ -71,7 +81,7 @@ export const useCallingLogs = (applicationId?: string) => {
   }, [rawCallingLogs, getUserName]);
 
   const addCallingLog = async (contactType: string, previousStatus: string | null, newStatus: string) => {
-    if (!applicationId || !user) return;
+    if (!applicationId || !user || !selectedMonth) return;
 
     try {
       console.log('=== ADDING CALLING LOG ===');
@@ -81,6 +91,7 @@ export const useCallingLogs = (applicationId?: string) => {
       console.log('New status:', newStatus);
       console.log('User ID:', user.id);
       console.log('User email:', user.email);
+      console.log('Selected Month:', selectedMonth);
       
       const { error } = await supabase
         .from('calling_logs')
@@ -90,7 +101,8 @@ export const useCallingLogs = (applicationId?: string) => {
           previous_status: previousStatus,
           new_status: newStatus,
           user_id: user.id,
-          user_email: user.email
+          user_email: user.email,
+          demand_date: selectedMonth
         });
 
       if (error) {
@@ -108,7 +120,7 @@ export const useCallingLogs = (applicationId?: string) => {
     if (applicationId && user) {
       fetchCallingLogs();
     }
-  }, [applicationId, user]);
+  }, [applicationId, user, selectedMonth]);
 
   return {
     callingLogs,

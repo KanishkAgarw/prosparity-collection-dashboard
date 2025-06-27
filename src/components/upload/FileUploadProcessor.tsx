@@ -144,6 +144,14 @@ const FileUploadProcessor = ({
 
   return (
     <div className="space-y-2">
+      <div className="p-2 mb-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-900">
+        <b>Upload Instructions:</b><br />
+        <ul className="list-disc ml-4">
+          <li><b>First-time upload:</b> Fills both <code>applications</code> and <code>collection</code> tables. <b>All columns</b> required (static + monthly).</li>
+          <li><b>Monthly update:</b> Fills only <code>collection</code> table. <b>Only monthly columns</b> required (team_lead, rm_name, demand_date, repayment, emi_amount, last_month_bounce, lms_status, collection_rm).</li>
+        </ul>
+        <div className="mt-1"><b>Note:</b> <code>demand_date</code> is required and must be a text value (e.g., <code>2024-05-01</code>).</div>
+      </div>
       <Label htmlFor="file-upload" className="text-sm font-medium">
         Step 2: Select File (Excel/CSV)
       </Label>

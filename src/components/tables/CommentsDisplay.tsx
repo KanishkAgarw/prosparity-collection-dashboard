@@ -1,4 +1,3 @@
-
 import { memo } from "react";
 
 interface Comment {
@@ -17,7 +16,7 @@ const CommentsDisplay = memo(({ comments }: CommentsDisplayProps) => {
 
   return (
     <div className="space-y-1">
-      {comments.map((comment, index) => (
+      {comments.slice(0, 2).map((comment, index) => (
         <div key={index} className="text-xs p-2 rounded bg-gray-50 border-l-2 border-blue-200">
           <div className="font-medium text-blue-700 mb-1">{comment.user_name}</div>
           <div className="text-gray-600 break-words">{comment.content}</div>

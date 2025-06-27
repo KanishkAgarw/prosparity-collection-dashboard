@@ -17,6 +17,8 @@ import { useApplicationHandlers } from "./details/ApplicationHandlers";
 import { useEffect, useState } from "react";
 import { useRepaymentHistory } from "@/hooks/useRepaymentHistory";
 import { supabase } from '@/integrations/supabase/client';
+import { useMonthlyApplicationData } from '@/hooks/useMonthlyApplicationData';
+import MonthSelector from './details/MonthSelector';
 
 interface ApplicationDetailsPanelProps {
   application: Application | null;
@@ -28,21 +30,64 @@ interface ApplicationDetailsPanelProps {
 const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }: ApplicationDetailsPanelProps) => {
   const { user } = useAuth();
   const [currentApplication, setCurrentApplication] = useState<Application | null>(application);
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [monthSpecificPtpDate, setMonthSpecificPtpDate] = useState<string | null>(null);
+  const { monthlyData, availableMonths, availableMonthsFormatted, loading: monthlyLoading, getApplicationForMonth } = useMonthlyApplicationData(currentApplication?.applicant_id);
 
   useEffect(() => {
     setCurrentApplication(application);
   }, [application]);
   
   const { repaymentHistory } = useRepaymentHistory(currentApplication?.applicant_id);
-  const { comments, fetchComments, addComment } = useComments();
-  const { auditLogs, addAuditLog, refetch: refetchAuditLogs } = useAuditLogs(currentApplication?.applicant_id);
-  const { callingLogs, addCallingLog, refetch: refetchCallingLogs } = useCallingLogs(currentApplication?.applicant_id);
+  const { comments, fetchComments, addComment } = useComments(selectedMonth);
+  const { auditLogs, addAuditLog, refetch: refetchAuditLogs } = useAuditLogs(currentApplication?.applicant_id, selectedMonth);
+  const { callingLogs, addCallingLog, refetch: refetchCallingLogs } = useCallingLogs(currentApplication?.applicant_id, selectedMonth);
+
+  // Fetch month-specific PTP date
+  useEffect(() => {
+    const fetchMonthSpecificPtpDate = async () => {
+      if (!currentApplication?.applicant_id || !selectedMonth) {
+        setMonthSpecificPtpDate(null);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('ptp_dates')
+          .select('ptp_date')
+          .eq('application_id', currentApplication.applicant_id)
+          .eq('demand_date', selectedMonth)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+          console.error('Error fetching month-specific PTP date:', error);
+        }
+
+        setMonthSpecificPtpDate(data?.ptp_date || null);
+      } catch (error) {
+        console.error('Error fetching month-specific PTP date:', error);
+        setMonthSpecificPtpDate(null);
+      }
+    };
+
+    fetchMonthSpecificPtpDate();
+  }, [currentApplication?.applicant_id, selectedMonth]);
 
   useEffect(() => {
     if (currentApplication?.applicant_id) {
       fetchComments(currentApplication.applicant_id);
     }
-  }, [currentApplication?.applicant_id, fetchComments]);
+  }, [currentApplication?.applicant_id, fetchComments, selectedMonth]);
+
+  useEffect(() => {
+    if (availableMonths.length > 0 && !selectedMonth) {
+      setSelectedMonth(availableMonths[availableMonths.length - 1]);
+    }
+  }, [availableMonths, selectedMonth]);
+
+  const monthlyCollectionData = selectedMonth ? getApplicationForMonth(selectedMonth) : null;
 
   useRealtimeUpdates({
     onCallingLogUpdate: async () => { 
@@ -78,6 +123,23 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }
     },
     onPtpDateUpdate: async () => { 
       refetchAuditLogs(); 
+      // Refresh month-specific PTP date
+      if (currentApplication?.applicant_id && selectedMonth) {
+        const { data, error } = await supabase
+          .from('ptp_dates')
+          .select('ptp_date')
+          .eq('application_id', currentApplication.applicant_id)
+          .eq('demand_date', selectedMonth)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (!error && data) {
+          setMonthSpecificPtpDate(data.ptp_date);
+        } else if (error && error.code === 'PGRST116') {
+          setMonthSpecificPtpDate(null);
+        }
+      }
       await onDataChanged?.(); 
     }
   });
@@ -90,20 +152,45 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }
     setCurrentApplication(updatedApp);
     onSave(updatedApp);
     onDataChanged?.();
-  });
+  }, selectedMonth);
+
+  const displayApplication = (() => {
+    if (!currentApplication) return null;
+    if (monthlyCollectionData) {
+      return {
+        ...currentApplication,
+        team_lead: monthlyCollectionData.team_lead || currentApplication.team_lead,
+        rm_name: monthlyCollectionData.rm_name || currentApplication.rm_name,
+        repayment: monthlyCollectionData.repayment || currentApplication.repayment,
+        emi_amount: monthlyCollectionData.emi_amount || currentApplication.emi_amount,
+        last_month_bounce: monthlyCollectionData.last_month_bounce || currentApplication.last_month_bounce,
+        lms_status: monthlyCollectionData.lms_status || currentApplication.lms_status,
+        collection_rm: monthlyCollectionData.collection_rm || currentApplication.collection_rm,
+        demand_date: monthlyCollectionData.demand_date || currentApplication.demand_date,
+        amount_collected: monthlyCollectionData.amount_collected || currentApplication.amount_collected,
+        ptp_date: monthSpecificPtpDate || currentApplication.ptp_date,
+        vehicle_status: currentApplication.vehicle_status,
+      };
+    }
+    return {
+      ...currentApplication,
+      ptp_date: monthSpecificPtpDate || currentApplication.ptp_date,
+      vehicle_status: currentApplication.vehicle_status,
+    };
+  })();
 
   if (!currentApplication) return null;
 
   const handleAddComment = async (content: string) => {
     if (currentApplication?.applicant_id) {
-      await addComment(currentApplication.applicant_id, content);
+      await addComment(currentApplication.applicant_id, content, selectedMonth);
       toast.success('Comment added');
       await onDataChanged?.();
     }
   };
 
   const handleVehicleStatusChange = async (newStatus: string) => {
-    if (!currentApplication || !user) return;
+    if (!currentApplication || !user || !selectedMonth) return;
 
     const originalApplication = currentApplication;
     const previousStatus = originalApplication.vehicle_status || 'None';
@@ -120,14 +207,18 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }
         .update({ vehicle_status: newStatus })
         .eq('applicant_id', originalApplication.applicant_id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error updating vehicle status:', error);
+        throw error;
+      }
       
-      // Add to audit log on success
+      // Add to audit log on success - vehicle status changes are tracked per month
       await addAuditLog(
         originalApplication.applicant_id,
         'Vehicle Status',
         previousStatus,
-        newStatus || 'None'
+        newStatus || 'None',
+        selectedMonth // Vehicle status changes are tracked per month
       );
       
       toast.success('Vehicle status updated successfully');
@@ -135,7 +226,7 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }
       await onDataChanged?.();
     } catch (error) {
       console.error('Failed to update vehicle status:', error);
-      toast.error('Failed to update status. Reverting change.');
+      toast.error('Failed to update vehicle status. Reverting change.');
       // 4. Revert UI on failure - update both local state and parent
       setCurrentApplication(originalApplication);
       onSave(originalApplication);
@@ -151,8 +242,16 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <ApplicationHeader application={currentApplication} />
+        <ApplicationHeader application={displayApplication} />
       </div>
+
+      <MonthSelector
+        availableMonths={availableMonths}
+        availableMonthsFormatted={availableMonthsFormatted}
+        selectedMonth={selectedMonth}
+        onMonthChange={setSelectedMonth}
+        loading={monthlyLoading}
+      />
 
       <div className="flex-1 flex-col-min-h-0">
         <Tabs defaultValue="contacts" className="h-full flex flex-col">
@@ -171,15 +270,17 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }
                 application={currentApplication}
                 callingLogs={callingLogs}
                 onCallingStatusChange={handleCallingStatusChange}
+                selectedMonth={selectedMonth}
               />
             </TabsContent>
             <TabsContent value="status" className="m-0">
               <StatusTab 
-                application={currentApplication}
+                application={displayApplication}
                 auditLogs={auditLogs}
                 onStatusChange={handleStatusChange}
                 onPtpDateChange={handlePtpDateChange}
                 addAuditLog={addAuditLog}
+                selectedMonth={selectedMonth}
               />
             </TabsContent>
             <TabsContent value="comments" className="m-0">
@@ -190,10 +291,11 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }
             </TabsContent>
             <TabsContent value="details" className="m-0">
               <DetailsTab 
-                application={currentApplication}
+                application={displayApplication}
                 repaymentHistory={repaymentHistory}
                 auditLogs={auditLogs}
                 onVehicleStatusChange={handleVehicleStatusChange}
+                monthlyData={monthlyData}
               />
             </TabsContent>
           </div>

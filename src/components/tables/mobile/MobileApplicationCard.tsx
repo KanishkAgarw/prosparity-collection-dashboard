@@ -1,5 +1,4 @@
-
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import { Application } from "@/types/application";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,11 +6,16 @@ import { Eye, User, Building } from "lucide-react";
 import { formatCurrency, formatPtpDate } from "@/utils/formatters";
 import CallButton from "../../CallButton";
 import CallStatusDisplay from "../../CallStatusDisplay";
+import { useFieldStatus } from "@/hooks/useFieldStatus";
+import { useMonthlyApplicationData } from "@/hooks/useMonthlyApplicationData";
+import { usePtpDates } from "@/hooks/usePtpDates";
+import { useComments } from "@/hooks/useComments";
 
 interface MobileApplicationCardProps {
   application: Application;
   onRowClick: (application: Application) => void;
   selectedApplicationId?: string;
+  selectedMonth: string;
 }
 
 const getStatusColor = (status: string) => {
@@ -32,8 +36,41 @@ const truncateText = (text: string, maxLength: number = 20) => {
 const MobileApplicationCard = memo(({ 
   application, 
   onRowClick, 
-  selectedApplicationId 
+  selectedApplicationId,
+  selectedMonth
 }: MobileApplicationCardProps) => {
+  const { monthlyData, availableMonths } = useMonthlyApplicationData(application.applicant_id);
+  const monthToShow = selectedMonth || availableMonths[availableMonths.length - 1];
+  const monthData = monthlyData.find(item => item.demand_date === monthToShow) || {};
+
+  // Fetch per-month status
+  const { fetchFieldStatus } = useFieldStatus();
+  const [status, setStatus] = useState<string>('Unpaid');
+  useEffect(() => {
+    const fetchStatus = async () => {
+      const statusMap = await fetchFieldStatus([application.applicant_id], monthToShow);
+      setStatus(statusMap[application.applicant_id] || 'Unpaid');
+    };
+    fetchStatus();
+  }, [application.applicant_id, monthToShow, fetchFieldStatus]);
+
+  // Fetch per-month PTP date
+  const { fetchPtpDate } = usePtpDates();
+  const [ptpDate, setPtpDate] = useState<string | null>(null);
+  useEffect(() => {
+    const fetchPtp = async () => {
+      const date = await fetchPtpDate(application.applicant_id, monthToShow);
+      setPtpDate(date);
+    };
+    fetchPtp();
+  }, [application.applicant_id, monthToShow, fetchPtpDate]);
+
+  // Fetch per-month comments
+  const { comments, fetchComments } = useComments(monthToShow);
+  useEffect(() => {
+    fetchComments(application.applicant_id);
+  }, [application.applicant_id, monthToShow, fetchComments]);
+
   return (
     <Card 
       className={`cursor-pointer transition-all duration-200 hover:shadow-md active:scale-[0.98] ${
@@ -53,8 +90,8 @@ const MobileApplicationCard = memo(({
             </p>
           </div>
           <div className="flex flex-col gap-1 ml-3">
-            <Badge className={`text-xs px-2 py-1 ${getStatusColor(application.field_status || 'Unpaid')}`}>
-              {application.field_status || 'Unpaid'}
+            <Badge className={`text-xs px-2 py-1 ${getStatusColor(status)}`}>
+              {status}
             </Badge>
             <Eye className="h-4 w-4 text-gray-400 self-center" />
           </div>
@@ -64,7 +101,7 @@ const MobileApplicationCard = memo(({
         <div className="mb-3">
           <div className="bg-blue-50 p-3 rounded-lg border-l-4 border-blue-400">
             <span className="text-xs text-blue-600 font-medium">EMI Amount</span>
-            <p className="text-lg font-bold text-blue-800">{formatCurrency(application.emi_amount)}</p>
+            <p className="text-lg font-bold text-blue-800">{formatCurrency(monthData.emi_amount || application.emi_amount)}</p>
           </div>
         </div>
 
@@ -72,7 +109,7 @@ const MobileApplicationCard = memo(({
         <div className="flex items-center justify-between mb-3 p-3 bg-gray-50 rounded-lg">
           <div className="flex items-center gap-2">
             <User className="h-4 w-4 text-gray-600" />
-            <CallStatusDisplay application={application} />
+            <CallStatusDisplay application={{...application, ...monthData}} selectedMonth={monthToShow} />
           </div>
           {application.applicant_mobile && (
             <CallButton 
@@ -120,21 +157,23 @@ const MobileApplicationCard = memo(({
         </div>
 
         {/* PTP Date */}
-        {application.ptp_date && (
-          <div className="mb-3 p-3 bg-yellow-50 rounded-lg border-l-4 border-yellow-400">
-            <span className="text-xs text-yellow-700 font-medium">PTP Date:</span>
-            <p className="text-sm font-bold text-yellow-800">
-              {formatPtpDate(application.ptp_date)}
-            </p>
-          </div>
-        )}
+        <div className={`${ptpDate ? 'mb-3 p-3 bg-yellow-50 rounded-lg border-l-4 border-yellow-400' : ''}`}>
+          {ptpDate && (
+            <>
+              <span className="text-xs text-yellow-700 font-medium">PTP Date:</span>
+              <p className="text-sm font-bold text-yellow-800">
+                {formatPtpDate(ptpDate)}
+              </p>
+            </>
+          )}
+        </div>
 
         {/* Recent Comments */}
-        {application.recent_comments && application.recent_comments.length > 0 && (
+        {comments && comments.length > 0 && (
           <div className="border-t pt-3">
             <span className="text-xs text-gray-500 font-medium">Recent Comments:</span>
             <div className="mt-2 space-y-2">
-              {application.recent_comments.slice(0, 2).map((comment, index) => (
+              {comments.slice(0, 2).map((comment, index) => (
                 <div key={index} className="bg-blue-50 p-3 rounded-lg border-l-2 border-blue-200">
                   <div className="text-xs font-semibold text-blue-700 mb-1">{comment.user_name}:</div>
                   <p className="text-xs text-gray-700 leading-relaxed">{comment.content}</p>

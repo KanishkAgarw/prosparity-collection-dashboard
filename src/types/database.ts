@@ -62,6 +62,7 @@ export interface PtpDate {
   id: string;
   application_id: string;
   ptp_date?: string;
+  demand_date: string;
   user_id: string;
   created_at: string;
   updated_at: string;
@@ -74,4 +75,20 @@ export interface PaymentDate {
   user_id: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface CollectionData {
+  id?: string;
+  application_id: string;
+  demand_date: string;
+  team_lead?: string;
+  rm_name?: string;
+  repayment?: string;
+  emi_amount?: number;
+  last_month_bounce?: number;
+  lms_status?: string;
+  collection_rm?: string;
+  amount_collected?: number | null;
+  created_at?: string;
+  updated_at?: string;
 }

@@ -13,20 +13,20 @@ export interface ContactCallingStatus {
   updated_at: string;
 }
 
-export const useContactCallingStatus = (applicationId?: string) => {
+export const useContactCallingStatus = (applicationId?: string, selectedMonth?: string) => {
   const { user } = useAuth();
   const [callingStatuses, setCallingStatuses] = useState<ContactCallingStatus[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchCallingStatuses = async () => {
-    if (!applicationId || !user) return;
-    
+    if (!applicationId || !user || !selectedMonth) return;
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('contact_calling_status')
         .select('*')
         .eq('application_id', applicationId)
+        .eq('demand_date', selectedMonth)
         .order('updated_at', { ascending: false });
 
       if (error) {
@@ -126,10 +126,10 @@ export const useContactCallingStatus = (applicationId?: string) => {
   };
 
   useEffect(() => {
-    if (applicationId && user) {
+    if (applicationId && user && selectedMonth) {
       fetchCallingStatuses();
     }
-  }, [applicationId, user]);
+  }, [applicationId, user, selectedMonth]);
 
   return {
     callingStatuses,

@@ -3,15 +3,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { Application } from '@/types/application';
 import { toast } from 'sonner';
 import { useUserProfiles } from '@/hooks/useUserProfiles';
+import { useFieldStatus } from '@/hooks/useFieldStatus';
 
 export const useApplicationHandlers = (
   application: Application | null,
   user: any,
-  addAuditLog: (appId: string, field: string, previousValue: string | null, newValue: string | null) => Promise<void>,
+  addAuditLog: (appId: string, field: string, previousValue: string | null, newValue: string | null, demandDate: string) => Promise<void>,
   addCallingLog: (contactType: string, newStatus: string, previousStatus?: string) => Promise<void>,
-  onSave: (updatedApp: Application) => void
+  onSave: (updatedApp: Application) => void,
+  selectedMonth?: string
 ) => {
   const { getUserName } = useUserProfiles();
+  const { fetchFieldStatus } = useFieldStatus();
   const [isUpdating, setIsUpdating] = useState(false);
 
   const handleStatusChange = async (newStatus: string) => {
@@ -19,7 +22,12 @@ export const useApplicationHandlers = (
 
     setIsUpdating(true);
     try {
-      const previousStatus = application.field_status || 'Unpaid';
+      // Fetch previous status for the selected month
+      let previousStatus = 'Unpaid';
+      if (application && selectedMonth) {
+        const statusMap = await fetchFieldStatus([application.applicant_id], selectedMonth);
+        previousStatus = statusMap[application.applicant_id] || 'Unpaid';
+      }
 
       // Only proceed if status is actually changing
       if (previousStatus === newStatus) {
@@ -38,7 +46,8 @@ export const useApplicationHandlers = (
             current_status: previousStatus,
             requested_by_user_id: user.id,
             requested_by_email: user.email,
-            requested_by_name: getUserName(user.id, user.email)
+            requested_by_name: getUserName(user.id, user.email),
+            demand_date: selectedMonth
           });
 
         if (requestError) {
@@ -57,9 +66,10 @@ export const useApplicationHandlers = (
             status_approval_needed: true,
             user_id: user.id,
             user_email: user.email,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            demand_date: selectedMonth
           }, {
-            onConflict: 'application_id'
+            onConflict: 'application_id,demand_date'
           });
 
         if (error) {
@@ -69,7 +79,7 @@ export const useApplicationHandlers = (
         }
 
         // Add audit log for the request
-        await addAuditLog(application.applicant_id, 'Status', previousStatus, 'Paid (Pending Approval)');
+        await addAuditLog(application.applicant_id, 'Status', previousStatus, 'Paid (Pending Approval)', selectedMonth);
 
         // Update local application state
         const updatedApp = { 
@@ -90,9 +100,10 @@ export const useApplicationHandlers = (
             status_approval_needed: false,
             user_id: user.id,
             user_email: user.email,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            demand_date: selectedMonth
           }, {
-            onConflict: 'application_id'
+            onConflict: 'application_id,demand_date'
           });
 
         if (error) {
@@ -102,7 +113,7 @@ export const useApplicationHandlers = (
         }
 
         // Add audit log for the status change
-        await addAuditLog(application.applicant_id, 'Status', previousStatus, newStatus);
+        await addAuditLog(application.applicant_id, 'Status', previousStatus, newStatus, selectedMonth);
 
         // Update local application state
         const updatedApp = { ...application, field_status: newStatus };
@@ -119,11 +130,12 @@ export const useApplicationHandlers = (
   };
 
   const handlePtpDateChange = async (newDate: string) => {
-    if (!application || !user || isUpdating) return;
+    if (!application || !user || isUpdating || !selectedMonth) return;
 
     setIsUpdating(true);
-    console.log('=== PTP DATE CHANGE HANDLER - ENHANCED FOR CLEARING ===');
+    console.log('=== PTP DATE CHANGE HANDLER - WITH DEMAND DATE ===');
     console.log('Application ID:', application.applicant_id);
+    console.log('Demand Date:', selectedMonth);
     console.log('User ID:', user.id);
     console.log('Previous PTP date:', application.ptp_date);
     console.log('New PTP date input:', newDate);
@@ -144,13 +156,14 @@ export const useApplicationHandlers = (
         console.log('Clearing date - setting to null');
       }
 
-      // Step 1: Insert PTP date record with enhanced error handling
+      // Step 1: Insert PTP date record with demand_date
       console.log('Step 1: Inserting PTP date record...');
       const { error: ptpError, data: ptpData } = await supabase
         .from('ptp_dates')
         .insert({
           application_id: application.applicant_id,
           ptp_date: formattedDate,
+          demand_date: selectedMonth,
           user_id: user.id
         })
         .select()
@@ -197,7 +210,7 @@ export const useApplicationHandlers = (
         auditAttempts++;
         try {
           console.log(`Audit log attempt ${auditAttempts}/${maxAuditAttempts}`);
-          await addAuditLog(application.applicant_id, 'PTP Date', previousDisplayValue, newDisplayValue);
+          await addAuditLog(application.applicant_id, 'PTP Date', previousDisplayValue, newDisplayValue, selectedMonth);
           auditLogSuccess = true;
           console.log('✅ Audit log added successfully');
         } catch (auditError) {
@@ -234,17 +247,15 @@ export const useApplicationHandlers = (
 
     setIsUpdating(true);
     try {
-      // Get current status for this contact type
-      const { data: currentStatus } = await supabase
-        .from('contact_calling_status')
-        .select('status')
-        .eq('application_id', application.applicant_id)
-        .eq('contact_type', contactType)
-        .maybeSingle();
+      const previousStatus = application[`${contactType.toLowerCase()}_calling_status` as keyof Application] as string || 'Not Called';
 
-      const previousStatus = currentStatus?.status || 'Not Called';
+      // Only proceed if status is actually changing
+      if (previousStatus === newStatus) {
+        setIsUpdating(false);
+        return;
+      }
 
-      // Update contact calling status
+      // Update calling status
       const { error } = await supabase
         .from('contact_calling_status')
         .upsert({
@@ -253,9 +264,10 @@ export const useApplicationHandlers = (
           status: newStatus,
           user_id: user.id,
           user_email: user.email,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          demand_date: selectedMonth
         }, {
-          onConflict: 'application_id,contact_type'
+          onConflict: 'application_id,contact_type,demand_date'
         });
 
       if (error) {
@@ -267,7 +279,14 @@ export const useApplicationHandlers = (
       // Add calling log
       await addCallingLog(contactType, newStatus, previousStatus);
 
-      toast.success(`${contactType} status updated successfully`);
+      // Update local application state
+      const updatedApp = { 
+        ...application, 
+        [`${contactType.toLowerCase()}_calling_status`]: newStatus
+      };
+      onSave(updatedApp);
+
+      toast.success(`${contactType} calling status updated successfully`);
     } catch (error) {
       console.error('Error updating calling status:', error);
       toast.error('Failed to update calling status');

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,9 +12,10 @@ export interface Comment {
   user_email: string | null;
   user_name: string;
   application_id: string;
+  demand_date?: string;
 }
 
-export const useComments = () => {
+export const useComments = (selectedMonth?: string) => {
   const { user } = useAuth();
   const { getUserName, fetchProfiles } = useUserProfiles();
   const [comments, setComments] = useState<Comment[]>([]);
@@ -28,13 +28,22 @@ export const useComments = () => {
     try {
       console.log('=== FETCHING COMMENTS ===');
       console.log('Application ID:', applicationId);
+      console.log('Selected Month:', selectedMonth);
 
-      // Fetch comments with a simple query
-      const { data: commentsData, error: commentsError } = await supabase
+      // Build query with month filtering if selectedMonth is provided
+      let query = supabase
         .from('comments')
         .select('*')
-        .eq('application_id', applicationId)
-        .order('created_at', { ascending: false });
+        .eq('application_id', applicationId);
+
+      // Add month filtering if selectedMonth is provided
+      if (selectedMonth) {
+        query = query.eq('demand_date', selectedMonth);
+      }
+
+      query = query.order('created_at', { ascending: false });
+
+      const { data: commentsData, error: commentsError } = await query;
 
       if (commentsError) {
         console.error('Error fetching comments:', commentsError);
@@ -42,7 +51,7 @@ export const useComments = () => {
       }
 
       if (!commentsData || commentsData.length === 0) {
-        console.log('No comments found for application:', applicationId);
+        console.log('No comments found for application:', applicationId, 'month:', selectedMonth);
         setComments([]);
         return [];
       }
@@ -79,7 +88,7 @@ export const useComments = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, fetchProfiles, getUserName]);
+  }, [user, fetchProfiles, getUserName, selectedMonth]);
 
   const fetchCommentsByApplications = useCallback(async (
     applicationIds: string[], 
@@ -155,7 +164,7 @@ export const useComments = () => {
     }
   }, [user, fetchProfiles, getUserName]);
 
-  const addComment = useCallback(async (applicationId: string, content: string): Promise<void> => {
+  const addComment = useCallback(async (applicationId: string, content: string, demandDate?: string): Promise<void> => {
     if (!user || !applicationId || !content.trim()) return;
 
     try {
@@ -164,15 +173,23 @@ export const useComments = () => {
       console.log('Content:', content);
       console.log('User ID:', user.id);
       console.log('User email:', user.email);
+      console.log('Demand Date:', demandDate);
+
+      const commentData: any = {
+        application_id: applicationId,
+        content: content.trim(),
+        user_id: user.id,
+        user_email: user.email
+      };
+
+      // Add demand_date if provided
+      if (demandDate) {
+        commentData.demand_date = demandDate;
+      }
 
       const { error } = await supabase
         .from('comments')
-        .insert({
-          application_id: applicationId,
-          content: content.trim(),
-          user_id: user.id,
-          user_email: user.email
-        });
+        .insert(commentData);
 
       if (error) {
         console.error('Error adding comment:', error);

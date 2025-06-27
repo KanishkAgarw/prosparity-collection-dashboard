@@ -14,26 +14,31 @@ import { toast } from "sonner";
 import LogDialog from "./LogDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useFieldStatus } from "@/hooks/useFieldStatus";
 
 interface StatusTabProps {
   application: Application;
   auditLogs: AuditLog[];
   onStatusChange: (newStatus: string) => void;
   onPtpDateChange: (newDate: string) => void;
-  addAuditLog: (appId: string, field: string, previousValue: string | null, newValue: string | null) => Promise<void>;
+  addAuditLog: (appId: string, field: string, previousValue: string | null, newValue: string | null, demandDate: string) => Promise<void>;
+  selectedMonth: string;
 }
 
-const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, addAuditLog }: StatusTabProps) => {
+const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, addAuditLog, selectedMonth }: StatusTabProps) => {
   const [ptpDate, setPtpDate] = useState('');
   const [showLogDialog, setShowLogDialog] = useState(false);
   const [isUpdatingPtp, setIsUpdatingPtp] = useState(false);
   const { user } = useAuth();
   const [amountCollected, setAmountCollected] = useState<number | ''>(application.amount_collected ?? '');
   const [isUpdatingAmount, setIsUpdatingAmount] = useState(false);
+  const { fetchFieldStatus, updateFieldStatus } = useFieldStatus();
+  const [currentStatus, setCurrentStatus] = useState<string>('Unpaid');
+  const [statusLoading, setStatusLoading] = useState(false);
   
-  // PTP date synchronization - improved to handle cleared dates
+  // PTP date synchronization - improved to handle month-specific data
   useEffect(() => {
-    console.log('📅 StatusTab: Synchronizing PTP date');
+    console.log('📅 StatusTab: Synchronizing PTP date for month:', selectedMonth);
     console.log('Application PTP date:', application.ptp_date);
     console.log('Type of PTP date:', typeof application.ptp_date);
     
@@ -74,14 +79,26 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
       console.log('🚫 No PTP date or date is null - showing empty input');
       setPtpDate('');
     }
-  }, [application.ptp_date]);
+  }, [application.ptp_date, selectedMonth]);
   
   useEffect(() => {
     setAmountCollected(application.amount_collected ?? '');
-  }, [application.amount_collected]);
+  }, [application.amount_collected, selectedMonth]);
   
   // Use the hook directly without wrapping in useMemo
   const statusAndPtpLogs = useFilteredAuditLogs(auditLogs);
+
+  // Fetch per-month status on mount or when application/selectedMonth changes
+  useEffect(() => {
+    const fetchStatus = async () => {
+      if (!application?.applicant_id || !selectedMonth) return;
+      setStatusLoading(true);
+      const statusMap = await fetchFieldStatus([application.applicant_id], selectedMonth);
+      setCurrentStatus(statusMap[application.applicant_id] || 'Unpaid');
+      setStatusLoading(false);
+    };
+    fetchStatus();
+  }, [application?.applicant_id, selectedMonth, fetchFieldStatus]);
 
   const handlePtpDateChange = async (value: string) => {
     console.log('=== PTP DATE INPUT CHANGE ===');
@@ -131,8 +148,25 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
     }
   };
 
-  const handleStatusChange = (newStatus: string) => {
-    onStatusChange(newStatus);
+  // Update status handler to use per-month update
+  const handleStatusChange = async (newStatus: string) => {
+    setStatusLoading(true);
+    try {
+      if (newStatus === "Paid") {
+        await onStatusChange(newStatus);
+      } else {
+        const prevStatus = currentStatus;
+        await updateFieldStatus(application.applicant_id, newStatus, selectedMonth);
+        setCurrentStatus(newStatus);
+        await addAuditLog(application.applicant_id, 'Status', prevStatus, newStatus, selectedMonth);
+        onStatusChange(newStatus);
+        toast.success('Status updated');
+      }
+    } catch (err) {
+      toast.error('Failed to update status');
+    } finally {
+      setStatusLoading(false);
+    }
   };
 
   const handleAmountCollectedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -145,18 +179,27 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
   };
 
   const saveAmountCollected = async () => {
-    if (!user || !application) return;
+    if (!user || !application || !selectedMonth) return;
     setIsUpdatingAmount(true);
     const prev = application.amount_collected ?? '';
     const newVal = amountCollected === '' ? null : Number(amountCollected);
     try {
+      // Update the collection table instead of applications table
       const { error } = await supabase
-        .from('applications')
-        .update({ amount_collected: newVal })
-        .eq('applicant_id', application.applicant_id);
+        .from('collection')
+        .upsert({
+          application_id: application.applicant_id,
+          demand_date: selectedMonth,
+          amount_collected: newVal,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'application_id,demand_date'
+        });
+      
       if (error) throw error;
+      
       if (prev !== newVal) {
-        await addAuditLog(application.applicant_id, 'Amount Collected', prev?.toString() ?? '', newVal?.toString() ?? '');
+        await addAuditLog(application.applicant_id, 'Amount Collected', prev?.toString() ?? '', newVal?.toString() ?? '', selectedMonth);
       }
       toast.success('Amount Collected updated');
       window.location.reload();
@@ -209,8 +252,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
   };
 
   // Check if status is pending approval
-  const isPendingApproval = application.field_status?.includes('Pending Approval');
-  const currentStatus = application.field_status || 'Unpaid';
+  const isPendingApproval = currentStatus?.includes('Pending Approval');
 
   return (
     <div className="space-y-4">
@@ -247,6 +289,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
                 <Select 
                   value={currentStatus} 
                   onValueChange={handleStatusChange}
+                  disabled={statusLoading || isPendingApproval}
                 >
                   <SelectTrigger className="mt-1">
                     <SelectValue />

@@ -1,14 +1,14 @@
-
 import { Check } from "lucide-react";
 import { Application } from "@/types/application";
 import { useContactCallingStatus } from "@/hooks/useContactCallingStatus";
 
 interface CallStatusDisplayProps {
   application: Application;
+  selectedMonth?: string;
 }
 
-const CallStatusDisplay = ({ application }: CallStatusDisplayProps) => {
-  const { getStatusForContact } = useContactCallingStatus(application.applicant_id);
+const CallStatusDisplay = ({ application, selectedMonth }: CallStatusDisplayProps) => {
+  const { getStatusForContact } = useContactCallingStatus(application.applicant_id, selectedMonth);
 
   const contacts = [
     {

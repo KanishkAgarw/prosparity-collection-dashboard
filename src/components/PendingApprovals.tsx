@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,7 @@ import { useUserProfiles } from "@/hooks/useUserProfiles";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { CheckCircle, XCircle, Clock, ChevronDown, ChevronUp } from "lucide-react";
+import { formatEmiMonth } from "@/utils/formatters";
 
 interface StatusChangeRequest {
   id: string;
@@ -31,6 +31,7 @@ interface StatusChangeRequest {
   // Application details
   applicant_name?: string;
   applicant_id?: string;
+  demand_date?: string;
 }
 
 interface PendingApprovalsProps {
@@ -354,6 +355,9 @@ const PendingApprovals = ({ onUpdate }: PendingApprovalsProps) => {
                         <div className="space-y-1">
                           <div className="font-semibold text-blue-900">
                             {request.applicant_name} ({request.applicant_id})
+                            {request.demand_date && (
+                              <span className="ml-2 text-xs text-gray-500 font-normal">EMI Month: {formatEmiMonth(request.demand_date)}</span>
+                            )}
                           </div>
                           <div className="text-sm text-gray-600">
                             Requested by: {request.requested_by_name || request.requested_by_email}

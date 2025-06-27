@@ -14,11 +14,12 @@ interface ContactsTabProps {
   application: Application;
   callingLogs: CallingLog[];
   onCallingStatusChange: (contactType: string, newStatus: string, currentStatus?: string) => void;
+  selectedMonth: string;
 }
 
-const ContactsTab = ({ application, callingLogs, onCallingStatusChange }: ContactsTabProps) => {
+const ContactsTab = ({ application, callingLogs, onCallingStatusChange, selectedMonth }: ContactsTabProps) => {
   const [showLogDialog, setShowLogDialog] = useState(false);
-  const { getStatusForContact, refetch } = useContactCallingStatus(application.applicant_id);
+  const { getStatusForContact, refetch } = useContactCallingStatus(application.applicant_id, selectedMonth);
 
   const formatDateTime = (dateStr: string) => {
     try {

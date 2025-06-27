@@ -19,7 +19,20 @@ export const getAvailableOptions = (allApplications: any[], filteredApplications
   const dealers = [...new Set(apps.map(app => app.dealer_name).filter(Boolean))].sort();
   const lenders = [...new Set(apps.map(app => app.lender_name).filter(Boolean))].sort();
   const statuses = [...new Set(apps.map(app => app.field_status || 'Unpaid').filter(Boolean))].sort();
-  const emiMonths = [...new Set(apps.map(app => formatEmiMonth(app.demand_date)).filter(Boolean))].sort();
+  const emiMonthsSet = new Set(apps.map(app => formatEmiMonth(app.demand_date)).filter(Boolean));
+  const emiMonths = Array.from(emiMonthsSet).sort((a, b) => {
+    // Parse as date for correct sorting
+    const parse = (str) => {
+      // str is like 'Jan-24', 'Jul-25', etc.
+      const [mon, yr] = str.split('-');
+      const monthNum = [
+        'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'
+      ].indexOf(mon);
+      const yearNum = parseInt(yr.length === 2 ? '20' + yr : yr, 10);
+      return new Date(yearNum, monthNum, 1);
+    };
+    return parse(a) - parse(b);
+  });
   const repayments = [...new Set(apps.map(app => formatRepayment(app.repayment)).filter(Boolean))].sort();
   const collectionRms = [...new Set(apps.map(app => app.collection_rm).filter(Boolean))].sort();
 

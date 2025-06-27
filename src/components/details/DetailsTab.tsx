@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { History } from "lucide-react";
 import { Button } from "../ui/button";
 import LogDialog from "./LogDialog";
+import { formatEmiMonth } from "@/utils/formatters";
 
 const getVehicleStatusColor = (status: string | undefined) => {
     return VEHICLE_STATUS_OPTIONS.find(o => o.value === status)?.color || "bg-gray-400 text-white";
@@ -25,11 +26,13 @@ const DetailsTab = ({
   repaymentHistory,
   auditLogs,
   onVehicleStatusChange,
+  monthlyData,
 }: {
   application: Application | null;
   repaymentHistory: RepaymentHistory[];
   auditLogs: AuditLog[];
   onVehicleStatusChange: (newStatus: string) => void;
+  monthlyData?: any[];
 }) => {
   const [showLogDialog, setShowLogDialog] = useState(false);
 
@@ -58,6 +61,15 @@ const DetailsTab = ({
     .map(h => h.delay_in_days)
     .join(' | ');
 
+  const monthlyProgression = monthlyData
+    ?.sort((a, b) => a.demand_date.localeCompare(b.demand_date))
+    .map(item => {
+      const amount = item.emi_amount || 0;
+      const status = item.lms_status || 'Unknown';
+      return `${formatEmiMonth(item.demand_date)}: ₹${amount.toLocaleString()} (${status})`;
+    })
+    .join(' → ');
+
   return (
     <div className="space-y-4">
       <Card className="overflow-hidden">
@@ -75,6 +87,11 @@ const DetailsTab = ({
             <div className="col-span-2 md:col-span-3">
                 <DetailItem label="Repayment History (Delay in Days)" value={repaymentHistoryString || "No history"} />
             </div>
+            {monthlyData && monthlyData.length > 1 && (
+              <div className="col-span-2 md:col-span-3">
+                <DetailItem label="Monthly Progression (EMI & Status)" value={monthlyProgression || "No progression data"} />
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

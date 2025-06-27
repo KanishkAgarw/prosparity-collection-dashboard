@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -14,9 +13,10 @@ export interface AuditLog {
   user_name: string | null;
   application_id: string;
   created_at: string;
+  demand_date?: string;
 }
 
-export const useAuditLogs = (applicationId?: string) => {
+export const useAuditLogs = (applicationId?: string, selectedMonth?: string) => {
   const { user } = useAuth();
   const { fetchProfiles, getUserName } = useUserProfiles();
   const [rawAuditLogs, setRawAuditLogs] = useState<Omit<AuditLog, 'user_name'>[]>([]);
@@ -29,12 +29,23 @@ export const useAuditLogs = (applicationId?: string) => {
     try {
       console.log('=== FETCHING AUDIT LOGS - ENHANCED ===');
       console.log('Application ID:', applicationId);
+      console.log('Selected Month:', selectedMonth);
       
-      const { data, error } = await supabase
+      // Build query with month filtering if selectedMonth is provided
+      let query = supabase
         .from('audit_logs')
         .select('*')
-        .eq('application_id', applicationId)
-        .order('created_at', { ascending: false });
+        .eq('application_id', applicationId);
+
+      // Add month filtering if selectedMonth is provided
+      if (selectedMonth) {
+        // Include logs for the selected month OR logs with null demand_date (independent logs)
+        query = query.or(`demand_date.eq.${selectedMonth},demand_date.is.null`);
+      }
+
+      query = query.order('created_at', { ascending: false });
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('❌ Error fetching audit logs:', error);
@@ -71,7 +82,7 @@ export const useAuditLogs = (applicationId?: string) => {
   }, [rawAuditLogs, getUserName]);
 
   // ENHANCED addAuditLog function with better error handling and retry logic
-  const addAuditLog = async (appId: string, field: string, previousValue: string | null, newValue: string | null) => {
+  const addAuditLog = async (appId: string, field: string, previousValue: string | null, newValue: string | null, demandDate?: string) => {
     if (!user) {
       console.error('❌ Cannot add audit log: User not authenticated');
       return;
@@ -84,6 +95,7 @@ export const useAuditLogs = (applicationId?: string) => {
     console.log('New value:', newValue);
     console.log('User ID:', user.id);
     console.log('User email:', user.email);
+    console.log('Demand Date:', demandDate);
 
     // Validate inputs
     if (!appId || !field) {
@@ -98,7 +110,8 @@ export const useAuditLogs = (applicationId?: string) => {
         new_value: newValue,
         application_id: appId,
         user_id: user.id,
-        user_email: user.email
+        user_email: user.email,
+        demand_date: demandDate
       };
 
       console.log('Inserting audit log with data:', auditLogData);
@@ -137,7 +150,7 @@ export const useAuditLogs = (applicationId?: string) => {
     if (applicationId && user) {
       fetchAuditLogs();
     }
-  }, [applicationId, user]);
+  }, [applicationId, user, selectedMonth]);
 
   return {
     auditLogs,
