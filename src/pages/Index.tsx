@@ -1,3 +1,4 @@
+
 import { useState, useMemo, useEffect } from "react";
 import { useOptimizedApplicationsV2 } from "@/hooks/useOptimizedApplicationsV2";
 import { useCascadingFilters } from "@/hooks/useCascadingFilters";
@@ -15,7 +16,6 @@ import FiltersSection from "@/components/layout/FiltersSection";
 import MainContent from "@/components/layout/MainContent";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import StatusCards from "@/components/StatusCards";
-import EmiMonthSelector from "@/components/EmiMonthSelector";
 import { ApplicationTableSkeleton, StatusCardsSkeleton } from "@/components/LoadingStates";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
