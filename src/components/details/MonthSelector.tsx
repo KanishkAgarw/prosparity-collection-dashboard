@@ -23,14 +23,30 @@ const MonthSelector = ({
   // Use formatted months for display if available, otherwise use raw months
   const displayMonths = availableMonthsFormatted || availableMonths;
 
+  // Update current month index when selectedMonth or availableMonths change
   useEffect(() => {
+    console.log('MonthSelector: Updating current month index');
+    console.log('Available months:', availableMonths);
+    console.log('Selected month:', selectedMonth);
+    
     const index = availableMonths.findIndex(month => month === selectedMonth);
-    setCurrentMonthIndex(index >= 0 ? index : 0);
-  }, [selectedMonth, availableMonths]);
+    console.log('Found index:', index);
+    
+    if (index >= 0) {
+      setCurrentMonthIndex(index);
+    } else if (availableMonths.length > 0) {
+      // If selectedMonth is not found, default to the last month
+      const defaultIndex = availableMonths.length - 1;
+      console.log('Setting default index:', defaultIndex);
+      setCurrentMonthIndex(defaultIndex);
+      onMonthChange(availableMonths[defaultIndex]);
+    }
+  }, [selectedMonth, availableMonths, onMonthChange]);
 
   const handlePreviousMonth = () => {
     if (currentMonthIndex > 0) {
       const newIndex = currentMonthIndex - 1;
+      console.log('Previous month: index', newIndex, 'month', availableMonths[newIndex]);
       setCurrentMonthIndex(newIndex);
       onMonthChange(availableMonths[newIndex]);
     }
@@ -39,17 +55,24 @@ const MonthSelector = ({
   const handleNextMonth = () => {
     if (currentMonthIndex < availableMonths.length - 1) {
       const newIndex = currentMonthIndex + 1;
+      console.log('Next month: index', newIndex, 'month', availableMonths[newIndex]);
       setCurrentMonthIndex(newIndex);
       onMonthChange(availableMonths[newIndex]);
     }
   };
 
   const handleSelectChange = (value: string) => {
+    console.log('Select change: value', value);
     // Find the index of the formatted value in displayMonths
     const displayIndex = displayMonths.findIndex(month => month === value);
+    console.log('Display index:', displayIndex);
+    
     if (displayIndex >= 0) {
       // Use the corresponding raw month value
-      onMonthChange(availableMonths[displayIndex]);
+      const rawMonth = availableMonths[displayIndex];
+      console.log('Setting raw month:', rawMonth);
+      setCurrentMonthIndex(displayIndex);
+      onMonthChange(rawMonth);
     }
   };
 
@@ -64,6 +87,14 @@ const MonthSelector = ({
 
   // Get the formatted value for the currently selected month
   const selectedMonthDisplay = displayMonths[currentMonthIndex] || selectedMonth;
+
+  console.log('MonthSelector render:', {
+    availableMonths,
+    selectedMonth,
+    currentMonthIndex,
+    selectedMonthDisplay,
+    displayMonths
+  });
 
   return (
     <div className="flex items-center justify-between p-4 border-b bg-gray-50">

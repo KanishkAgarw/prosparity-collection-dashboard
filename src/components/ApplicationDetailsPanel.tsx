@@ -34,12 +34,16 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }
   const [monthSpecificPtpDate, setMonthSpecificPtpDate] = useState<string | null>(null);
   const { monthlyData, availableMonths, availableMonthsFormatted, loading: monthlyLoading, getApplicationForMonth } = useMonthlyApplicationData(currentApplication?.applicant_id);
 
+  // Handle application changes
   useEffect(() => {
+    console.log('ApplicationDetailsPanel: Application changed', application?.applicant_id);
     setCurrentApplication(application);
+    // Clear selectedMonth when application changes to force proper initialization
+    setSelectedMonth('');
   }, [application]);
   
   const { repaymentHistory } = useRepaymentHistory(currentApplication?.applicant_id);
-  const { comments, fetchComments, addComment } = useComments(selectedMonth);
+  const { comments, fetchComments, addComment, clearComments } = useComments(selectedMonth);
   const { auditLogs, addAuditLog, refetch: refetchAuditLogs } = useAuditLogs(currentApplication?.applicant_id, selectedMonth);
   const { callingLogs, addCallingLog, refetch: refetchCallingLogs } = useCallingLogs(currentApplication?.applicant_id, selectedMonth);
 
@@ -75,17 +79,39 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }
     fetchMonthSpecificPtpDate();
   }, [currentApplication?.applicant_id, selectedMonth]);
 
+  // Clear comments when application changes
   useEffect(() => {
-    if (currentApplication?.applicant_id) {
+    console.log('ApplicationDetailsPanel: Clearing comments for application', currentApplication?.applicant_id);
+    clearComments();
+  }, [currentApplication?.applicant_id, clearComments]);
+
+  // Set initial month when available months are loaded for the current application
+  useEffect(() => {
+    console.log('ApplicationDetailsPanel: Available months effect', {
+      availableMonths,
+      selectedMonth,
+      currentApplicationId: currentApplication?.applicant_id
+    });
+    
+    if (availableMonths.length > 0 && !selectedMonth && currentApplication?.applicant_id) {
+      // Set to the most recent month (last in the array)
+      const initialMonth = availableMonths[availableMonths.length - 1];
+      console.log('ApplicationDetailsPanel: Setting initial month', initialMonth);
+      setSelectedMonth(initialMonth);
+    }
+  }, [availableMonths, selectedMonth, currentApplication?.applicant_id]);
+
+  // Fetch comments only when both application and selectedMonth are available
+  useEffect(() => {
+    console.log('ApplicationDetailsPanel: Fetching comments', {
+      applicationId: currentApplication?.applicant_id,
+      selectedMonth
+    });
+    
+    if (currentApplication?.applicant_id && selectedMonth) {
       fetchComments(currentApplication.applicant_id);
     }
-  }, [currentApplication?.applicant_id, fetchComments, selectedMonth]);
-
-  useEffect(() => {
-    if (availableMonths.length > 0 && !selectedMonth) {
-      setSelectedMonth(availableMonths[availableMonths.length - 1]);
-    }
-  }, [availableMonths, selectedMonth]);
+  }, [currentApplication?.applicant_id, selectedMonth, fetchComments]);
 
   const monthlyCollectionData = selectedMonth ? getApplicationForMonth(selectedMonth) : null;
 

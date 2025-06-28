@@ -20,11 +20,23 @@ export const useComments = (selectedMonth?: string) => {
   const { getUserName, fetchProfiles } = useUserProfiles();
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
+  const [currentApplicationId, setCurrentApplicationId] = useState<string | null>(null);
+
+  // Clear comments when selectedMonth changes to prevent stale data
+  useEffect(() => {
+    setComments([]);
+    setCurrentApplicationId(null);
+  }, [selectedMonth]);
 
   const fetchComments = useCallback(async (applicationId: string): Promise<Comment[]> => {
     if (!user || !applicationId) return [];
 
+    // Don't fetch if we're already loading for this application
+    if (loading && currentApplicationId === applicationId) return [];
+
     setLoading(true);
+    setCurrentApplicationId(applicationId);
+    
     try {
       console.log('=== FETCHING COMMENTS ===');
       console.log('Application ID:', applicationId);
@@ -88,7 +100,7 @@ export const useComments = (selectedMonth?: string) => {
     } finally {
       setLoading(false);
     }
-  }, [user, fetchProfiles, getUserName, selectedMonth]);
+  }, [user, fetchProfiles, getUserName, selectedMonth, loading, currentApplicationId]);
 
   const fetchCommentsByApplications = useCallback(async (
     applicationIds: string[], 
@@ -205,11 +217,18 @@ export const useComments = (selectedMonth?: string) => {
     }
   }, [user, fetchComments]);
 
+  // Add a function to clear comments (useful for resetting state)
+  const clearComments = useCallback(() => {
+    setComments([]);
+    setCurrentApplicationId(null);
+  }, []);
+
   return {
     comments,
     loading,
     fetchComments,
     fetchCommentsByApplications,
-    addComment
+    addComment,
+    clearComments
   };
 };
