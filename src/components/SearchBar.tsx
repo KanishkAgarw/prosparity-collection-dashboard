@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -19,33 +18,17 @@ const SearchBar = ({ value, onChange, placeholder = "Search by name, ID, dealer,
   }, [value]);
 
   const handleSearch = () => {
-    console.log('=== SEARCH DEBUG ===');
-    console.log('Search term entered:', inputValue);
-    console.log('Calling onChange with:', inputValue);
     onChange(inputValue);
   };
 
   const handleClear = () => {
-    console.log('=== SEARCH CLEAR DEBUG ===');
-    console.log('Clearing search');
     setInputValue('');
     onChange(''); // Immediately clear the search
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      e.preventDefault();
       handleSearch();
-    }
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setInputValue(newValue);
-    
-    // Auto-search as user types with debounce
-    if (newValue.length === 0) {
-      onChange(''); // Clear search immediately when input is empty
     }
   };
 
@@ -57,7 +40,7 @@ const SearchBar = ({ value, onChange, placeholder = "Search by name, ID, dealer,
           type="text"
           placeholder={placeholder}
           value={inputValue}
-          onChange={handleInputChange}
+          onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
           className="pl-10 pr-10 h-10 text-sm w-full"
         />

@@ -63,7 +63,7 @@ const Index = () => {
     selectedEmiMonth 
   });
 
-  // Use optimized applications hook V3 with enhanced search debugging
+  // Use optimized applications hook V3
   const { 
     applications, 
     totalCount, 
@@ -77,15 +77,6 @@ const Index = () => {
     pageSize: 20,
     selectedEmiMonth
   });
-
-  // Debug search functionality
-  useEffect(() => {
-    console.log('=== SEARCH STATE DEBUG ===');
-    console.log('Search term:', searchTerm);
-    console.log('Debounced search term:', debouncedSearchTerm);
-    console.log('Applications returned:', applications.length);
-    console.log('Total count:', totalCount);
-  }, [searchTerm, debouncedSearchTerm, applications.length, totalCount]);
 
   // Get current application IDs for selective real-time updates
   const currentApplicationIds = useMemo(() => 
@@ -204,19 +195,7 @@ const Index = () => {
     }
   };
 
-  // Enhanced search handler with debugging
-  const handleSearchChange = (newSearchTerm: string) => {
-    console.log('=== SEARCH CHANGE DEBUG ===');
-    console.log('New search term:', newSearchTerm);
-    setSearchTerm(newSearchTerm);
-  };
-
   const handleApplicationSelect = (app: Application) => {
-    console.log('=== APPLICATION SELECT DEBUG ===');
-    console.log('Selected application:', app.applicant_id);
-    console.log('Current selectedEmiMonth:', selectedEmiMonth);
-    console.log('Application demand_date:', app.demand_date);
-    
     setSelectedApplication(app);
     saveSelectedApplication(app.id);
   };
@@ -300,7 +279,7 @@ const Index = () => {
             availableOptions={availableOptions}
             onFilterChange={handleFilterChange}
             searchTerm={searchTerm}
-            onSearchChange={handleSearchChange}
+            onSearchChange={setSearchTerm}
             selectedEmiMonth={selectedEmiMonth}
             onEmiMonthChange={handleEmiMonthChange}
             emiMonthOptions={emiMonthOptions}
