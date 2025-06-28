@@ -1,3 +1,4 @@
+
 import { useState, useMemo, useEffect } from "react";
 import { useApplications } from "@/hooks/useApplications";
 import { useCascadingFilters } from "@/hooks/useCascadingFilters";
@@ -112,6 +113,14 @@ const Index = () => {
     availableOptions,
     handleFilterChange
   } = useCascadingFilters(allApplications);
+
+  // Extract selected EMI Month from filters
+  const selectedEmiMonth = useMemo(() => {
+    if (filters.emiMonth.length === 1) {
+      return filters.emiMonth[0];
+    }
+    return null; // null means no single month is selected
+  }, [filters.emiMonth]);
 
   // Save filters state when they change
   useEffect(() => {
@@ -277,6 +286,7 @@ const Index = () => {
             onFilterChange={handleFilterChange}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
+            selectedEmiMonth={selectedEmiMonth}
           />
 
           <StatusCards applications={finalFilteredApplications} />
@@ -291,6 +301,7 @@ const Index = () => {
             onPageChange={setCurrentPage}
             totalCount={filteredTotalCount}
             pageSize={50}
+            selectedEmiMonth={selectedEmiMonth}
           />
         </div>
       </div>
@@ -312,6 +323,7 @@ const Index = () => {
               onClose={handleApplicationClose}
               onSave={handleApplicationUpdated}
               onDataChanged={handleDataChanged}
+              selectedEmiMonth={selectedEmiMonth}
             />
           </div>
         </>

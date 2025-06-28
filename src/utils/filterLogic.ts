@@ -5,21 +5,29 @@ import type { FilterState, LastMonthBounceCategory, AvailableOptions } from "@/t
 import { VEHICLE_STATUS_OPTIONS } from "@/constants/options";
 
 // Get available filter options based on all applications and current filtered results
-export const getAvailableOptions = (allApplications: any[], filteredApplications: any[]): AvailableOptions => {
+export const getAvailableOptions = (allApplications: any[], filteredApplications: any[], selectedEmiMonth?: string | null): AvailableOptions => {
   console.log('=== GETTING AVAILABLE OPTIONS ===');
   console.log('All applications:', allApplications.length);
   console.log('Filtered applications:', filteredApplications.length);
+  console.log('Selected EMI Month:', selectedEmiMonth);
 
-  // Use all applications for generating options to show what's available
-  const apps = allApplications;
+  // If a specific EMI month is selected, use only applications from that month for options
+  // Otherwise, use all applications for generating options
+  let appsForOptions = allApplications;
+  
+  if (selectedEmiMonth) {
+    // Filter applications to only those from the selected EMI month
+    appsForOptions = allApplications.filter(app => formatEmiMonth(app.demand_date) === selectedEmiMonth);
+    console.log('Apps for selected month:', appsForOptions.length);
+  }
 
-  const branches = [...new Set(apps.map(app => app.branch_name).filter(Boolean))].sort();
-  const teamLeads = [...new Set(apps.map(app => app.team_lead).filter(Boolean))].sort();
-  const rms = [...new Set(apps.map(app => app.rm_name).filter(Boolean))].sort();
-  const dealers = [...new Set(apps.map(app => app.dealer_name).filter(Boolean))].sort();
-  const lenders = [...new Set(apps.map(app => app.lender_name).filter(Boolean))].sort();
-  const statuses = [...new Set(apps.map(app => app.field_status || 'Unpaid').filter(Boolean))].sort();
-  const emiMonthsSet = new Set(apps.map(app => formatEmiMonth(app.demand_date)).filter(Boolean));
+  const branches = [...new Set(appsForOptions.map(app => app.branch_name).filter(Boolean))].sort();
+  const teamLeads = [...new Set(appsForOptions.map(app => app.team_lead).filter(Boolean))].sort();
+  const rms = [...new Set(appsForOptions.map(app => app.rm_name).filter(Boolean))].sort();
+  const dealers = [...new Set(appsForOptions.map(app => app.dealer_name).filter(Boolean))].sort();
+  const lenders = [...new Set(appsForOptions.map(app => app.lender_name).filter(Boolean))].sort();
+  const statuses = [...new Set(appsForOptions.map(app => app.field_status || 'Unpaid').filter(Boolean))].sort();
+  const emiMonthsSet = new Set(allApplications.map(app => formatEmiMonth(app.demand_date)).filter(Boolean));
   const emiMonths = Array.from(emiMonthsSet).sort((a, b) => {
     // Parse as date for correct sorting
     const parse = (str) => {
@@ -33,8 +41,8 @@ export const getAvailableOptions = (allApplications: any[], filteredApplications
     };
     return parse(a) - parse(b);
   });
-  const repayments = [...new Set(apps.map(app => formatRepayment(app.repayment)).filter(Boolean))].sort();
-  const collectionRms = [...new Set(apps.map(app => app.collection_rm).filter(Boolean))].sort();
+  const repayments = [...new Set(appsForOptions.map(app => formatRepayment(app.repayment)).filter(Boolean))].sort();
+  const collectionRms = [...new Set(appsForOptions.map(app => app.collection_rm).filter(Boolean))].sort();
 
   const lastMonthBounce: LastMonthBounceCategory[] = [
     'Not paid',

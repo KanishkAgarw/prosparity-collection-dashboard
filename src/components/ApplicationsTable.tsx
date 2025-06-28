@@ -7,6 +7,7 @@ interface ApplicationsTableProps {
   onRowClick: (application: Application) => void;
   onApplicationDeleted?: () => void;
   selectedApplicationId?: string;
+  selectedEmiMonth?: string | null;
 }
 
 const ApplicationsTable = (props: ApplicationsTableProps) => {

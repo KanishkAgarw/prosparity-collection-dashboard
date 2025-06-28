@@ -6,6 +6,7 @@ interface MobileOptimizedTableProps {
   applications: Application[];
   onRowClick: (application: Application) => void;
   selectedApplicationId?: string;
+  selectedEmiMonth?: string | null;
 }
 
 const MobileOptimizedTable = (props: MobileOptimizedTableProps) => {

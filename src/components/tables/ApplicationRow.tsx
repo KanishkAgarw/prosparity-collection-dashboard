@@ -1,3 +1,4 @@
+
 import { memo, useEffect, useState } from "react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Application } from "@/types/application";
@@ -15,46 +16,66 @@ interface ApplicationRowProps {
   application: Application;
   selectedApplicationId?: string;
   onRowClick: (application: Application) => void;
-  selectedMonth: string;
+  selectedEmiMonth?: string | null;
 }
 
 const ApplicationRow = memo(({ 
   application, 
   selectedApplicationId, 
   onRowClick,
-  selectedMonth
+  selectedEmiMonth
 }: ApplicationRowProps) => {
   const { monthlyData, availableMonths } = useMonthlyApplicationData(application.applicant_id);
-  const monthToShow = selectedMonth || availableMonths[availableMonths.length - 1];
+  
+  // Determine which month to show data for
+  const monthToShow = selectedEmiMonth || availableMonths[availableMonths.length - 1];
   const monthData = monthlyData.find(item => item.demand_date === monthToShow) || {};
+
+  // Convert formatted month back to YYYY-MM format for data lookup
+  const getMonthForData = (formattedMonth: string) => {
+    if (!formattedMonth) return monthToShow;
+    
+    // If it's already in YYYY-MM format, return as is
+    if (formattedMonth.includes('-') && formattedMonth.length > 6) {
+      return formattedMonth;
+    }
+    
+    // Convert from 'Jan-25' format to find matching month in availableMonths
+    const matchingMonth = availableMonths.find(month => 
+      formatEmiMonth(month) === formattedMonth
+    );
+    return matchingMonth || monthToShow;
+  };
+
+  const dataMonth = getMonthForData(selectedEmiMonth || '');
 
   // Fetch per-month status
   const { fetchFieldStatus } = useFieldStatus();
   const [status, setStatus] = useState<string>('Unpaid');
   useEffect(() => {
     const fetchStatus = async () => {
-      const statusMap = await fetchFieldStatus([application.applicant_id], monthToShow);
+      const statusMap = await fetchFieldStatus([application.applicant_id], dataMonth);
       setStatus(statusMap[application.applicant_id] || 'Unpaid');
     };
     fetchStatus();
-  }, [application.applicant_id, monthToShow, fetchFieldStatus]);
+  }, [application.applicant_id, dataMonth, fetchFieldStatus]);
 
   // Fetch per-month PTP date
   const { fetchPtpDate } = usePtpDates();
   const [ptpDate, setPtpDate] = useState<string | null>(null);
   useEffect(() => {
     const fetchPtp = async () => {
-      const date = await fetchPtpDate(application.applicant_id, monthToShow);
+      const date = await fetchPtpDate(application.applicant_id, dataMonth);
       setPtpDate(date);
     };
     fetchPtp();
-  }, [application.applicant_id, monthToShow, fetchPtpDate]);
+  }, [application.applicant_id, dataMonth, fetchPtpDate]);
 
   // Fetch per-month comments
-  const { comments, fetchComments } = useComments(monthToShow);
+  const { comments, fetchComments } = useComments(dataMonth);
   useEffect(() => {
     fetchComments(application.applicant_id);
-  }, [application.applicant_id, monthToShow, fetchComments]);
+  }, [application.applicant_id, dataMonth, fetchComments]);
 
   const handleRowClick = (e: React.MouseEvent) => {
     onRowClick(application);
@@ -86,7 +107,7 @@ const ApplicationRow = memo(({
       </TableCell>
       
       <TableCell className="text-sm">
-        <CallStatusDisplay application={{...application, ...monthData}} selectedMonth={monthToShow} />
+        <CallStatusDisplay application={{...application, ...monthData}} selectedMonth={dataMonth} />
       </TableCell>
       
       <TableCell className="max-w-[200px]">

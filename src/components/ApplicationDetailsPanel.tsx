@@ -1,3 +1,4 @@
+
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,15 +20,23 @@ import { useRepaymentHistory } from "@/hooks/useRepaymentHistory";
 import { supabase } from '@/integrations/supabase/client';
 import { useMonthlyApplicationData } from '@/hooks/useMonthlyApplicationData';
 import MonthSelector from './details/MonthSelector';
+import { formatEmiMonth } from "@/utils/formatters";
 
 interface ApplicationDetailsPanelProps {
   application: Application | null;
   onClose: () => void;
   onSave: (updatedApp: Application) => void;
   onDataChanged?: () => void;
+  selectedEmiMonth?: string | null;
 }
 
-const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }: ApplicationDetailsPanelProps) => {
+const ApplicationDetailsPanel = ({ 
+  application, 
+  onClose, 
+  onSave, 
+  onDataChanged, 
+  selectedEmiMonth 
+}: ApplicationDetailsPanelProps) => {
   const { user } = useAuth();
   const [currentApplication, setCurrentApplication] = useState<Application | null>(application);
   const [selectedMonth, setSelectedMonth] = useState<string>('');
@@ -85,21 +94,32 @@ const ApplicationDetailsPanel = ({ application, onClose, onSave, onDataChanged }
     clearComments();
   }, [currentApplication?.applicant_id, clearComments]);
 
-  // Set initial month when available months are loaded for the current application
+  // Set initial month based on selectedEmiMonth or default to most recent
   useEffect(() => {
-    console.log('ApplicationDetailsPanel: Available months effect', {
+    console.log('ApplicationDetailsPanel: Setting initial month', {
+      selectedEmiMonth,
       availableMonths,
-      selectedMonth,
       currentApplicationId: currentApplication?.applicant_id
     });
     
     if (availableMonths.length > 0 && !selectedMonth && currentApplication?.applicant_id) {
-      // Set to the most recent month (last in the array)
-      const initialMonth = availableMonths[availableMonths.length - 1];
-      console.log('ApplicationDetailsPanel: Setting initial month', initialMonth);
+      let initialMonth = '';
+      
+      if (selectedEmiMonth) {
+        // Find the month that matches the selected EMI month from filters
+        const matchingMonth = availableMonths.find(month => 
+          formatEmiMonth(month) === selectedEmiMonth
+        );
+        initialMonth = matchingMonth || availableMonths[availableMonths.length - 1];
+      } else {
+        // Default to the most recent month (last in the array)
+        initialMonth = availableMonths[availableMonths.length - 1];
+      }
+      
+      console.log('ApplicationDetailsPanel: Setting initial month to', initialMonth);
       setSelectedMonth(initialMonth);
     }
-  }, [availableMonths, selectedMonth, currentApplication?.applicant_id]);
+  }, [availableMonths, selectedMonth, currentApplication?.applicant_id, selectedEmiMonth]);
 
   // Fetch comments only when both application and selectedMonth are available
   useEffect(() => {

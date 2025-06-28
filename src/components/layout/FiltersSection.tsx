@@ -10,6 +10,7 @@ interface FiltersSectionProps {
   onFilterChange: (key: string, values: string[]) => void;
   searchTerm: string;
   onSearchChange: (value: string) => void;
+  selectedEmiMonth?: string | null;
 }
 
 const FiltersSection = ({
@@ -17,7 +18,8 @@ const FiltersSection = ({
   availableOptions,
   onFilterChange,
   searchTerm,
-  onSearchChange
+  onSearchChange,
+  selectedEmiMonth
 }: FiltersSectionProps) => {
   const isMobile = useIsMobile();
 
@@ -36,6 +38,7 @@ const FiltersSection = ({
             filters={filters}
             availableOptions={availableOptions}
             onFilterChange={onFilterChange}
+            selectedEmiMonth={selectedEmiMonth}
           />
         )}
       </div>

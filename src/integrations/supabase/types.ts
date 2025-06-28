@@ -83,6 +83,7 @@ export type Database = {
       }
       applications: {
         Row: {
+          amount_collected: number | null
           applicant_address: string | null
           applicant_id: string
           applicant_mobile: string | null
@@ -95,6 +96,7 @@ export type Database = {
           created_at: string | null
           dealer_name: string
           demand_date: string | null
+          disbursement_date: string | null
           emi_amount: number
           fi_location: string | null
           guarantor_address: string | null
@@ -106,6 +108,7 @@ export type Database = {
           last_month_bounce: number | null
           lender_name: string
           lms_status: string
+          loan_amount: number | null
           principle_due: number | null
           reference_address: string | null
           reference_mobile: string | null
@@ -115,8 +118,10 @@ export type Database = {
           team_lead: string
           updated_at: string | null
           user_id: string
+          vehicle_status: string | null
         }
         Insert: {
+          amount_collected?: number | null
           applicant_address?: string | null
           applicant_id: string
           applicant_mobile?: string | null
@@ -129,6 +134,7 @@ export type Database = {
           created_at?: string | null
           dealer_name: string
           demand_date?: string | null
+          disbursement_date?: string | null
           emi_amount?: number
           fi_location?: string | null
           guarantor_address?: string | null
@@ -140,6 +146,7 @@ export type Database = {
           last_month_bounce?: number | null
           lender_name: string
           lms_status?: string
+          loan_amount?: number | null
           principle_due?: number | null
           reference_address?: string | null
           reference_mobile?: string | null
@@ -149,8 +156,10 @@ export type Database = {
           team_lead: string
           updated_at?: string | null
           user_id: string
+          vehicle_status?: string | null
         }
         Update: {
+          amount_collected?: number | null
           applicant_address?: string | null
           applicant_id?: string
           applicant_mobile?: string | null
@@ -163,6 +172,7 @@ export type Database = {
           created_at?: string | null
           dealer_name?: string
           demand_date?: string | null
+          disbursement_date?: string | null
           emi_amount?: number
           fi_location?: string | null
           guarantor_address?: string | null
@@ -174,6 +184,7 @@ export type Database = {
           last_month_bounce?: number | null
           lender_name?: string
           lms_status?: string
+          loan_amount?: number | null
           principle_due?: number | null
           reference_address?: string | null
           reference_mobile?: string | null
@@ -183,6 +194,7 @@ export type Database = {
           team_lead?: string
           updated_at?: string | null
           user_id?: string
+          vehicle_status?: string | null
         }
         Relationships: []
       }
@@ -190,6 +202,7 @@ export type Database = {
         Row: {
           application_id: string
           created_at: string
+          demand_date: string
           field: string
           id: string
           new_value: string | null
@@ -200,6 +213,7 @@ export type Database = {
         Insert: {
           application_id: string
           created_at?: string
+          demand_date: string
           field: string
           id?: string
           new_value?: string | null
@@ -210,6 +224,7 @@ export type Database = {
         Update: {
           application_id?: string
           created_at?: string
+          demand_date?: string
           field?: string
           id?: string
           new_value?: string | null
@@ -224,6 +239,7 @@ export type Database = {
           application_id: string
           contact_type: string
           created_at: string
+          demand_date: string
           id: string
           new_status: string
           previous_status: string | null
@@ -235,6 +251,7 @@ export type Database = {
           application_id: string
           contact_type: string
           created_at?: string
+          demand_date: string
           id?: string
           new_status: string
           previous_status?: string | null
@@ -246,6 +263,7 @@ export type Database = {
           application_id?: string
           contact_type?: string
           created_at?: string
+          demand_date?: string
           id?: string
           new_status?: string
           previous_status?: string | null
@@ -255,11 +273,68 @@ export type Database = {
         }
         Relationships: []
       }
+      collection: {
+        Row: {
+          amount_collected: number | null
+          application_id: string
+          collection_rm: string | null
+          created_at: string | null
+          demand_date: string
+          emi_amount: number | null
+          id: string
+          last_month_bounce: number | null
+          lms_status: string | null
+          repayment: string | null
+          rm_name: string | null
+          team_lead: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount_collected?: number | null
+          application_id: string
+          collection_rm?: string | null
+          created_at?: string | null
+          demand_date: string
+          emi_amount?: number | null
+          id?: string
+          last_month_bounce?: number | null
+          lms_status?: string | null
+          repayment?: string | null
+          rm_name?: string | null
+          team_lead?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount_collected?: number | null
+          application_id?: string
+          collection_rm?: string | null
+          created_at?: string | null
+          demand_date?: string
+          emi_amount?: number | null
+          id?: string
+          last_month_bounce?: number | null
+          lms_status?: string | null
+          repayment?: string | null
+          rm_name?: string | null
+          team_lead?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collection_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["applicant_id"]
+          },
+        ]
+      }
       comments: {
         Row: {
           application_id: string
           content: string
           created_at: string
+          demand_date: string
           id: string
           updated_at: string
           user_email: string | null
@@ -269,6 +344,7 @@ export type Database = {
           application_id: string
           content: string
           created_at?: string
+          demand_date: string
           id?: string
           updated_at?: string
           user_email?: string | null
@@ -278,6 +354,7 @@ export type Database = {
           application_id?: string
           content?: string
           created_at?: string
+          demand_date?: string
           id?: string
           updated_at?: string
           user_email?: string | null
@@ -290,6 +367,7 @@ export type Database = {
           application_id: string
           contact_type: string
           created_at: string | null
+          demand_date: string
           id: string
           status: string
           updated_at: string | null
@@ -300,6 +378,7 @@ export type Database = {
           application_id: string
           contact_type: string
           created_at?: string | null
+          demand_date: string
           id?: string
           status?: string
           updated_at?: string | null
@@ -310,6 +389,7 @@ export type Database = {
           application_id?: string
           contact_type?: string
           created_at?: string | null
+          demand_date?: string
           id?: string
           status?: string
           updated_at?: string | null
@@ -321,7 +401,9 @@ export type Database = {
       field_status: {
         Row: {
           application_id: string
+          calling_status: string | null
           created_at: string
+          demand_date: string
           id: string
           requested_status: string | null
           status: string
@@ -332,7 +414,9 @@ export type Database = {
         }
         Insert: {
           application_id: string
+          calling_status?: string | null
           created_at?: string
+          demand_date: string
           id?: string
           requested_status?: string | null
           status?: string
@@ -343,7 +427,9 @@ export type Database = {
         }
         Update: {
           application_id?: string
+          calling_status?: string | null
           created_at?: string
+          demand_date?: string
           id?: string
           requested_status?: string | null
           status?: string
@@ -409,6 +495,7 @@ export type Database = {
         Row: {
           application_id: string
           created_at: string
+          demand_date: string
           id: string
           ptp_date: string | null
           updated_at: string
@@ -417,6 +504,7 @@ export type Database = {
         Insert: {
           application_id: string
           created_at?: string
+          demand_date: string
           id?: string
           ptp_date?: string | null
           updated_at?: string
@@ -425,6 +513,7 @@ export type Database = {
         Update: {
           application_id?: string
           created_at?: string
+          demand_date?: string
           id?: string
           ptp_date?: string | null
           updated_at?: string
@@ -432,12 +521,45 @@ export type Database = {
         }
         Relationships: []
       }
+      repayment_history: {
+        Row: {
+          application_id: string
+          created_at: string | null
+          delay_in_days: number
+          id: string
+          repayment_number: number
+        }
+        Insert: {
+          application_id: string
+          created_at?: string | null
+          delay_in_days: number
+          id?: string
+          repayment_number: number
+        }
+        Update: {
+          application_id?: string
+          created_at?: string | null
+          delay_in_days?: number
+          id?: string
+          repayment_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "repayment_history_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["applicant_id"]
+          },
+        ]
+      }
       status_change_requests: {
         Row: {
           application_id: string
           approval_status: Database["public"]["Enums"]["approval_status"]
           created_at: string | null
           current_status: string
+          demand_date: string
           id: string
           request_timestamp: string
           requested_by_email: string | null
@@ -456,6 +578,7 @@ export type Database = {
           approval_status?: Database["public"]["Enums"]["approval_status"]
           created_at?: string | null
           current_status: string
+          demand_date: string
           id?: string
           request_timestamp?: string
           requested_by_email?: string | null
@@ -474,6 +597,7 @@ export type Database = {
           approval_status?: Database["public"]["Enums"]["approval_status"]
           created_at?: string | null
           current_status?: string
+          demand_date?: string
           id?: string
           request_timestamp?: string
           requested_by_email?: string | null

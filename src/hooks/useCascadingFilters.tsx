@@ -1,3 +1,4 @@
+
 import { useState, useMemo } from 'react';
 import { Application } from '@/types/application';
 import { FilterState, AvailableOptions } from '@/types/filters';
@@ -24,13 +25,21 @@ export const useCascadingFilters = (applications: Application[]) => {
     return filterApplications(applications, filters);
   }, [applications, filters]);
 
+  // Extract selected EMI Month for context-aware options
+  const selectedEmiMonth = useMemo(() => {
+    if (filters.emiMonth.length === 1) {
+      return filters.emiMonth[0];
+    }
+    return null;
+  }, [filters.emiMonth]);
+
   const availableOptions = useMemo<AvailableOptions>(() => {
-    const dynamicOptions = getAvailableOptions(applications, filteredApplications);
+    const dynamicOptions = getAvailableOptions(applications, filteredApplications, selectedEmiMonth);
     return {
       ...dynamicOptions,
       vehicleStatusOptions: VEHICLE_STATUS_OPTIONS.map(opt => opt.value)
     };
-  }, [applications, filteredApplications]);
+  }, [applications, filteredApplications, selectedEmiMonth]);
 
   const handleFilterChange = (key: string, values: string[]) => {
     setFilters(prev => ({

@@ -1,12 +1,9 @@
 
-import { useState } from "react";
 import { Application } from "@/types/application";
+import { useIsMobile } from "@/hooks/use-mobile";
 import ApplicationsTable from "@/components/ApplicationsTable";
 import MobileOptimizedTable from "@/components/MobileOptimizedTable";
 import PaginationControls from "@/components/PaginationControls";
-import PendingApprovals from "@/components/PendingApprovals";
-import { useUserRoles } from "@/hooks/useUserRoles";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 interface MainContentProps {
   applications: Application[];
@@ -18,6 +15,7 @@ interface MainContentProps {
   onPageChange: (page: number) => void;
   totalCount: number;
   pageSize: number;
+  selectedEmiMonth?: string | null;
 }
 
 const MainContent = ({
@@ -29,33 +27,20 @@ const MainContent = ({
   totalPages,
   onPageChange,
   totalCount,
-  pageSize
+  pageSize,
+  selectedEmiMonth
 }: MainContentProps) => {
-  const { isAdmin } = useUserRoles();
   const isMobile = useIsMobile();
 
   return (
     <div className="space-y-6">
-      {/* Admin Controls */}
-      {isAdmin && (
-        <div className="space-y-4">
-          {/* Pending Approvals */}
-          <PendingApprovals onUpdate={() => window.location.reload()} />
-          
-          {/* Applications Management Header */}
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium">Applications Management</h3>
-          </div>
-        </div>
-      )}
-
-      {/* Applications Table/List */}
-      <div className="bg-white rounded-lg shadow">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-1">
         {isMobile ? (
           <MobileOptimizedTable
             applications={applications}
             onRowClick={onRowClick}
             selectedApplicationId={selectedApplicationId}
+            selectedEmiMonth={selectedEmiMonth}
           />
         ) : (
           <ApplicationsTable
@@ -63,11 +48,11 @@ const MainContent = ({
             onRowClick={onRowClick}
             onApplicationDeleted={onApplicationDeleted}
             selectedApplicationId={selectedApplicationId}
+            selectedEmiMonth={selectedEmiMonth}
           />
         )}
       </div>
 
-      {/* Pagination */}
       <PaginationControls
         currentPage={currentPage}
         totalPages={totalPages}

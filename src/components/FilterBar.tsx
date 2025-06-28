@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { ChevronDown, ChevronUp, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,9 +35,10 @@ interface FilterBarProps {
     collectionRms: string[];
     vehicleStatusOptions: string[];
   };
+  selectedEmiMonth?: string | null;
 }
 
-const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps) => {
+const FilterBar = ({ filters, onFilterChange, availableOptions, selectedEmiMonth }: FilterBarProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
   // Local state for pending filters
@@ -115,6 +117,11 @@ const FilterBar = ({ filters, onFilterChange, availableOptions }: FilterBarProps
               {activeFilterCount > 0 && (
                 <span className="bg-blue-100 text-blue-800 text-sm px-3 py-1 rounded-full font-medium">
                   {activeFilterCount} active
+                </span>
+              )}
+              {selectedEmiMonth && (
+                <span className="bg-green-100 text-green-800 text-sm px-3 py-1 rounded-full font-medium">
+                  EMI: {selectedEmiMonth}
                 </span>
               )}
             </div>
