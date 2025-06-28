@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Application } from '@/types/application';
 import { FilterState } from '@/types/filters';
-import { getMonthVariations } from '@/utils/dateUtils';
+import { getMonthDateRange } from '@/utils/dateUtils';
 
 interface UseOptimizedApplicationsV2Props {
   filters: FilterState;
@@ -48,15 +48,16 @@ export const useOptimizedApplicationsV2 = ({
       console.log('Filters:', filters);
       console.log('Search Term:', searchTerm);
 
-      // Get all possible database variations for the selected month
-      const monthVariations = getMonthVariations(selectedEmiMonth);
-      console.log('Month variations for query:', monthVariations);
+      // Get date range for the selected month
+      const { start, end } = getMonthDateRange(selectedEmiMonth);
+      console.log('Date range for query:', start, 'to', end);
 
       // STEP 1: Get ALL applications from collection table for this month (PRIMARY SOURCE)
       let collectionQuery = supabase
         .from('collection')
         .select('*')
-        .in('demand_date', monthVariations);
+        .gte('demand_date', start)
+        .lte('demand_date', end);
 
       // Apply filters to collection query
       if (filters.teamLead?.length > 0) {

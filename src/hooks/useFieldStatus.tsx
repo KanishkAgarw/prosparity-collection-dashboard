@@ -3,7 +3,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { FieldStatus } from '@/types/database';
-import { getMonthVariations } from '@/utils/dateUtils';
+import { getMonthDateRange } from '@/utils/dateUtils';
 
 export const useFieldStatus = () => {
   const { user } = useAuth();
@@ -12,25 +12,32 @@ export const useFieldStatus = () => {
   const fetchFieldStatus = useCallback(async (applicationIds: string[], selectedMonth?: string) => {
     if (applicationIds.length === 0 || !selectedMonth) return {};
 
-    // Use month variations to handle different date formats
-    const monthVariations = getMonthVariations(selectedMonth);
-    console.log('Fetching field status with month variations:', monthVariations);
+    // Use date range for the selected month
+    const { start, end } = getMonthDateRange(selectedMonth);
+    console.log('Fetching field status for month range:', start, 'to', end);
 
     const { data, error } = await supabase
       .from('field_status')
       .select('*')
       .in('application_id', applicationIds)
-      .in('demand_date', monthVariations);
+      .gte('demand_date', start)
+      .lte('demand_date', end)
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching field status:', error);
       return {};
     }
 
-    // Create a map of application_id -> status (for the selected month)
+    // Create a map of application_id -> status (latest record per application)
     const statusMap: Record<string, string> = {};
+    const processedApps = new Set<string>();
+    
     data?.forEach(status => {
-      statusMap[status.application_id] = status.status;
+      if (!processedApps.has(status.application_id)) {
+        statusMap[status.application_id] = status.status;
+        processedApps.add(status.application_id);
+      }
     });
 
     return statusMap;
@@ -41,15 +48,19 @@ export const useFieldStatus = () => {
 
     setLoading(true);
     try {
-      // Use month variations to find existing status
-      const monthVariations = getMonthVariations(demandDate);
-      
-      // Check if field status exists for this month (using any of the variations)
+      // Convert YYYY-MM to actual EMI date (5th of the month)
+      const emiDate = demandDate.match(/^\d{4}-\d{2}$/) 
+        ? `${demandDate}-05` 
+        : demandDate;
+
+      console.log('Updating field status:', { applicationId, newStatus, emiDate });
+
+      // Check if field status exists for this exact date
       const { data: existingStatus } = await supabase
         .from('field_status')
         .select('*')
         .eq('application_id', applicationId)
-        .in('demand_date', monthVariations)
+        .eq('demand_date', emiDate)
         .maybeSingle();
 
       if (existingStatus) {
@@ -62,21 +73,20 @@ export const useFieldStatus = () => {
             user_email: user.email,
             updated_at: new Date().toISOString()
           })
-          .eq('application_id', applicationId)
-          .eq('demand_date', existingStatus.demand_date) // Use the exact demand_date from existing record
+          .eq('id', existingStatus.id)
           .select()
           .single();
 
         if (error) throw error;
         return data;
       } else {
-        // Create new - use the normalized month format
+        // Create new
         const { data, error } = await supabase
           .from('field_status')
           .insert({
             application_id: applicationId,
             status: newStatus,
-            demand_date: demandDate, // Use the passed demand date
+            demand_date: emiDate,
             user_id: user.id,
             user_email: user.email
           })

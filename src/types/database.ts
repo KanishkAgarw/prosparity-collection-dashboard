@@ -1,4 +1,5 @@
-// Database application type without removed columns
+
+// Database application type with updated date column types
 export interface DatabaseApplication {
   id: string;
   applicant_id: string;
@@ -12,7 +13,7 @@ export interface DatabaseApplication {
   emi_amount: number;
   principle_due: number;
   interest_due: number;
-  demand_date?: string;
+  demand_date?: string | Date; // Now a proper DATE type
   user_id: string;
   created_at: string;
   updated_at: string;
@@ -53,16 +54,17 @@ export interface FieldStatus {
   status: string;
   user_id: string;
   user_email?: string;
+  demand_date: string | Date; // Now a proper DATE type
   created_at: string;
   updated_at: string;
 }
 
-// New interfaces for PTP and Payment dates
+// Updated interfaces for PTP and Payment dates with proper DATE types
 export interface PtpDate {
   id: string;
   application_id: string;
   ptp_date?: string;
-  demand_date: string;
+  demand_date: string | Date; // Now a proper DATE type
   user_id: string;
   created_at: string;
   updated_at: string;
@@ -80,7 +82,7 @@ export interface PaymentDate {
 export interface CollectionData {
   id?: string;
   application_id: string;
-  demand_date: string;
+  demand_date: string | Date; // Now a proper DATE type
   team_lead?: string;
   rm_name?: string;
   repayment?: string;

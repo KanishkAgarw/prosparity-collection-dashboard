@@ -1,13 +1,15 @@
+
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { PtpDate } from '@/types/database';
+import { getMonthDateRange } from '@/utils/dateUtils';
 
 export const usePtpDates = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  const fetchPtpDate = useCallback(async (applicationId: string, demandDate?: string): Promise<string | null> => {
+  const fetchPtpDate = useCallback(async (applicationId: string, demandMonth?: string): Promise<string | null> => {
     if (!user) return null;
     
     try {
@@ -18,9 +20,10 @@ export const usePtpDates = () => {
         .order('created_at', { ascending: false })
         .limit(1);
 
-      // Add demand_date filter if provided
-      if (demandDate) {
-        query = query.eq('demand_date', demandDate);
+      // Add demand_date filter if provided (month range)
+      if (demandMonth) {
+        const { start, end } = getMonthDateRange(demandMonth);
+        query = query.gte('demand_date', start).lte('demand_date', end);
       }
 
       const { data, error } = await query.maybeSingle();
@@ -37,12 +40,12 @@ export const usePtpDates = () => {
     }
   }, [user]);
 
-  const fetchPtpDates = useCallback(async (applicationIds: string[], demandDate?: string): Promise<Record<string, string | null>> => {
+  const fetchPtpDates = useCallback(async (applicationIds: string[], demandMonth?: string): Promise<Record<string, string | null>> => {
     if (!user || applicationIds.length === 0) return {};
     
     try {
       console.log('🔄 Fetching PTP dates for', applicationIds.length, 'applications');
-      console.log('Demand date filter:', demandDate || 'All dates');
+      console.log('Demand month filter:', demandMonth || 'All dates');
       
       let query = supabase
         .from('ptp_dates')
@@ -51,9 +54,10 @@ export const usePtpDates = () => {
         .order('application_id', { ascending: true })
         .order('created_at', { ascending: false });
 
-      // Add demand_date filter if provided
-      if (demandDate) {
-        query = query.eq('demand_date', demandDate);
+      // Add demand_date filter if provided (month range)
+      if (demandMonth) {
+        const { start, end } = getMonthDateRange(demandMonth);
+        query = query.gte('demand_date', start).lte('demand_date', end);
       }
 
       const { data, error } = await query;
@@ -115,22 +119,28 @@ export const usePtpDates = () => {
       // Convert empty string to null for clearing
       const finalPtpDate = (ptpDate && ptpDate.trim() !== '') ? ptpDate : null;
 
+      // Convert YYYY-MM to actual EMI date (5th of the month)
+      const emiDate = demandDate.match(/^\d{4}-\d{2}$/) 
+        ? `${demandDate}-05` 
+        : demandDate;
+
       console.log('Attempting to insert PTP date record...');
       console.log('Final PTP Date value:', finalPtpDate);
+      console.log('EMI Date:', emiDate);
       
-      // Insert the PTP date record with demand_date
-        const { error: insertError, data: insertData } = await supabase
-          .from('ptp_dates')
-          .insert({
-            application_id: applicationId,
-            ptp_date: finalPtpDate,
-          demand_date: demandDate,
-            user_id: user.id
-          })
-          .select()
-          .single();
+      // Insert the PTP date record with proper demand_date
+      const { error: insertError, data: insertData } = await supabase
+        .from('ptp_dates')
+        .insert({
+          application_id: applicationId,
+          ptp_date: finalPtpDate,
+          demand_date: emiDate,
+          user_id: user.id
+        })
+        .select()
+        .single();
 
-        if (insertError) {
+      if (insertError) {
         console.error('❌ PTP Insert Error:', insertError);
         return false;
       }

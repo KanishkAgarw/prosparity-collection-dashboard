@@ -202,7 +202,7 @@ export type Database = {
         Row: {
           application_id: string
           created_at: string
-          demand_date: string
+          demand_date: string | null
           field: string
           id: string
           new_value: string | null
@@ -213,7 +213,7 @@ export type Database = {
         Insert: {
           application_id: string
           created_at?: string
-          demand_date: string
+          demand_date?: string | null
           field: string
           id?: string
           new_value?: string | null
@@ -224,7 +224,7 @@ export type Database = {
         Update: {
           application_id?: string
           created_at?: string
-          demand_date?: string
+          demand_date?: string | null
           field?: string
           id?: string
           new_value?: string | null
@@ -239,7 +239,7 @@ export type Database = {
           application_id: string
           contact_type: string
           created_at: string
-          demand_date: string
+          demand_date: string | null
           id: string
           new_status: string
           previous_status: string | null
@@ -251,7 +251,7 @@ export type Database = {
           application_id: string
           contact_type: string
           created_at?: string
-          demand_date: string
+          demand_date?: string | null
           id?: string
           new_status: string
           previous_status?: string | null
@@ -263,7 +263,7 @@ export type Database = {
           application_id?: string
           contact_type?: string
           created_at?: string
-          demand_date?: string
+          demand_date?: string | null
           id?: string
           new_status?: string
           previous_status?: string | null
@@ -279,7 +279,7 @@ export type Database = {
           application_id: string
           collection_rm: string | null
           created_at: string | null
-          demand_date: string
+          demand_date: string | null
           emi_amount: number | null
           id: string
           last_month_bounce: number | null
@@ -294,7 +294,7 @@ export type Database = {
           application_id: string
           collection_rm?: string | null
           created_at?: string | null
-          demand_date: string
+          demand_date?: string | null
           emi_amount?: number | null
           id?: string
           last_month_bounce?: number | null
@@ -309,7 +309,7 @@ export type Database = {
           application_id?: string
           collection_rm?: string | null
           created_at?: string | null
-          demand_date?: string
+          demand_date?: string | null
           emi_amount?: number | null
           id?: string
           last_month_bounce?: number | null
@@ -334,7 +334,7 @@ export type Database = {
           application_id: string
           content: string
           created_at: string
-          demand_date: string
+          demand_date: string | null
           id: string
           updated_at: string
           user_email: string | null
@@ -344,7 +344,7 @@ export type Database = {
           application_id: string
           content: string
           created_at?: string
-          demand_date: string
+          demand_date?: string | null
           id?: string
           updated_at?: string
           user_email?: string | null
@@ -354,7 +354,7 @@ export type Database = {
           application_id?: string
           content?: string
           created_at?: string
-          demand_date?: string
+          demand_date?: string | null
           id?: string
           updated_at?: string
           user_email?: string | null
@@ -367,7 +367,7 @@ export type Database = {
           application_id: string
           contact_type: string
           created_at: string | null
-          demand_date: string
+          demand_date: string | null
           id: string
           status: string
           updated_at: string | null
@@ -378,7 +378,7 @@ export type Database = {
           application_id: string
           contact_type: string
           created_at?: string | null
-          demand_date: string
+          demand_date?: string | null
           id?: string
           status?: string
           updated_at?: string | null
@@ -389,7 +389,7 @@ export type Database = {
           application_id?: string
           contact_type?: string
           created_at?: string | null
-          demand_date?: string
+          demand_date?: string | null
           id?: string
           status?: string
           updated_at?: string | null
@@ -403,7 +403,7 @@ export type Database = {
           application_id: string
           calling_status: string | null
           created_at: string
-          demand_date: string
+          demand_date: string | null
           id: string
           requested_status: string | null
           status: string
@@ -416,7 +416,7 @@ export type Database = {
           application_id: string
           calling_status?: string | null
           created_at?: string
-          demand_date: string
+          demand_date?: string | null
           id?: string
           requested_status?: string | null
           status?: string
@@ -429,7 +429,7 @@ export type Database = {
           application_id?: string
           calling_status?: string | null
           created_at?: string
-          demand_date?: string
+          demand_date?: string | null
           id?: string
           requested_status?: string | null
           status?: string
@@ -495,7 +495,7 @@ export type Database = {
         Row: {
           application_id: string
           created_at: string
-          demand_date: string
+          demand_date: string | null
           id: string
           ptp_date: string | null
           updated_at: string
@@ -504,7 +504,7 @@ export type Database = {
         Insert: {
           application_id: string
           created_at?: string
-          demand_date: string
+          demand_date?: string | null
           id?: string
           ptp_date?: string | null
           updated_at?: string
@@ -513,7 +513,7 @@ export type Database = {
         Update: {
           application_id?: string
           created_at?: string
-          demand_date?: string
+          demand_date?: string | null
           id?: string
           ptp_date?: string | null
           updated_at?: string

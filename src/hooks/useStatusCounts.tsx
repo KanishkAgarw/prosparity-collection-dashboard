@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { FilterState } from '@/types/filters';
-import { getMonthVariations } from '@/utils/dateUtils';
+import { getMonthDateRange } from '@/utils/dateUtils';
 
 interface StatusCounts {
   total: number;
@@ -41,15 +41,16 @@ export const useStatusCounts = ({ filters, selectedEmiMonth }: UseStatusCountsPr
       console.log('=== FETCHING STATUS COUNTS ===');
       console.log('Selected EMI Month:', selectedEmiMonth);
 
-      // Get all possible database variations for the selected month
-      const monthVariations = getMonthVariations(selectedEmiMonth);
-      console.log('Status counts - querying month variations:', monthVariations);
+      // Get date range for the selected month
+      const { start, end } = getMonthDateRange(selectedEmiMonth);
+      console.log('Status counts - querying date range:', start, 'to', end);
 
       // PRIMARY: Get all applications from collection table for this month
       let collectionQuery = supabase
         .from('collection')
         .select('application_id, team_lead, rm_name, collection_rm, repayment')
-        .in('demand_date', monthVariations);
+        .gte('demand_date', start)
+        .lte('demand_date', end);
 
       // Apply filters to collection query
       if (filters.teamLead?.length > 0) {
@@ -145,12 +146,13 @@ export const useStatusCounts = ({ filters, selectedEmiMonth }: UseStatusCountsPr
         return;
       }
 
-      // Fetch field status for these applications using month variations
+      // Fetch field status for these applications using date range
       const { data: fieldStatusData } = await supabase
         .from('field_status')
         .select('application_id, status, created_at')
         .in('application_id', applicationIds)
-        .in('demand_date', monthVariations)
+        .gte('demand_date', start)
+        .lte('demand_date', end)
         .order('created_at', { ascending: false });
 
       console.log(`Found ${fieldStatusData?.length || 0} field status records for status counting`);

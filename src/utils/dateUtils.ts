@@ -1,61 +1,49 @@
 
-// Utility functions for handling mixed date formats in the database
+// Simplified utility functions for handling standardized DATE columns
 
-export const normalizeEmiMonth = (emiMonth: string): string => {
+export const normalizeEmiMonth = (emiMonth: string | Date): string => {
   if (!emiMonth) return '';
   
-  // Check if it's an Excel serial number (numeric string)
-  const numericValue = parseFloat(emiMonth);
-  if (!isNaN(numericValue) && numericValue > 25000 && numericValue < 100000) {
-    // Excel serial date conversion - Excel epoch starts Jan 1, 1900
-    // Excel has a bug where it treats 1900 as a leap year, so we need to account for that
-    const excelEpoch = new Date(1900, 0, 1);
-    const millisecondsPerDay = 24 * 60 * 60 * 1000;
-    // Subtract 2 to account for Excel's leap year bug and 0-indexing
-    const date = new Date(excelEpoch.getTime() + (numericValue - 2) * millisecondsPerDay);
-    return date.toISOString().split('T')[0].substring(0, 7); // YYYY-MM format
+  // If it's already a Date object, format it
+  if (emiMonth instanceof Date) {
+    return emiMonth.toISOString().split('T')[0].substring(0, 7); // YYYY-MM format
   }
   
-  // If it's already in YYYY-MM format, return as is
-  if (emiMonth.match(/^\d{4}-\d{2}$/)) {
+  // If it's a string in YYYY-MM format, return as is
+  if (typeof emiMonth === 'string' && emiMonth.match(/^\d{4}-\d{2}$/)) {
     return emiMonth;
   }
   
-  // If it's in YYYY-MM-DD format, extract YYYY-MM
-  if (emiMonth.match(/^\d{4}-\d{2}-\d{2}$/)) {
+  // If it's a date string, extract YYYY-MM
+  if (typeof emiMonth === 'string' && emiMonth.match(/^\d{4}-\d{2}-\d{2}/)) {
     return emiMonth.substring(0, 7);
   }
   
-  return emiMonth;
+  return emiMonth.toString();
 };
 
-// Convert normalized month (YYYY-MM) to all possible database representations
-export const getMonthVariations = (normalizedMonth: string): string[] => {
-  if (!normalizedMonth || !normalizedMonth.match(/^\d{4}-\d{2}$/)) {
-    return [normalizedMonth];
+// Convert YYYY-MM to the 5th day of that month (EMI date)
+export const monthToEmiDate = (yearMonth: string): string => {
+  if (!yearMonth || !yearMonth.match(/^\d{4}-\d{2}$/)) {
+    return yearMonth;
   }
+  return `${yearMonth}-05`;
+};
 
-  const variations = [normalizedMonth];
+// Get the first and last day of a month for date range queries
+export const getMonthDateRange = (yearMonth: string): { start: string; end: string } => {
+  if (!yearMonth || !yearMonth.match(/^\d{4}-\d{2}$/)) {
+    return { start: yearMonth, end: yearMonth };
+  }
   
-  // Add the 5th day of the month format (YYYY-MM-05) since EMI dates fall on 5th
-  variations.push(`${normalizedMonth}-05`);
+  const [year, month] = yearMonth.split('-').map(Number);
+  const startDate = new Date(year, month - 1, 1);
+  const endDate = new Date(year, month, 0); // Last day of the month
   
-  // Calculate Excel serial number for the 5th day of the month
-  const [year, month] = normalizedMonth.split('-').map(Number);
-  const date = new Date(year, month - 1, 5); // month - 1 because JS months are 0-indexed, day 5 for EMI date
-  
-  // Convert to Excel serial number - FINAL FIX
-  const excelEpoch = new Date(1900, 0, 1);
-  const diffInMs = date.getTime() - excelEpoch.getTime();
-  const diffInDays = Math.floor(diffInMs / (24 * 60 * 60 * 1000));
-  // Add 5 to match the actual database values (Jul-25 needs 45843, Jun-25 needs 45813)
-  const excelSerial = diffInDays + 5;
-  
-  variations.push(excelSerial.toString());
-  
-  console.log(`Month variations for ${normalizedMonth}:`, variations);
-  
-  return variations;
+  return {
+    start: startDate.toISOString().split('T')[0],
+    end: endDate.toISOString().split('T')[0]
+  };
 };
 
 // Group database dates by normalized month
