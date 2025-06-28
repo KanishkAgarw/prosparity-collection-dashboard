@@ -9,7 +9,7 @@ export const useApplicationHandlers = (
   application: Application | null,
   user: any,
   addAuditLog: (appId: string, field: string, previousValue: string | null, newValue: string | null, demandDate: string) => Promise<void>,
-  addCallingLog: (contactType: string, newStatus: string, previousStatus?: string) => Promise<void>,
+  addCallingLog: (contactType: string, previousStatus: string, newStatus: string) => Promise<void>,
   onSave: (updatedApp: Application) => void,
   selectedMonth?: string
 ) => {
@@ -277,7 +277,7 @@ export const useApplicationHandlers = (
       }
 
       // Add calling log
-      await addCallingLog(contactType, newStatus, previousStatus);
+      await addCallingLog(contactType, previousStatus, newStatus);
 
       // Update local application state
       const updatedApp = { 

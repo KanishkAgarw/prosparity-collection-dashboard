@@ -306,7 +306,7 @@ const Index = () => {
             onClick={handleApplicationClose}
           />
           {/* Panel */}
-          <div className="fixed inset-y-0 right-0 w-full sm:w-96 lg:w-[500px] z-50">
+          <div className="fixed inset-y-0 right-0 w-[95%] sm:w-96 lg:w-[500px] z-50">
             <ApplicationDetailsPanel
               application={selectedApplication}
               onClose={handleApplicationClose}

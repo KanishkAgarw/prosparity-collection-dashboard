@@ -15,6 +15,7 @@ import LogDialog from "./LogDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useFieldStatus } from "@/hooks/useFieldStatus";
+import { CALLING_STATUS_OPTIONS } from '@/constants/options';
 
 interface StatusTabProps {
   application: Application;
@@ -35,6 +36,8 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
   const { fetchFieldStatus, updateFieldStatus } = useFieldStatus();
   const [currentStatus, setCurrentStatus] = useState<string>('Unpaid');
   const [statusLoading, setStatusLoading] = useState(false);
+  const [currentCallingStatus, setCurrentCallingStatus] = useState<string>('');
+  const [callingStatusLoading, setCallingStatusLoading] = useState(false);
   
   // PTP date synchronization - improved to handle month-specific data
   useEffect(() => {
@@ -99,6 +102,27 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
     };
     fetchStatus();
   }, [application?.applicant_id, selectedMonth, fetchFieldStatus]);
+
+  // Fetch calling status for the selected month
+  useEffect(() => {
+    const fetchCallingStatus = async () => {
+      if (!application?.applicant_id || !selectedMonth) return;
+      setCallingStatusLoading(true);
+      const { data, error } = await supabase
+        .from('field_status')
+        .select('calling_status')
+        .eq('application_id', application.applicant_id)
+        .eq('demand_date', selectedMonth)
+        .maybeSingle();
+      if (error) {
+        setCurrentCallingStatus('');
+      } else {
+        setCurrentCallingStatus(data?.calling_status || '');
+      }
+      setCallingStatusLoading(false);
+    };
+    fetchCallingStatus();
+  }, [application?.applicant_id, selectedMonth]);
 
   const handlePtpDateChange = async (value: string) => {
     console.log('=== PTP DATE INPUT CHANGE ===');
@@ -240,19 +264,54 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
     return uniqueLogs.slice(0, 2);
   }, [statusAndPtpLogs]);
 
-  // Get the 5 basic status options
+  // Get the 4 basic status options (removed "Customer Deposited to Bank")
   const getStatusOptions = () => {
     return [
       { value: "Unpaid", label: "Unpaid" },
       { value: "Partially Paid", label: "Partially Paid" },
       { value: "Cash Collected from Customer", label: "Cash Collected from Customer" },
-      { value: "Customer Deposited to Bank", label: "Customer Deposited to Bank" },
       { value: "Paid", label: "Paid" }
     ];
   };
 
   // Check if status is pending approval
   const isPendingApproval = currentStatus?.includes('Pending Approval');
+
+  // Handle calling status change
+  const handleCallingStatusChange = async (newStatus: string) => {
+    setCallingStatusLoading(true);
+    try {
+      // Fetch previous value
+      const { data: existingStatus } = await supabase
+        .from('field_status')
+        .select('calling_status')
+        .eq('application_id', application.applicant_id)
+        .eq('demand_date', selectedMonth)
+        .maybeSingle();
+      const prevStatus = existingStatus?.calling_status || '';
+      // Upsert new value
+      const { error } = await supabase
+        .from('field_status')
+        .upsert({
+          application_id: application.applicant_id,
+          calling_status: newStatus,
+          demand_date: selectedMonth,
+          user_id: user.id,
+          user_email: user.email,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'application_id,demand_date' });
+      if (error) throw error;
+      setCurrentCallingStatus(newStatus);
+      if (prevStatus !== newStatus) {
+        await addAuditLog(application.applicant_id, 'Calling Status', prevStatus, newStatus, selectedMonth);
+      }
+      toast.success('Calling status updated');
+    } catch (err) {
+      toast.error('Failed to update calling status');
+    } finally {
+      setCallingStatusLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -262,8 +321,30 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
         </CardHeader>
         <CardContent className="pt-0">
           <div className="space-y-4">
+            {/* Calling Status dropdown - moved to first position */}
             <div>
-              <Label htmlFor="status">Status</Label>
+              <Label htmlFor="callingStatus">Calling Status</Label>
+              <Select
+                value={currentCallingStatus}
+                onValueChange={handleCallingStatusChange}
+                disabled={callingStatusLoading}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select calling status..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {CALLING_STATUS_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Collection Status dropdown - moved to second position */}
+            <div>
+              <Label htmlFor="status">Collection Status</Label>
               {isPendingApproval ? (
                 <div className="mt-1 space-y-2">
                   <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
