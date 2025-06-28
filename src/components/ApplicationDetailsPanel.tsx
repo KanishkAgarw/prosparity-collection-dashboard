@@ -1,4 +1,3 @@
-
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -45,7 +44,9 @@ const ApplicationDetailsPanel = ({
 
   // Handle application changes
   useEffect(() => {
-    console.log('ApplicationDetailsPanel: Application changed', application?.applicant_id);
+    console.log('=== APPLICATION DETAILS PANEL DEBUG ===');
+    console.log('Application changed:', application?.applicant_id);
+    console.log('Selected EMI Month from filter:', selectedEmiMonth);
     setCurrentApplication(application);
     // Clear selectedMonth when application changes to force proper initialization
     setSelectedMonth('');
@@ -93,33 +94,44 @@ const ApplicationDetailsPanel = ({
 
   // Clear comments when application changes
   useEffect(() => {
-    console.log('ApplicationDetailsPanel: Clearing comments for application', currentApplication?.applicant_id);
+    console.log('Clearing comments for application:', currentApplication?.applicant_id);
     clearComments();
   }, [currentApplication?.applicant_id, clearComments]);
 
-  // Set initial month based on selectedEmiMonth or default to most recent
+  // FIXED: Set initial month based on selectedEmiMonth with proper debugging
   useEffect(() => {
-    console.log('ApplicationDetailsPanel: Setting initial month', {
-      selectedEmiMonth,
-      availableMonths,
-      currentApplicationId: currentApplication?.applicant_id
-    });
+    console.log('=== MONTH SELECTION DEBUG ===');
+    console.log('Selected EMI Month from filter:', selectedEmiMonth);
+    console.log('Available months:', availableMonths);
+    console.log('Current selected month:', selectedMonth);
     
     if (availableMonths.length > 0 && !selectedMonth && currentApplication?.applicant_id) {
       let initialMonth = '';
       
       if (selectedEmiMonth) {
+        console.log('Trying to match filter month:', selectedEmiMonth);
+        
         // Find the month that matches the selected EMI month from filters
-        const matchingMonth = availableMonths.find(month => 
-          formatEmiMonth(month) === selectedEmiMonth
-        );
-        initialMonth = matchingMonth || availableMonths[availableMonths.length - 1];
+        const matchingMonth = availableMonths.find(month => {
+          const formattedMonth = formatEmiMonth(month);
+          console.log(`Comparing: ${formattedMonth} === ${selectedEmiMonth}`, formattedMonth === selectedEmiMonth);
+          return formattedMonth === selectedEmiMonth;
+        });
+        
+        if (matchingMonth) {
+          initialMonth = matchingMonth;
+          console.log('✅ Found matching month:', initialMonth);
+        } else {
+          console.log('❌ No matching month found, using most recent');
+          initialMonth = availableMonths[availableMonths.length - 1];
+        }
       } else {
         // Default to the most recent month (last in the array)
         initialMonth = availableMonths[availableMonths.length - 1];
+        console.log('No filter month, using most recent:', initialMonth);
       }
       
-      console.log('ApplicationDetailsPanel: Setting initial month to', initialMonth);
+      console.log('Setting initial month to:', initialMonth);
       setSelectedMonth(initialMonth);
     }
   }, [availableMonths, selectedMonth, currentApplication?.applicant_id, selectedEmiMonth]);
@@ -129,7 +141,7 @@ const ApplicationDetailsPanel = ({
   
   useEffect(() => {
     if (commentsTabAccessed && currentApplication?.applicant_id && selectedMonth) {
-      console.log('ApplicationDetailsPanel: Fetching comments for active tab', {
+      console.log('Fetching comments for active tab', {
         applicationId: currentApplication.applicant_id,
         selectedMonth
       });

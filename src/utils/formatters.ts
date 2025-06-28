@@ -6,6 +6,9 @@ export const formatEmiMonth = (dateStr?: string) => {
   try {
     let date: Date;
     
+    console.log('=== FORMAT EMI MONTH DEBUG ===');
+    console.log('Input dateStr:', dateStr);
+    
     // Check if it's an Excel serial number (numeric string)
     const numericValue = parseFloat(dateStr);
     if (!isNaN(numericValue) && numericValue > 25000 && numericValue < 100000) {
@@ -26,12 +29,16 @@ export const formatEmiMonth = (dateStr?: string) => {
     }
     
     if (isNaN(date.getTime())) {
+      console.log('❌ Failed to parse date:', dateStr);
       return dateStr; // Return original if parsing fails
     }
     
     // Consistent MMM-YY format (e.g., "Jul-25")
-    return format(date, 'MMM-yy');
-  } catch {
+    const formatted = format(date, 'MMM-yy');
+    console.log('✅ Formatted result:', formatted);
+    return formatted;
+  } catch (error) {
+    console.error('Error formatting EMI month:', error);
     return dateStr; // Return original if formatting fails
   }
 };
