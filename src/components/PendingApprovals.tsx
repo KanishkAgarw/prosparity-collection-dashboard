@@ -28,10 +28,10 @@ interface StatusChangeRequest {
   reviewed_by_name: string | null;
   review_timestamp: string | null;
   review_comments: string | null;
+  demand_date: string;
   // Application details
   applicant_name?: string;
   applicant_id?: string;
-  demand_date?: string;
 }
 
 interface PendingApprovalsProps {
@@ -172,7 +172,8 @@ const PendingApprovals = ({ onUpdate }: PendingApprovalsProps) => {
             previous_value: `${request.current_status} (Pending Approval)`,
             new_value: request.requested_status,
             user_id: user.id,
-            user_email: user.email
+            user_email: user.email,
+            demand_date: request.demand_date
           });
 
         if (auditError) {
@@ -207,7 +208,8 @@ const PendingApprovals = ({ onUpdate }: PendingApprovalsProps) => {
             previous_value: `${request.requested_status} (Pending Approval)`,
             new_value: request.current_status,
             user_id: user.id,
-            user_email: user.email
+            user_email: user.email,
+            demand_date: request.demand_date
           });
 
         if (auditError) {

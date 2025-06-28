@@ -63,14 +63,7 @@ export const useOptimizedApplications = ({
   const buildQuery = useCallback(() => {
     let query = supabase
       .from('applications')
-      .select(`
-        *,
-        field_status!left(status, demand_date),
-        ptp_dates!left(ptp_date, demand_date),
-        payment_dates!left(paid_date),
-        contact_calling_status!left(contact_type, status, demand_date),
-        comments!left(content, user_email, created_at, demand_date)
-      `, { count: 'exact' });
+      .select('*', { count: 'exact' });
 
     // Apply filters
     if (filters.branch?.length > 0) {
@@ -126,6 +119,92 @@ export const useOptimizedApplications = ({
 
     return query;
   }, [filters, searchTerm, page, pageSize]);
+
+  // Fetch additional data for applications
+  const fetchAdditionalData = useCallback(async (applications: any[]) => {
+    if (!applications.length) return applications;
+
+    const applicationIds = applications.map(app => app.applicant_id);
+
+    try {
+      // Fetch field status
+      const { data: fieldStatusData } = await supabase
+        .from('field_status')
+        .select('application_id, status, demand_date')
+        .in('application_id', applicationIds);
+
+      // Fetch PTP dates
+      const { data: ptpData } = await supabase
+        .from('ptp_dates')
+        .select('application_id, ptp_date, demand_date')
+        .in('application_id', applicationIds);
+
+      // Fetch payment dates
+      const { data: paymentData } = await supabase
+        .from('payment_dates')
+        .select('application_id, paid_date')
+        .in('application_id', applicationIds);
+
+      // Fetch contact calling status
+      const { data: contactData } = await supabase
+        .from('contact_calling_status')
+        .select('application_id, contact_type, status, demand_date')
+        .in('application_id', applicationIds);
+
+      // Fetch comments
+      const { data: commentsData } = await supabase
+        .from('comments')
+        .select('application_id, content, user_email, created_at, demand_date')
+        .in('application_id', applicationIds)
+        .order('created_at', { ascending: false });
+
+      // Process applications with additional data
+      return applications.map(app => {
+        const fieldStatus = fieldStatusData?.find(fs => fs.application_id === app.applicant_id);
+        const ptpDate = ptpData?.find(ptp => ptp.application_id === app.applicant_id);
+        const paymentDate = paymentData?.find(pd => pd.application_id === app.applicant_id);
+        
+        const appContactData = contactData?.filter(cd => cd.application_id === app.applicant_id) || [];
+        const appComments = commentsData?.filter(c => c.application_id === app.applicant_id) || [];
+
+        const applicantCalling = appContactData.find(c => c.contact_type === 'applicant');
+        const coApplicantCalling = appContactData.find(c => c.contact_type === 'co_applicant');
+        const guarantorCalling = appContactData.find(c => c.contact_type === 'guarantor');
+        const referenceCalling = appContactData.find(c => c.contact_type === 'reference');
+
+        const callingStatuses = appContactData.map(c => c.status) || [];
+        const activeStatuses = callingStatuses.filter(s => s !== 'Not Called');
+
+        return {
+          ...app,
+          field_status: fieldStatus?.status || 'Unpaid',
+          ptp_date: ptpDate?.ptp_date,
+          paid_date: paymentDate?.paid_date,
+          applicant_calling_status: applicantCalling?.status || 'Not Called',
+          co_applicant_calling_status: coApplicantCalling?.status || 'Not Called',
+          guarantor_calling_status: guarantorCalling?.status || 'Not Called',
+          reference_calling_status: referenceCalling?.status || 'Not Called',
+          latest_calling_status: activeStatuses.length > 0 ? activeStatuses[0] : 'No Calls',
+          recent_comments: appComments.slice(0, 3).map(c => ({
+            content: c.content,
+            user_name: c.user_email || 'Unknown'
+          }))
+        };
+      });
+    } catch (error) {
+      console.error('Error fetching additional data:', error);
+      return applications.map(app => ({
+        ...app,
+        field_status: 'Unpaid',
+        applicant_calling_status: 'Not Called',
+        co_applicant_calling_status: 'Not Called',
+        guarantor_calling_status: 'Not Called',
+        reference_calling_status: 'Not Called',
+        latest_calling_status: 'No Calls',
+        recent_comments: []
+      }));
+    }
+  }, []);
 
   // Fetch filter options separately for better performance
   const fetchFilterOptions = useCallback(async () => {
@@ -193,23 +272,8 @@ export const useOptimizedApplications = ({
         return;
       }
 
-      // Process applications to match expected format
-      const processedApplications = applications?.map(app => ({
-        ...app,
-        field_status: app.field_status?.[0]?.status || 'Unpaid',
-        ptp_date: app.ptp_dates?.[0]?.ptp_date,
-        paid_date: app.payment_dates?.[0]?.paid_date,
-        applicant_calling_status: app.contact_calling_status?.find(c => c.contact_type === 'applicant')?.status || 'Not Called',
-        co_applicant_calling_status: app.contact_calling_status?.find(c => c.contact_type === 'co_applicant')?.status || 'Not Called',
-        guarantor_calling_status: app.contact_calling_status?.find(c => c.contact_type === 'guarantor')?.status || 'Not Called',
-        reference_calling_status: app.contact_calling_status?.find(c => c.contact_type === 'reference')?.status || 'Not Called',
-        latest_calling_status: (() => {
-          const statuses = app.contact_calling_status?.map(c => c.status) || [];
-          const activeStatuses = statuses.filter(s => s !== 'Not Called');
-          return activeStatuses.length > 0 ? activeStatuses[0] : 'No Calls';
-        })(),
-        recent_comments: app.comments?.slice(0, 3) || []
-      })) || [];
+      // Process applications with additional data
+      const processedApplications = await fetchAdditionalData(applications || []);
 
       setData({
         applications: processedApplications,
@@ -223,7 +287,7 @@ export const useOptimizedApplications = ({
     } finally {
       setLoading(false);
     }
-  }, [user, buildQuery, fetchFilterOptions, data.filterOptions]);
+  }, [user, buildQuery, fetchFilterOptions, fetchAdditionalData, data.filterOptions]);
 
   // Debounced fetch for search
   const debouncedFetch = useMemo(() => {
