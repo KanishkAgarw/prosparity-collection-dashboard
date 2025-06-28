@@ -82,7 +82,7 @@ const FilterBar = ({ filters, onFilterChange, availableOptions, selectedEmiMonth
   };
 
   // Count total active filters
-  const activeFilterCount = Object.values(safeFilters).reduce((count, filterArray) => count + filterArray.length, 0);
+  const activeFilterCount = Object.values(safeFilters).reduce((count, filterArray) => count + (filterArray?.length || 0), 0);
 
   // Handler for local filter changes
   const handlePendingFilterChange = (key: string, values: string[]) => {
@@ -256,7 +256,7 @@ const FilterBar = ({ filters, onFilterChange, availableOptions, selectedEmiMonth
             <div className="mt-6 flex justify-end">
               <div className="border border-blue-500 rounded-lg p-2 bg-blue-50">
                 <Button
-                  variant="primary"
+                  variant="default"
                   className="px-8 py-2 text-base font-semibold"
                   onClick={handleApplyFilters}
                 >

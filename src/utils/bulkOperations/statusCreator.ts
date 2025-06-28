@@ -1,7 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
-export const createInitialFieldStatus = async (applicationId: string, initialStatus: string, user: any) => {
+export const createInitialFieldStatus = async (applicationId: string, initialStatus: string, user: any, demandDate: string = '45843') => {
   console.log(`Creating field status for new application: ${applicationId} with status: ${initialStatus}`);
   
   const { error: fieldStatusError } = await supabase
@@ -11,9 +11,10 @@ export const createInitialFieldStatus = async (applicationId: string, initialSta
       status: initialStatus,
       user_id: user?.id || '',
       user_email: user?.email || 'system@bulk-upload.local',
+      demand_date: demandDate,
       updated_at: new Date().toISOString()
     }, {
-      onConflict: 'application_id'
+      onConflict: 'application_id,demand_date'
     });
 
   if (fieldStatusError) {
@@ -29,6 +30,7 @@ export const createInitialFieldStatus = async (applicationId: string, initialSta
         previous_value: 'Unpaid',
         new_value: initialStatus,
         application_id: applicationId,
+        demand_date: demandDate,
         user_id: user.id,
         user_email: user.email
       });

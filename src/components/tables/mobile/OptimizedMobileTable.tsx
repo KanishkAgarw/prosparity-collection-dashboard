@@ -7,12 +7,14 @@ interface OptimizedMobileTableProps {
   applications: Application[];
   onRowClick: (application: Application) => void;
   selectedApplicationId?: string;
+  selectedEmiMonth?: string | null;
 }
 
 const OptimizedMobileTable = memo(({ 
   applications, 
   onRowClick, 
-  selectedApplicationId 
+  selectedApplicationId,
+  selectedEmiMonth 
 }: OptimizedMobileTableProps) => {
   return (
     <div className="space-y-3">
@@ -22,6 +24,7 @@ const OptimizedMobileTable = memo(({
           application={app}
           onRowClick={onRowClick}
           selectedApplicationId={selectedApplicationId}
+          selectedMonth={selectedEmiMonth || ''}
         />
       ))}
     </div>

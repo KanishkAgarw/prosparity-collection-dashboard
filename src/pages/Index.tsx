@@ -1,7 +1,7 @@
 
 import { useState, useMemo, useEffect } from "react";
-import { useApplications } from "@/hooks/useApplications";
-import { useCascadingFilters } from "@/hooks/useCascadingFilters";
+import { useOptimizedApplications } from "@/hooks/useOptimizedApplications";
+import { useServerSideFiltering } from "@/hooks/useServerSideFiltering";
 import { useEnhancedExport } from "@/hooks/useEnhancedExport";
 import { useUserProfiles } from "@/hooks/useUserProfiles";
 import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
@@ -40,9 +40,22 @@ const Index = () => {
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [hasRestoredState, setHasRestoredState] = useState(false);
 
-  const { applications, allApplications, loading: appsLoading, refetch, totalCount, totalPages } = useApplications({ 
-    page: currentPage, 
-    pageSize: 50 
+  // Use optimized server-side filtering
+  const { filters, handleFilterChange, selectedEmiMonth } = useServerSideFiltering();
+
+  // Use optimized applications hook
+  const { 
+    applications, 
+    totalCount, 
+    totalPages, 
+    filterOptions,
+    loading: appsLoading, 
+    refetch 
+  } = useOptimizedApplications({
+    filters,
+    searchTerm,
+    page: currentPage,
+    pageSize: 50
   });
 
   const { exportPtpCommentsReport, exportFullReport, exportPlanVsAchievementReport, planVsAchievementLoading } = useEnhancedExport();
@@ -106,56 +119,12 @@ const Index = () => {
     }
   });
 
-  // Use allApplications for filter generation and get filtered results
-  const {
-    filters,
-    filteredApplications,
-    availableOptions,
-    handleFilterChange
-  } = useCascadingFilters(allApplications);
-
-  // Extract selected EMI Month from filters
-  const selectedEmiMonth = useMemo(() => {
-    if (filters.emiMonth.length === 1) {
-      return filters.emiMonth[0];
-    }
-    return null; // null means no single month is selected
-  }, [filters.emiMonth]);
-
   // Save filters state when they change
   useEffect(() => {
     if (hasRestoredState) {
       saveFiltersState(filters, searchTerm, currentPage);
     }
   }, [filters, searchTerm, currentPage, hasRestoredState, saveFiltersState]);
-
-  // Apply search filter to the filtered applications
-  const finalFilteredApplications = useMemo(() => {
-    if (!searchTerm.trim()) {
-      return filteredApplications;
-    }
-    
-    const lowerSearchTerm = searchTerm.toLowerCase();
-    return filteredApplications.filter(app =>
-      app.applicant_name.toLowerCase().includes(lowerSearchTerm) ||
-      app.applicant_id.toLowerCase().includes(lowerSearchTerm) ||
-      app.dealer_name.toLowerCase().includes(lowerSearchTerm) ||
-      (app.lender_name === 'Vivriti Capital Limited' ? 'vivriti' : app.lender_name.toLowerCase()).includes(lowerSearchTerm) ||
-      (app.rm_name || app.collection_rm || '').toLowerCase().includes(lowerSearchTerm) ||
-      app.team_lead.toLowerCase().includes(lowerSearchTerm)
-    );
-  }, [filteredApplications, searchTerm]);
-
-  // For pagination, we need to slice the filtered results to match current page
-  const paginatedFilteredApplications = useMemo(() => {
-    const startIndex = (currentPage - 1) * 50;
-    const endIndex = startIndex + 50;
-    return finalFilteredApplications.slice(startIndex, endIndex);
-  }, [finalFilteredApplications, currentPage]);
-
-  // Calculate pagination info based on filtered results
-  const filteredTotalCount = finalFilteredApplications.length;
-  const filteredTotalPages = Math.ceil(filteredTotalCount / 50);
 
   // Load user profiles for comments/logs when component mounts
   useMemo(() => {
@@ -204,7 +173,7 @@ const Index = () => {
       toast.loading('Preparing full report...', { id: 'export' });
       
       const exportData = {
-        applications: finalFilteredApplications
+        applications: applications
       };
 
       exportFullReport(exportData, 'collection-monitoring-full-report');
@@ -220,7 +189,7 @@ const Index = () => {
       toast.loading('Preparing PTP + Comments report...', { id: 'export' });
       
       const exportData = {
-        applications: finalFilteredApplications
+        applications: applications
       };
 
       exportPtpCommentsReport(exportData, 'collection-ptp-comments-report');
@@ -282,24 +251,24 @@ const Index = () => {
 
           <FiltersSection
             filters={filters}
-            availableOptions={availableOptions}
+            availableOptions={filterOptions}
             onFilterChange={handleFilterChange}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
             selectedEmiMonth={selectedEmiMonth}
           />
 
-          <StatusCards applications={finalFilteredApplications} />
+          <StatusCards applications={applications} />
 
           <MainContent
-            applications={paginatedFilteredApplications}
+            applications={applications}
             onRowClick={handleApplicationSelect}
             onApplicationDeleted={handleApplicationDeleted}
             selectedApplicationId={selectedApplication?.id}
             currentPage={currentPage}
-            totalPages={filteredTotalPages}
+            totalPages={totalPages}
             onPageChange={setCurrentPage}
-            totalCount={filteredTotalCount}
+            totalCount={totalCount}
             pageSize={50}
             selectedEmiMonth={selectedEmiMonth}
           />

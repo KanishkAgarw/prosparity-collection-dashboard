@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,6 +12,7 @@ export interface ContactCallingStatus {
   user_email: string | null;
   created_at: string;
   updated_at: string;
+  demand_date: string;
 }
 
 export const useContactCallingStatus = (applicationId?: string, selectedMonth?: string) => {
@@ -89,7 +91,7 @@ export const useContactCallingStatus = (applicationId?: string, selectedMonth?: 
   }, [user]);
 
   const updateCallingStatus = async (contactType: string, newStatus: string) => {
-    if (!applicationId || !user) return;
+    if (!applicationId || !user || !selectedMonth) return;
 
     try {
       const { data, error } = await supabase
@@ -100,9 +102,10 @@ export const useContactCallingStatus = (applicationId?: string, selectedMonth?: 
           status: newStatus,
           user_id: user.id,
           user_email: user.email,
+          demand_date: selectedMonth,
           updated_at: new Date().toISOString()
         }, {
-          onConflict: 'application_id,contact_type'
+          onConflict: 'application_id,contact_type,demand_date'
         })
         .select()
         .single();
@@ -125,6 +128,8 @@ export const useContactCallingStatus = (applicationId?: string, selectedMonth?: 
     return status?.status || 'Not Called';
   };
 
+  const refetch = fetchCallingStatuses;
+
   useEffect(() => {
     if (applicationId && user && selectedMonth) {
       fetchCallingStatuses();
@@ -136,7 +141,7 @@ export const useContactCallingStatus = (applicationId?: string, selectedMonth?: 
     loading,
     updateCallingStatus,
     getStatusForContact,
-    refetch: fetchCallingStatuses,
+    refetch,
     fetchContactStatuses
   };
 };

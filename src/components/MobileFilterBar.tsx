@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -69,7 +70,7 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
 
   // Count active filters
   const activeFilterCount = Object.values(safeFilters).reduce(
-    (count, filterArray) => count + filterArray.length, 
+    (count, filterArray) => count + (filterArray?.length || 0), 
     0
   );
 
@@ -213,7 +214,7 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
             <div className="mt-6 flex justify-end">
               <div className="border border-blue-500 rounded-lg p-2 bg-blue-50 w-full">
                 <Button
-                  variant="primary"
+                  variant="default"
                   className="w-full px-8 py-2 text-base font-semibold"
                   onClick={() => setIsOpen(false)}
                 >
