@@ -27,55 +27,52 @@ const ApplicationRow = memo(({
 }: ApplicationRowProps) => {
   const { monthlyData, availableMonths } = useMonthlyApplicationData(application.applicant_id);
   
-  // Determine which month to show data for
-  const monthToShow = selectedEmiMonth || availableMonths[availableMonths.length - 1];
-  const monthData = monthlyData.find(item => item.demand_date === monthToShow) || {};
+  // Use the selected EMI month directly - this is the key fix
+  const monthToShow = selectedEmiMonth || application.demand_date;
 
-  // Convert formatted month back to YYYY-MM format for data lookup
-  const getMonthForData = (formattedMonth: string) => {
-    if (!formattedMonth) return monthToShow;
-    
-    // If it's already in YYYY-MM format, return as is
-    if (formattedMonth.includes('-') && formattedMonth.length > 6) {
-      return formattedMonth;
-    }
-    
-    // Convert from 'Jan-25' format to find matching month in availableMonths
-    const matchingMonth = availableMonths.find(month => 
-      formatEmiMonth(month) === formattedMonth
-    );
-    return matchingMonth || monthToShow;
-  };
+  console.log('ApplicationRow - Application ID:', application.applicant_id);
+  console.log('ApplicationRow - Selected EMI Month:', selectedEmiMonth);
+  console.log('ApplicationRow - Month to show data for:', monthToShow);
 
-  const dataMonth = getMonthForData(selectedEmiMonth || '');
-
-  // Fetch per-month status
+  // Fetch per-month status using the selected month
   const { fetchFieldStatus } = useFieldStatus();
   const [status, setStatus] = useState<string>('Unpaid');
   useEffect(() => {
     const fetchStatus = async () => {
-      const statusMap = await fetchFieldStatus([application.applicant_id], dataMonth);
-      setStatus(statusMap[application.applicant_id] || 'Unpaid');
+      if (monthToShow) {
+        console.log(`Fetching field status for ${application.applicant_id} and month ${monthToShow}`);
+        const statusMap = await fetchFieldStatus([application.applicant_id], monthToShow);
+        const newStatus = statusMap[application.applicant_id] || 'Unpaid';
+        console.log(`Field status result for ${application.applicant_id}:`, newStatus);
+        setStatus(newStatus);
+      }
     };
     fetchStatus();
-  }, [application.applicant_id, dataMonth, fetchFieldStatus]);
+  }, [application.applicant_id, monthToShow, fetchFieldStatus]);
 
-  // Fetch per-month PTP date
+  // Fetch per-month PTP date using the selected month
   const { fetchPtpDate } = usePtpDates();
   const [ptpDate, setPtpDate] = useState<string | null>(null);
   useEffect(() => {
     const fetchPtp = async () => {
-      const date = await fetchPtpDate(application.applicant_id, dataMonth);
-      setPtpDate(date);
+      if (monthToShow) {
+        console.log(`Fetching PTP date for ${application.applicant_id} and month ${monthToShow}`);
+        const date = await fetchPtpDate(application.applicant_id, monthToShow);
+        console.log(`PTP date result for ${application.applicant_id}:`, date);
+        setPtpDate(date);
+      }
     };
     fetchPtp();
-  }, [application.applicant_id, dataMonth, fetchPtpDate]);
+  }, [application.applicant_id, monthToShow, fetchPtpDate]);
 
-  // Fetch per-month comments
-  const { comments, fetchComments } = useComments(dataMonth);
+  // Fetch per-month comments using the selected month
+  const { comments, fetchComments } = useComments(monthToShow);
   useEffect(() => {
-    fetchComments(application.applicant_id);
-  }, [application.applicant_id, dataMonth, fetchComments]);
+    if (monthToShow) {
+      console.log(`Fetching comments for ${application.applicant_id} and month ${monthToShow}`);
+      fetchComments(application.applicant_id);
+    }
+  }, [application.applicant_id, monthToShow, fetchComments]);
 
   const handleRowClick = (e: React.MouseEvent) => {
     onRowClick(application);
@@ -91,11 +88,11 @@ const ApplicationRow = memo(({
       onClick={handleRowClick}
     >
       <TableCell className="py-3">
-        <ApplicationDetails application={{ ...application, ...monthData }} />
+        <ApplicationDetails application={application} />
       </TableCell>
       
       <TableCell className="font-medium text-blue-600">
-        {formatCurrency(monthData.emi_amount || application.emi_amount)}
+        {formatCurrency(application.emi_amount)}
       </TableCell>
       
       <TableCell>
@@ -107,7 +104,7 @@ const ApplicationRow = memo(({
       </TableCell>
       
       <TableCell className="text-sm">
-        <CallStatusDisplay application={{...application, ...monthData}} selectedMonth={dataMonth} />
+        <CallStatusDisplay application={application} selectedMonth={monthToShow} />
       </TableCell>
       
       <TableCell className="max-w-[200px]">

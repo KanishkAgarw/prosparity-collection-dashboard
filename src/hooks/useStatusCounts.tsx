@@ -38,89 +38,99 @@ export const useStatusCounts = ({ filters, selectedEmiMonth }: UseStatusCountsPr
 
     setLoading(true);
     try {
-      console.log('Fetching status counts for month:', selectedEmiMonth);
+      console.log('=== FETCHING STATUS COUNTS ===');
+      console.log('Selected EMI Month:', selectedEmiMonth);
 
       // Get all possible database variations for the selected month
       const monthVariations = getMonthVariations(selectedEmiMonth);
       console.log('Status counts - querying month variations:', monthVariations);
 
-      // PRIMARY: Build query for collection table filtered by EMI month
+      // PRIMARY: Get all applications from collection table for this month
       let collectionQuery = supabase
         .from('collection')
         .select('application_id, team_lead, rm_name, collection_rm, repayment')
         .in('demand_date', monthVariations);
 
-      // SECONDARY: Build query for applications filtered by EMI month
-      let applicationsQuery = supabase
-        .from('applications')
-        .select('applicant_id, branch_name, team_lead, rm_name, collection_rm, dealer_name, lender_name, repayment, vehicle_status')
-        .in('demand_date', monthVariations);
-
-      // Apply filters to both queries
-      if (filters.branch?.length > 0) {
-        applicationsQuery = applicationsQuery.in('branch_name', filters.branch);
-      }
+      // Apply filters to collection query
       if (filters.teamLead?.length > 0) {
-        applicationsQuery = applicationsQuery.in('team_lead', filters.teamLead);
         collectionQuery = collectionQuery.in('team_lead', filters.teamLead);
       }
       if (filters.rm?.length > 0) {
-        applicationsQuery = applicationsQuery.in('rm_name', filters.rm);
         collectionQuery = collectionQuery.in('rm_name', filters.rm);
       }
       if (filters.collectionRm?.length > 0) {
-        // Normalize collection RM values - treat N/A and NA as the same
         const normalizedCollectionRms = filters.collectionRm.map(rm => 
           rm === 'N/A' || rm === 'NA' ? 'N/A' : rm
-        );
-        applicationsQuery = applicationsQuery.or(
-          `collection_rm.in.(${normalizedCollectionRms.join(',')}),collection_rm.is.null`
         );
         collectionQuery = collectionQuery.or(
           `collection_rm.in.(${normalizedCollectionRms.join(',')}),collection_rm.is.null`
         );
       }
-      if (filters.dealer?.length > 0) {
-        applicationsQuery = applicationsQuery.in('dealer_name', filters.dealer);
-      }
-      if (filters.lender?.length > 0) {
-        applicationsQuery = applicationsQuery.in('lender_name', filters.lender);
-      }
       if (filters.repayment?.length > 0) {
-        applicationsQuery = applicationsQuery.in('repayment', filters.repayment);
         collectionQuery = collectionQuery.in('repayment', filters.repayment);
       }
-      if (filters.vehicleStatus?.length > 0) {
-        if (filters.vehicleStatus.includes('None')) {
-          applicationsQuery = applicationsQuery.or(`vehicle_status.is.null,vehicle_status.in.(${filters.vehicleStatus.filter(v => v !== 'None').join(',')})`);
-        } else {
-          applicationsQuery = applicationsQuery.in('vehicle_status', filters.vehicleStatus);
+
+      const { data: collectionData, error: collectionError } = await collectionQuery;
+
+      if (collectionError) {
+        console.error('Error fetching collection for status counts:', collectionError);
+        return;
+      }
+
+      if (!collectionData || collectionData.length === 0) {
+        console.log('No collection data found for status counts');
+        setStatusCounts({
+          total: 0,
+          statusUnpaid: 0,
+          statusPartiallyPaid: 0,
+          statusCashCollected: 0,
+          statusCustomerDeposited: 0,
+          statusPaid: 0,
+          statusPendingApproval: 0
+        });
+        return;
+      }
+
+      // Get application IDs from collection data
+      const applicationIds = collectionData.map(col => col.application_id);
+      console.log(`Found ${applicationIds.length} applications from collection for status counting`);
+
+      // SECONDARY: Apply additional filters from applications table if needed
+      if (filters.branch?.length > 0 || filters.dealer?.length > 0 || filters.lender?.length > 0 || filters.vehicleStatus?.length > 0) {
+        let applicationsQuery = supabase
+          .from('applications')
+          .select('applicant_id')
+          .in('applicant_id', applicationIds);
+
+        if (filters.branch?.length > 0) {
+          applicationsQuery = applicationsQuery.in('branch_name', filters.branch);
         }
+        if (filters.dealer?.length > 0) {
+          applicationsQuery = applicationsQuery.in('dealer_name', filters.dealer);
+        }
+        if (filters.lender?.length > 0) {
+          applicationsQuery = applicationsQuery.in('lender_name', filters.lender);
+        }
+        if (filters.vehicleStatus?.length > 0) {
+          if (filters.vehicleStatus.includes('None')) {
+            applicationsQuery = applicationsQuery.or(`vehicle_status.is.null,vehicle_status.in.(${filters.vehicleStatus.filter(v => v !== 'None').join(',')})`);
+          } else {
+            applicationsQuery = applicationsQuery.in('vehicle_status', filters.vehicleStatus);
+          }
+        }
+
+        const { data: filteredApps, error: appsError } = await applicationsQuery;
+        
+        if (appsError) {
+          console.error('Error applying additional filters for status counts:', appsError);
+          return;
+        }
+
+        // Update application IDs to only those that pass all filters
+        const filteredIds = filteredApps?.map(app => app.applicant_id) || [];
+        applicationIds.splice(0, applicationIds.length, ...filteredIds);
+        console.log(`After additional filtering: ${applicationIds.length} applications for status counting`);
       }
-
-      const [colResult, appResult] = await Promise.all([collectionQuery, applicationsQuery]);
-
-      if (colResult.error) {
-        console.error('Error fetching collection for status counts:', colResult.error);
-        return;
-      }
-
-      if (appResult.error) {
-        console.error('Error fetching applications for status counts:', appResult.error);
-        return;
-      }
-
-      const collections = colResult.data || [];
-      const applications = appResult.data || [];
-
-      // PRIMARY strategy: Use collection table as main source
-      const allApplicationIds = new Set<string>();
-      collections.forEach(col => allApplicationIds.add(col.application_id));
-      applications.forEach(app => allApplicationIds.add(app.applicant_id));
-
-      const applicationIds = Array.from(allApplicationIds);
-
-      console.log(`Found ${applicationIds.length} unique applications for status counting`);
 
       if (applicationIds.length === 0) {
         setStatusCounts({
@@ -143,7 +153,7 @@ export const useStatusCounts = ({ filters, selectedEmiMonth }: UseStatusCountsPr
         .in('demand_date', monthVariations)
         .order('created_at', { ascending: false });
 
-      console.log(`Found ${fieldStatusData?.length || 0} field status records`);
+      console.log(`Found ${fieldStatusData?.length || 0} field status records for status counting`);
 
       // Create status map (latest status per application)
       const statusMap = new Map<string, string>();
@@ -191,7 +201,7 @@ export const useStatusCounts = ({ filters, selectedEmiMonth }: UseStatusCountsPr
         statusPendingApproval: 0
       });
 
-      console.log('Status counts calculated:', counts);
+      console.log('Final status counts calculated:', counts);
       setStatusCounts(counts);
 
     } catch (error) {
