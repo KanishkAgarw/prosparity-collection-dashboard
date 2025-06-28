@@ -1,7 +1,8 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useOptimizedApplicationsV2 } from "@/hooks/useOptimizedApplicationsV2";
-import { useServerSideFiltering } from "@/hooks/useServerSideFiltering";
+import { useCascadingFilters } from "@/hooks/useCascadingFilters";
+import { useStatusCounts } from "@/hooks/useStatusCounts";
 import { useEnhancedExport } from "@/hooks/useEnhancedExport";
 import { useUserProfiles } from "@/hooks/useUserProfiles";
 import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
@@ -41,15 +42,27 @@ const Index = () => {
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [hasRestoredState, setHasRestoredState] = useState(false);
 
-  // Use optimized server-side filtering
-  const { filters, handleFilterChange, selectedEmiMonth } = useServerSideFiltering();
+  // Use new cascading filters system
+  const { 
+    filters, 
+    availableOptions, 
+    handleFilterChange, 
+    selectedEmiMonth, 
+    defaultEmiMonth,
+    loading: filtersLoading 
+  } = useCascadingFilters();
 
-  // Use new optimized applications hook
+  // Use new status counts hook for aggregated data
+  const { statusCounts, loading: statusLoading } = useStatusCounts({ 
+    filters, 
+    selectedEmiMonth 
+  });
+
+  // Use optimized applications hook with reduced data fetching
   const { 
     applications, 
     totalCount, 
     totalPages, 
-    filterOptions,
     loading: appsLoading, 
     refetch 
   } = useOptimizedApplicationsV2({
@@ -63,7 +76,7 @@ const Index = () => {
 
   // Restore state on component mount
   useEffect(() => {
-    if (!hasRestoredState && !authLoading && user) {
+    if (!hasRestoredState && !authLoading && user && defaultEmiMonth) {
       setIsRestoringState(true);
       
       // Restore filters and search state
@@ -88,7 +101,7 @@ const Index = () => {
       setHasRestoredState(true);
       setIsRestoringState(false);
     }
-  }, [hasRestoredState, authLoading, user, applications, restoreFiltersState, restoreSelectedApplication, restoreScrollPosition, setIsRestoringState]);
+  }, [hasRestoredState, authLoading, user, applications, defaultEmiMonth, restoreFiltersState, restoreSelectedApplication, restoreScrollPosition, setIsRestoringState]);
 
   // Save scroll position when user scrolls
   useEffect(() => {
@@ -240,17 +253,18 @@ const Index = () => {
 
           <FiltersSection
             filters={filters}
-            availableOptions={filterOptions}
+            availableOptions={availableOptions}
             onFilterChange={handleFilterChange}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
             selectedEmiMonth={selectedEmiMonth}
+            loading={filtersLoading}
           />
 
-          {appsLoading ? (
+          {statusLoading ? (
             <StatusCardsSkeleton />
           ) : (
-            <StatusCards applications={applications} />
+            <StatusCards statusCounts={statusCounts} />
           )}
 
           {appsLoading ? (

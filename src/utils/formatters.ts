@@ -29,6 +29,7 @@ export const formatEmiMonth = (dateStr?: string) => {
       return dateStr; // Return original if parsing fails
     }
     
+    // Consistent MMM-YY format (e.g., "Jul-25")
     return format(date, 'MMM-yy');
   } catch {
     return dateStr; // Return original if formatting fails

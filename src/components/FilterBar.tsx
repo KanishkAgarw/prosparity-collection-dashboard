@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import CustomMultiSelectFilter from "./CustomMultiSelectFilter";
+import { formatEmiMonth } from "@/utils/formatters";
 
 interface FilterBarProps {
   filters: {
@@ -65,6 +66,12 @@ const FilterBar = ({ filters, onFilterChange, availableOptions, selectedEmiMonth
     vehicleStatusOptions: availableOptions?.vehicleStatusOptions || [],
   };
 
+  // Format EMI months for display
+  const formattedEmiMonths = safeFilterOptions.emiMonths.map(month => ({
+    value: month,
+    label: formatEmiMonth(month)
+  }));
+
   // Use pendingFilters for UI
   const safeFilters = {
     branch: pendingFilters?.branch || [],
@@ -100,9 +107,6 @@ const FilterBar = ({ filters, onFilterChange, availableOptions, selectedEmiMonth
     setIsOpen(false);
   };
 
-  console.log('FilterBar - PTP Date filter:', safeFilters.ptpDate);
-  console.log('FilterBar - PTP Date options:', safeFilterOptions.ptpDateOptions);
-
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200">
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -121,7 +125,7 @@ const FilterBar = ({ filters, onFilterChange, availableOptions, selectedEmiMonth
               )}
               {selectedEmiMonth && (
                 <span className="bg-green-100 text-green-800 text-sm px-3 py-1 rounded-full font-medium">
-                  EMI: {selectedEmiMonth}
+                  EMI: {formatEmiMonth(selectedEmiMonth)}
                 </span>
               )}
             </div>
@@ -133,22 +137,23 @@ const FilterBar = ({ filters, onFilterChange, availableOptions, selectedEmiMonth
           <div className="p-6 border-t border-gray-100">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">PTP Date</label>
-                <CustomMultiSelectFilter
-                  label="PTP Date"
-                  options={safeFilterOptions.ptpDateOptions}
-                  selected={safeFilters.ptpDate}
-                  onSelectionChange={(values) => handlePendingFilterChange('ptpDate', values)}
-                />
-              </div>
-
-              <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">EMI Months</label>
                 <CustomMultiSelectFilter
                   label="EMI Months"
                   options={safeFilterOptions.emiMonths}
                   selected={safeFilters.emiMonth}
                   onSelectionChange={(values) => handlePendingFilterChange('emiMonth', values)}
+                  formatDisplay={formatEmiMonth}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">PTP Date</label>
+                <CustomMultiSelectFilter
+                  label="PTP Date"
+                  options={safeFilterOptions.ptpDateOptions}
+                  selected={safeFilters.ptpDate}
+                  onSelectionChange={(values) => handlePendingFilterChange('ptpDate', values)}
                 />
               </div>
 

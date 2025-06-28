@@ -11,6 +11,7 @@ interface CustomMultiSelectFilterProps {
   selected: string[];
   onSelectionChange: (selected: string[]) => void;
   placeholder?: string;
+  formatDisplay?: (value: string) => string;
 }
 
 const CustomMultiSelectFilter = ({ 
@@ -18,7 +19,8 @@ const CustomMultiSelectFilter = ({
   options = [], 
   selected = [], 
   onSelectionChange,
-  placeholder = "Select options..."
+  placeholder = "Select options...",
+  formatDisplay
 }: CustomMultiSelectFilterProps) => {
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -34,9 +36,10 @@ const CustomMultiSelectFilter = ({
   );
 
   // Filter options based on search term
-  const filteredOptions = safeOptions.filter(option =>
-    option.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredOptions = safeOptions.filter(option => {
+    const displayValue = formatDisplay ? formatDisplay(option) : option;
+    return displayValue.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   const toggleOption = (option: string) => {
     if (!option) return;
@@ -107,7 +110,7 @@ const CustomMultiSelectFilter = ({
                       variant="secondary" 
                       className="text-xs h-6 px-2 bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors"
                     >
-                      {item}
+                      {formatDisplay ? formatDisplay(item) : item}
                       <X 
                         className="ml-1 h-3 w-3 cursor-pointer hover:text-red-500 transition-colors" 
                         onClick={(e) => removeItem(item, e)}
@@ -163,29 +166,32 @@ const CustomMultiSelectFilter = ({
             
             {filteredOptions.length > 0 ? (
               <div className="p-1">
-                {filteredOptions.map((option) => (
-                  <div
-                    key={option}
-                    onClick={() => toggleOption(option)}
-                    className="flex items-center space-x-2 px-3 py-2 cursor-pointer hover:bg-blue-50 rounded-md transition-colors"
-                  >
-                    <div className={`w-4 h-4 border rounded flex items-center justify-center transition-colors ${
-                      safeSelected.includes(option) 
-                        ? 'bg-blue-600 border-blue-600' 
-                        : 'border-gray-300 hover:border-blue-400'
-                    }`}>
+                {filteredOptions.map((option) => {
+                  const displayValue = formatDisplay ? formatDisplay(option) : option;
+                  return (
+                    <div
+                      key={option}
+                      onClick={() => toggleOption(option)}
+                      className="flex items-center space-x-2 px-3 py-2 cursor-pointer hover:bg-blue-50 rounded-md transition-colors"
+                    >
+                      <div className={`w-4 h-4 border rounded flex items-center justify-center transition-colors ${
+                        safeSelected.includes(option) 
+                          ? 'bg-blue-600 border-blue-600' 
+                          : 'border-gray-300 hover:border-blue-400'
+                      }`}>
+                        {safeSelected.includes(option) && (
+                          <Check className="w-3 h-3 text-white" />
+                        )}
+                      </div>
+                      <span className="flex-1 text-sm">{displayValue}</span>
                       {safeSelected.includes(option) && (
-                        <Check className="w-3 h-3 text-white" />
+                        <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800">
+                          Selected
+                        </Badge>
                       )}
                     </div>
-                    <span className="flex-1 text-sm">{option}</span>
-                    {safeSelected.includes(option) && (
-                      <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800">
-                        Selected
-                      </Badge>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="p-4 text-center text-sm text-gray-500">

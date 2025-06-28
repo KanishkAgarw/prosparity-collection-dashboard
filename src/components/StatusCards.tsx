@@ -1,15 +1,8 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Application } from "@/types/application";
-import { useMemo } from "react";
-
-interface StatusCardsProps {
-  applications: Application[];
-}
 
 interface StatusCounts {
   total: number;
-  // Status counts (renamed from field status)
   statusUnpaid: number;
   statusPartiallyPaid: number;
   statusCashCollected: number;
@@ -18,48 +11,11 @@ interface StatusCounts {
   statusPendingApproval: number;
 }
 
-const StatusCards = ({ applications }: StatusCardsProps) => {
-  // Calculate counts from the filtered applications passed as props
-  const statusCounts = useMemo(() => {
-    const counts = applications.reduce((acc, app) => {
-      acc.total++;
-      
-      // Count status (renamed from field status)
-      switch (app.field_status) {
-        case 'Unpaid':
-          acc.statusUnpaid++;
-          break;
-        case 'Partially Paid':
-          acc.statusPartiallyPaid++;
-          break;
-        case 'Cash Collected from Customer':
-          acc.statusCashCollected++;
-          break;
-        case 'Customer Deposited to Bank':
-          acc.statusCustomerDeposited++;
-          break;
-        case 'Paid':
-          acc.statusPaid++;
-          break;
-        case 'Paid (Pending Approval)':
-          acc.statusPendingApproval++;
-          break;
-      }
-      
-      return acc;
-    }, { 
-      total: 0, 
-      statusUnpaid: 0, 
-      statusPartiallyPaid: 0, 
-      statusCashCollected: 0, 
-      statusCustomerDeposited: 0, 
-      statusPaid: 0,
-      statusPendingApproval: 0
-    });
+interface StatusCardsProps {
+  statusCounts: StatusCounts;
+}
 
-    return counts;
-  }, [applications]);
-
+const StatusCards = ({ statusCounts }: StatusCardsProps) => {
   // Arrangement: Total → Status (user-editable)
   const cards = [
     {

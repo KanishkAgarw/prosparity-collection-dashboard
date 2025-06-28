@@ -11,6 +11,7 @@ interface FiltersSectionProps {
   searchTerm: string;
   onSearchChange: (value: string) => void;
   selectedEmiMonth?: string | null;
+  loading?: boolean;
 }
 
 const FiltersSection = ({
@@ -19,7 +20,8 @@ const FiltersSection = ({
   onFilterChange,
   searchTerm,
   onSearchChange,
-  selectedEmiMonth
+  selectedEmiMonth,
+  loading = false
 }: FiltersSectionProps) => {
   const isMobile = useIsMobile();
 
@@ -27,7 +29,12 @@ const FiltersSection = ({
     <div className="space-y-4">
       {/* Filters Dropdown */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        {isMobile ? (
+        {loading ? (
+          <div className="p-4 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <span className="ml-2 text-gray-600">Loading filters...</span>
+          </div>
+        ) : isMobile ? (
           <MobileFilterBar
             filters={filters}
             availableOptions={availableOptions}
