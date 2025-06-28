@@ -80,6 +80,8 @@ export const useOptimizedApplicationsV2 = ({
 
   // Build optimized query with single JOIN
   const buildOptimizedQuery = useCallback(() => {
+    console.log('Building query with filters:', filters);
+    
     let baseQuery = supabase
       .from('applications')
       .select(`
@@ -199,15 +201,27 @@ export const useOptimizedApplicationsV2 = ({
     
     // Check cache first
     if (filterOptionsCache.data && (now - filterOptionsCache.timestamp) < filterOptionsCache.ttl) {
+      console.log('Using cached filter options');
       return filterOptionsCache.data;
     }
 
+    console.log('Fetching fresh filter options');
     try {
-      const { data: apps } = await supabase
+      const { data: apps, error: appsError } = await supabase
         .from('applications')
         .select('branch_name, team_lead, rm_name, collection_rm, dealer_name, lender_name, demand_date, repayment, vehicle_status');
 
-      if (!apps) return null;
+      if (appsError) {
+        console.error('Error fetching applications for filter options:', appsError);
+        return null;
+      }
+
+      if (!apps) {
+        console.warn('No applications found for filter options');
+        return null;
+      }
+
+      console.log(`Fetched ${apps.length} applications for filter options`);
 
       const options = {
         branches: [...new Set(apps.map(app => app.branch_name).filter(Boolean))].sort(),
@@ -225,12 +239,18 @@ export const useOptimizedApplicationsV2 = ({
       };
 
       // Get statuses from field_status table
-      const { data: statuses } = await supabase
+      const { data: statuses, error: statusError } = await supabase
         .from('field_status')
         .select('status')
         .order('status');
       
-      options.statuses = [...new Set(statuses?.map(s => s.status) || [])];
+      if (statusError) {
+        console.error('Error fetching statuses:', statusError);
+      } else {
+        options.statuses = [...new Set(statuses?.map(s => s.status) || [])];
+      }
+
+      console.log('Filter options prepared:', options);
 
       // Cache the options
       filterOptionsCache.data = options;
@@ -245,13 +265,19 @@ export const useOptimizedApplicationsV2 = ({
 
   // Main fetch function with caching
   const fetchData = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('No user, skipping fetch');
+      return;
+    }
+    
+    console.log('Fetching data with cache key:', cacheKey);
     
     // Check cache first
     const cachedPage = applicationPagesCache.get(cacheKey);
     const now = Date.now();
     
     if (cachedPage && (now - cachedPage.timestamp) < cachedPage.ttl) {
+      console.log('Using cached applications data');
       setData(prev => ({
         ...prev,
         applications: cachedPage.data,
@@ -261,6 +287,7 @@ export const useOptimizedApplicationsV2 = ({
       return;
     }
 
+    console.log('Fetching fresh applications data');
     setLoading(true);
     setError(null);
     
@@ -273,9 +300,12 @@ export const useOptimizedApplicationsV2 = ({
       const { data: rawApplications, error: appsError, count } = applicationsResult;
 
       if (appsError) {
+        console.error('Error fetching applications:', appsError);
         setError(appsError.message);
         return;
       }
+
+      console.log(`Fetched ${rawApplications?.length || 0} applications, total count: ${count}`);
 
       const processedApplications = processJoinedData(rawApplications || []);
 
@@ -296,11 +326,11 @@ export const useOptimizedApplicationsV2 = ({
         }
       }
 
-      setData({
+      setData(prev => ({
         applications: processedApplications,
         totalCount: count || 0,
-        filterOptions: filterOptions || data.filterOptions
-      });
+        filterOptions: filterOptions || prev.filterOptions
+      }));
 
     } catch (err) {
       console.error('Error fetching optimized applications:', err);
@@ -308,7 +338,7 @@ export const useOptimizedApplicationsV2 = ({
     } finally {
       setLoading(false);
     }
-  }, [user, buildOptimizedQuery, fetchFilterOptions, processJoinedData, cacheKey, data.filterOptions]);
+  }, [user, buildOptimizedQuery, fetchFilterOptions, processJoinedData, cacheKey]);
 
   // Debounced fetch for search
   const debouncedFetch = useMemo(() => {
@@ -319,10 +349,21 @@ export const useOptimizedApplicationsV2 = ({
     };
   }, [fetchData]);
 
+  // Initial load and filter options fetch
+  useEffect(() => {
+    console.log('Initial useEffect triggered, user:', !!user);
+    if (user) {
+      fetchData();
+    }
+  }, [user, fetchData]);
+
+  // Handle search with debouncing
   useEffect(() => {
     if (searchTerm) {
+      console.log('Search term changed, debouncing fetch');
       debouncedFetch();
     } else {
+      console.log('No search term, fetching immediately');
       fetchData();
     }
   }, [searchTerm, debouncedFetch, fetchData]);
@@ -331,9 +372,17 @@ export const useOptimizedApplicationsV2 = ({
   useEffect(() => {
     const filterCount = Object.values(filters).reduce((sum, arr) => sum + arr.length, 0);
     if (filterCount === 0) {
+      console.log('No filters applied, clearing cache');
       applicationPagesCache.clear();
     }
   }, [filters]);
+
+  console.log('Hook state:', { 
+    applicationsCount: data.applications.length, 
+    totalCount: data.totalCount, 
+    loading, 
+    error 
+  });
 
   return {
     applications: data.applications,
