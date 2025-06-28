@@ -220,7 +220,8 @@ export const useOptimizedApplicationsV2 = ({
         repayments: [...new Set(apps.map(app => app.repayment).filter(Boolean))].sort(),
         lastMonthBounce: ['Not paid', 'Paid on time', '1-5 days late', '6-15 days late', '15+ days late'],
         ptpDateOptions: ['Overdue PTP', "Today's PTP", "Tomorrow's PTP", 'Future PTP', 'No PTP'],
-        vehicleStatusOptions: ['Seized', 'Repo', 'Accident', 'None']
+        vehicleStatusOptions: ['Seized', 'Repo', 'Accident', 'None'],
+        statuses: []
       };
 
       // Get statuses from field_status table
