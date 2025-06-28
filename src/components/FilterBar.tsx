@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import CustomMultiSelectFilter from "./CustomMultiSelectFilter";
 import { formatEmiMonth } from "@/utils/formatters";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface FilterBarProps {
   filters: {
@@ -37,9 +38,18 @@ interface FilterBarProps {
     vehicleStatusOptions: string[];
   };
   selectedEmiMonth?: string | null;
+  onEmiMonthChange?: (month: string) => void;
+  emiMonthOptions?: string[];
 }
 
-const FilterBar = ({ filters, onFilterChange, availableOptions, selectedEmiMonth }: FilterBarProps) => {
+const FilterBar = ({ 
+  filters, 
+  onFilterChange, 
+  availableOptions, 
+  selectedEmiMonth,
+  onEmiMonthChange,
+  emiMonthOptions = []
+}: FilterBarProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
   // Local state for pending filters
@@ -134,7 +144,22 @@ const FilterBar = ({ filters, onFilterChange, availableOptions, selectedEmiMonth
         <CollapsibleContent>
           <div className="p-6 border-t border-gray-100">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              {/* Note: EMI Month is now managed separately via EmiMonthSelector */}
+              {/* EMI Month Selector */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">EMI Month</label>
+                <Select value={selectedEmiMonth || ''} onValueChange={onEmiMonthChange}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select EMI Month" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border border-gray-200 shadow-lg rounded-md z-50">
+                    {emiMonthOptions.map((month) => (
+                      <SelectItem key={month} value={month} className="hover:bg-gray-100">
+                        {formatEmiMonth(month)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">PTP Date</label>

@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useEffect } from "react";
 import { useOptimizedApplicationsV2 } from "@/hooks/useOptimizedApplicationsV2";
 import { useCascadingFilters } from "@/hooks/useCascadingFilters";
@@ -47,24 +46,25 @@ const Index = () => {
   // Debounce search term to reduce API calls
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  // Use new cascading filters system with single EMI month selection
+  // Use cascading filters system with single EMI month selection
   const { 
     filters, 
     availableOptions, 
     handleFilterChange, 
     selectedEmiMonth,
     handleEmiMonthChange,
+    emiMonthOptions,
     defaultEmiMonth,
     loading: filtersLoading 
   } = useCascadingFilters();
 
-  // Use new status counts hook for aggregated data (entire selected month)
+  // Use status counts hook for aggregated data (entire selected month)
   const { statusCounts, loading: statusLoading } = useStatusCounts({ 
     filters, 
     selectedEmiMonth 
   });
 
-  // Reduced pagination from 50 to 20 for better performance
+  // Pagination set to 20 for better performance
   const { 
     applications, 
     totalCount, 
@@ -75,7 +75,7 @@ const Index = () => {
     filters,
     searchTerm: debouncedSearchTerm,
     page: currentPage,
-    pageSize: 20, // Reduced from 50 to 20
+    pageSize: 20,
     selectedEmiMonth
   });
 
@@ -263,21 +263,6 @@ const Index = () => {
             onExportPlanVsAchievement={handleExportPlanVsAchievement}
           />
 
-          {/* EMI Month Selector - Prominent position */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">EMI Month Selection</h3>
-                <p className="text-sm text-gray-600">Select the EMI month to view data</p>
-              </div>
-              <EmiMonthSelector
-                selectedMonth={selectedEmiMonth}
-                onMonthChange={handleEmiMonthChange}
-                loading={filtersLoading}
-              />
-            </div>
-          </div>
-
           <FiltersSection
             filters={filters}
             availableOptions={availableOptions}
@@ -285,6 +270,8 @@ const Index = () => {
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
             selectedEmiMonth={selectedEmiMonth}
+            onEmiMonthChange={handleEmiMonthChange}
+            emiMonthOptions={emiMonthOptions}
             loading={filtersLoading}
           />
 
@@ -306,7 +293,7 @@ const Index = () => {
               totalPages={totalPages}
               onPageChange={setCurrentPage}
               totalCount={totalCount}
-              pageSize={20} // Reduced from 50 to 20
+              pageSize={20}
               selectedEmiMonth={selectedEmiMonth}
             />
           )}

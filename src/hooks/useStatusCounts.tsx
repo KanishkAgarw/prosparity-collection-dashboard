@@ -19,6 +19,33 @@ interface UseStatusCountsProps {
   selectedEmiMonth?: string | null;
 }
 
+// Utility function to normalize EMI month format
+const normalizeEmiMonth = (emiMonth: string): string => {
+  if (!emiMonth) return '';
+  
+  // Check if it's an Excel serial number (numeric string)
+  const numericValue = parseFloat(emiMonth);
+  if (!isNaN(numericValue) && numericValue > 25000 && numericValue < 100000) {
+    // Excel serial date conversion
+    const excelEpoch = new Date(1900, 0, 1);
+    const millisecondsPerDay = 24 * 60 * 60 * 1000;
+    const date = new Date(excelEpoch.getTime() + (numericValue - 2) * millisecondsPerDay);
+    return date.toISOString().split('T')[0].substring(0, 7); // YYYY-MM format
+  }
+  
+  // If it's already in YYYY-MM format, return as is
+  if (emiMonth.match(/^\d{4}-\d{2}$/)) {
+    return emiMonth;
+  }
+  
+  // If it's in YYYY-MM-DD format, extract YYYY-MM
+  if (emiMonth.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    return emiMonth.substring(0, 7);
+  }
+  
+  return emiMonth;
+};
+
 export const useStatusCounts = ({ filters, selectedEmiMonth }: UseStatusCountsProps) => {
   const { user } = useAuth();
   const [statusCounts, setStatusCounts] = useState<StatusCounts>({
@@ -39,51 +66,87 @@ export const useStatusCounts = ({ filters, selectedEmiMonth }: UseStatusCountsPr
     try {
       console.log('Fetching status counts for month:', selectedEmiMonth);
 
+      const normalizedMonth = normalizeEmiMonth(selectedEmiMonth);
+
       // Build base query for applications filtered by EMI month
-      let baseQuery = supabase
+      let applicationsQuery = supabase
         .from('applications')
         .select('applicant_id, branch_name, team_lead, rm_name, collection_rm, dealer_name, lender_name, repayment, vehicle_status')
-        .eq('demand_date', selectedEmiMonth);
+        .eq('demand_date', normalizedMonth);
 
-      // Apply filters to the base query
+      // Build base query for collection filtered by EMI month
+      let collectionQuery = supabase
+        .from('collection')
+        .select('application_id, team_lead, rm_name, collection_rm, repayment')
+        .eq('demand_date', normalizedMonth);
+
+      // Apply filters to both queries
       if (filters.branch?.length > 0) {
-        baseQuery = baseQuery.in('branch_name', filters.branch);
+        applicationsQuery = applicationsQuery.in('branch_name', filters.branch);
       }
       if (filters.teamLead?.length > 0) {
-        baseQuery = baseQuery.in('team_lead', filters.teamLead);
+        applicationsQuery = applicationsQuery.in('team_lead', filters.teamLead);
+        collectionQuery = collectionQuery.in('team_lead', filters.teamLead);
       }
       if (filters.rm?.length > 0) {
-        baseQuery = baseQuery.in('rm_name', filters.rm);
+        applicationsQuery = applicationsQuery.in('rm_name', filters.rm);
+        collectionQuery = collectionQuery.in('rm_name', filters.rm);
       }
       if (filters.collectionRm?.length > 0) {
-        baseQuery = baseQuery.in('collection_rm', filters.collectionRm);
+        // Normalize collection RM values - treat N/A and NA as the same
+        const normalizedCollectionRms = filters.collectionRm.map(rm => 
+          rm === 'N/A' || rm === 'NA' ? 'N/A' : rm
+        );
+        applicationsQuery = applicationsQuery.or(
+          `collection_rm.in.(${normalizedCollectionRms.join(',')}),collection_rm.is.null`
+        );
+        collectionQuery = collectionQuery.or(
+          `collection_rm.in.(${normalizedCollectionRms.join(',')}),collection_rm.is.null`
+        );
       }
       if (filters.dealer?.length > 0) {
-        baseQuery = baseQuery.in('dealer_name', filters.dealer);
+        applicationsQuery = applicationsQuery.in('dealer_name', filters.dealer);
       }
       if (filters.lender?.length > 0) {
-        baseQuery = baseQuery.in('lender_name', filters.lender);
+        applicationsQuery = applicationsQuery.in('lender_name', filters.lender);
       }
       if (filters.repayment?.length > 0) {
-        baseQuery = baseQuery.in('repayment', filters.repayment);
+        applicationsQuery = applicationsQuery.in('repayment', filters.repayment);
+        collectionQuery = collectionQuery.in('repayment', filters.repayment);
       }
       if (filters.vehicleStatus?.length > 0) {
         if (filters.vehicleStatus.includes('None')) {
-          baseQuery = baseQuery.or(`vehicle_status.is.null,vehicle_status.in.(${filters.vehicleStatus.filter(v => v !== 'None').join(',')})`);
+          applicationsQuery = applicationsQuery.or(`vehicle_status.is.null,vehicle_status.in.(${filters.vehicleStatus.filter(v => v !== 'None').join(',')})`);
         } else {
-          baseQuery = baseQuery.in('vehicle_status', filters.vehicleStatus);
+          applicationsQuery = applicationsQuery.in('vehicle_status', filters.vehicleStatus);
         }
       }
 
-      const { data: applications, error: appsError } = await baseQuery;
+      const [appResult, colResult] = await Promise.all([applicationsQuery, collectionQuery]);
 
-      if (appsError) {
-        console.error('Error fetching applications for status counts:', appsError);
+      if (appResult.error) {
+        console.error('Error fetching applications for status counts:', appResult.error);
         return;
       }
 
-      if (!applications) {
-        console.log('No applications found for status counts');
+      if (colResult.error) {
+        console.error('Error fetching collection for status counts:', colResult.error);
+        return;
+      }
+
+      const applications = appResult.data || [];
+      const collections = colResult.data || [];
+
+      // Combine application IDs from both sources
+      const allApplicationIds = new Set<string>();
+      applications.forEach(app => allApplicationIds.add(app.applicant_id));
+      collections.forEach(col => allApplicationIds.add(col.application_id));
+
+      const applicationIds = Array.from(allApplicationIds);
+
+      console.log(`Found ${applicationIds.length} unique applications for status counting`);
+
+      if (applicationIds.length === 0) {
         setStatusCounts({
           total: 0,
           statusUnpaid: 0,
@@ -96,16 +159,12 @@ export const useStatusCounts = ({ filters, selectedEmiMonth }: UseStatusCountsPr
         return;
       }
 
-      console.log(`Found ${applications.length} applications for status counting`);
-
       // Fetch field status for these applications
-      const applicationIds = applications.map(app => app.applicant_id);
-      
       const { data: fieldStatusData } = await supabase
         .from('field_status')
         .select('application_id, status, created_at')
         .in('application_id', applicationIds)
-        .eq('demand_date', selectedEmiMonth)
+        .eq('demand_date', normalizedMonth)
         .order('created_at', { ascending: false });
 
       console.log(`Found ${fieldStatusData?.length || 0} field status records`);
@@ -118,11 +177,11 @@ export const useStatusCounts = ({ filters, selectedEmiMonth }: UseStatusCountsPr
         }
       });
 
-      // Count statuses
-      const counts = applications.reduce((acc, app) => {
+      // Count statuses for all applications
+      const counts = applicationIds.reduce((acc, applicationId) => {
         acc.total++;
         
-        const status = statusMap.get(app.applicant_id) || 'Unpaid';
+        const status = statusMap.get(applicationId) || 'Unpaid';
         
         switch (status) {
           case 'Unpaid':
