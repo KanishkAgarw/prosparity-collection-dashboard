@@ -44,16 +44,16 @@ export const useStatusCounts = ({ filters, selectedEmiMonth }: UseStatusCountsPr
       const monthVariations = getMonthVariations(selectedEmiMonth);
       console.log('Status counts - querying month variations:', monthVariations);
 
-      // Build base query for applications filtered by EMI month
-      let applicationsQuery = supabase
-        .from('applications')
-        .select('applicant_id, branch_name, team_lead, rm_name, collection_rm, dealer_name, lender_name, repayment, vehicle_status')
-        .in('demand_date', monthVariations);
-
-      // Build base query for collection filtered by EMI month
+      // PRIMARY: Build query for collection table filtered by EMI month
       let collectionQuery = supabase
         .from('collection')
         .select('application_id, team_lead, rm_name, collection_rm, repayment')
+        .in('demand_date', monthVariations);
+
+      // SECONDARY: Build query for applications filtered by EMI month
+      let applicationsQuery = supabase
+        .from('applications')
+        .select('applicant_id, branch_name, team_lead, rm_name, collection_rm, dealer_name, lender_name, repayment, vehicle_status')
         .in('demand_date', monthVariations);
 
       // Apply filters to both queries
@@ -98,25 +98,25 @@ export const useStatusCounts = ({ filters, selectedEmiMonth }: UseStatusCountsPr
         }
       }
 
-      const [appResult, colResult] = await Promise.all([applicationsQuery, collectionQuery]);
-
-      if (appResult.error) {
-        console.error('Error fetching applications for status counts:', appResult.error);
-        return;
-      }
+      const [colResult, appResult] = await Promise.all([collectionQuery, applicationsQuery]);
 
       if (colResult.error) {
         console.error('Error fetching collection for status counts:', colResult.error);
         return;
       }
 
-      const applications = appResult.data || [];
-      const collections = colResult.data || [];
+      if (appResult.error) {
+        console.error('Error fetching applications for status counts:', appResult.error);
+        return;
+      }
 
-      // Combine application IDs from both sources
+      const collections = colResult.data || [];
+      const applications = appResult.data || [];
+
+      // PRIMARY strategy: Use collection table as main source
       const allApplicationIds = new Set<string>();
-      applications.forEach(app => allApplicationIds.add(app.applicant_id));
       collections.forEach(col => allApplicationIds.add(col.application_id));
+      applications.forEach(app => allApplicationIds.add(app.applicant_id));
 
       const applicationIds = Array.from(allApplicationIds);
 
@@ -135,7 +135,7 @@ export const useStatusCounts = ({ filters, selectedEmiMonth }: UseStatusCountsPr
         return;
       }
 
-      // Fetch field status for these applications
+      // Fetch field status for these applications using month variations
       const { data: fieldStatusData } = await supabase
         .from('field_status')
         .select('application_id, status, created_at')

@@ -55,13 +55,7 @@ export const useOptimizedApplicationsV2 = ({
       const monthVariations = getMonthVariations(selectedEmiMonth);
       console.log('Querying month variations:', monthVariations);
 
-      // Build query for applications table
-      let applicationsQuery = supabase
-        .from('applications')
-        .select('*')
-        .in('demand_date', monthVariations);
-
-      // Build query for collection table
+      // PRIMARY: Build query for collection table (this is our main data source for EMI months)
       let collectionQuery = supabase
         .from('collection')
         .select(`
@@ -76,6 +70,12 @@ export const useOptimizedApplicationsV2 = ({
           repayment,
           last_month_bounce
         `)
+        .in('demand_date', monthVariations);
+
+      // SECONDARY: Build query for applications table (supplementary data)
+      let applicationsQuery = supabase
+        .from('applications')
+        .select('*')
         .in('demand_date', monthVariations);
 
       // Apply filters to both queries
@@ -114,91 +114,123 @@ export const useOptimizedApplicationsV2 = ({
         }
       }
 
-      // Apply search if provided
+      // Apply search if provided (search in application data)
       if (searchTerm.trim()) {
         applicationsQuery = applicationsQuery.or(`applicant_name.ilike.%${searchTerm}%,applicant_id.ilike.%${searchTerm}%,applicant_mobile.ilike.%${searchTerm}%`);
         collectionQuery = collectionQuery.or(`application_id.ilike.%${searchTerm}%`);
       }
 
       // Fetch data from both tables
-      const [applicationsResult, collectionResult] = await Promise.all([
-        applicationsQuery,
-        collectionQuery
+      const [collectionResult, applicationsResult] = await Promise.all([
+        collectionQuery,
+        applicationsQuery
       ]);
-
-      if (applicationsResult.error) {
-        console.error('Error fetching applications:', applicationsResult.error);
-        throw applicationsResult.error;
-      }
 
       if (collectionResult.error) {
         console.error('Error fetching collection:', collectionResult.error);
         throw collectionResult.error;
       }
 
-      console.log(`Found ${applicationsResult.data?.length || 0} applications and ${collectionResult.data?.length || 0} collection records`);
+      if (applicationsResult.error) {
+        console.error('Error fetching applications:', applicationsResult.error);
+        throw applicationsResult.error;
+      }
 
-      // Combine and deduplicate data
+      console.log(`Found ${collectionResult.data?.length || 0} collection records and ${applicationsResult.data?.length || 0} application records`);
+
+      // STRATEGY: Use collection table as PRIMARY source, supplement with application details
+      const collectionsMap = new Map();
       const applicationsMap = new Map();
       
-      // Add applications data
-      (applicationsResult.data || []).forEach(app => {
-        applicationsMap.set(app.applicant_id, {
-          ...app,
-          id: app.id || app.applicant_id,
+      // First, process all collection data (PRIMARY source)
+      (collectionResult.data || []).forEach(col => {
+        collectionsMap.set(col.application_id, {
+          id: col.application_id,
+          applicant_id: col.application_id,
+          demand_date: col.demand_date,
+          emi_amount: col.emi_amount || 0,
+          amount_collected: col.amount_collected || 0,
+          lms_status: col.lms_status || 'Unpaid',
+          collection_rm: col.collection_rm || 'N/A',
+          team_lead: col.team_lead || '',
+          rm_name: col.rm_name || '',
+          repayment: col.repayment || '',
+          last_month_bounce: col.last_month_bounce || 0,
           field_status: 'Unpaid',
+          // Default values for application fields
+          applicant_name: 'Unknown',
+          applicant_mobile: '',
+          applicant_address: '',
+          branch_name: '',
+          dealer_name: '',
+          lender_name: '',
+          principle_due: 0,
+          interest_due: 0,
+          loan_amount: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          user_id: user.id
         });
       });
 
-      // Add collection data (merge with existing or create new entries)
-      (collectionResult.data || []).forEach(col => {
-        const existing = applicationsMap.get(col.application_id);
-        if (existing) {
-          // Merge collection data with existing application
-          applicationsMap.set(col.application_id, {
-            ...existing,
-            emi_amount: col.emi_amount || existing.emi_amount,
-            amount_collected: col.amount_collected || existing.amount_collected,
-            lms_status: col.lms_status || existing.lms_status,
-            collection_rm: col.collection_rm || existing.collection_rm,
-            team_lead: col.team_lead || existing.team_lead,
-            rm_name: col.rm_name || existing.rm_name,
-            repayment: col.repayment || existing.repayment,
-            last_month_bounce: col.last_month_bounce || existing.last_month_bounce
-          });
-        } else {
-          // Create new entry from collection data
-          applicationsMap.set(col.application_id, {
-            id: col.application_id,
-            applicant_id: col.application_id,
-            demand_date: col.demand_date,
-            emi_amount: col.emi_amount || 0,
-            amount_collected: col.amount_collected || 0,
-            lms_status: col.lms_status || 'Unpaid',
-            collection_rm: col.collection_rm || 'N/A',
-            team_lead: col.team_lead || '',
-            rm_name: col.rm_name || '',
-            repayment: col.repayment || '',
-            last_month_bounce: col.last_month_bounce || 0,
+      // Second, process applications data (SECONDARY source for additional details)
+      (applicationsResult.data || []).forEach(app => {
+        applicationsMap.set(app.applicant_id, app);
+      });
+
+      // Merge: Collection data as base, enhanced with application details
+      const allApplications: Application[] = [];
+      
+      // Start with all collection records
+      collectionsMap.forEach((collectionData, applicationId) => {
+        const appData = applicationsMap.get(applicationId);
+        allApplications.push({
+          ...collectionData,
+          // Override with application details if available
+          ...(appData && {
+            applicant_name: appData.applicant_name || collectionData.applicant_name,
+            applicant_mobile: appData.applicant_mobile || collectionData.applicant_mobile,
+            applicant_address: appData.applicant_address || collectionData.applicant_address,
+            branch_name: appData.branch_name || collectionData.branch_name,
+            dealer_name: appData.dealer_name || collectionData.dealer_name,
+            lender_name: appData.lender_name || collectionData.lender_name,
+            principle_due: appData.principle_due || collectionData.principle_due,
+            interest_due: appData.interest_due || collectionData.interest_due,
+            loan_amount: appData.loan_amount || collectionData.loan_amount,
+            vehicle_status: appData.vehicle_status,
+            fi_location: appData.fi_location,
+            house_ownership: appData.house_ownership,
+            co_applicant_name: appData.co_applicant_name,
+            co_applicant_mobile: appData.co_applicant_mobile,
+            co_applicant_address: appData.co_applicant_address,
+            guarantor_name: appData.guarantor_name,
+            guarantor_mobile: appData.guarantor_mobile,
+            guarantor_address: appData.guarantor_address,
+            reference_name: appData.reference_name,
+            reference_mobile: appData.reference_mobile,
+            reference_address: appData.reference_address,
+            disbursement_date: appData.disbursement_date,
+            created_at: appData.created_at || collectionData.created_at,
+            updated_at: appData.updated_at || collectionData.updated_at,
+            user_id: appData.user_id || collectionData.user_id
+          })
+        });
+      });
+
+      // Add any application records that don't exist in collection (edge case)
+      applicationsMap.forEach((appData, applicationId) => {
+        if (!collectionsMap.has(applicationId)) {
+          allApplications.push({
+            ...appData,
+            id: appData.id || appData.applicant_id,
             field_status: 'Unpaid',
-            // Default values for missing application fields
-            applicant_name: 'Unknown',
-            applicant_mobile: '',
-            applicant_address: '',
-            branch_name: '',
-            dealer_name: '',
-            lender_name: '',
-            principle_due: 0,
-            interest_due: 0,
-            loan_amount: 0,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            user_id: user.id
+            emi_amount: appData.emi_amount || 0,
+            amount_collected: 0,
+            collection_rm: appData.collection_rm || 'N/A'
           });
         }
       });
 
-      const allApplications = Array.from(applicationsMap.values());
       const totalCount = allApplications.length;
       setTotalCount(totalCount);
 

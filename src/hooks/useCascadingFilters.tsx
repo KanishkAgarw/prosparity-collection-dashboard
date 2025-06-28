@@ -61,34 +61,34 @@ export const useCascadingFilters = () => {
   const [emiMonthOptions, setEmiMonthOptions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Fetch all available EMI months from both tables
+  // Fetch all available EMI months from both tables (prioritize collection)
   const fetchAllEmiMonths = useCallback(async () => {
     if (!user) return;
 
     try {
       console.log('Fetching all EMI months from database...');
 
-      // Get demand dates from applications table
-      const { data: appDates } = await supabase
-        .from('applications')
-        .select('demand_date')
-        .not('demand_date', 'is', null);
-
-      // Get demand dates from collection table
+      // PRIMARY: Get demand dates from collection table first
       const { data: colDates } = await supabase
         .from('collection')
         .select('demand_date')
         .not('demand_date', 'is', null);
 
-      console.log('Raw app dates:', appDates?.slice(0, 10));
-      console.log('Raw collection dates:', colDates?.slice(0, 10));
+      // SECONDARY: Get demand dates from applications table
+      const { data: appDates } = await supabase
+        .from('applications')
+        .select('demand_date')
+        .not('demand_date', 'is', null);
 
-      // Combine all dates and group by normalized month
+      console.log('Raw collection dates:', colDates?.slice(0, 10));
+      console.log('Raw app dates:', appDates?.slice(0, 10));
+
+      // Combine all dates and group by normalized month (prioritize collection data)
       const allDates: string[] = [];
-      appDates?.forEach(item => {
+      colDates?.forEach(item => {
         if (item.demand_date) allDates.push(item.demand_date);
       });
-      colDates?.forEach(item => {
+      appDates?.forEach(item => {
         if (item.demand_date) allDates.push(item.demand_date);
       });
 
@@ -140,16 +140,16 @@ export const useCascadingFilters = () => {
       const monthVariations = getMonthVariations(selectedEmiMonth);
       console.log('Month variations to query:', monthVariations);
 
-      // Build base query for applications with month variations
-      let applicationsQuery = supabase
-        .from('applications')
-        .select('branch_name, team_lead, rm_name, collection_rm, dealer_name, lender_name, demand_date, repayment, vehicle_status')
-        .in('demand_date', monthVariations);
-
-      // Build base query for collection with month variations
+      // PRIMARY: Build base query for collection with month variations
       let collectionQuery = supabase
         .from('collection')
         .select('team_lead, rm_name, collection_rm, repayment, demand_date')
+        .in('demand_date', monthVariations);
+
+      // SECONDARY: Build base query for applications with month variations
+      let applicationsQuery = supabase
+        .from('applications')
+        .select('branch_name, team_lead, rm_name, collection_rm, dealer_name, lender_name, demand_date, repayment, vehicle_status')
         .in('demand_date', monthVariations);
 
       // Apply existing filters to constrain options
@@ -194,25 +194,25 @@ export const useCascadingFilters = () => {
         }
       }
 
-      const [appResult, colResult] = await Promise.all([applicationsQuery, collectionQuery]);
-
-      if (appResult.error) {
-        console.error('Error fetching applications for filter options:', appResult.error);
-        return;
-      }
+      const [colResult, appResult] = await Promise.all([collectionQuery, applicationsQuery]);
 
       if (colResult.error) {
         console.error('Error fetching collection for filter options:', colResult.error);
         return;
       }
 
-      const apps = appResult.data || [];
+      if (appResult.error) {
+        console.error('Error fetching applications for filter options:', appResult.error);
+        return;
+      }
+
       const collections = colResult.data || [];
+      const apps = appResult.data || [];
 
-      console.log(`Processing ${apps.length} applications and ${collections.length} collection records for filter options`);
+      console.log(`Processing ${collections.length} collection records and ${apps.length} application records for filter options`);
 
-      // Combine data from both sources
-      const allData = [...apps, ...collections];
+      // Combine data from both sources (prioritize collection data)
+      const allData = [...collections, ...apps];
 
       // Extract unique values for each filter with normalization
       const options: CascadingFilterOptions = {
@@ -235,7 +235,7 @@ export const useCascadingFilters = () => {
         statuses: []
       };
 
-      // Get statuses from field_status table for the selected month
+      // Get statuses from field_status table for the selected month using month variations
       const { data: statuses, error: statusError } = await supabase
         .from('field_status')
         .select('status')
