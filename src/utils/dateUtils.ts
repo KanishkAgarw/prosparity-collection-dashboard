@@ -37,12 +37,12 @@ export const getMonthVariations = (normalizedMonth: string): string[] => {
 
   const variations = [normalizedMonth];
   
-  // Add the first day of the month format (YYYY-MM-DD)
-  variations.push(`${normalizedMonth}-01`);
+  // Add the 5th day of the month format (YYYY-MM-05) since EMI dates fall on 5th
+  variations.push(`${normalizedMonth}-05`);
   
-  // Calculate Excel serial number for the first day of the month
+  // Calculate Excel serial number for the 5th day of the month
   const [year, month] = normalizedMonth.split('-').map(Number);
-  const date = new Date(year, month - 1, 1); // month - 1 because JS months are 0-indexed
+  const date = new Date(year, month - 1, 5); // month - 1 because JS months are 0-indexed, day 5 for EMI date
   
   // Convert to Excel serial number
   const excelEpoch = new Date(1900, 0, 1);
@@ -52,6 +52,8 @@ export const getMonthVariations = (normalizedMonth: string): string[] => {
   const excelSerial = diffInDays + 2;
   
   variations.push(excelSerial.toString());
+  
+  console.log(`Month variations for ${normalizedMonth}:`, variations);
   
   return variations;
 };
