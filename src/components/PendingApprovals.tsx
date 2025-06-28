@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -33,8 +34,8 @@ interface PendingApprovalsProps {
 
 const PendingApprovals = ({ onClose }: PendingApprovalsProps) => {
   const { user } = useAuth();
-  const { fetchProfiles, profiles } = useUserProfiles();
-  const userProfile = profiles[user?.id || ''];
+  const { fetchProfiles, profilesCache } = useUserProfiles();
+  const userProfile = profilesCache.get(user?.id || '');
   const [requests, setRequests] = useState<StatusChangeRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [rejectionComments, setRejectionComments] = useState<{ [key: string]: string }>({});

@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,7 +11,7 @@ interface ContactCallingStatus {
   latest: string;
 }
 
-export const useContactCallingStatus = () => {
+export const useContactCallingStatus = (applicationId?: string, selectedMonth?: string) => {
   const { user } = useAuth();
   const [contactStatuses, setContactStatuses] = useState<ContactCallingStatus | null>(null);
   const [loading, setLoading] = useState(false);
@@ -51,6 +52,20 @@ export const useContactCallingStatus = () => {
     }
   }, [user]);
 
+  const getStatusForContact = useCallback((contactType: string): string => {
+    if (!applicationId || !selectedMonth) return 'Not Called';
+    
+    // This would typically fetch from the contact_calling_status table
+    // For now, returning a default status
+    return 'Not Called';
+  }, [applicationId, selectedMonth]);
+
+  const refetch = useCallback(async () => {
+    if (applicationId) {
+      await fetchContactStatuses([applicationId]);
+    }
+  }, [applicationId, fetchContactStatuses]);
+
   const updateContactStatus = useCallback(async (
     applicationId: string,
     contactType: string,
@@ -60,7 +75,7 @@ export const useContactCallingStatus = () => {
     if (!user) return;
 
     try {
-      const currentDemandDate = demandDate || new Date().toISOString().split('T')[0];
+      const currentDemandDate = demandDate || selectedMonth || new Date().toISOString().split('T')[0];
       
       // Fetch the current status to log the change
       const { data: currentStatusData, error: currentStatusError } = await supabase
@@ -106,13 +121,15 @@ export const useContactCallingStatus = () => {
     } catch (error) {
       console.error('Error updating contact status:', error);
     }
-  }, [user]);
+  }, [user, selectedMonth]);
 
   return {
     contactStatuses,
     loading,
     error,
     fetchContactStatuses,
-    updateContactStatus
+    updateContactStatus,
+    getStatusForContact,
+    refetch
   };
 };

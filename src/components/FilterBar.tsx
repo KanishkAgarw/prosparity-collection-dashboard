@@ -30,7 +30,7 @@ const FilterBar = ({ filters, availableOptions, onFilterChange, selectedEmiMonth
     { key: 'vehicleStatus', label: 'Vehicle Status', options: availableOptions.vehicleStatusOptions }
   ];
 
-  const getActiveFiltersCount = () => {
+  const getActiveFiltersCount = (): number => {
     return Object.values(filters).reduce((count: number, filterArray: any) => {
       return count + (Array.isArray(filterArray) ? filterArray.length : 0);
     }, 0);
@@ -61,11 +61,9 @@ const FilterBar = ({ filters, availableOptions, onFilterChange, selectedEmiMonth
           <CustomMultiSelectFilter
             key={config.key}
             label={config.label}
-            options={config.options}
-            values={filters[config.key] || []}
-            onChange={(values) => onFilterChange(config.key, values)}
-            open={openFilter === config.key}
-            onOpenChange={(open) => setOpenFilter(open ? config.key : null)}
+            options={config.options || []}
+            selected={filters[config.key] || []}
+            onSelectionChange={(values) => onFilterChange(config.key, values)}
           />
         ))}
         

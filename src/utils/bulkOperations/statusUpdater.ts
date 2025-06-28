@@ -1,14 +1,17 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
-export const updateFieldStatusFromBulk = async (applicationId: string, newStatus: string, user: any) => {
+export const updateFieldStatusFromBulk = async (applicationId: string, newStatus: string, user: any, demandDate?: string) => {
   try {
     console.log(`Updating field status for ${applicationId} to ${newStatus}`);
+    
+    const currentDemandDate = demandDate || new Date().toISOString().split('T')[0];
     
     const { data: currentStatus } = await supabase
       .from('field_status')
       .select('status')
       .eq('application_id', applicationId)
+      .eq('demand_date', currentDemandDate)
       .maybeSingle();
 
     const previousStatus = currentStatus?.status || 'Unpaid';
@@ -25,9 +28,10 @@ export const updateFieldStatusFromBulk = async (applicationId: string, newStatus
         status: newStatus,
         user_id: user.id,
         user_email: user.email,
+        demand_date: currentDemandDate,
         updated_at: new Date().toISOString()
       }, {
-        onConflict: 'application_id'
+        onConflict: 'application_id,demand_date'
       });
 
     if (error) {
@@ -43,7 +47,8 @@ export const updateFieldStatusFromBulk = async (applicationId: string, newStatus
         new_value: newStatus,
         application_id: applicationId,
         user_id: user.id,
-        user_email: user.email
+        user_email: user.email,
+        demand_date: currentDemandDate
       });
 
     console.log(`Successfully updated status for ${applicationId}: ${previousStatus} -> ${newStatus}`);
