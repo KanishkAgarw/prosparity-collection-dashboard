@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -106,8 +107,23 @@ export const useOptimizedCascadingFilters = () => {
         }
       }
 
-      // Cache for 10 minutes
-      setCachedData(cacheKey, { emiMonths: sortedMonths }, 10 * 60 * 1000);
+      // Cache complete structure with all required properties
+      const cacheData: CascadingFilterOptions = {
+        branches: [],
+        teamLeads: [],
+        rms: [],
+        dealers: [],
+        lenders: [],
+        statuses: [],
+        emiMonths: sortedMonths,
+        repayments: [],
+        lastMonthBounce: ['Not paid', 'Paid on time', '1-5 days late', '6-15 days late', '15+ days late'],
+        ptpDateOptions: ['Overdue PTP', "Today's PTP", "Tomorrow's PTP", 'Future PTP', 'No PTP'],
+        collectionRms: [],
+        vehicleStatusOptions: ['Seized', 'Repo', 'Accident', 'None']
+      };
+      
+      setCachedData(cacheKey, cacheData, 10 * 60 * 1000);
       console.log('Cached EMI months:', sortedMonths.length);
     } catch (error) {
       console.error('Error fetching EMI months:', error);

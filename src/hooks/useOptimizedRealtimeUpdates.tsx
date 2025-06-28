@@ -10,6 +10,14 @@ interface UseOptimizedRealtimeUpdatesProps {
   currentApplicationIds?: string[];
 }
 
+// Type for Supabase realtime payload
+interface RealtimePayload {
+  eventType: 'INSERT' | 'UPDATE' | 'DELETE';
+  new?: { [key: string]: any };
+  old?: { [key: string]: any };
+  errors?: any[];
+}
+
 export const useOptimizedRealtimeUpdates = ({
   onApplicationUpdate,
   onStatusUpdate,
@@ -77,9 +85,9 @@ export const useOptimizedRealtimeUpdates = ({
         table: 'collection',
         filter: `demand_date=gte.${selectedEmiMonth}-01,demand_date=lte.${selectedEmiMonth}-31`
       },
-      (payload) => {
-        if (isActiveRef.current && payload.new && currentApplicationIds.includes(payload.new.application_id)) {
-          console.log('Collection update for visible application:', payload.new.application_id);
+      (payload: RealtimePayload) => {
+        if (isActiveRef.current && payload.new && (payload.new as any).application_id && currentApplicationIds.includes((payload.new as any).application_id)) {
+          console.log('Collection update for visible application:', (payload.new as any).application_id);
           throttledUpdate('application');
         }
       }
@@ -93,9 +101,9 @@ export const useOptimizedRealtimeUpdates = ({
         schema: 'public',
         table: 'field_status'
       },
-      (payload) => {
-        if (isActiveRef.current && payload.new && currentApplicationIds.includes(payload.new.application_id)) {
-          console.log('Status update for visible application:', payload.new.application_id);
+      (payload: RealtimePayload) => {
+        if (isActiveRef.current && payload.new && (payload.new as any).application_id && currentApplicationIds.includes((payload.new as any).application_id)) {
+          console.log('Status update for visible application:', (payload.new as any).application_id);
           throttledUpdate('status');
         }
       }
@@ -109,9 +117,9 @@ export const useOptimizedRealtimeUpdates = ({
         schema: 'public',
         table: 'ptp_dates'
       },
-      (payload) => {
-        if (isActiveRef.current && payload.new && currentApplicationIds.includes(payload.new.application_id)) {
-          console.log('PTP update for visible application:', payload.new.application_id);
+      (payload: RealtimePayload) => {
+        if (isActiveRef.current && payload.new && (payload.new as any).application_id && currentApplicationIds.includes((payload.new as any).application_id)) {
+          console.log('PTP update for visible application:', (payload.new as any).application_id);
           throttledUpdate('status');
         }
       }
