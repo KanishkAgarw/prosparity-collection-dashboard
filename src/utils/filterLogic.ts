@@ -1,4 +1,3 @@
-
 import { formatEmiMonth } from "@/utils/formatters";
 import { categorizePtpDate, type PtpDateCategory, getPtpDateCategoryLabel } from "@/utils/ptpDateUtils";
 import { formatRepayment, categorizeLastMonthBounce, isValidLastMonthBounceCategory, isValidPtpDateCategory } from "@/utils/filterUtils";
@@ -31,7 +30,7 @@ export const getAvailableOptions = (allApplications: any[], filteredApplications
   const emiMonthsSet = new Set(allApplications.map(app => formatEmiMonth(app.demand_date)).filter(Boolean));
   const emiMonths = Array.from(emiMonthsSet).sort((a, b) => {
     // Parse as date for correct sorting
-    const parse = (str: string) => {
+    const parse = (str) => {
       // str is like 'Jan-24', 'Jul-25', etc.
       const [mon, yr] = str.split('-');
       const monthNum = [
@@ -40,7 +39,7 @@ export const getAvailableOptions = (allApplications: any[], filteredApplications
       const yearNum = parseInt(yr.length === 2 ? '20' + yr : yr, 10);
       return new Date(yearNum, monthNum, 1);
     };
-    return parse(a).getTime() - parse(b).getTime();
+    return parse(a) - parse(b);
   });
   const repayments = [...new Set(appsForOptions.map(app => formatRepayment(app.repayment)).filter(Boolean))].sort();
   const collectionRms = [...new Set(appsForOptions.map(app => app.collection_rm).filter(Boolean))].sort();

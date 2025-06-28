@@ -1,50 +1,36 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
-export const createFieldStatus = async (applicationId: string, status: string, userId: any, userEmail: any, demandDate: string) => {
-  await supabase
+export const createInitialFieldStatus = async (applicationId: string, initialStatus: string, user: any) => {
+  console.log(`Creating field status for new application: ${applicationId} with status: ${initialStatus}`);
+  
+  const { error: fieldStatusError } = await supabase
     .from('field_status')
-    .insert({
+    .upsert({
       application_id: applicationId,
-      status: status,
-      user_id: userId,
-      user_email: userEmail,
-      demand_date: demandDate,
-      updated_at: new Date().toISOString(),
+      status: initialStatus,
+      user_id: user?.id || '',
+      user_email: user?.email || 'system@bulk-upload.local',
+      updated_at: new Date().toISOString()
+    }, {
+      onConflict: 'application_id'
     });
-};
 
-export const createInitialFieldStatus = async (applicationId: string, status: string, userId: any, userEmail: any, demandDate: string) => {
-  await supabase
-    .from('field_status')
-    .insert({
-      application_id: applicationId,
-      status: status,
-      user_id: userId,
-      user_email: userEmail,
-      demand_date: demandDate,
-      updated_at: new Date().toISOString(),
-    });
-};
+  if (fieldStatusError) {
+    console.error('Error creating field status:', fieldStatusError);
+    throw new Error(`Failed to create field status: ${fieldStatusError.message}`);
+  }
 
-export const createAuditLog = async (
-  applicationId: string,
-  field: string,
-  previousValue: string,
-  newValue: string,
-  userId: any,
-  userEmail: any,
-  demandDate: string
-) => {
-  await supabase
-    .from('audit_logs')
-    .insert({
-      field: field,
-      previous_value: previousValue,
-      new_value: newValue,
-      application_id: applicationId,
-      user_id: userId,
-      user_email: userEmail,
-      demand_date: demandDate,
-    });
+  if (initialStatus !== 'Unpaid' && user) {
+    await supabase
+      .from('audit_logs')
+      .insert({
+        field: 'Status (Bulk Upload)',
+        previous_value: 'Unpaid',
+        new_value: initialStatus,
+        application_id: applicationId,
+        user_id: user.id,
+        user_email: user.email
+      });
+  }
 };

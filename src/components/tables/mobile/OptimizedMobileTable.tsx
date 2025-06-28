@@ -7,34 +7,23 @@ interface OptimizedMobileTableProps {
   applications: Application[];
   onRowClick: (application: Application) => void;
   selectedApplicationId?: string;
-  selectedEmiMonth?: string | null;
 }
 
-const OptimizedMobileTable = memo(({
-  applications,
-  onRowClick,
-  selectedApplicationId,
-  selectedEmiMonth
+const OptimizedMobileTable = memo(({ 
+  applications, 
+  onRowClick, 
+  selectedApplicationId 
 }: OptimizedMobileTableProps) => {
-  
   return (
-    <div className="space-y-3 p-1">
-      {applications.map((application) => (
+    <div className="space-y-3">
+      {applications.map((app) => (
         <MobileApplicationCard
-          key={application.id}
-          application={application}
+          key={app.id}
+          application={app}
           onRowClick={onRowClick}
-          selectedApplicationId={selectedApplicationId || ''}
-          selectedMonth={selectedEmiMonth}
+          selectedApplicationId={selectedApplicationId}
         />
       ))}
-      
-      {applications.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground">
-          <p className="text-lg font-medium text-gray-500">No applications found</p>
-          <p className="text-sm text-gray-400">Try adjusting your filters</p>
-        </div>
-      )}
     </div>
   );
 });
