@@ -52,7 +52,10 @@ const ApplicationDetailsPanel = ({
   }, [application]);
   
   const { repaymentHistory } = useRepaymentHistory(currentApplication?.applicant_id);
+  
+  // Initialize comments hook but don't auto-fetch
   const { comments, fetchComments, addComment, clearComments } = useComments(selectedMonth);
+  
   const { auditLogs, addAuditLog, refetch: refetchAuditLogs } = useAuditLogs(currentApplication?.applicant_id, selectedMonth);
   const { callingLogs, addCallingLog, refetch: refetchCallingLogs } = useCallingLogs(currentApplication?.applicant_id, selectedMonth);
 
@@ -121,17 +124,18 @@ const ApplicationDetailsPanel = ({
     }
   }, [availableMonths, selectedMonth, currentApplication?.applicant_id, selectedEmiMonth]);
 
-  // Fetch comments only when both application and selectedMonth are available
+  // Only fetch comments when the comments tab is actively accessed
+  const [commentsTabAccessed, setCommentsTabAccessed] = useState(false);
+  
   useEffect(() => {
-    console.log('ApplicationDetailsPanel: Fetching comments', {
-      applicationId: currentApplication?.applicant_id,
-      selectedMonth
-    });
-    
-    if (currentApplication?.applicant_id && selectedMonth) {
+    if (commentsTabAccessed && currentApplication?.applicant_id && selectedMonth) {
+      console.log('ApplicationDetailsPanel: Fetching comments for active tab', {
+        applicationId: currentApplication.applicant_id,
+        selectedMonth
+      });
       fetchComments(currentApplication.applicant_id);
     }
-  }, [currentApplication?.applicant_id, selectedMonth, fetchComments]);
+  }, [commentsTabAccessed, currentApplication?.applicant_id, selectedMonth, fetchComments]);
 
   const monthlyCollectionData = selectedMonth ? getApplicationForMonth(selectedMonth) : null;
 
@@ -300,7 +304,11 @@ const ApplicationDetailsPanel = ({
       />
 
       <div className="flex-1 flex-col-min-h-0">
-        <Tabs defaultValue="contacts" className="h-full flex flex-col">
+        <Tabs defaultValue="contacts" className="h-full flex flex-col" onValueChange={(value) => {
+          if (value === 'comments') {
+            setCommentsTabAccessed(true);
+          }
+        }}>
           <div className="flex-shrink-0 pt-3 sm:pt-4 border-b">
             <TabsList className="grid w-full grid-cols-4 text-xs sm:text-sm h-auto">
               <TabsTrigger value="contacts" className="py-2">Contacts</TabsTrigger>

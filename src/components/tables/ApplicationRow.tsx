@@ -1,4 +1,3 @@
-
 import { memo, useEffect, useState } from "react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Application } from "@/types/application";
@@ -65,15 +64,7 @@ const ApplicationRow = memo(({
     fetchPtp();
   }, [application.applicant_id, monthToShow, fetchPtpDate]);
 
-  // Fetch per-month comments using the selected month
-  const { comments, fetchComments } = useComments(monthToShow);
-  useEffect(() => {
-    if (monthToShow) {
-      console.log(`Fetching comments for ${application.applicant_id} and month ${monthToShow}`);
-      fetchComments(application.applicant_id);
-    }
-  }, [application.applicant_id, monthToShow, fetchComments]);
-
+  // Remove individual comment fetching - we'll show a simple indicator instead
   const handleRowClick = (e: React.MouseEvent) => {
     onRowClick(application);
   };
@@ -108,7 +99,9 @@ const ApplicationRow = memo(({
       </TableCell>
       
       <TableCell className="max-w-[200px]">
-        <CommentsDisplay comments={comments} />
+        <div className="text-xs text-gray-400 italic">
+          Click to view comments
+        </div>
       </TableCell>
     </TableRow>
   );

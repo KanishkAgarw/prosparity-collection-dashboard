@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -48,12 +49,22 @@ export const useComments = (selectedMonth?: string) => {
         .select('*')
         .eq('application_id', applicationId);
 
-      // Add month filtering if selectedMonth is provided
+      // Add month filtering if selectedMonth is provided - use proper date range
       if (selectedMonth) {
-        query = query.eq('demand_date', selectedMonth);
+        const monthStart = `${selectedMonth}-01`;
+        const nextMonth = new Date(selectedMonth + '-01');
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        const monthEnd = nextMonth.toISOString().substring(0, 10);
+        
+        query = query
+          .gte('created_at', monthStart)
+          .lt('created_at', monthEnd);
       }
 
-      query = query.order('created_at', { ascending: false });
+      // Limit to most recent 10 comments for performance
+      query = query
+        .order('created_at', { ascending: false })
+        .limit(10);
 
       const { data: commentsData, error: commentsError } = await query;
 
@@ -102,79 +113,16 @@ export const useComments = (selectedMonth?: string) => {
     }
   }, [user, fetchProfiles, getUserName, selectedMonth, loading, currentApplicationId]);
 
+  // Remove the bulk fetch function - we'll only fetch on demand now
   const fetchCommentsByApplications = useCallback(async (
     applicationIds: string[], 
     startDate?: Date, 
     endDate?: Date
   ): Promise<Record<string, Array<{content: string; user_name: string}>>> => {
-    if (!user || applicationIds.length === 0) return {};
-
-    try {
-      console.log('=== FETCHING COMMENTS FOR MULTIPLE APPLICATIONS ===');
-      console.log('Application IDs:', applicationIds);
-      console.log('Date range:', startDate, 'to', endDate);
-
-      // Build query with date filtering if provided
-      let query = supabase
-        .from('comments')
-        .select('*')
-        .in('application_id', applicationIds);
-
-      // Add date filtering if both dates are provided
-      if (startDate && endDate) {
-        query = query
-          .gte('created_at', startDate.toISOString())
-          .lte('created_at', endDate.toISOString());
-      }
-
-      query = query.order('created_at', { ascending: false });
-
-      const { data: commentsData, error: commentsError } = await query;
-
-      if (commentsError) {
-        console.error('Error fetching comments:', commentsError);
-        return {};
-      }
-
-      if (!commentsData || commentsData.length === 0) {
-        console.log('No comments found for applications in date range');
-        return {};
-      }
-
-      console.log('Found comments:', commentsData.length);
-
-      // Get unique user IDs for profile fetching
-      const userIds = [...new Set(commentsData.map(comment => comment.user_id))];
-      await fetchProfiles(userIds);
-
-      // Small delay to ensure profiles are cached
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Group comments by application and resolve user names
-      const commentsByApp: Record<string, Array<{content: string; user_name: string}>> = {};
-      
-      commentsData.forEach(comment => {
-        if (!commentsByApp[comment.application_id]) {
-          commentsByApp[comment.application_id] = [];
-        }
-        
-        // Only keep the 2 most recent comments per application
-        if (commentsByApp[comment.application_id].length < 2) {
-          const userName = getUserName(comment.user_id, comment.user_email);
-          commentsByApp[comment.application_id].push({
-            content: comment.content,
-            user_name: userName
-          });
-        }
-      });
-
-      console.log('Comments grouped by application with resolved names:', commentsByApp);
-      return commentsByApp;
-    } catch (error) {
-      console.error('Exception in fetchCommentsByApplications:', error);
-      return {};
-    }
-  }, [user, fetchProfiles, getUserName]);
+    // This is now deprecated - comments should be fetched individually
+    console.warn('fetchCommentsByApplications is deprecated. Use individual fetchComments instead.');
+    return {};
+  }, []);
 
   const addComment = useCallback(async (applicationId: string, content: string, demandDate?: string): Promise<void> => {
     if (!user || !applicationId || !content.trim()) return;
@@ -194,9 +142,11 @@ export const useComments = (selectedMonth?: string) => {
         user_email: user.email
       };
 
-      // Add demand_date if provided
+      // Add demand_date if provided - but store as full date for proper filtering
       if (demandDate) {
-        commentData.demand_date = demandDate;
+        // If demandDate is just YYYY-MM, convert to first day of month
+        const fullDate = demandDate.length === 7 ? `${demandDate}-01` : demandDate;
+        commentData.demand_date = fullDate;
       }
 
       const { error } = await supabase
@@ -227,7 +177,7 @@ export const useComments = (selectedMonth?: string) => {
     comments,
     loading,
     fetchComments,
-    fetchCommentsByApplications,
+    fetchCommentsByApplications, // Kept for backward compatibility but deprecated
     addComment,
     clearComments
   };

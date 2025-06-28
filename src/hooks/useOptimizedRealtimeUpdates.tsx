@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -44,7 +43,7 @@ export const useOptimizedRealtimeUpdates = ({
           onStatusUpdate?.();
         }
       }
-    }, 1000); // 1 second throttle
+    }, 1500); // Increased throttle to 1.5 seconds to reduce updates
   }, [onApplicationUpdate, onStatusUpdate]);
 
   useEffect(() => {
@@ -53,19 +52,19 @@ export const useOptimizedRealtimeUpdates = ({
     }
 
     console.log('=== SETTING UP OPTIMIZED REAL-TIME SUBSCRIPTIONS ===');
-    console.log('Monitoring applications:', currentApplicationIds.slice(0, 5), '... and', currentApplicationIds.length - 5, 'more');
+    console.log('Monitoring applications:', currentApplicationIds.slice(0, 5), '... and', Math.max(0, currentApplicationIds.length - 5), 'more');
 
     // Handle visibility changes
     const handleVisibilityChange = () => {
       isActiveRef.current = !document.hidden;
       if (!document.hidden) {
         console.log('Tab visible - resuming updates');
-        // Trigger update after coming back to tab
+        // Trigger update after coming back to tab (delayed to avoid spam)
         setTimeout(() => {
           if (isActiveRef.current) {
             onApplicationUpdate?.();
           }
-        }, 500);
+        }, 2000);
       } else {
         console.log('Tab hidden - pausing updates');
       }
@@ -73,27 +72,10 @@ export const useOptimizedRealtimeUpdates = ({
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Create a single channel for all subscriptions
+    // Create a single channel for critical updates only
     const channel = supabase.channel(`optimized-updates-${selectedEmiMonth}`)
       
-    // Only subscribe to collection changes for current month
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'collection',
-        filter: `demand_date=gte.${selectedEmiMonth}-01,demand_date=lte.${selectedEmiMonth}-31`
-      },
-      (payload: RealtimePayload) => {
-        if (isActiveRef.current && payload.new && (payload.new as any).application_id && currentApplicationIds.includes((payload.new as any).application_id)) {
-          console.log('Collection update for visible application:', (payload.new as any).application_id);
-          throttledUpdate('application');
-        }
-      }
-    )
-    
-    // Subscribe to field_status changes for current applications only
+    // Only subscribe to field_status changes for current applications
     .on(
       'postgres_changes',
       {
