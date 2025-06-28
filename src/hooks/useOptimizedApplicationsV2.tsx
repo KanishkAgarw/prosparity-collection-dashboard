@@ -78,20 +78,14 @@ export const useOptimizedApplicationsV2 = ({
     return JSON.stringify({ filters, searchTerm, page, pageSize });
   }, [filters, searchTerm, page, pageSize]);
 
-  // Build optimized query with single JOIN
+  // Build optimized query using proper SQL joins
   const buildOptimizedQuery = useCallback(() => {
     console.log('Building query with filters:', filters);
     
+    // Use a simple select without problematic joins for now
     let baseQuery = supabase
       .from('applications')
-      .select(`
-        *,
-        field_status!left(status, created_at),
-        ptp_dates!left(ptp_date, created_at),
-        payment_dates!left(paid_date),
-        contact_calling_status!left(contact_type, status),
-        comments!left(content, user_email, created_at)
-      `, { count: 'exact' });
+      .select('*', { count: 'exact' });
 
     // Apply filters
     if (filters.branch?.length > 0) {
@@ -151,45 +145,117 @@ export const useOptimizedApplicationsV2 = ({
     return baseQuery;
   }, [filters, searchTerm, page, pageSize]);
 
-  // Process joined data efficiently
-  const processJoinedData = useCallback((rawData: any[]): Application[] => {
-    return rawData.map(app => {
-      // Get latest field status
-      const latestFieldStatus = app.field_status?.sort((a: any, b: any) => 
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )[0];
+  // Fetch related data separately to avoid join issues
+  const fetchRelatedData = useCallback(async (applicationIds: string[]) => {
+    if (applicationIds.length === 0) return {};
 
-      // Get latest PTP date
-      const latestPtpDate = app.ptp_dates?.sort((a: any, b: any) => 
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )[0];
+    console.log('Fetching related data for', applicationIds.length, 'applications');
 
-      // Process contact calling statuses
-      const contacts = app.contact_calling_status || [];
-      const applicantCalling = contacts.find((c: any) => c.contact_type === 'applicant');
-      const coApplicantCalling = contacts.find((c: any) => c.contact_type === 'co_applicant');
-      const guarantorCalling = contacts.find((c: any) => c.contact_type === 'guarantor');
-      const referenceCalling = contacts.find((c: any) => c.contact_type === 'reference');
+    try {
+      // Fetch field status data
+      const { data: fieldStatusData } = await supabase
+        .from('field_status')
+        .select('application_id, status, created_at')
+        .in('application_id', applicationIds)
+        .order('created_at', { ascending: false });
 
-      // Process recent comments
-      const recentComments = (app.comments || [])
-        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, 3)
-        .map((c: any) => ({
-          content: c.content,
-          user_name: c.user_email || 'Unknown'
-        }));
+      // Fetch PTP dates
+      const { data: ptpData } = await supabase
+        .from('ptp_dates')
+        .select('application_id, ptp_date, created_at')
+        .in('application_id', applicationIds)
+        .order('created_at', { ascending: false });
+
+      // Fetch payment dates
+      const { data: paymentData } = await supabase
+        .from('payment_dates')
+        .select('application_id, paid_date')
+        .in('application_id', applicationIds);
+
+      // Fetch contact calling status
+      const { data: contactData } = await supabase
+        .from('contact_calling_status')
+        .select('application_id, contact_type, status')
+        .in('application_id', applicationIds);
+
+      // Fetch comments
+      const { data: commentsData } = await supabase
+        .from('comments')
+        .select('application_id, content, user_email, created_at')
+        .in('application_id', applicationIds)
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      return {
+        fieldStatus: fieldStatusData || [],
+        ptpDates: ptpData || [],
+        paymentDates: paymentData || [],
+        contactStatus: contactData || [],
+        comments: commentsData || []
+      };
+    } catch (error) {
+      console.error('Error fetching related data:', error);
+      return {};
+    }
+  }, []);
+
+  // Process applications with related data
+  const processApplicationsData = useCallback((applications: any[], relatedData: any): Application[] => {
+    const { fieldStatus = [], ptpDates = [], paymentDates = [], contactStatus = [], comments = [] } = relatedData;
+
+    // Create lookup maps for efficiency
+    const fieldStatusMap = new Map();
+    fieldStatus.forEach((fs: any) => {
+      if (!fieldStatusMap.has(fs.application_id)) {
+        fieldStatusMap.set(fs.application_id, fs.status);
+      }
+    });
+
+    const ptpMap = new Map();
+    ptpDates.forEach((ptp: any) => {
+      if (!ptpMap.has(ptp.application_id)) {
+        ptpMap.set(ptp.application_id, ptp.ptp_date);
+      }
+    });
+
+    const paymentMap = new Map();
+    paymentDates.forEach((payment: any) => {
+      paymentMap.set(payment.application_id, payment.paid_date);
+    });
+
+    const contactMap = new Map();
+    contactStatus.forEach((contact: any) => {
+      if (!contactMap.has(contact.application_id)) {
+        contactMap.set(contact.application_id, {});
+      }
+      contactMap.get(contact.application_id)[contact.contact_type] = contact.status;
+    });
+
+    const commentsMap = new Map();
+    comments.forEach((comment: any) => {
+      if (!commentsMap.has(comment.application_id)) {
+        commentsMap.set(comment.application_id, []);
+      }
+      commentsMap.get(comment.application_id).push({
+        content: comment.content,
+        user_name: comment.user_email || 'Unknown'
+      });
+    });
+
+    return applications.map(app => {
+      const contacts = contactMap.get(app.applicant_id) || {};
+      const recentComments = commentsMap.get(app.applicant_id) || [];
 
       return {
         ...app,
-        field_status: latestFieldStatus?.status || 'Unpaid',
-        ptp_date: latestPtpDate?.ptp_date,
-        paid_date: app.payment_dates?.[0]?.paid_date,
-        applicant_calling_status: applicantCalling?.status || 'Not Called',
-        co_applicant_calling_status: coApplicantCalling?.status || 'Not Called',
-        guarantor_calling_status: guarantorCalling?.status || 'Not Called',
-        reference_calling_status: referenceCalling?.status || 'Not Called',
-        latest_calling_status: contacts.find((c: any) => c.status !== 'Not Called')?.status || 'No Calls',
+        field_status: fieldStatusMap.get(app.applicant_id) || 'Unpaid',
+        ptp_date: ptpMap.get(app.applicant_id),
+        paid_date: paymentMap.get(app.applicant_id),
+        applicant_calling_status: contacts.applicant || 'Not Called',
+        co_applicant_calling_status: contacts.co_applicant || 'Not Called',
+        guarantor_calling_status: contacts.guarantor || 'Not Called',
+        reference_calling_status: contacts.reference || 'Not Called',
+        latest_calling_status: Object.values(contacts).find((status: any) => status !== 'Not Called') || 'No Calls',
         recent_comments: recentComments
       };
     });
@@ -307,7 +373,12 @@ export const useOptimizedApplicationsV2 = ({
 
       console.log(`Fetched ${rawApplications?.length || 0} applications, total count: ${count}`);
 
-      const processedApplications = processJoinedData(rawApplications || []);
+      // Fetch related data separately
+      const applicationIds = rawApplications?.map(app => app.applicant_id) || [];
+      const relatedData = await fetchRelatedData(applicationIds);
+
+      // Process applications with related data
+      const processedApplications = processApplicationsData(rawApplications || [], relatedData);
 
       // Cache the page
       applicationPagesCache.set(cacheKey, {
@@ -326,11 +397,11 @@ export const useOptimizedApplicationsV2 = ({
         }
       }
 
-      setData(prev => ({
+      setData({
         applications: processedApplications,
         totalCount: count || 0,
-        filterOptions: filterOptions || prev.filterOptions
-      }));
+        filterOptions: filterOptions || data.filterOptions
+      });
 
     } catch (err) {
       console.error('Error fetching optimized applications:', err);
@@ -338,7 +409,7 @@ export const useOptimizedApplicationsV2 = ({
     } finally {
       setLoading(false);
     }
-  }, [user, buildOptimizedQuery, fetchFilterOptions, processJoinedData, cacheKey]);
+  }, [user, buildOptimizedQuery, fetchFilterOptions, fetchRelatedData, processApplicationsData, cacheKey]);
 
   // Debounced fetch for search
   const debouncedFetch = useMemo(() => {
@@ -349,24 +420,24 @@ export const useOptimizedApplicationsV2 = ({
     };
   }, [fetchData]);
 
-  // Initial load and filter options fetch
+  // Initial load
   useEffect(() => {
     console.log('Initial useEffect triggered, user:', !!user);
     if (user) {
       fetchData();
     }
-  }, [user, fetchData]);
+  }, [user, filters, page, pageSize]);
 
   // Handle search with debouncing
   useEffect(() => {
     if (searchTerm) {
       console.log('Search term changed, debouncing fetch');
       debouncedFetch();
-    } else {
+    } else if (user) {
       console.log('No search term, fetching immediately');
       fetchData();
     }
-  }, [searchTerm, debouncedFetch, fetchData]);
+  }, [searchTerm, debouncedFetch, fetchData, user]);
 
   // Clear cache when filters change significantly
   useEffect(() => {
