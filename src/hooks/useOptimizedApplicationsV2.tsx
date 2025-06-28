@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Application } from '@/types/application';
 import { FilterState } from '@/types/filters';
+import { getMonthVariations } from '@/utils/dateUtils';
 
 interface UseOptimizedApplicationsV2Props {
   filters: FilterState;
@@ -20,33 +21,6 @@ interface ApplicationsResponse {
   loading: boolean;
   refetch: () => Promise<void>;
 }
-
-// Utility function to normalize EMI month format
-const normalizeEmiMonth = (emiMonth: string): string => {
-  if (!emiMonth) return '';
-  
-  // Check if it's an Excel serial number (numeric string)
-  const numericValue = parseFloat(emiMonth);
-  if (!isNaN(numericValue) && numericValue > 25000 && numericValue < 100000) {
-    // Excel serial date conversion
-    const excelEpoch = new Date(1900, 0, 1);
-    const millisecondsPerDay = 24 * 60 * 60 * 1000;
-    const date = new Date(excelEpoch.getTime() + (numericValue - 2) * millisecondsPerDay);
-    return date.toISOString().split('T')[0].substring(0, 7); // YYYY-MM format
-  }
-  
-  // If it's already in YYYY-MM format, return as is
-  if (emiMonth.match(/^\d{4}-\d{2}$/)) {
-    return emiMonth;
-  }
-  
-  // If it's in YYYY-MM-DD format, extract YYYY-MM
-  if (emiMonth.match(/^\d{4}-\d{2}-\d{2}$/)) {
-    return emiMonth.substring(0, 7);
-  }
-  
-  return emiMonth;
-};
 
 export const useOptimizedApplicationsV2 = ({
   filters,
@@ -77,13 +51,15 @@ export const useOptimizedApplicationsV2 = ({
         selectedEmiMonth 
       });
 
-      const normalizedMonth = normalizeEmiMonth(selectedEmiMonth);
+      // Get all possible database variations for the selected month
+      const monthVariations = getMonthVariations(selectedEmiMonth);
+      console.log('Querying month variations:', monthVariations);
 
       // Build query for applications table
       let applicationsQuery = supabase
         .from('applications')
         .select('*')
-        .eq('demand_date', normalizedMonth);
+        .in('demand_date', monthVariations);
 
       // Build query for collection table
       let collectionQuery = supabase
@@ -100,7 +76,7 @@ export const useOptimizedApplicationsV2 = ({
           repayment,
           last_month_bounce
         `)
-        .eq('demand_date', normalizedMonth);
+        .in('demand_date', monthVariations);
 
       // Apply filters to both queries
       if (filters.branch?.length > 0) {
@@ -159,6 +135,8 @@ export const useOptimizedApplicationsV2 = ({
         console.error('Error fetching collection:', collectionResult.error);
         throw collectionResult.error;
       }
+
+      console.log(`Found ${applicationsResult.data?.length || 0} applications and ${collectionResult.data?.length || 0} collection records`);
 
       // Combine and deduplicate data
       const applicationsMap = new Map();

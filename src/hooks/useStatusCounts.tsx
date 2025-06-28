@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { FilterState } from '@/types/filters';
+import { getMonthVariations } from '@/utils/dateUtils';
 
 interface StatusCounts {
   total: number;
@@ -18,33 +19,6 @@ interface UseStatusCountsProps {
   filters: FilterState;
   selectedEmiMonth?: string | null;
 }
-
-// Utility function to normalize EMI month format
-const normalizeEmiMonth = (emiMonth: string): string => {
-  if (!emiMonth) return '';
-  
-  // Check if it's an Excel serial number (numeric string)
-  const numericValue = parseFloat(emiMonth);
-  if (!isNaN(numericValue) && numericValue > 25000 && numericValue < 100000) {
-    // Excel serial date conversion
-    const excelEpoch = new Date(1900, 0, 1);
-    const millisecondsPerDay = 24 * 60 * 60 * 1000;
-    const date = new Date(excelEpoch.getTime() + (numericValue - 2) * millisecondsPerDay);
-    return date.toISOString().split('T')[0].substring(0, 7); // YYYY-MM format
-  }
-  
-  // If it's already in YYYY-MM format, return as is
-  if (emiMonth.match(/^\d{4}-\d{2}$/)) {
-    return emiMonth;
-  }
-  
-  // If it's in YYYY-MM-DD format, extract YYYY-MM
-  if (emiMonth.match(/^\d{4}-\d{2}-\d{2}$/)) {
-    return emiMonth.substring(0, 7);
-  }
-  
-  return emiMonth;
-};
 
 export const useStatusCounts = ({ filters, selectedEmiMonth }: UseStatusCountsProps) => {
   const { user } = useAuth();
@@ -66,19 +40,21 @@ export const useStatusCounts = ({ filters, selectedEmiMonth }: UseStatusCountsPr
     try {
       console.log('Fetching status counts for month:', selectedEmiMonth);
 
-      const normalizedMonth = normalizeEmiMonth(selectedEmiMonth);
+      // Get all possible database variations for the selected month
+      const monthVariations = getMonthVariations(selectedEmiMonth);
+      console.log('Status counts - querying month variations:', monthVariations);
 
       // Build base query for applications filtered by EMI month
       let applicationsQuery = supabase
         .from('applications')
         .select('applicant_id, branch_name, team_lead, rm_name, collection_rm, dealer_name, lender_name, repayment, vehicle_status')
-        .eq('demand_date', normalizedMonth);
+        .in('demand_date', monthVariations);
 
       // Build base query for collection filtered by EMI month
       let collectionQuery = supabase
         .from('collection')
         .select('application_id, team_lead, rm_name, collection_rm, repayment')
-        .eq('demand_date', normalizedMonth);
+        .in('demand_date', monthVariations);
 
       // Apply filters to both queries
       if (filters.branch?.length > 0) {
@@ -164,7 +140,7 @@ export const useStatusCounts = ({ filters, selectedEmiMonth }: UseStatusCountsPr
         .from('field_status')
         .select('application_id, status, created_at')
         .in('application_id', applicationIds)
-        .eq('demand_date', normalizedMonth)
+        .in('demand_date', monthVariations)
         .order('created_at', { ascending: false });
 
       console.log(`Found ${fieldStatusData?.length || 0} field status records`);

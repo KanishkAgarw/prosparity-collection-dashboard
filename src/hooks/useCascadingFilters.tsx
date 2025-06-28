@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { FilterState } from '@/types/filters';
 import { formatEmiMonth } from '@/utils/formatters';
 import { useFilterCache } from './useFilterCache';
+import { normalizeEmiMonth, getMonthVariations, groupDatesByMonth } from '@/utils/dateUtils';
 
 interface CascadingFilterOptions {
   branches: string[];
@@ -20,33 +21,6 @@ interface CascadingFilterOptions {
   collectionRms: string[];
   vehicleStatusOptions: string[];
 }
-
-// Utility function to normalize EMI month format
-const normalizeEmiMonth = (emiMonth: string): string => {
-  if (!emiMonth) return '';
-  
-  // Check if it's an Excel serial number (numeric string)
-  const numericValue = parseFloat(emiMonth);
-  if (!isNaN(numericValue) && numericValue > 25000 && numericValue < 100000) {
-    // Excel serial date conversion
-    const excelEpoch = new Date(1900, 0, 1);
-    const millisecondsPerDay = 24 * 60 * 60 * 1000;
-    const date = new Date(excelEpoch.getTime() + (numericValue - 2) * millisecondsPerDay);
-    return date.toISOString().split('T')[0].substring(0, 7); // YYYY-MM format
-  }
-  
-  // If it's already in YYYY-MM format, return as is
-  if (emiMonth.match(/^\d{4}-\d{2}$/)) {
-    return emiMonth;
-  }
-  
-  // If it's in YYYY-MM-DD format, extract YYYY-MM
-  if (emiMonth.match(/^\d{4}-\d{2}-\d{2}$/)) {
-    return emiMonth.substring(0, 7);
-  }
-  
-  return emiMonth;
-};
 
 export const useCascadingFilters = () => {
   const { user } = useAuth();
@@ -92,6 +66,8 @@ export const useCascadingFilters = () => {
     if (!user) return;
 
     try {
+      console.log('Fetching all EMI months from database...');
+
       // Get demand dates from applications table
       const { data: appDates } = await supabase
         .from('applications')
@@ -104,38 +80,38 @@ export const useCascadingFilters = () => {
         .select('demand_date')
         .not('demand_date', 'is', null);
 
-      // Combine and normalize all dates
-      const allDates = new Set<string>();
-      
+      console.log('Raw app dates:', appDates?.slice(0, 10));
+      console.log('Raw collection dates:', colDates?.slice(0, 10));
+
+      // Combine all dates and group by normalized month
+      const allDates: string[] = [];
       appDates?.forEach(item => {
-        if (item.demand_date) {
-          const normalized = normalizeEmiMonth(item.demand_date);
-          if (normalized) allDates.add(normalized);
-        }
+        if (item.demand_date) allDates.push(item.demand_date);
       });
-
       colDates?.forEach(item => {
-        if (item.demand_date) {
-          const normalized = normalizeEmiMonth(item.demand_date);
-          if (normalized) allDates.add(normalized);
-        }
+        if (item.demand_date) allDates.push(item.demand_date);
       });
 
-      // Sort dates in descending order (newest first)
-      const sortedDates = Array.from(allDates).sort((a, b) => b.localeCompare(a));
-      setEmiMonthOptions(sortedDates);
+      // Group dates by normalized month
+      const monthGroups = groupDatesByMonth(allDates);
+      console.log('Month groups:', monthGroups);
+
+      // Sort normalized months in descending order (newest first)
+      const sortedMonths = Object.keys(monthGroups).sort((a, b) => b.localeCompare(a));
+      setEmiMonthOptions(sortedMonths);
 
       // Set default to latest month if no month is selected
-      if (sortedDates.length > 0) {
-        const latestMonth = sortedDates[0];
+      if (sortedMonths.length > 0) {
+        const latestMonth = sortedMonths[0];
         setDefaultEmiMonth(latestMonth);
         
         if (!selectedEmiMonth) {
+          console.log('Setting default EMI month to:', latestMonth);
           setSelectedEmiMonth(latestMonth);
         }
       }
 
-      console.log('Available EMI months:', sortedDates);
+      console.log('Available EMI months:', sortedMonths);
     } catch (error) {
       console.error('Error fetching EMI months:', error);
     }
@@ -160,30 +136,32 @@ export const useCascadingFilters = () => {
 
       console.log('Fetching cascading filter options for month:', selectedEmiMonth);
 
-      const normalizedMonth = normalizeEmiMonth(selectedEmiMonth);
+      // Get all possible database variations for the selected month
+      const monthVariations = getMonthVariations(selectedEmiMonth);
+      console.log('Month variations to query:', monthVariations);
 
-      // Build base query for applications with current filter constraints
-      let baseQuery = supabase
+      // Build base query for applications with month variations
+      let applicationsQuery = supabase
         .from('applications')
         .select('branch_name, team_lead, rm_name, collection_rm, dealer_name, lender_name, demand_date, repayment, vehicle_status')
-        .eq('demand_date', normalizedMonth);
+        .in('demand_date', monthVariations);
 
-      // Build base query for collection with current filter constraints
+      // Build base query for collection with month variations
       let collectionQuery = supabase
         .from('collection')
         .select('team_lead, rm_name, collection_rm, repayment, demand_date')
-        .eq('demand_date', normalizedMonth);
+        .in('demand_date', monthVariations);
 
       // Apply existing filters to constrain options
       if (filters.branch?.length > 0) {
-        baseQuery = baseQuery.in('branch_name', filters.branch);
+        applicationsQuery = applicationsQuery.in('branch_name', filters.branch);
       }
       if (filters.teamLead?.length > 0) {
-        baseQuery = baseQuery.in('team_lead', filters.teamLead);
+        applicationsQuery = applicationsQuery.in('team_lead', filters.teamLead);
         collectionQuery = collectionQuery.in('team_lead', filters.teamLead);
       }
       if (filters.rm?.length > 0) {
-        baseQuery = baseQuery.in('rm_name', filters.rm);
+        applicationsQuery = applicationsQuery.in('rm_name', filters.rm);
         collectionQuery = collectionQuery.in('rm_name', filters.rm);
       }
       if (filters.collectionRm?.length > 0) {
@@ -191,7 +169,7 @@ export const useCascadingFilters = () => {
         const normalizedCollectionRms = filters.collectionRm.map(rm => 
           rm === 'N/A' || rm === 'NA' ? 'N/A' : rm
         );
-        baseQuery = baseQuery.or(
+        applicationsQuery = applicationsQuery.or(
           `collection_rm.in.(${normalizedCollectionRms.join(',')}),collection_rm.is.null`
         );
         collectionQuery = collectionQuery.or(
@@ -199,24 +177,24 @@ export const useCascadingFilters = () => {
         );
       }
       if (filters.dealer?.length > 0) {
-        baseQuery = baseQuery.in('dealer_name', filters.dealer);
+        applicationsQuery = applicationsQuery.in('dealer_name', filters.dealer);
       }
       if (filters.lender?.length > 0) {
-        baseQuery = baseQuery.in('lender_name', filters.lender);
+        applicationsQuery = applicationsQuery.in('lender_name', filters.lender);
       }
       if (filters.repayment?.length > 0) {
-        baseQuery = baseQuery.in('repayment', filters.repayment);
+        applicationsQuery = applicationsQuery.in('repayment', filters.repayment);
         collectionQuery = collectionQuery.in('repayment', filters.repayment);
       }
       if (filters.vehicleStatus?.length > 0) {
         if (filters.vehicleStatus.includes('None')) {
-          baseQuery = baseQuery.or(`vehicle_status.is.null,vehicle_status.in.(${filters.vehicleStatus.filter(v => v !== 'None').join(',')})`);
+          applicationsQuery = applicationsQuery.or(`vehicle_status.is.null,vehicle_status.in.(${filters.vehicleStatus.filter(v => v !== 'None').join(',')})`);
         } else {
-          baseQuery = baseQuery.in('vehicle_status', filters.vehicleStatus);
+          applicationsQuery = applicationsQuery.in('vehicle_status', filters.vehicleStatus);
         }
       }
 
-      const [appResult, colResult] = await Promise.all([baseQuery, collectionQuery]);
+      const [appResult, colResult] = await Promise.all([applicationsQuery, collectionQuery]);
 
       if (appResult.error) {
         console.error('Error fetching applications for filter options:', appResult.error);
@@ -261,7 +239,7 @@ export const useCascadingFilters = () => {
       const { data: statuses, error: statusError } = await supabase
         .from('field_status')
         .select('status')
-        .eq('demand_date', normalizedMonth)
+        .in('demand_date', monthVariations)
         .order('status');
       
       if (statusError) {
