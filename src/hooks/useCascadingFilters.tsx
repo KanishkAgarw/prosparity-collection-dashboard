@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { FilterState } from '@/types/filters';
 import { formatEmiMonth } from '@/utils/formatters';
+import { useFilterCache } from './useFilterCache';
 
 interface CascadingFilterOptions {
   branches: string[];
@@ -22,6 +23,7 @@ interface CascadingFilterOptions {
 
 export const useCascadingFilters = () => {
   const { user } = useAuth();
+  const { getCachedData, setCachedData } = useFilterCache<CascadingFilterOptions>('filter-options');
   
   const [filters, setFilters] = useState<FilterState>({
     branch: [],
@@ -30,7 +32,7 @@ export const useCascadingFilters = () => {
     dealer: [],
     lender: [],
     status: [],
-    emiMonth: [],
+    emiMonth: [], // Will be managed by single EMI month selector
     repayment: [],
     lastMonthBounce: [],
     ptpDate: [],
@@ -53,18 +55,11 @@ export const useCascadingFilters = () => {
     vehicleStatusOptions: ['Seized', 'Repo', 'Accident', 'None']
   });
 
+  const [selectedEmiMonth, setSelectedEmiMonth] = useState<string | null>(null);
   const [defaultEmiMonth, setDefaultEmiMonth] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Extract selected EMI Month for context-aware filtering
-  const selectedEmiMonth = useMemo(() => {
-    if (filters.emiMonth.length === 1) {
-      return filters.emiMonth[0];
-    }
-    return defaultEmiMonth;
-  }, [filters.emiMonth, defaultEmiMonth]);
-
-  // Fetch latest EMI month from database
+  // Fetch latest EMI month from database and set as default
   const fetchLatestEmiMonth = useCallback(async () => {
     if (!user) return;
 
@@ -87,30 +82,39 @@ export const useCascadingFilters = () => {
         setDefaultEmiMonth(latestMonth);
         
         // Auto-select the latest month if no EMI month is currently selected
-        if (filters.emiMonth.length === 0) {
-          setFilters(prev => ({
-            ...prev,
-            emiMonth: [latestMonth]
-          }));
+        if (!selectedEmiMonth) {
+          setSelectedEmiMonth(latestMonth);
         }
       }
     } catch (error) {
       console.error('Error fetching latest EMI month:', error);
     }
-  }, [user, filters.emiMonth.length]);
+  }, [user, selectedEmiMonth]);
 
-  // Fetch cascading filter options based on current selections
+  // Fetch cascading filter options based on current selections and selected EMI month
   const fetchFilterOptions = useCallback(async () => {
-    if (!user) return;
+    if (!user || !selectedEmiMonth) return;
 
     setLoading(true);
     try {
-      console.log('Fetching cascading filter options...');
+      // Create cache key based on current filter state
+      const cacheKey = `${selectedEmiMonth}-${JSON.stringify(filters)}`;
+      const cachedOptions = getCachedData(cacheKey);
+      
+      if (cachedOptions) {
+        console.log('Using cached filter options');
+        setAvailableOptions(cachedOptions);
+        setLoading(false);
+        return;
+      }
 
-      // Build base query with current filter constraints
+      console.log('Fetching cascading filter options for month:', selectedEmiMonth);
+
+      // Build base query with current filter constraints and selected EMI month
       let baseQuery = supabase
         .from('applications')
-        .select('branch_name, team_lead, rm_name, collection_rm, dealer_name, lender_name, demand_date, repayment, vehicle_status');
+        .select('branch_name, team_lead, rm_name, collection_rm, dealer_name, lender_name, demand_date, repayment, vehicle_status')
+        .eq('demand_date', selectedEmiMonth); // Always filter by selected EMI month
 
       // Apply existing filters to constrain options
       if (filters.branch?.length > 0) {
@@ -130,9 +134,6 @@ export const useCascadingFilters = () => {
       }
       if (filters.lender?.length > 0) {
         baseQuery = baseQuery.in('lender_name', filters.lender);
-      }
-      if (filters.emiMonth?.length > 0) {
-        baseQuery = baseQuery.in('demand_date', filters.emiMonth);
       }
       if (filters.repayment?.length > 0) {
         baseQuery = baseQuery.in('repayment', filters.repayment);
@@ -167,7 +168,7 @@ export const useCascadingFilters = () => {
         collectionRms: [...new Set(apps.map(app => app.collection_rm).filter(Boolean))].sort(),
         dealers: [...new Set(apps.map(app => app.dealer_name).filter(Boolean))].sort(),
         lenders: [...new Set(apps.map(app => app.lender_name).filter(Boolean))].sort(),
-        emiMonths: [...new Set(apps.map(app => app.demand_date).filter(Boolean))].sort().reverse(),
+        emiMonths: [selectedEmiMonth], // Only show current selected month
         repayments: [...new Set(apps.map(app => app.repayment).filter(Boolean))].sort(),
         lastMonthBounce: ['Not paid', 'Paid on time', '1-5 days late', '6-15 days late', '15+ days late'],
         ptpDateOptions: ['Overdue PTP', "Today's PTP", "Tomorrow's PTP", 'Future PTP', 'No PTP'],
@@ -175,10 +176,11 @@ export const useCascadingFilters = () => {
         statuses: []
       };
 
-      // Get statuses from field_status table
+      // Get statuses from field_status table for the selected month
       const { data: statuses, error: statusError } = await supabase
         .from('field_status')
         .select('status')
+        .eq('demand_date', selectedEmiMonth)
         .order('status');
       
       if (statusError) {
@@ -188,6 +190,9 @@ export const useCascadingFilters = () => {
       }
 
       console.log('Cascading filter options prepared:', options);
+      
+      // Cache the options
+      setCachedData(cacheKey, options);
       setAvailableOptions(options);
 
     } catch (error) {
@@ -195,7 +200,7 @@ export const useCascadingFilters = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, filters]);
+  }, [user, selectedEmiMonth, filters, getCachedData, setCachedData]);
 
   // Handle filter changes
   const handleFilterChange = useCallback((key: string, values: string[]) => {
@@ -206,7 +211,28 @@ export const useCascadingFilters = () => {
     }));
   }, []);
 
-  // Clear all filters
+  // Handle EMI month change
+  const handleEmiMonthChange = useCallback((month: string) => {
+    console.log('EMI month changed to:', month);
+    setSelectedEmiMonth(month);
+    // Clear other filters when EMI month changes to ensure fresh data
+    setFilters({
+      branch: [],
+      teamLead: [],
+      rm: [],
+      dealer: [],
+      lender: [],
+      status: [],
+      emiMonth: [],
+      repayment: [],
+      lastMonthBounce: [],
+      ptpDate: [],
+      collectionRm: [],
+      vehicleStatus: []
+    });
+  }, []);
+
+  // Clear all filters except EMI month
   const clearAllFilters = useCallback(() => {
     setFilters({
       branch: [],
@@ -215,28 +241,28 @@ export const useCascadingFilters = () => {
       dealer: [],
       lender: [],
       status: [],
-      emiMonth: defaultEmiMonth ? [defaultEmiMonth] : [],
+      emiMonth: [],
       repayment: [],
       lastMonthBounce: [],
       ptpDate: [],
       collectionRm: [],
       vehicleStatus: []
     });
-  }, [defaultEmiMonth]);
+  }, []);
 
   // Initialize on mount
   useEffect(() => {
-    if (user) {
+    if (user && !defaultEmiMonth) {
       fetchLatestEmiMonth();
     }
-  }, [user, fetchLatestEmiMonth]);
+  }, [user, defaultEmiMonth, fetchLatestEmiMonth]);
 
-  // Fetch options when filters change
+  // Fetch options when EMI month or filters change
   useEffect(() => {
-    if (user) {
+    if (user && selectedEmiMonth) {
       fetchFilterOptions();
     }
-  }, [user, filters, fetchFilterOptions]);
+  }, [user, selectedEmiMonth, filters, fetchFilterOptions]);
 
   return {
     filters,
@@ -244,6 +270,7 @@ export const useCascadingFilters = () => {
     handleFilterChange,
     clearAllFilters,
     selectedEmiMonth,
+    handleEmiMonthChange,
     defaultEmiMonth,
     loading
   };

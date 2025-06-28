@@ -10,459 +10,160 @@ interface UseOptimizedApplicationsV2Props {
   searchTerm: string;
   page: number;
   pageSize: number;
+  selectedEmiMonth?: string | null;
 }
 
-interface OptimizedApplicationsResponse {
+interface ApplicationsResponse {
   applications: Application[];
   totalCount: number;
-  filterOptions: {
-    branches: string[];
-    teamLeads: string[];
-    rms: string[];
-    dealers: string[];
-    lenders: string[];
-    statuses: string[];
-    emiMonths: string[];
-    repayments: string[];
-    lastMonthBounce: string[];
-    ptpDateOptions: string[];
-    collectionRms: string[];
-    vehicleStatusOptions: string[];
-  };
+  totalPages: number;
+  loading: boolean;
+  refetch: () => Promise<void>;
 }
-
-// Cache for filter options and application pages
-const filterOptionsCache = {
-  data: null as any,
-  timestamp: 0,
-  ttl: 5 * 60 * 1000 // 5 minutes
-};
-
-const applicationPagesCache = new Map<string, {
-  data: Application[];
-  totalCount: number;
-  timestamp: number;
-  ttl: number;
-}>();
 
 export const useOptimizedApplicationsV2 = ({
   filters,
   searchTerm,
   page,
-  pageSize
-}: UseOptimizedApplicationsV2Props) => {
+  pageSize,
+  selectedEmiMonth
+}: UseOptimizedApplicationsV2Props): ApplicationsResponse => {
   const { user } = useAuth();
-  const [data, setData] = useState<OptimizedApplicationsResponse>({
-    applications: [],
-    totalCount: 0,
-    filterOptions: {
-      branches: [],
-      teamLeads: [],
-      rms: [],
-      dealers: [],
-      lenders: [],
-      statuses: [],
-      emiMonths: [],
-      repayments: [],
-      lastMonthBounce: [],
-      ptpDateOptions: [],
-      collectionRms: [],
-      vehicleStatusOptions: []
-    }
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(false);
 
-  // Generate cache key for current query
+  // Memoize request cache key
   const cacheKey = useMemo(() => {
-    return JSON.stringify({ filters, searchTerm, page, pageSize });
-  }, [filters, searchTerm, page, pageSize]);
-
-  // Build optimized query using proper SQL joins
-  const buildOptimizedQuery = useCallback(() => {
-    console.log('Building query with filters:', filters);
-    
-    // Use a simple select without problematic joins for now
-    let baseQuery = supabase
-      .from('applications')
-      .select('*', { count: 'exact' });
-
-    // Apply filters
-    if (filters.branch?.length > 0) {
-      baseQuery = baseQuery.in('branch_name', filters.branch);
-    }
-    if (filters.teamLead?.length > 0) {
-      baseQuery = baseQuery.in('team_lead', filters.teamLead);
-    }
-    if (filters.rm?.length > 0) {
-      baseQuery = baseQuery.in('rm_name', filters.rm);
-    }
-    if (filters.collectionRm?.length > 0) {
-      baseQuery = baseQuery.in('collection_rm', filters.collectionRm);
-    }
-    if (filters.dealer?.length > 0) {
-      baseQuery = baseQuery.in('dealer_name', filters.dealer);
-    }
-    if (filters.lender?.length > 0) {
-      baseQuery = baseQuery.in('lender_name', filters.lender);
-    }
-    if (filters.emiMonth?.length > 0) {
-      baseQuery = baseQuery.in('demand_date', filters.emiMonth);
-    }
-    if (filters.repayment?.length > 0) {
-      baseQuery = baseQuery.in('repayment', filters.repayment);
-    }
-    if (filters.vehicleStatus?.length > 0) {
-      if (filters.vehicleStatus.includes('None')) {
-        baseQuery = baseQuery.or(`vehicle_status.is.null,vehicle_status.in.(${filters.vehicleStatus.filter(v => v !== 'None').join(',')})`);
-      } else {
-        baseQuery = baseQuery.in('vehicle_status', filters.vehicleStatus);
-      }
-    }
-
-    // Apply search
-    if (searchTerm.trim()) {
-      const pattern = `%${searchTerm.toLowerCase()}%`;
-      baseQuery = baseQuery.or(`
-        applicant_name.ilike.${pattern},
-        applicant_id.ilike.${pattern},
-        dealer_name.ilike.${pattern},
-        lender_name.ilike.${pattern},
-        rm_name.ilike.${pattern},
-        collection_rm.ilike.${pattern},
-        team_lead.ilike.${pattern}
-      `);
-    }
-
-    // Apply pagination
-    const startIndex = (page - 1) * pageSize;
-    const endIndex = startIndex + pageSize - 1;
-    baseQuery = baseQuery.range(startIndex, endIndex);
-
-    // Apply ordering
-    baseQuery = baseQuery.order('applicant_name', { ascending: true });
-
-    return baseQuery;
-  }, [filters, searchTerm, page, pageSize]);
-
-  // Fetch related data separately to avoid join issues
-  const fetchRelatedData = useCallback(async (applicationIds: string[]) => {
-    if (applicationIds.length === 0) return {};
-
-    console.log('Fetching related data for', applicationIds.length, 'applications');
-
-    try {
-      // Fetch field status data
-      const { data: fieldStatusData } = await supabase
-        .from('field_status')
-        .select('application_id, status, created_at')
-        .in('application_id', applicationIds)
-        .order('created_at', { ascending: false });
-
-      // Fetch PTP dates
-      const { data: ptpData } = await supabase
-        .from('ptp_dates')
-        .select('application_id, ptp_date, created_at')
-        .in('application_id', applicationIds)
-        .order('created_at', { ascending: false });
-
-      // Fetch payment dates
-      const { data: paymentData } = await supabase
-        .from('payment_dates')
-        .select('application_id, paid_date')
-        .in('application_id', applicationIds);
-
-      // Fetch contact calling status
-      const { data: contactData } = await supabase
-        .from('contact_calling_status')
-        .select('application_id, contact_type, status')
-        .in('application_id', applicationIds);
-
-      // Fetch comments
-      const { data: commentsData } = await supabase
-        .from('comments')
-        .select('application_id, content, user_email, created_at')
-        .in('application_id', applicationIds)
-        .order('created_at', { ascending: false })
-        .limit(3);
-
-      return {
-        fieldStatus: fieldStatusData || [],
-        ptpDates: ptpData || [],
-        paymentDates: paymentData || [],
-        contactStatus: contactData || [],
-        comments: commentsData || []
-      };
-    } catch (error) {
-      console.error('Error fetching related data:', error);
-      return {};
-    }
-  }, []);
-
-  // Process applications with related data
-  const processApplicationsData = useCallback((applications: any[], relatedData: any): Application[] => {
-    const { fieldStatus = [], ptpDates = [], paymentDates = [], contactStatus = [], comments = [] } = relatedData;
-
-    // Create lookup maps for efficiency
-    const fieldStatusMap = new Map();
-    fieldStatus.forEach((fs: any) => {
-      if (!fieldStatusMap.has(fs.application_id)) {
-        fieldStatusMap.set(fs.application_id, fs.status);
-      }
+    return JSON.stringify({
+      filters,
+      searchTerm,
+      page,
+      pageSize,
+      selectedEmiMonth
     });
+  }, [filters, searchTerm, page, pageSize, selectedEmiMonth]);
 
-    const ptpMap = new Map();
-    ptpDates.forEach((ptp: any) => {
-      if (!ptpMap.has(ptp.application_id)) {
-        ptpMap.set(ptp.application_id, ptp.ptp_date);
-      }
-    });
-
-    const paymentMap = new Map();
-    paymentDates.forEach((payment: any) => {
-      paymentMap.set(payment.application_id, payment.paid_date);
-    });
-
-    const contactMap = new Map();
-    contactStatus.forEach((contact: any) => {
-      if (!contactMap.has(contact.application_id)) {
-        contactMap.set(contact.application_id, {});
-      }
-      contactMap.get(contact.application_id)[contact.contact_type] = contact.status;
-    });
-
-    const commentsMap = new Map();
-    comments.forEach((comment: any) => {
-      if (!commentsMap.has(comment.application_id)) {
-        commentsMap.set(comment.application_id, []);
-      }
-      commentsMap.get(comment.application_id).push({
-        content: comment.content,
-        user_name: comment.user_email || 'Unknown'
-      });
-    });
-
-    return applications.map(app => {
-      const contacts = contactMap.get(app.applicant_id) || {};
-      const recentComments = commentsMap.get(app.applicant_id) || [];
-
-      return {
-        ...app,
-        field_status: fieldStatusMap.get(app.applicant_id) || 'Unpaid',
-        ptp_date: ptpMap.get(app.applicant_id),
-        paid_date: paymentMap.get(app.applicant_id),
-        applicant_calling_status: contacts.applicant || 'Not Called',
-        co_applicant_calling_status: contacts.co_applicant || 'Not Called',
-        guarantor_calling_status: contacts.guarantor || 'Not Called',
-        reference_calling_status: contacts.reference || 'Not Called',
-        latest_calling_status: Object.values(contacts).find((status: any) => status !== 'Not Called') || 'No Calls',
-        recent_comments: recentComments
-      };
-    });
-  }, []);
-
-  // Fetch filter options with caching
-  const fetchFilterOptions = useCallback(async () => {
-    const now = Date.now();
-    
-    // Check cache first
-    if (filterOptionsCache.data && (now - filterOptionsCache.timestamp) < filterOptionsCache.ttl) {
-      console.log('Using cached filter options');
-      return filterOptionsCache.data;
-    }
-
-    console.log('Fetching fresh filter options');
-    try {
-      const { data: apps, error: appsError } = await supabase
-        .from('applications')
-        .select('branch_name, team_lead, rm_name, collection_rm, dealer_name, lender_name, demand_date, repayment, vehicle_status');
-
-      if (appsError) {
-        console.error('Error fetching applications for filter options:', appsError);
-        return null;
-      }
-
-      if (!apps) {
-        console.warn('No applications found for filter options');
-        return null;
-      }
-
-      console.log(`Fetched ${apps.length} applications for filter options`);
-
-      const options = {
-        branches: [...new Set(apps.map(app => app.branch_name).filter(Boolean))].sort(),
-        teamLeads: [...new Set(apps.map(app => app.team_lead).filter(Boolean))].sort(),
-        rms: [...new Set(apps.map(app => app.rm_name).filter(Boolean))].sort(),
-        collectionRms: [...new Set(apps.map(app => app.collection_rm).filter(Boolean))].sort(),
-        dealers: [...new Set(apps.map(app => app.dealer_name).filter(Boolean))].sort(),
-        lenders: [...new Set(apps.map(app => app.lender_name).filter(Boolean))].sort(),
-        emiMonths: [...new Set(apps.map(app => app.demand_date).filter(Boolean))].sort(),
-        repayments: [...new Set(apps.map(app => app.repayment).filter(Boolean))].sort(),
-        lastMonthBounce: ['Not paid', 'Paid on time', '1-5 days late', '6-15 days late', '15+ days late'],
-        ptpDateOptions: ['Overdue PTP', "Today's PTP", "Tomorrow's PTP", 'Future PTP', 'No PTP'],
-        vehicleStatusOptions: ['Seized', 'Repo', 'Accident', 'None'],
-        statuses: []
-      };
-
-      // Get statuses from field_status table
-      const { data: statuses, error: statusError } = await supabase
-        .from('field_status')
-        .select('status')
-        .order('status');
-      
-      if (statusError) {
-        console.error('Error fetching statuses:', statusError);
-      } else {
-        options.statuses = [...new Set(statuses?.map(s => s.status) || [])];
-      }
-
-      console.log('Filter options prepared:', options);
-
-      // Cache the options
-      filterOptionsCache.data = options;
-      filterOptionsCache.timestamp = now;
-
-      return options;
-    } catch (error) {
-      console.error('Error fetching filter options:', error);
-      return null;
-    }
-  }, []);
-
-  // Main fetch function with caching
-  const fetchData = useCallback(async () => {
-    if (!user) {
-      console.log('No user, skipping fetch');
-      return;
-    }
-    
-    console.log('Fetching data with cache key:', cacheKey);
-    
-    // Check cache first
-    const cachedPage = applicationPagesCache.get(cacheKey);
-    const now = Date.now();
-    
-    if (cachedPage && (now - cachedPage.timestamp) < cachedPage.ttl) {
-      console.log('Using cached applications data');
-      setData(prev => ({
-        ...prev,
-        applications: cachedPage.data,
-        totalCount: cachedPage.totalCount
-      }));
-      setLoading(false);
+  const fetchApplications = useCallback(async () => {
+    if (!user || !selectedEmiMonth) {
+      setApplications([]);
+      setTotalCount(0);
       return;
     }
 
-    console.log('Fetching fresh applications data');
     setLoading(true);
-    setError(null);
-    
     try {
-      const [applicationsResult, filterOptions] = await Promise.all([
-        buildOptimizedQuery(),
-        fetchFilterOptions()
-      ]);
-
-      const { data: rawApplications, error: appsError, count } = applicationsResult;
-
-      if (appsError) {
-        console.error('Error fetching applications:', appsError);
-        setError(appsError.message);
-        return;
-      }
-
-      console.log(`Fetched ${rawApplications?.length || 0} applications, total count: ${count}`);
-
-      // Fetch related data separately
-      const applicationIds = rawApplications?.map(app => app.applicant_id) || [];
-      const relatedData = await fetchRelatedData(applicationIds);
-
-      // Process applications with related data
-      const processedApplications = processApplicationsData(rawApplications || [], relatedData);
-
-      // Cache the page
-      applicationPagesCache.set(cacheKey, {
-        data: processedApplications,
-        totalCount: count || 0,
-        timestamp: now,
-        ttl: 2 * 60 * 1000 // 2 minutes for application data
+      console.log('Fetching applications with:', { 
+        filters, 
+        searchTerm, 
+        page, 
+        pageSize, 
+        selectedEmiMonth 
       });
 
-      // Clean old cache entries
-      if (applicationPagesCache.size > 10) {
-        const entries = Array.from(applicationPagesCache.entries());
-        entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
-        for (let i = 0; i < 5; i++) {
-          applicationPagesCache.delete(entries[i][0]);
+      // Build base query with EMI month filter
+      let baseQuery = supabase
+        .from('applications')
+        .select('*')
+        .eq('demand_date', selectedEmiMonth)
+        .order('created_at', { ascending: false });
+
+      // Apply filters
+      if (filters.branch?.length > 0) {
+        baseQuery = baseQuery.in('branch_name', filters.branch);
+      }
+      if (filters.teamLead?.length > 0) {
+        baseQuery = baseQuery.in('team_lead', filters.teamLead);
+      }
+      if (filters.rm?.length > 0) {
+        baseQuery = baseQuery.in('rm_name', filters.rm);
+      }
+      if (filters.collectionRm?.length > 0) {
+        baseQuery = baseQuery.in('collection_rm', filters.collectionRm);
+      }
+      if (filters.dealer?.length > 0) {
+        baseQuery = baseQuery.in('dealer_name', filters.dealer);
+      }
+      if (filters.lender?.length > 0) {
+        baseQuery = baseQuery.in('lender_name', filters.lender);
+      }
+      if (filters.repayment?.length > 0) {
+        baseQuery = baseQuery.in('repayment', filters.repayment);
+      }
+      if (filters.vehicleStatus?.length > 0) {
+        if (filters.vehicleStatus.includes('None')) {
+          baseQuery = baseQuery.or(`vehicle_status.is.null,vehicle_status.in.(${filters.vehicleStatus.filter(v => v !== 'None').join(',')})`);
+        } else {
+          baseQuery = baseQuery.in('vehicle_status', filters.vehicleStatus);
         }
       }
 
-      setData({
-        applications: processedApplications,
-        totalCount: count || 0,
-        filterOptions: filterOptions || data.filterOptions
-      });
+      // Apply search if provided
+      if (searchTerm.trim()) {
+        baseQuery = baseQuery.or(`applicant_name.ilike.%${searchTerm}%,applicant_id.ilike.%${searchTerm}%,applicant_mobile.ilike.%${searchTerm}%`);
+      }
 
-    } catch (err) {
-      console.error('Error fetching optimized applications:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      // Get total count first
+      const { count, error: countError } = await baseQuery.select('*', { count: 'exact', head: true });
+      
+      if (countError) {
+        console.error('Error getting count:', countError);
+        throw countError;
+      }
+
+      const total = count || 0;
+      setTotalCount(total);
+
+      // Get paginated results
+      const offset = (page - 1) * pageSize;
+      const { data: apps, error: appsError } = await baseQuery
+        .range(offset, offset + pageSize - 1);
+
+      if (appsError) {
+        console.error('Error fetching applications:', appsError);
+        throw appsError;
+      }
+
+      console.log(`Fetched ${apps?.length || 0} applications (page ${page}/${Math.ceil(total / pageSize)})`);
+      
+      // Process applications and add derived fields
+      const processedApps = (apps || []).map(app => ({
+        ...app,
+        id: app.id || app.applicant_id,
+        field_status: 'Unpaid', // Will be populated by individual row components
+      }));
+
+      setApplications(processedApps);
+
+    } catch (error) {
+      console.error('Error in fetchApplications:', error);
+      setApplications([]);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
-  }, [user, buildOptimizedQuery, fetchFilterOptions, fetchRelatedData, processApplicationsData, cacheKey]);
+  }, [user, selectedEmiMonth, filters, searchTerm, page, pageSize]);
 
-  // Debounced fetch for search
-  const debouncedFetch = useMemo(() => {
-    let timeoutId: NodeJS.Timeout;
-    return () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(fetchData, 300);
-    };
-  }, [fetchData]);
-
-  // Initial load
+  // Fetch data when dependencies change
   useEffect(() => {
-    console.log('Initial useEffect triggered, user:', !!user);
-    if (user) {
-      fetchData();
-    }
-  }, [user, filters, page, pageSize]);
+    fetchApplications();
+  }, [fetchApplications]);
 
-  // Handle search with debouncing
-  useEffect(() => {
-    if (searchTerm) {
-      console.log('Search term changed, debouncing fetch');
-      debouncedFetch();
-    } else if (user) {
-      console.log('No search term, fetching immediately');
-      fetchData();
-    }
-  }, [searchTerm, debouncedFetch, fetchData, user]);
+  // Calculate total pages
+  const totalPages = useMemo(() => {
+    return Math.ceil(totalCount / pageSize);
+  }, [totalCount, pageSize]);
 
-  // Clear cache when filters change significantly
-  useEffect(() => {
-    const filterCount = Object.values(filters).reduce((sum, arr) => sum + arr.length, 0);
-    if (filterCount === 0) {
-      console.log('No filters applied, clearing cache');
-      applicationPagesCache.clear();
-    }
-  }, [filters]);
-
-  console.log('Hook state:', { 
-    applicationsCount: data.applications.length, 
-    totalCount: data.totalCount, 
-    loading, 
-    error 
-  });
+  // Refetch function for external use
+  const refetch = useCallback(async () => {
+    await fetchApplications();
+  }, [fetchApplications]);
 
   return {
-    applications: data.applications,
-    totalCount: data.totalCount,
-    totalPages: Math.ceil(data.totalCount / pageSize),
-    currentPage: page,
-    filterOptions: data.filterOptions,
+    applications,
+    totalCount,
+    totalPages,
     loading,
-    error,
-    refetch: fetchData
+    refetch
   };
 };

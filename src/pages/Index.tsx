@@ -8,6 +8,7 @@ import { useUserProfiles } from "@/hooks/useUserProfiles";
 import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { useStatePersistence } from "@/hooks/useStatePersistence";
+import { useDebounce } from "@/hooks/useDebounce";
 import { Application } from "@/types/application";
 import ApplicationDetailsPanel from "@/components/ApplicationDetailsPanel";
 import AppHeader from "@/components/layout/AppHeader";
@@ -15,6 +16,7 @@ import FiltersSection from "@/components/layout/FiltersSection";
 import MainContent from "@/components/layout/MainContent";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import StatusCards from "@/components/StatusCards";
+import EmiMonthSelector from "@/components/EmiMonthSelector";
 import { ApplicationTableSkeleton, StatusCardsSkeleton } from "@/components/LoadingStates";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -42,23 +44,27 @@ const Index = () => {
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [hasRestoredState, setHasRestoredState] = useState(false);
 
-  // Use new cascading filters system
+  // Debounce search term to reduce API calls
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+  // Use new cascading filters system with single EMI month selection
   const { 
     filters, 
     availableOptions, 
     handleFilterChange, 
-    selectedEmiMonth, 
+    selectedEmiMonth,
+    handleEmiMonthChange,
     defaultEmiMonth,
     loading: filtersLoading 
   } = useCascadingFilters();
 
-  // Use new status counts hook for aggregated data
+  // Use new status counts hook for aggregated data (entire selected month)
   const { statusCounts, loading: statusLoading } = useStatusCounts({ 
     filters, 
     selectedEmiMonth 
   });
 
-  // Use optimized applications hook with reduced data fetching
+  // Reduced pagination from 50 to 20 for better performance
   const { 
     applications, 
     totalCount, 
@@ -67,9 +73,10 @@ const Index = () => {
     refetch 
   } = useOptimizedApplicationsV2({
     filters,
-    searchTerm,
+    searchTerm: debouncedSearchTerm,
     page: currentPage,
-    pageSize: 50
+    pageSize: 20, // Reduced from 50 to 20
+    selectedEmiMonth
   });
 
   const { exportPtpCommentsReport, exportFullReport, exportPlanVsAchievementReport, planVsAchievementLoading } = useEnhancedExport();
@@ -103,7 +110,7 @@ const Index = () => {
     }
   }, [hasRestoredState, authLoading, user, applications, defaultEmiMonth, restoreFiltersState, restoreSelectedApplication, restoreScrollPosition, setIsRestoringState]);
 
-  // Save scroll position when user scrolls
+  // Save scroll position when user scrolls (throttled)
   useEffect(() => {
     const handleScroll = () => {
       saveScrollPosition(window.scrollY);
@@ -139,6 +146,11 @@ const Index = () => {
       saveFiltersState(filters, searchTerm, currentPage);
     }
   }, [filters, searchTerm, currentPage, hasRestoredState, saveFiltersState]);
+
+  // Reset page when search term or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm, filters, selectedEmiMonth]);
 
   // Load user profiles for comments/logs when component mounts
   useMemo(() => {
@@ -251,6 +263,21 @@ const Index = () => {
             onExportPlanVsAchievement={handleExportPlanVsAchievement}
           />
 
+          {/* EMI Month Selector - Prominent position */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">EMI Month Selection</h3>
+                <p className="text-sm text-gray-600">Select the EMI month to view data</p>
+              </div>
+              <EmiMonthSelector
+                selectedMonth={selectedEmiMonth}
+                onMonthChange={handleEmiMonthChange}
+                loading={filtersLoading}
+              />
+            </div>
+          </div>
+
           <FiltersSection
             filters={filters}
             availableOptions={availableOptions}
@@ -279,7 +306,7 @@ const Index = () => {
               totalPages={totalPages}
               onPageChange={setCurrentPage}
               totalCount={totalCount}
-              pageSize={50}
+              pageSize={20} // Reduced from 50 to 20
               selectedEmiMonth={selectedEmiMonth}
             />
           )}

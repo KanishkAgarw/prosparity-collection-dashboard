@@ -39,7 +39,7 @@ export const useStatusCounts = ({ filters, selectedEmiMonth }: UseStatusCountsPr
     try {
       console.log('Fetching status counts for month:', selectedEmiMonth);
 
-      // Build base query for applications
+      // Build base query for applications filtered by EMI month
       let baseQuery = supabase
         .from('applications')
         .select('applicant_id, branch_name, team_lead, rm_name, collection_rm, dealer_name, lender_name, repayment, vehicle_status')

@@ -66,12 +66,6 @@ const FilterBar = ({ filters, onFilterChange, availableOptions, selectedEmiMonth
     vehicleStatusOptions: availableOptions?.vehicleStatusOptions || [],
   };
 
-  // Format EMI months for display
-  const formattedEmiMonths = safeFilterOptions.emiMonths.map(month => ({
-    value: month,
-    label: formatEmiMonth(month)
-  }));
-
   // Use pendingFilters for UI
   const safeFilters = {
     branch: pendingFilters?.branch || [],
@@ -88,8 +82,10 @@ const FilterBar = ({ filters, onFilterChange, availableOptions, selectedEmiMonth
     vehicleStatus: pendingFilters?.vehicleStatus || [],
   };
 
-  // Count total active filters
-  const activeFilterCount = Object.values(safeFilters).reduce((count, filterArray) => count + (filterArray?.length || 0), 0);
+  // Count total active filters (excluding EMI month since it's managed separately)
+  const activeFilterCount = Object.entries(safeFilters)
+    .filter(([key]) => key !== 'emiMonth')
+    .reduce((count, [, filterArray]) => count + (filterArray?.length || 0), 0);
 
   // Handler for local filter changes
   const handlePendingFilterChange = (key: string, values: string[]) => {
@@ -102,7 +98,9 @@ const FilterBar = ({ filters, onFilterChange, availableOptions, selectedEmiMonth
   // Handler for Done button
   const handleApplyFilters = () => {
     Object.entries(pendingFilters).forEach(([key, values]) => {
-      onFilterChange(key, values as string[]);
+      if (key !== 'emiMonth') { // EMI month is managed separately
+        onFilterChange(key, values as string[]);
+      }
     });
     setIsOpen(false);
   };
@@ -136,16 +134,7 @@ const FilterBar = ({ filters, onFilterChange, availableOptions, selectedEmiMonth
         <CollapsibleContent>
           <div className="p-6 border-t border-gray-100">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">EMI Months</label>
-                <CustomMultiSelectFilter
-                  label="EMI Months"
-                  options={safeFilterOptions.emiMonths}
-                  selected={safeFilters.emiMonth}
-                  onSelectionChange={(values) => handlePendingFilterChange('emiMonth', values)}
-                  formatDisplay={formatEmiMonth}
-                />
-              </div>
+              {/* Note: EMI Month is now managed separately via EmiMonthSelector */}
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">PTP Date</label>
@@ -257,6 +246,7 @@ const FilterBar = ({ filters, onFilterChange, availableOptions, selectedEmiMonth
                 />
               </div>
             </div>
+            
             {/* Done button with border and background */}
             <div className="mt-6 flex justify-end">
               <div className="border border-blue-500 rounded-lg p-2 bg-blue-50">
@@ -265,7 +255,7 @@ const FilterBar = ({ filters, onFilterChange, availableOptions, selectedEmiMonth
                   className="px-8 py-2 text-base font-semibold"
                   onClick={handleApplyFilters}
                 >
-                  Done
+                  Apply Filters
                 </Button>
               </div>
             </div>
