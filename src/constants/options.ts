@@ -8,7 +8,9 @@ export const VEHICLE_STATUS_OPTIONS = [
 export const CALLING_STATUS_OPTIONS = [
   { value: "No response", label: "No response" },
   { value: "Customer funded the account", label: "Customer funded the account" },
-  { value: "Customer will fund on future date", label: "Customer will fund on future date" },
+  { value: "Customer will fund the account on a future date", label: "Customer will fund the account on a future date" },
+  { value: "Cash collected", label: "Cash collected" },
+  { value: "Cash will be collected on a future date", label: "Cash will be collected on a future date" },
   { value: "Spoken – no commitment", label: "Spoken – no commitment" },
   { value: "Refused / unable to fund", label: "Refused / unable to fund" }
 ]; 
