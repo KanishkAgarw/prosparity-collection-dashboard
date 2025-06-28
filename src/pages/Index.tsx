@@ -1,11 +1,10 @@
-
 import { useState, useMemo, useEffect } from "react";
-import { useOptimizedApplicationsV2 } from "@/hooks/useOptimizedApplicationsV2";
-import { useCascadingFilters } from "@/hooks/useCascadingFilters";
+import { useOptimizedApplicationsV3 } from "@/hooks/useOptimizedApplicationsV3";
+import { useOptimizedCascadingFilters } from "@/hooks/useOptimizedCascadingFilters";
+import { useOptimizedRealtimeUpdates } from "@/hooks/useOptimizedRealtimeUpdates";
 import { useStatusCounts } from "@/hooks/useStatusCounts";
 import { useEnhancedExport } from "@/hooks/useEnhancedExport";
 import { useUserProfiles } from "@/hooks/useUserProfiles";
-import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { useStatePersistence } from "@/hooks/useStatePersistence";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -44,9 +43,9 @@ const Index = () => {
   const [hasRestoredState, setHasRestoredState] = useState(false);
 
   // Debounce search term to reduce API calls
-  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const debouncedSearchTerm = useDebounce(searchTerm, 500); // Increased debounce
 
-  // Use cascading filters system with single EMI month selection
+  // Use optimized cascading filters system
   const { 
     filters, 
     availableOptions, 
@@ -56,27 +55,52 @@ const Index = () => {
     emiMonthOptions,
     defaultEmiMonth,
     loading: filtersLoading 
-  } = useCascadingFilters();
+  } = useOptimizedCascadingFilters();
 
-  // Use status counts hook for aggregated data (entire selected month)
+  // Use optimized status counts hook
   const { statusCounts, loading: statusLoading } = useStatusCounts({ 
     filters, 
     selectedEmiMonth 
   });
 
-  // Pagination set to 20 for better performance
+  // Use optimized applications hook V3
   const { 
     applications, 
     totalCount, 
     totalPages, 
     loading: appsLoading, 
     refetch 
-  } = useOptimizedApplicationsV2({
+  } = useOptimizedApplicationsV3({
     filters,
     searchTerm: debouncedSearchTerm,
     page: currentPage,
     pageSize: 20,
     selectedEmiMonth
+  });
+
+  // Get current application IDs for selective real-time updates
+  const currentApplicationIds = useMemo(() => 
+    applications.map(app => app.applicant_id), 
+    [applications]
+  );
+
+  // Use optimized real-time updates
+  const { isActive: realtimeActive } = useOptimizedRealtimeUpdates({
+    onApplicationUpdate: async () => {
+      if (!document.hidden) {
+        console.log('Real-time application update triggered');
+        await refetch();
+      }
+    },
+    onStatusUpdate: async () => {
+      if (!document.hidden) {
+        console.log('Real-time status update triggered');
+        // Only refetch if we're viewing the affected applications
+        await refetch();
+      }
+    },
+    selectedEmiMonth,
+    currentApplicationIds
   });
 
   const { exportPtpCommentsReport, exportFullReport, exportPlanVsAchievementReport, planVsAchievementLoading } = useEnhancedExport();
@@ -121,29 +145,14 @@ const Index = () => {
     return () => window.removeEventListener('scroll', throttledScroll);
   }, [saveScrollPosition]);
 
-  // Set up real-time updates with optimized refresh logic
-  const { isActive: realtimeActive } = useRealtimeUpdates({
-    onApplicationUpdate: async () => {
-      // Only refetch if tab is active to prevent unnecessary network calls
-      if (!document.hidden) {
-        await refetch();
-      }
-    },
-    onCommentUpdate: async () => {
-      await refetch();
-    },
-    onAuditLogUpdate: async () => {
-      await refetch();
-    },
-    onCallingLogUpdate: async () => {
-      await refetch();
-    }
-  });
-
-  // Save filters state when they change
+  // Save filters state when they change (with debounce)
   useEffect(() => {
     if (hasRestoredState) {
-      saveFiltersState(filters, searchTerm, currentPage);
+      const timeout = setTimeout(() => {
+        saveFiltersState(filters, searchTerm, currentPage);
+      }, 1000); // Debounce save operations
+      
+      return () => clearTimeout(timeout);
     }
   }, [filters, searchTerm, currentPage, hasRestoredState, saveFiltersState]);
 
@@ -152,13 +161,17 @@ const Index = () => {
     setCurrentPage(1);
   }, [debouncedSearchTerm, filters, selectedEmiMonth]);
 
-  // Load user profiles for comments/logs when component mounts
-  useMemo(() => {
+  // Optimized user profiles loading
+  useEffect(() => {
     if (user && applications.length > 0) {
-      const userIds = [...new Set([user.id])];
-      fetchProfiles(userIds);
+      const timeout = setTimeout(() => {
+        const userIds = [...new Set([user.id])];
+        fetchProfiles(userIds);
+      }, 500); // Delay to avoid blocking main render
+      
+      return () => clearTimeout(timeout);
     }
-  }, [user, applications, fetchProfiles]);
+  }, [user, applications.length, fetchProfiles]);
 
   const handleApplicationDeleted = () => {
     refetch();
@@ -174,9 +187,7 @@ const Index = () => {
 
   const handleDataChanged = async () => {
     await refetch();
-    // After refetch, update the selected application with the latest data
     if (selectedApplication) {
-      // Find the updated application in the refetched data
       const updatedApp = applications.find(app => app.applicant_id === selectedApplication.applicant_id);
       if (updatedApp) {
         setSelectedApplication(updatedApp);
