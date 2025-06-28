@@ -1,4 +1,3 @@
-
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -97,32 +96,77 @@ const ApplicationDetailsPanel = ({
     clearComments();
   }, [currentApplication?.applicant_id, clearComments]);
 
-  // Set initial month based on selectedEmiMonth or default to most recent
+  // Set initial month based on application's demand_date or selectedEmiMonth or default to most recent
   useEffect(() => {
     console.log('ApplicationDetailsPanel: Setting initial month', {
       selectedEmiMonth,
       availableMonths,
-      currentApplicationId: currentApplication?.applicant_id
+      currentApplicationId: currentApplication?.applicant_id,
+      selectedMonth,
+      applicationDemandDate: currentApplication?.demand_date
     });
     
     if (availableMonths.length > 0 && !selectedMonth && currentApplication?.applicant_id) {
       let initialMonth = '';
       
-      if (selectedEmiMonth) {
-        // Find the month that matches the selected EMI month from filters
+      // Priority 1: Try to match the application's own demand_date first
+      if (currentApplication?.demand_date) {
+        const applicationMonth = availableMonths.find(month => 
+          month === currentApplication.demand_date
+        );
+        
+        if (applicationMonth) {
+          initialMonth = applicationMonth;
+          console.log('ApplicationDetailsPanel: Found matching month for application demand_date', currentApplication.demand_date, '->', initialMonth);
+        } else {
+          // If exact match not found, try formatted match
+          const applicationMonthFormatted = formatEmiMonth(currentApplication.demand_date);
+          const formattedMatch = availableMonths.find(month => 
+            formatEmiMonth(month) === applicationMonthFormatted
+          );
+          
+          if (formattedMatch) {
+            initialMonth = formattedMatch;
+            console.log('ApplicationDetailsPanel: Found formatted match for application demand_date', applicationMonthFormatted, '->', initialMonth);
+          }
+        }
+      }
+      
+      // Priority 2: If no application month match, try selectedEmiMonth from filters
+      if (!initialMonth && selectedEmiMonth) {
         const matchingMonth = availableMonths.find(month => 
           formatEmiMonth(month) === selectedEmiMonth
         );
-        initialMonth = matchingMonth || availableMonths[availableMonths.length - 1];
-      } else {
-        // Default to the most recent month (last in the array)
+        
+        if (matchingMonth) {
+          initialMonth = matchingMonth;
+          console.log('ApplicationDetailsPanel: Found matching month for selectedEmiMonth', selectedEmiMonth, '->', initialMonth);
+        } else {
+          // If no exact match found, try to find a month that's close
+          // This handles cases where the filter month format might be slightly different
+          const normalizedSelectedMonth = selectedEmiMonth.toLowerCase().replace(/\s+/g, '');
+          const closeMatch = availableMonths.find(month => {
+            const normalizedMonth = formatEmiMonth(month).toLowerCase().replace(/\s+/g, '');
+            return normalizedMonth === normalizedSelectedMonth;
+          });
+          
+          if (closeMatch) {
+            initialMonth = closeMatch;
+            console.log('ApplicationDetailsPanel: Found close match for selectedEmiMonth', selectedEmiMonth, '->', initialMonth);
+          }
+        }
+      }
+      
+      // Priority 3: Fallback to most recent month
+      if (!initialMonth) {
         initialMonth = availableMonths[availableMonths.length - 1];
+        console.log('ApplicationDetailsPanel: No match found, using most recent month', initialMonth);
       }
       
       console.log('ApplicationDetailsPanel: Setting initial month to', initialMonth);
       setSelectedMonth(initialMonth);
     }
-  }, [availableMonths, selectedMonth, currentApplication?.applicant_id, selectedEmiMonth]);
+  }, [availableMonths, selectedMonth, currentApplication?.applicant_id, currentApplication?.demand_date, selectedEmiMonth]);
 
   // Only fetch comments when the comments tab is actively accessed
   const [commentsTabAccessed, setCommentsTabAccessed] = useState(false);
