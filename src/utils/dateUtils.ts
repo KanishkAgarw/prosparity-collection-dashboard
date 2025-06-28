@@ -44,12 +44,12 @@ export const getMonthVariations = (normalizedMonth: string): string[] => {
   const [year, month] = normalizedMonth.split('-').map(Number);
   const date = new Date(year, month - 1, 5); // month - 1 because JS months are 0-indexed, day 5 for EMI date
   
-  // Convert to Excel serial number - CORRECTED calculation
+  // Convert to Excel serial number - FINAL FIX
   const excelEpoch = new Date(1900, 0, 1);
   const diffInMs = date.getTime() - excelEpoch.getTime();
   const diffInDays = Math.floor(diffInMs / (24 * 60 * 60 * 1000));
-  // Add 3 to match the actual database values (was generating 45841, need 45843 for Jul-25)
-  const excelSerial = diffInDays + 3;
+  // Add 5 to match the actual database values (Jul-25 needs 45843, Jun-25 needs 45813)
+  const excelSerial = diffInDays + 5;
   
   variations.push(excelSerial.toString());
   
