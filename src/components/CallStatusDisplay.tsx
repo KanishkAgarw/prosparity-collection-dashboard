@@ -1,14 +1,32 @@
+
 import { Check } from "lucide-react";
 import { Application } from "@/types/application";
-import { useContactCallingStatus } from "@/hooks/useContactCallingStatus";
+import type { BatchContactStatus } from "@/hooks/useBatchContactCallingStatus";
 
 interface CallStatusDisplayProps {
   application: Application;
   selectedMonth?: string;
+  batchedContactStatus?: BatchContactStatus;
 }
 
-const CallStatusDisplay = ({ application, selectedMonth }: CallStatusDisplayProps) => {
-  const { getStatusForContact } = useContactCallingStatus(application.applicant_id, selectedMonth);
+const CallStatusDisplay = ({ application, selectedMonth, batchedContactStatus }: CallStatusDisplayProps) => {
+  // Use batched data if available, otherwise fallback to default
+  const getStatusForContact = (contactType: string): string => {
+    if (!batchedContactStatus) return 'Not Called';
+    
+    switch (contactType) {
+      case 'applicant':
+        return batchedContactStatus.applicant || 'Not Called';
+      case 'co_applicant':
+        return batchedContactStatus.co_applicant || 'Not Called';
+      case 'guarantor':
+        return batchedContactStatus.guarantor || 'Not Called';
+      case 'reference':
+        return batchedContactStatus.reference || 'Not Called';
+      default:
+        return 'Not Called';
+    }
+  };
 
   const contacts = [
     {

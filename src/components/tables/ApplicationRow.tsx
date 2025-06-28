@@ -1,4 +1,5 @@
-import { memo, useEffect, useState } from "react";
+
+import { memo } from "react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Application } from "@/types/application";
 import { formatEmiMonth, formatCurrency, formatPtpDate } from "@/utils/formatters";
@@ -6,65 +7,33 @@ import StatusBadge from "./StatusBadge";
 import ApplicationDetails from "./ApplicationDetails";
 import CallStatusDisplay from "../CallStatusDisplay";
 import CommentsDisplay from "./CommentsDisplay";
-import { useFieldStatus } from "@/hooks/useFieldStatus";
-import { useMonthlyApplicationData } from "@/hooks/useMonthlyApplicationData";
-import { usePtpDates } from "@/hooks/usePtpDates";
-import { useComments } from "@/hooks/useComments";
+import type { BatchComment } from "@/hooks/useBatchComments";
+import type { BatchContactStatus } from "@/hooks/useBatchContactCallingStatus";
 
 interface ApplicationRowProps {
   application: Application;
   selectedApplicationId?: string;
   onRowClick: (application: Application) => void;
   selectedEmiMonth?: string | null;
+  // Batched data props
+  batchedStatus?: string;
+  batchedPtpDate?: string | null;
+  batchedContactStatus?: BatchContactStatus;
+  batchedComments?: BatchComment[];
+  isLoading?: boolean;
 }
 
 const ApplicationRow = memo(({ 
   application, 
   selectedApplicationId, 
   onRowClick,
-  selectedEmiMonth
+  selectedEmiMonth,
+  batchedStatus = 'Unpaid',
+  batchedPtpDate = null,
+  batchedContactStatus,
+  batchedComments = [],
+  isLoading = false
 }: ApplicationRowProps) => {
-  const { monthlyData, availableMonths } = useMonthlyApplicationData(application.applicant_id);
-  
-  // Use the selected EMI month directly - this is the key fix
-  const monthToShow = selectedEmiMonth || application.demand_date;
-
-  console.log('ApplicationRow - Application ID:', application.applicant_id);
-  console.log('ApplicationRow - Selected EMI Month:', selectedEmiMonth);
-  console.log('ApplicationRow - Month to show data for:', monthToShow);
-
-  // Fetch per-month status using the selected month
-  const { fetchFieldStatus } = useFieldStatus();
-  const [status, setStatus] = useState<string>('Unpaid');
-  useEffect(() => {
-    const fetchStatus = async () => {
-      if (monthToShow) {
-        console.log(`Fetching field status for ${application.applicant_id} and month ${monthToShow}`);
-        const statusMap = await fetchFieldStatus([application.applicant_id], monthToShow);
-        const newStatus = statusMap[application.applicant_id] || 'Unpaid';
-        console.log(`Field status result for ${application.applicant_id}:`, newStatus);
-        setStatus(newStatus);
-      }
-    };
-    fetchStatus();
-  }, [application.applicant_id, monthToShow, fetchFieldStatus]);
-
-  // Fetch per-month PTP date using the selected month
-  const { fetchPtpDate } = usePtpDates();
-  const [ptpDate, setPtpDate] = useState<string | null>(null);
-  useEffect(() => {
-    const fetchPtp = async () => {
-      if (monthToShow) {
-        console.log(`Fetching PTP date for ${application.applicant_id} and month ${monthToShow}`);
-        const date = await fetchPtpDate(application.applicant_id, monthToShow);
-        console.log(`PTP date result for ${application.applicant_id}:`, date);
-        setPtpDate(date);
-      }
-    };
-    fetchPtp();
-  }, [application.applicant_id, monthToShow, fetchPtpDate]);
-
-  // Remove individual comment fetching - we'll show a simple indicator instead
   const handleRowClick = (e: React.MouseEvent) => {
     onRowClick(application);
   };
@@ -87,21 +56,48 @@ const ApplicationRow = memo(({
       </TableCell>
       
       <TableCell>
-        <StatusBadge status={status} />
+        {isLoading ? (
+          <div className="h-6 w-16 bg-gray-200 animate-pulse rounded"></div>
+        ) : (
+          <StatusBadge status={batchedStatus} />
+        )}
       </TableCell>
       
-      <TableCell className={`${ptpDate ? 'text-blue-600 font-medium' : 'text-gray-400'} whitespace-nowrap`}>
-        {ptpDate ? formatPtpDate(ptpDate) : 'Not Set'}
+      <TableCell className={`${batchedPtpDate ? 'text-blue-600 font-medium' : 'text-gray-400'} whitespace-nowrap`}>
+        {isLoading ? (
+          <div className="h-4 w-20 bg-gray-200 animate-pulse rounded"></div>
+        ) : (
+          batchedPtpDate ? formatPtpDate(batchedPtpDate) : 'Not Set'
+        )}
       </TableCell>
       
       <TableCell className="text-sm">
-        <CallStatusDisplay application={application} selectedMonth={monthToShow} />
+        {isLoading ? (
+          <div className="space-y-1">
+            <div className="h-3 w-16 bg-gray-200 animate-pulse rounded"></div>
+            <div className="h-3 w-20 bg-gray-200 animate-pulse rounded"></div>
+          </div>
+        ) : (
+          <CallStatusDisplay 
+            application={application} 
+            selectedMonth={selectedEmiMonth}
+            batchedContactStatus={batchedContactStatus}
+          />
+        )}
       </TableCell>
       
       <TableCell className="max-w-[200px]">
-        <div className="text-xs text-gray-400 italic">
-          Click to view comments
-        </div>
+        {isLoading ? (
+          <div className="space-y-1">
+            <div className="h-3 w-24 bg-gray-200 animate-pulse rounded"></div>
+            <div className="h-3 w-32 bg-gray-200 animate-pulse rounded"></div>
+          </div>
+        ) : (
+          <CommentsDisplay 
+            comments={batchedComments}
+            hasComments={batchedComments.length > 0}
+          />
+        )}
       </TableCell>
     </TableRow>
   );
