@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { FilterState } from '@/types/filters';
 import { formatEmiMonth } from '@/utils/formatters';
 import { useFilterCache } from './useFilterCache';
-import { normalizeEmiMonth, getMonthVariations, groupDatesByMonth } from '@/utils/dateUtils';
+import { normalizeEmiMonth, groupDatesByMonth } from '@/utils/dateUtils';
 
 interface CascadingFilterOptions {
   branches: string[];
@@ -136,21 +136,23 @@ export const useCascadingFilters = () => {
 
       console.log('Fetching cascading filter options for month:', selectedEmiMonth);
 
-      // Get all possible database variations for the selected month
-      const monthVariations = getMonthVariations(selectedEmiMonth);
-      console.log('Month variations to query:', monthVariations);
+      // Use PostgreSQL date_trunc to filter by month
+      const monthStart = `${selectedEmiMonth}-01`;
+      const monthEnd = `${selectedEmiMonth}-31`;
 
-      // PRIMARY: Build base query for collection with month variations
+      // PRIMARY: Build base query for collection with month filtering
       let collectionQuery = supabase
         .from('collection')
         .select('team_lead, rm_name, collection_rm, repayment, demand_date')
-        .in('demand_date', monthVariations);
+        .gte('demand_date', monthStart)
+        .lte('demand_date', monthEnd);
 
-      // SECONDARY: Build base query for applications with month variations
+      // SECONDARY: Build base query for applications with month filtering
       let applicationsQuery = supabase
         .from('applications')
         .select('branch_name, team_lead, rm_name, collection_rm, dealer_name, lender_name, demand_date, repayment, vehicle_status')
-        .in('demand_date', monthVariations);
+        .gte('demand_date', monthStart)
+        .lte('demand_date', monthEnd);
 
       // Apply existing filters to constrain options
       if (filters.branch?.length > 0) {
@@ -235,11 +237,12 @@ export const useCascadingFilters = () => {
         statuses: []
       };
 
-      // Get statuses from field_status table for the selected month using month variations
+      // Get statuses from field_status table for the selected month
       const { data: statuses, error: statusError } = await supabase
         .from('field_status')
         .select('status')
-        .in('demand_date', monthVariations)
+        .gte('demand_date', monthStart)
+        .lte('demand_date', monthEnd)
         .order('status');
       
       if (statusError) {
