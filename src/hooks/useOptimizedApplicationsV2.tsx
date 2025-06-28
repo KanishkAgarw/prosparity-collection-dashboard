@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Application } from '@/types/application';
 import { FilterState } from '@/types/filters';
 import { getMonthDateRange } from '@/utils/dateUtils';
+import { chunkArray, BATCH_SIZE } from '@/utils/batchUtils';
 
 interface UseOptimizedApplicationsV2Props {
   filters: FilterState;
@@ -43,7 +44,7 @@ export const useOptimizedApplicationsV2 = ({
 
     setLoading(true);
     try {
-      console.log('=== FETCHING APPLICATIONS ===');
+      console.log('=== FETCHING APPLICATIONS WITH BATCHED QUERIES ===');
       console.log('Selected EMI Month:', selectedEmiMonth);
       console.log('Filters:', filters);
       console.log('Search Term:', searchTerm);
@@ -97,56 +98,78 @@ export const useOptimizedApplicationsV2 = ({
       const applicationIds = collectionData.map(col => col.application_id);
       console.log(`Extracted ${applicationIds.length} unique application IDs from collection`);
 
-      // STEP 3: Get detailed application data for these IDs (SECONDARY SOURCE)
-      let applicationsQuery = supabase
-        .from('applications')
-        .select('*')
-        .in('applicant_id', applicationIds);
+      // STEP 3: Batch the application IDs for safe querying
+      const applicationIdChunks = chunkArray(applicationIds, BATCH_SIZE);
+      console.log(`Split ${applicationIds.length} IDs into ${applicationIdChunks.length} batches of max ${BATCH_SIZE} each`);
 
-      // Apply additional filters that only exist in applications table
-      if (filters.branch?.length > 0) {
-        applicationsQuery = applicationsQuery.in('branch_name', filters.branch);
-      }
-      if (filters.dealer?.length > 0) {
-        applicationsQuery = applicationsQuery.in('dealer_name', filters.dealer);
-      }
-      if (filters.lender?.length > 0) {
-        applicationsQuery = applicationsQuery.in('lender_name', filters.lender);
-      }
-      if (filters.vehicleStatus?.length > 0) {
-        if (filters.vehicleStatus.includes('None')) {
-          applicationsQuery = applicationsQuery.or(`vehicle_status.is.null,vehicle_status.in.(${filters.vehicleStatus.filter(v => v !== 'None').join(',')})`);
-        } else {
-          applicationsQuery = applicationsQuery.in('vehicle_status', filters.vehicleStatus);
-        }
-      }
+      // STEP 4: Fetch detailed application data in batches
+      const fetchBatchedApplications = async () => {
+        const batchPromises = applicationIdChunks.map(async (idChunk, batchIndex) => {
+          console.log(`Fetching batch ${batchIndex + 1}/${applicationIdChunks.length} with ${idChunk.length} IDs`);
+          
+          let applicationsQuery = supabase
+            .from('applications')
+            .select('*')
+            .in('applicant_id', idChunk);
 
-      // Apply search if provided
-      if (searchTerm.trim()) {
-        applicationsQuery = applicationsQuery.or(`applicant_name.ilike.%${searchTerm}%,applicant_id.ilike.%${searchTerm}%,applicant_mobile.ilike.%${searchTerm}%`);
-      }
+          // Apply additional filters that only exist in applications table
+          if (filters.branch?.length > 0) {
+            applicationsQuery = applicationsQuery.in('branch_name', filters.branch);
+          }
+          if (filters.dealer?.length > 0) {
+            applicationsQuery = applicationsQuery.in('dealer_name', filters.dealer);
+          }
+          if (filters.lender?.length > 0) {
+            applicationsQuery = applicationsQuery.in('lender_name', filters.lender);
+          }
+          if (filters.vehicleStatus?.length > 0) {
+            if (filters.vehicleStatus.includes('None')) {
+              applicationsQuery = applicationsQuery.or(`vehicle_status.is.null,vehicle_status.in.(${filters.vehicleStatus.filter(v => v !== 'None').join(',')})`);
+            } else {
+              applicationsQuery = applicationsQuery.in('vehicle_status', filters.vehicleStatus);
+            }
+          }
 
-      const { data: applicationsData, error: applicationsError } = await applicationsQuery;
+          // Apply search if provided
+          if (searchTerm.trim()) {
+            applicationsQuery = applicationsQuery.or(`applicant_name.ilike.%${searchTerm}%,applicant_id.ilike.%${searchTerm}%,applicant_mobile.ilike.%${searchTerm}%`);
+          }
 
-      if (applicationsError) {
-        console.error('Error fetching applications data:', applicationsError);
-        throw applicationsError;
-      }
+          const { data, error } = await applicationsQuery;
+          
+          if (error) {
+            console.error(`Error fetching batch ${batchIndex + 1}:`, error);
+            throw error;
+          }
 
-      console.log(`Found ${applicationsData?.length || 0} detailed application records`);
+          console.log(`Batch ${batchIndex + 1} completed: ${data?.length || 0} records`);
+          return data || [];
+        });
 
-      // STEP 4: Create lookup maps for efficient merging
+        // Execute all batch requests in parallel
+        const batchResults = await Promise.all(batchPromises);
+        
+        // Flatten the results
+        const allApplicationsData = batchResults.flat();
+        console.log(`Successfully fetched ${allApplicationsData.length} detailed application records from ${applicationIdChunks.length} batches`);
+        
+        return allApplicationsData;
+      };
+
+      const applicationsData = await fetchBatchedApplications();
+
+      // STEP 5: Create lookup maps for efficient merging
       const collectionMap = new Map();
       collectionData.forEach(col => {
         collectionMap.set(col.application_id, col);
       });
 
       const applicationsMap = new Map();
-      (applicationsData || []).forEach(app => {
+      applicationsData.forEach(app => {
         applicationsMap.set(app.applicant_id, app);
       });
 
-      // STEP 5: Merge data - Collection is PRIMARY, Applications provides additional details
+      // STEP 6: Merge data - Collection is PRIMARY, Applications provides additional details
       const mergedApplications: Application[] = [];
 
       collectionData.forEach(collectionRecord => {
@@ -202,7 +225,7 @@ export const useOptimizedApplicationsV2 = ({
 
       console.log(`Created ${mergedApplications.length} merged application records`);
 
-      // STEP 6: Apply client-side filtering for cases where server-side filtering wasn't possible
+      // STEP 7: Apply client-side filtering for cases where server-side filtering wasn't possible
       let filteredApplications = mergedApplications;
 
       // Apply any remaining search filtering if needed
@@ -218,7 +241,7 @@ export const useOptimizedApplicationsV2 = ({
       const totalCount = filteredApplications.length;
       setTotalCount(totalCount);
 
-      // STEP 7: Apply pagination
+      // STEP 8: Apply pagination
       const offset = (page - 1) * pageSize;
       const paginatedApplications = filteredApplications.slice(offset, offset + pageSize);
 
