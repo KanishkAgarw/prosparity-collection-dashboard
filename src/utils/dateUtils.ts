@@ -44,12 +44,12 @@ export const getMonthVariations = (normalizedMonth: string): string[] => {
   const [year, month] = normalizedMonth.split('-').map(Number);
   const date = new Date(year, month - 1, 5); // month - 1 because JS months are 0-indexed, day 5 for EMI date
   
-  // Convert to Excel serial number
+  // Convert to Excel serial number - FIXED calculation
   const excelEpoch = new Date(1900, 0, 1);
   const diffInMs = date.getTime() - excelEpoch.getTime();
   const diffInDays = Math.floor(diffInMs / (24 * 60 * 60 * 1000));
-  // Add 2 to account for Excel's leap year bug
-  const excelSerial = diffInDays + 2;
+  // Add 1 instead of 2 - this was the bug causing wrong serial numbers
+  const excelSerial = diffInDays + 1;
   
   variations.push(excelSerial.toString());
   
