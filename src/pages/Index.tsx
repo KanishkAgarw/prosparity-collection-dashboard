@@ -14,7 +14,6 @@ import FiltersSection from "@/components/layout/FiltersSection";
 import MainContent from "@/components/layout/MainContent";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import StatusCards from "@/components/StatusCards";
-import PerformanceMonitor from "@/components/PerformanceMonitor";
 import { ApplicationTableSkeleton, StatusCardsSkeleton } from "@/components/LoadingStates";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -274,7 +273,6 @@ const Index = () => {
       </div>
 
       <PWAInstallPrompt />
-      <PerformanceMonitor />
 
       {/* Application Details Panel with proper overlay positioning */}
       {selectedApplication && (
