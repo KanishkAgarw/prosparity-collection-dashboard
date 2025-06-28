@@ -1,6 +1,6 @@
 
 import { useState, useMemo, useEffect } from "react";
-import { useOptimizedApplications } from "@/hooks/useOptimizedApplications";
+import { useOptimizedApplicationsV2 } from "@/hooks/useOptimizedApplicationsV2";
 import { useServerSideFiltering } from "@/hooks/useServerSideFiltering";
 import { useEnhancedExport } from "@/hooks/useEnhancedExport";
 import { useUserProfiles } from "@/hooks/useUserProfiles";
@@ -14,6 +14,8 @@ import FiltersSection from "@/components/layout/FiltersSection";
 import MainContent from "@/components/layout/MainContent";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import StatusCards from "@/components/StatusCards";
+import PerformanceMonitor from "@/components/PerformanceMonitor";
+import { ApplicationTableSkeleton, StatusCardsSkeleton } from "@/components/LoadingStates";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -43,7 +45,7 @@ const Index = () => {
   // Use optimized server-side filtering
   const { filters, handleFilterChange, selectedEmiMonth } = useServerSideFiltering();
 
-  // Use optimized applications hook
+  // Use new optimized applications hook
   const { 
     applications, 
     totalCount, 
@@ -51,7 +53,7 @@ const Index = () => {
     filterOptions,
     loading: appsLoading, 
     refetch 
-  } = useOptimizedApplications({
+  } = useOptimizedApplicationsV2({
     filters,
     searchTerm,
     page: currentPage,
@@ -227,18 +229,6 @@ const Index = () => {
     return null;
   }
 
-  // Show loading for applications
-  if (appsLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
-        <div className="space-y-4 text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="text-gray-600">Loading applications...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
@@ -258,24 +248,33 @@ const Index = () => {
             selectedEmiMonth={selectedEmiMonth}
           />
 
-          <StatusCards applications={applications} />
+          {appsLoading ? (
+            <StatusCardsSkeleton />
+          ) : (
+            <StatusCards applications={applications} />
+          )}
 
-          <MainContent
-            applications={applications}
-            onRowClick={handleApplicationSelect}
-            onApplicationDeleted={handleApplicationDeleted}
-            selectedApplicationId={selectedApplication?.id}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            totalCount={totalCount}
-            pageSize={50}
-            selectedEmiMonth={selectedEmiMonth}
-          />
+          {appsLoading ? (
+            <ApplicationTableSkeleton />
+          ) : (
+            <MainContent
+              applications={applications}
+              onRowClick={handleApplicationSelect}
+              onApplicationDeleted={handleApplicationDeleted}
+              selectedApplicationId={selectedApplication?.id}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              totalCount={totalCount}
+              pageSize={50}
+              selectedEmiMonth={selectedEmiMonth}
+            />
+          )}
         </div>
       </div>
 
       <PWAInstallPrompt />
+      <PerformanceMonitor />
 
       {/* Application Details Panel with proper overlay positioning */}
       {selectedApplication && (
