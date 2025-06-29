@@ -49,7 +49,6 @@ export const useOptimizedApplicationsV3 = ({
 
     console.log('=== OPTIMIZED V3 FETCH START ===');
     console.log('Cache key:', cacheKey);
-    console.log('Search term:', searchTerm);
 
     // Check cache first
     const cachedResult = getCachedData(cacheKey);
@@ -99,29 +98,9 @@ export const useOptimizedApplicationsV3 = ({
       query = query.in('applications.lender_name', filters.lender);
     }
 
-    // Apply search with expanded scope and corrected table references
+    // Apply search
     if (searchTerm.trim()) {
-      const normalizedSearchTerm = searchTerm.trim();
-      console.log('Applying search for term:', normalizedSearchTerm);
-      
-      // Build comprehensive search across multiple fields with proper table references
-      const searchConditions = [
-        // Application-specific fields (from applications table)
-        `applications.applicant_name.ilike.%${normalizedSearchTerm}%`,
-        `applications.applicant_id.ilike.%${normalizedSearchTerm}%`,
-        `applications.applicant_mobile.ilike.%${normalizedSearchTerm}%`,
-        `applications.dealer_name.ilike.%${normalizedSearchTerm}%`,
-        `applications.lender_name.ilike.%${normalizedSearchTerm}%`,
-        `applications.branch_name.ilike.%${normalizedSearchTerm}%`,
-        
-        // Collection-specific fields (from collection table)
-        `rm_name.ilike.%${normalizedSearchTerm}%`,
-        `collection_rm.ilike.%${normalizedSearchTerm}%`,
-        `team_lead.ilike.%${normalizedSearchTerm}%`
-      ];
-      
-      query = query.or(searchConditions.join(','));
-      console.log('Search conditions applied:', searchConditions.length, 'fields');
+      query = query.or(`applications.applicant_name.ilike.%${searchTerm}%,applications.applicant_id.ilike.%${searchTerm}%,applications.applicant_mobile.ilike.%${searchTerm}%`);
     }
 
     // Apply pagination at database level
@@ -129,11 +108,11 @@ export const useOptimizedApplicationsV3 = ({
     query = query.range(offset, offset + pageSize - 1);
     query = query.order('demand_date', { ascending: false });
 
-    console.log('Executing optimized single query with search...');
+    console.log('Executing optimized single query...');
     const { data: collectionData, error, count } = await query;
 
     if (error) {
-      console.error('Optimized query with search failed:', error);
+      console.error('Optimized query failed:', error);
       throw error;
     }
 
@@ -198,14 +177,13 @@ export const useOptimizedApplicationsV3 = ({
     setCachedData(cacheKey, result, 3 * 60 * 1000);
     
     console.log('=== OPTIMIZED V3 FETCH COMPLETE ===');
-    console.log('Search results:', transformedApplications.length, 'applications found');
     return result;
   }, [user, selectedEmiMonth, filters, searchTerm, page, pageSize, cacheKey, getCachedData, setCachedData]);
 
-  // Use debounced API call with reduced debounce for faster search response
+  // Use debounced API call
   const { data: apiResult, loading: apiLoading, call: debouncedFetch } = useDebouncedAPI(
     fetchApplicationsCore,
-    200 // Reduced from 300ms to 200ms for faster search response
+    300 // 300ms debounce
   );
 
   // Update local state when API result changes

@@ -42,8 +42,8 @@ const Index = () => {
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [hasRestoredState, setHasRestoredState] = useState(false);
 
-  // Reduced debounce for faster search response
-  const debouncedSearchTerm = useDebounce(searchTerm, 200); // Reduced from 500ms to 200ms
+  // Debounce search term to reduce API calls
+  const debouncedSearchTerm = useDebounce(searchTerm, 500); // Increased debounce
 
   // Use optimized cascading filters system
   const { 
@@ -158,9 +158,6 @@ const Index = () => {
 
   // Reset page when search term or filters change
   useEffect(() => {
-    if (searchTerm.trim() !== debouncedSearchTerm.trim()) {
-      console.log('Search term changed, resetting page to 1');
-    }
     setCurrentPage(1);
   }, [debouncedSearchTerm, filters, selectedEmiMonth]);
 

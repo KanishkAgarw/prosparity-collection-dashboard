@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,7 @@ interface SearchBarProps {
   placeholder?: string;
 }
 
-const SearchBar = ({ value, onChange, placeholder = "Search by name, ID, mobile, dealer, lender, RM..." }: SearchBarProps) => {
+const SearchBar = ({ value, onChange, placeholder = "Search by name, ID, dealer, lender, RM..." }: SearchBarProps) => {
   const [inputValue, setInputValue] = useState(value);
 
   // Sync internal state if external value changes
@@ -19,29 +18,16 @@ const SearchBar = ({ value, onChange, placeholder = "Search by name, ID, mobile,
   }, [value]);
 
   const handleSearch = () => {
-    const trimmedValue = inputValue.trim();
-    console.log('Search triggered with term:', trimmedValue);
-    onChange(trimmedValue);
+    onChange(inputValue);
   };
 
   const handleClear = () => {
-    console.log('Search cleared');
     setInputValue('');
     onChange(''); // Immediately clear the search
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setInputValue(newValue);
-    
-    // For real-time search, trigger onChange immediately
-    // The debouncing is handled in useOptimizedApplicationsV3
-    onChange(newValue.trim());
-  };
-
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      e.preventDefault();
       handleSearch();
     }
   };
@@ -54,7 +40,7 @@ const SearchBar = ({ value, onChange, placeholder = "Search by name, ID, mobile,
           type="text"
           placeholder={placeholder}
           value={inputValue}
-          onChange={handleInputChange}
+          onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
           className="pl-10 pr-10 h-10 text-sm w-full"
         />
