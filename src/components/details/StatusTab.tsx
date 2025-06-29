@@ -38,6 +38,28 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
   const [statusLoading, setStatusLoading] = useState(false);
   const [currentCallingStatus, setCurrentCallingStatus] = useState<string>('');
   const [callingStatusLoading, setCallingStatusLoading] = useState(false);
+
+  // Helper function to normalize date format
+  const normalizeDate = (date: string | null | undefined): string | null => {
+    if (!date) return null;
+    
+    try {
+      if (date.length === 7) {
+        // YYYY-MM format, convert to first day of month
+        return `${date}-01`;
+      } else if (date.length === 10) {
+        // Already in YYYY-MM-DD format
+        return date;
+      } else {
+        // Try to parse and format
+        const parsedDate = new Date(date);
+        return parsedDate.toISOString().split('T')[0];
+      }
+    } catch (error) {
+      console.error('Error normalizing date:', error);
+      return null;
+    }
+  };
   
   // PTP date synchronization - improved to handle month-specific data
   useEffect(() => {
@@ -107,19 +129,31 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
   useEffect(() => {
     const fetchCallingStatus = async () => {
       if (!application?.applicant_id || !selectedMonth) return;
+      
+      const normalizedMonth = normalizeDate(selectedMonth);
+      if (!normalizedMonth) return;
+
       setCallingStatusLoading(true);
-      const { data, error } = await supabase
-        .from('field_status')
-        .select('calling_status')
-        .eq('application_id', application.applicant_id)
-        .eq('demand_date', selectedMonth)
-        .maybeSingle();
-      if (error) {
+      try {
+        const { data, error } = await supabase
+          .from('field_status')
+          .select('calling_status')
+          .eq('application_id', application.applicant_id)
+          .eq('demand_date', normalizedMonth)
+          .maybeSingle();
+        
+        if (error) {
+          console.error('Error fetching calling status:', error);
+          setCurrentCallingStatus('');
+        } else {
+          setCurrentCallingStatus(data?.calling_status || '');
+        }
+      } catch (error) {
+        console.error('Exception in fetchCallingStatus:', error);
         setCurrentCallingStatus('');
-      } else {
-        setCurrentCallingStatus(data?.calling_status || '');
+      } finally {
+        setCallingStatusLoading(false);
       }
-      setCallingStatusLoading(false);
     };
     fetchCallingStatus();
   }, [application?.applicant_id, selectedMonth]);
@@ -174,6 +208,14 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
 
   // Update status handler to use per-month update
   const handleStatusChange = async (newStatus: string) => {
+    if (!selectedMonth) return;
+    
+    const normalizedMonth = normalizeDate(selectedMonth);
+    if (!normalizedMonth) {
+      toast.error('Invalid month format');
+      return;
+    }
+
     setStatusLoading(true);
     try {
       if (newStatus === "Paid") {
@@ -182,12 +224,13 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
         const prevStatus = currentStatus;
         await updateFieldStatus(application.applicant_id, newStatus, selectedMonth);
         setCurrentStatus(newStatus);
-        await addAuditLog(application.applicant_id, 'Status', prevStatus, newStatus, selectedMonth);
+        await addAuditLog(application.applicant_id, 'Status', prevStatus, newStatus, normalizedMonth);
         onStatusChange(newStatus);
         toast.success('Status updated');
       }
     } catch (err) {
-      toast.error('Failed to update status');
+      console.error('Error updating status:', err);
+      toast.error('Failed to update status: ' + (err as Error).message);
     } finally {
       setStatusLoading(false);
     }
@@ -204,31 +247,59 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
 
   const saveAmountCollected = async () => {
     if (!user || !application || !selectedMonth) return;
+    
+    const normalizedMonth = normalizeDate(selectedMonth);
+    if (!normalizedMonth) {
+      toast.error('Invalid month format');
+      return;
+    }
+
     setIsUpdatingAmount(true);
     const prev = application.amount_collected ?? '';
     const newVal = amountCollected === '' ? null : Number(amountCollected);
+    
     try {
+      console.log('=== UPDATING AMOUNT COLLECTED ===');
+      console.log('Application ID:', application.applicant_id);
+      console.log('Demand Date (normalized):', normalizedMonth);
+      console.log('Previous Amount:', prev);
+      console.log('New Amount:', newVal);
+
       // Update the collection table instead of applications table
       const { error } = await supabase
         .from('collection')
         .upsert({
           application_id: application.applicant_id,
-          demand_date: selectedMonth,
+          demand_date: normalizedMonth,
           amount_collected: newVal,
           updated_at: new Date().toISOString()
         }, {
           onConflict: 'application_id,demand_date'
         });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating amount collected:', error);
+        throw error;
+      }
+      
+      console.log('✅ Amount collected updated successfully');
       
       if (prev !== newVal) {
-        await addAuditLog(application.applicant_id, 'Amount Collected', prev?.toString() ?? '', newVal?.toString() ?? '', selectedMonth);
+        await addAuditLog(application.applicant_id, 'Amount Collected', prev?.toString() ?? '', newVal?.toString() ?? '', normalizedMonth);
       }
+      
       toast.success('Amount Collected updated');
-      window.location.reload();
+      
+      // Update the local application state instead of reloading the page
+      const updatedApplication = { ...application, amount_collected: newVal };
+      // Trigger parent component to refresh data
+      if (onStatusChange) {
+        onStatusChange(currentStatus); // This will trigger a refresh of the application data
+      }
+      
     } catch (err) {
-      toast.error('Failed to update Amount Collected');
+      console.error('Exception in saveAmountCollected:', err);
+      toast.error('Failed to update Amount Collected: ' + (err as Error).message);
     } finally {
       setIsUpdatingAmount(false);
     }
@@ -279,35 +350,59 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
 
   // Handle calling status change
   const handleCallingStatusChange = async (newStatus: string) => {
+    if (!selectedMonth) return;
+    
+    const normalizedMonth = normalizeDate(selectedMonth);
+    if (!normalizedMonth) {
+      toast.error('Invalid month format');
+      return;
+    }
+
     setCallingStatusLoading(true);
     try {
+      console.log('=== UPDATING CALLING STATUS ===');
+      console.log('Application ID:', application.applicant_id);
+      console.log('New Calling Status:', newStatus);
+      console.log('Demand Date (normalized):', normalizedMonth);
+
       // Fetch previous value
       const { data: existingStatus } = await supabase
         .from('field_status')
         .select('calling_status')
         .eq('application_id', application.applicant_id)
-        .eq('demand_date', selectedMonth)
+        .eq('demand_date', normalizedMonth)
         .maybeSingle();
+      
       const prevStatus = existingStatus?.calling_status || '';
+      
       // Upsert new value
       const { error } = await supabase
         .from('field_status')
         .upsert({
           application_id: application.applicant_id,
           calling_status: newStatus,
-          demand_date: selectedMonth,
+          demand_date: normalizedMonth,
           user_id: user.id,
           user_email: user.email,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'application_id,demand_date' });
-      if (error) throw error;
-      setCurrentCallingStatus(newStatus);
-      if (prevStatus !== newStatus) {
-        await addAuditLog(application.applicant_id, 'Calling Status', prevStatus, newStatus, selectedMonth);
+      
+      if (error) {
+        console.error('Error updating calling status:', error);
+        throw error;
       }
+      
+      console.log('✅ Calling status updated successfully');
+      setCurrentCallingStatus(newStatus);
+      
+      if (prevStatus !== newStatus) {
+        await addAuditLog(application.applicant_id, 'Calling Status', prevStatus, newStatus, normalizedMonth);
+      }
+      
       toast.success('Calling status updated');
     } catch (err) {
-      toast.error('Failed to update calling status');
+      console.error('Exception in handleCallingStatusChange:', err);
+      toast.error('Failed to update calling status: ' + (err as Error).message);
     } finally {
       setCallingStatusLoading(false);
     }
