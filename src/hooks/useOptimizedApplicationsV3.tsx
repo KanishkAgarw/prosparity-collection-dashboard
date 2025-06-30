@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -45,7 +44,7 @@ export const useOptimizedApplicationsV3 = ({
   const { fetchBatchPtpDates } = useBatchPtpDates();
   const { fetchBatchFieldStatus } = useBatchFieldStatus();
 
-  // Create cache key based on all parameters - normalize empty search term to avoid cache issues
+  // Create cache key based on all parameters
   const normalizedSearchTerm = searchTerm?.trim() || '';
   const cacheKey = useMemo(() => {
     return `applications-${selectedEmiMonth}-${JSON.stringify(filters)}-${normalizedSearchTerm}-${page}-${pageSize}`;
@@ -61,9 +60,9 @@ export const useOptimizedApplicationsV3 = ({
     console.log('Selected EMI Month:', selectedEmiMonth);
     console.log('Search term:', `"${normalizedSearchTerm}"`);
     console.log('Filters:', filters);
-    console.log('Cache key:', cacheKey);
+    console.log('Active filters:', Object.entries(filters).filter(([, arr]) => arr.length > 0));
 
-    // Check cache first (but skip cache for search operations to ensure fresh results)
+    // Skip cache for search operations to ensure fresh results
     if (!normalizedSearchTerm && Object.values(filters).every(arr => arr.length === 0)) {
       const cachedResult = getCachedData(cacheKey);
       if (cachedResult) {
@@ -87,7 +86,7 @@ export const useOptimizedApplicationsV3 = ({
         .gte('demand_date', start)
         .lte('demand_date', end);
 
-      // Apply collection table filters to data query (server-side)
+      // Apply server-side filters
       if (filters.teamLead?.length > 0) {
         console.log('🔍 Applying team lead filter:', filters.teamLead);
         dataQuery = dataQuery.in('team_lead', filters.teamLead);
@@ -117,7 +116,7 @@ export const useOptimizedApplicationsV3 = ({
         dataQuery = dataQuery.in('repayment', filters.repayment);
       }
 
-      // Apply applications table filters (server-side)
+      // Apply applications table filters
       if (filters.branch?.length > 0) {
         console.log('🔍 Applying branch filter:', filters.branch);
         dataQuery = dataQuery.in('applications.branch_name', filters.branch);
@@ -131,7 +130,7 @@ export const useOptimizedApplicationsV3 = ({
         dataQuery = dataQuery.in('applications.lender_name', filters.lender);
       }
       
-      // Apply vehicle status filter (server-side with NULL handling)
+      // FIXED: Apply vehicle status filter with proper NULL handling
       if (filters.vehicleStatus?.length > 0) {
         console.log('🔍 Applying vehicle status filter:', filters.vehicleStatus);
         const normalizedVehicleStatuses = filters.vehicleStatus.map(status => 
@@ -211,30 +210,31 @@ export const useOptimizedApplicationsV3 = ({
       // Step 2: Apply client-side filters that require additional data
       console.log('=== STEP 2: APPLYING CLIENT-SIDE FILTERS ===');
       
-      // Get application IDs for batch operations
       const applicationIds = transformedApplications.map(app => app.applicant_id);
       
       // Fetch additional data for client-side filtering
       let ptpDatesMap: Record<string, string | null> = {};
       let fieldStatusMap: Record<string, string> = {};
       
-      if (filters.ptpDate?.length > 0 || filters.status?.length > 0) {
+      // FIXED: Always fetch if needed for filtering
+      const needsPtpData = filters.ptpDate?.length > 0;
+      const needsStatusData = filters.status?.length > 0;
+      
+      if (needsPtpData || needsStatusData) {
         console.log('🔍 Fetching additional data for client-side filtering');
         
-        // Fetch PTP dates if needed
-        if (filters.ptpDate?.length > 0) {
+        if (needsPtpData) {
           ptpDatesMap = await fetchBatchPtpDates(applicationIds, selectedEmiMonth);
           console.log('✅ Fetched PTP dates for filtering:', Object.keys(ptpDatesMap).length);
         }
         
-        // Fetch field status if needed
-        if (filters.status?.length > 0) {
+        if (needsStatusData) {
           fieldStatusMap = await fetchBatchFieldStatus(applicationIds, selectedEmiMonth);
           console.log('✅ Fetched field status for filtering:', Object.keys(fieldStatusMap).length);
         }
       }
 
-      // Apply PTP date filter
+      // FIXED: Apply PTP date filter with proper categorization
       if (filters.ptpDate?.length > 0) {
         console.log('🔍 Applying PTP date filter:', filters.ptpDate);
         const beforePtpCount = transformedApplications.length;
@@ -243,26 +243,34 @@ export const useOptimizedApplicationsV3 = ({
           const ptpDate = ptpDatesMap[app.applicant_id];
           const category = categorizePtpDate(ptpDate);
           
-          // Check if any selected PTP date category matches
-          return filters.ptpDate.some(selectedCategory => {
+          const matches = filters.ptpDate.some(selectedCategory => {
             if (isValidPtpDateCategory(selectedCategory)) {
               return category === selectedCategory;
             }
             return false;
           });
+          
+          return matches;
         });
         
         console.log(`🔍 PTP date filter: ${transformedApplications.length} from ${beforePtpCount} applications`);
       }
 
-      // Apply status filter
+      // FIXED: Apply status filter with field status priority
       if (filters.status?.length > 0) {
         console.log('🔍 Applying status filter:', filters.status);
         const beforeStatusCount = transformedApplications.length;
         
         transformedApplications = transformedApplications.filter(app => {
-          const fieldStatus = fieldStatusMap[app.applicant_id] || app.lms_status;
-          return filters.status.includes(fieldStatus);
+          // Use field status if available, otherwise fall back to LMS status
+          const currentStatus = fieldStatusMap[app.applicant_id] || app.lms_status;
+          const matches = filters.status.includes(currentStatus);
+          
+          if (!matches) {
+            console.log(`🚫 Status filter excluded: ${app.applicant_name} (${currentStatus} not in ${filters.status.join(', ')})`);
+          }
+          
+          return matches;
         });
         
         console.log(`🔍 Status filter: ${transformedApplications.length} from ${beforeStatusCount} applications`);
@@ -287,7 +295,7 @@ export const useOptimizedApplicationsV3 = ({
         console.log(`🔍 Last month bounce filter: ${transformedApplications.length} from ${beforeBounceCount} applications`);
       }
 
-      // Apply search filtering if provided (only if search term is not empty)
+      // Apply search filtering if provided
       if (normalizedSearchTerm) {
         console.log('=== STEP 3: APPLYING SEARCH FILTER ===');
         const searchLower = normalizedSearchTerm.toLowerCase();
@@ -309,25 +317,13 @@ export const useOptimizedApplicationsV3 = ({
           ];
 
           const matches = searchableFields.some(field => field.includes(searchLower));
-          
-          if (matches) {
-            console.log(`✅ MATCH: ${app.applicant_name} (ID: ${app.applicant_id})`);
-          }
-          
           return matches;
         });
 
         console.log(`🔍 Search results: ${transformedApplications.length} from ${beforeSearchCount} total`);
-        
-        if (transformedApplications.length === 0) {
-          console.log('❌ NO SEARCH RESULTS FOUND');
-          console.log('Search term used:', `"${searchLower}"`);
-        }
-      } else {
-        console.log('🔍 No search term provided, showing all filtered results');
       }
 
-      // Sort by applicant first name (case-insensitive) then by demand_date
+      // Sort by applicant first name then by demand_date
       console.log('=== STEP 4: SORTING RESULTS ===');
       const sortedApplications = transformedApplications.sort((a, b) => {
         const getFirstName = (fullName: string = '') => {
@@ -345,9 +341,6 @@ export const useOptimizedApplicationsV3 = ({
       });
 
       console.log(`📋 Final sorted applications: ${sortedApplications.length}`);
-      if (sortedApplications.length > 0) {
-        console.log('👥 First 3 names after sorting:', sortedApplications.slice(0, 3).map(app => app.applicant_name));
-      }
 
       // Apply pagination after sorting
       const offset = (page - 1) * pageSize;
@@ -357,7 +350,6 @@ export const useOptimizedApplicationsV3 = ({
       console.log(`📄 Page: ${page}, Size: ${pageSize}, Offset: ${offset}`);
       console.log(`📋 Paginated results: ${paginatedApplications.length}`);
 
-      // Use the actual filtered count as total count (this is important for search)
       const finalTotalCount = sortedApplications.length;
 
       const result = {
@@ -368,7 +360,7 @@ export const useOptimizedApplicationsV3 = ({
         refetch: async () => {}
       };
 
-      // Only cache non-search and non-filter results to avoid stale data
+      // Only cache non-search and non-filter results
       const hasActiveFilters = Object.values(filters).some(arr => arr.length > 0);
       if (!normalizedSearchTerm && !hasActiveFilters) {
         setCachedData(cacheKey, result, 2 * 60 * 1000);

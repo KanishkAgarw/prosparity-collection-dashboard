@@ -50,7 +50,7 @@ export const useOptimizedCascadingFilters = () => {
     emiMonths: [],
     repayments: [],
     lastMonthBounce: ['Not paid', 'Paid on time', '1-5 days late', '6-15 days late', '15+ days late'],
-    ptpDateOptions: ['Overdue PTP', "Today's PTP", "Tomorrow's PTP", 'Future PTP', 'No PTP'],
+    ptpDateOptions: ['overdue', 'today', 'tomorrow', 'future', 'no_date'],
     collectionRms: [],
     vehicleStatusOptions: ['Seized', 'Repo', 'Accident', 'None']
   });
@@ -86,7 +86,7 @@ export const useOptimizedCascadingFilters = () => {
         .from('collection')
         .select('demand_date')
         .not('demand_date', 'is', null)
-        .limit(1000); // Limit to prevent excessive data transfer
+        .limit(1000);
 
       const allDates: string[] = [];
       colDates?.forEach(item => {
@@ -118,7 +118,7 @@ export const useOptimizedCascadingFilters = () => {
         emiMonths: sortedMonths,
         repayments: [],
         lastMonthBounce: ['Not paid', 'Paid on time', '1-5 days late', '6-15 days late', '15+ days late'],
-        ptpDateOptions: ['Overdue PTP', "Today's PTP", "Tomorrow's PTP", 'Future PTP', 'No PTP'],
+        ptpDateOptions: ['overdue', 'today', 'tomorrow', 'future', 'no_date'],
         collectionRms: [],
         vehicleStatusOptions: ['Seized', 'Repo', 'Accident', 'None']
       };
@@ -130,7 +130,7 @@ export const useOptimizedCascadingFilters = () => {
     }
   }, [user, selectedEmiMonth, getCachedData, setCachedData]);
 
-  // Optimized filter options fetch with aggressive caching
+  // Optimized filter options fetch with status and PTP fixes
   const fetchFilterOptions = useCallback(async () => {
     if (!user || !selectedEmiMonth) return;
 
@@ -145,12 +145,12 @@ export const useOptimizedCascadingFilters = () => {
 
     setLoading(true);
     try {
-      console.log('Fetching filter options with single optimized query');
+      console.log('Fetching filter options with status and PTP fixes');
 
       const monthStart = `${selectedEmiMonth}-01`;
       const monthEnd = `${selectedEmiMonth}-31`;
 
-      // Single optimized query with joins
+      // Fetch collection and application data
       const { data: combinedData } = await supabase
         .from('collection')
         .select(`
@@ -158,6 +158,7 @@ export const useOptimizedCascadingFilters = () => {
           rm_name,
           collection_rm,
           repayment,
+          lms_status,
           applications!inner(
             branch_name,
             dealer_name,
@@ -167,7 +168,17 @@ export const useOptimizedCascadingFilters = () => {
         `)
         .gte('demand_date', monthStart)
         .lte('demand_date', monthEnd)
-        .limit(5000); // Reasonable limit
+        .limit(5000);
+
+      // CRITICAL FIX: Fetch actual field status values
+      const { data: fieldStatusData } = await supabase
+        .from('field_status')
+        .select('status')
+        .gte('demand_date', monthStart)
+        .lte('demand_date', monthEnd)
+        .limit(2000);
+
+      console.log('Field status data fetched:', fieldStatusData?.length || 0);
 
       if (!combinedData) return;
 
@@ -188,15 +199,24 @@ export const useOptimizedCascadingFilters = () => {
         repayments: [...new Set(combinedData.map(item => item.repayment).filter(Boolean))].sort(),
         emiMonths: [selectedEmiMonth],
         lastMonthBounce: ['Not paid', 'Paid on time', '1-5 days late', '6-15 days late', '15+ days late'],
-        ptpDateOptions: ['Overdue PTP', "Today's PTP", "Tomorrow's PTP", 'Future PTP', 'No PTP'],
+        ptpDateOptions: ['overdue', 'today', 'tomorrow', 'future', 'no_date'], // FIXED: Use internal values
         vehicleStatusOptions: ['Seized', 'Repo', 'Accident', 'None'],
-        statuses: [] // Will be populated separately if needed
+        // CRITICAL FIX: Populate status options from both sources
+        statuses: []
       };
+
+      // Combine LMS status and field status values
+      const lmsStatuses = [...new Set(combinedData.map(item => item.lms_status).filter(Boolean))];
+      const fieldStatuses = [...new Set(fieldStatusData?.map(s => s.status) || [])];
+      const allStatuses = [...new Set([...lmsStatuses, ...fieldStatuses])].sort();
+      
+      options.statuses = allStatuses;
+      console.log('Available status options:', options.statuses);
 
       // Cache for 8 minutes
       setCachedData(cacheKey, options, 8 * 60 * 1000);
       setAvailableOptions(options);
-      console.log('Filter options cached and set');
+      console.log('Filter options cached and set with', options.statuses.length, 'status options');
 
     } catch (error) {
       console.error('Error fetching cascading filter options:', error);
@@ -207,6 +227,7 @@ export const useOptimizedCascadingFilters = () => {
 
   // Rest of the hook remains the same but with memoized callbacks
   const handleFilterChange = useCallback((key: string, values: string[]) => {
+    console.log('Filter change:', key, values);
     setFilters(prev => ({
       ...prev,
       [key]: values
@@ -214,6 +235,7 @@ export const useOptimizedCascadingFilters = () => {
   }, []);
 
   const handleEmiMonthChange = useCallback((month: string) => {
+    console.log('EMI month changed to:', month);
     setSelectedEmiMonth(month);
     setFilters({
       branch: [],
@@ -260,7 +282,7 @@ export const useOptimizedCascadingFilters = () => {
     if (user && selectedEmiMonth) {
       const timeout = setTimeout(() => {
         fetchFilterOptions();
-      }, 200); // Small debounce
+      }, 200);
 
       return () => clearTimeout(timeout);
     }
