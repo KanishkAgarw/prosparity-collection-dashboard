@@ -265,7 +265,7 @@ export const useOptimizedApplicationsV3 = ({
     }
   }, [user, selectedEmiMonth, filters, searchTerm, page, pageSize, cacheKey, getCachedData, setCachedData]);
 
-  // Use debounced API call - fix the argument issue by only passing the function
+  // Use debounced API call with faster response time for search
   const { data: apiResult, loading: apiLoading, call: debouncedFetch } = useDebouncedAPI(fetchApplicationsCore);
 
   // Update local state when API result changes
