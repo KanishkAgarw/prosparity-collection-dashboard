@@ -1,6 +1,8 @@
+
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { getMonthDateRange } from '@/utils/dateUtils';
 
 export const useBatchPtpDates = () => {
   const { user } = useAuth();
@@ -24,9 +26,14 @@ export const useBatchPtpDates = () => {
         .select('application_id, ptp_date, created_at')
         .in('application_id', applicationIds);
 
-      // Add month filter if provided
+      // Add month filter if provided - filter by demand_date using proper date range
       if (selectedMonth) {
-        query = query.eq('demand_date', selectedMonth);
+        const { start, end } = getMonthDateRange(selectedMonth);
+        console.log('Date range for PTP dates:', { start, end });
+        
+        query = query
+          .gte('demand_date', start)
+          .lte('demand_date', end);
       }
 
       // Order by created_at to get latest PTP date per application

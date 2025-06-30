@@ -1,6 +1,8 @@
+
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { getMonthDateRange } from '@/utils/dateUtils';
 
 export interface BatchContactStatus {
   applicant?: string;
@@ -32,9 +34,14 @@ export const useBatchContactCallingStatus = () => {
         .select('application_id, contact_type, status, created_at')
         .in('application_id', applicationIds);
 
-      // Add month filter if provided
+      // Add month filter if provided - filter by demand_date using proper date range
       if (selectedMonth) {
-        query = query.eq('demand_date', selectedMonth);
+        const { start, end } = getMonthDateRange(selectedMonth);
+        console.log('Date range for contact status:', { start, end });
+        
+        query = query
+          .gte('demand_date', start)
+          .lte('demand_date', end);
       }
 
       // Order by created_at to get latest status per contact type
