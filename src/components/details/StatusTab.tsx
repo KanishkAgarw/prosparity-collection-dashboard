@@ -17,7 +17,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useFieldStatus } from "@/hooks/useFieldStatus";
 import { CALLING_STATUS_OPTIONS } from '@/constants/options';
 import { monthToEmiDate } from '@/utils/dateUtils';
-import { useApplicationHandlers } from "@/hooks/useApplicationHandlers";
+import { useApplicationHandlers } from "./ApplicationHandlers";
 
 interface StatusTabProps {
   application: Application;
