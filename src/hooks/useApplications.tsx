@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -7,7 +6,6 @@ import { DatabaseApplication } from '@/types/database';
 import { useFieldStatus } from '@/hooks/useFieldStatus';
 import { usePtpDates } from '@/hooks/usePtpDates';
 import { usePaymentDates } from '@/hooks/usePaymentDates';
-import { useContactCallingStatus } from '@/hooks/useContactCallingStatus';
 import { useComments } from '@/hooks/useComments';
 
 interface UseApplicationsProps {
@@ -20,13 +18,48 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
   const { fetchFieldStatus } = useFieldStatus();
   const { fetchPtpDates } = usePtpDates();
   const { fetchPaymentDates } = usePaymentDates();
-  const { fetchContactStatuses } = useContactCallingStatus();
   const { fetchCommentsByApplications } = useComments();
   
   const [applications, setApplications] = useState<Application[]>([]);
   const [allApplications, setAllApplications] = useState<Application[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  // Helper function to fetch contact statuses for multiple applications
+  const fetchContactStatusesForApps = useCallback(async (appIds: string[]): Promise<Record<string, any>> => {
+    try {
+      const { data, error } = await supabase
+        .from('contact_calling_status')
+        .select('application_id, contact_type, status, created_at')
+        .in('application_id', appIds)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching contact statuses:', error);
+        return {};
+      }
+
+      // Group by application_id and contact_type, keeping latest status
+      const statusMap: Record<string, any> = {};
+      
+      data?.forEach(status => {
+        if (!statusMap[status.application_id]) {
+          statusMap[status.application_id] = {};
+        }
+        
+        const contactType = status.contact_type.toLowerCase() as string;
+        // Only set if we don't already have a status for this contact type (keeps latest due to ordering)
+        if (!statusMap[status.application_id][contactType]) {
+          statusMap[status.application_id][contactType] = status.status;
+        }
+      });
+
+      return statusMap;
+    } catch (error) {
+      console.error('Error in fetchContactStatusesForApps:', error);
+      return {};
+    }
+  }, []);
 
   // Memoized enhancement function to avoid recreating on every render
   const enhanceApplications = useCallback((
@@ -105,7 +138,7 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
         fetchFieldStatus(allAppIds),
         fetchPtpDates(allAppIds),
         fetchPaymentDates(allAppIds),
-        fetchContactStatuses(allAppIds),
+        fetchContactStatusesForApps(allAppIds),
         fetchCommentsByApplications(allAppIds)
       ]);
 
@@ -137,7 +170,7 @@ export const useApplications = ({ page = 1, pageSize = 50 }: UseApplicationsProp
     } finally {
       setLoading(false);
     }
-  }, [user, page, pageSize, fetchFieldStatus, fetchPtpDates, fetchPaymentDates, fetchContactStatuses, fetchCommentsByApplications, enhanceApplications]);
+  }, [user, page, pageSize, fetchFieldStatus, fetchPtpDates, fetchPaymentDates, fetchContactStatusesForApps, fetchCommentsByApplications, enhanceApplications]);
 
   useEffect(() => {
     if (user) {

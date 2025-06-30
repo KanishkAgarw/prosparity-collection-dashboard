@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Application } from "@/types/application";
@@ -6,7 +7,7 @@ import { CallingLog } from "@/hooks/useCallingLogs";
 import { format } from "date-fns";
 import { Activity } from "lucide-react";
 import ContactCard from "./ContactCard";
-import { useContactCallingStatus } from "@/hooks/useContactCallingStatus";
+import { useContactCallingStatus, ContactStatusData } from "@/hooks/useContactCallingStatus";
 import LogDialog from "./LogDialog";
 import FiLocationDisplay from "./FiLocationDisplay";
 
@@ -19,7 +20,17 @@ interface ContactsTabProps {
 
 const ContactsTab = ({ application, callingLogs, onCallingStatusChange, selectedMonth }: ContactsTabProps) => {
   const [showLogDialog, setShowLogDialog] = useState(false);
-  const { getStatusForContact, refetch } = useContactCallingStatus(application.applicant_id, selectedMonth);
+  const [contactStatuses, setContactStatuses] = useState<ContactStatusData>({});
+  const { fetchContactStatus } = useContactCallingStatus();
+
+  const loadContactStatuses = async () => {
+    const statuses = await fetchContactStatus(application.applicant_id, selectedMonth);
+    setContactStatuses(statuses);
+  };
+
+  useEffect(() => {
+    loadContactStatuses();
+  }, [application.applicant_id, selectedMonth]);
 
   const formatDateTime = (dateStr: string) => {
     try {
@@ -40,7 +51,7 @@ const ContactsTab = ({ application, callingLogs, onCallingStatusChange, selected
       name: application.applicant_name,
       mobile: application.applicant_mobile,
       address: application.applicant_address,
-      callingStatus: getStatusForContact('applicant')
+      callingStatus: contactStatuses.applicant || 'Not Called'
     },
     ...(application.co_applicant_name ? [{
       type: "co_applicant",
@@ -48,7 +59,7 @@ const ContactsTab = ({ application, callingLogs, onCallingStatusChange, selected
       name: application.co_applicant_name,
       mobile: application.co_applicant_mobile,
       address: application.co_applicant_address,
-      callingStatus: getStatusForContact('co_applicant')
+      callingStatus: contactStatuses.co_applicant || 'Not Called'
     }] : []),
     ...(application.guarantor_name ? [{
       type: "guarantor",
@@ -56,7 +67,7 @@ const ContactsTab = ({ application, callingLogs, onCallingStatusChange, selected
       name: application.guarantor_name,
       mobile: application.guarantor_mobile,
       address: application.guarantor_address,
-      callingStatus: getStatusForContact('guarantor')
+      callingStatus: contactStatuses.guarantor || 'Not Called'
     }] : []),
     ...(application.reference_name ? [{
       type: "reference",
@@ -64,7 +75,7 @@ const ContactsTab = ({ application, callingLogs, onCallingStatusChange, selected
       name: application.reference_name,
       mobile: application.reference_mobile,
       address: application.reference_address,
-      callingStatus: getStatusForContact('reference')
+      callingStatus: contactStatuses.reference || 'Not Called'
     }] : [])
   ];
 
@@ -81,7 +92,7 @@ const ContactsTab = ({ application, callingLogs, onCallingStatusChange, selected
             currentStatus={contact.callingStatus}
             onStatusChange={async (newStatus) => {
               await onCallingStatusChange(contact.type, newStatus, contact.callingStatus);
-              await refetch();
+              await loadContactStatuses();
             }}
           />
         ))}
