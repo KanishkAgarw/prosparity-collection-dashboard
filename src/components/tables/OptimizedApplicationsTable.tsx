@@ -31,7 +31,7 @@ const OptimizedApplicationsTable = memo(({
 
   // Batch data state
   const [batchedData, setBatchedData] = useState<{
-    statuses: Record<string, string>;
+    statuses: Record<string, { status: string; callingStatus?: string }>;
     ptpDates: Record<string, string | null>;
     contactStatuses: Record<string, any>;
   }>({
@@ -94,7 +94,8 @@ const OptimizedApplicationsTable = memo(({
                 onRowClick={onRowClick}
                 selectedEmiMonth={selectedEmiMonth}
                 // Pass batched data as props
-                batchedStatus={batchedData.statuses[application.applicant_id] || 'Unpaid'}
+                batchedStatus={batchedData.statuses[application.applicant_id]?.status || 'Unpaid'}
+                batchedCallingStatus={batchedData.statuses[application.applicant_id]?.callingStatus}
                 batchedPtpDate={batchedData.ptpDates[application.applicant_id] || null}
                 batchedContactStatus={batchedData.contactStatuses[application.applicant_id]}
                 batchedComments={comments[application.applicant_id] || []}

@@ -17,6 +17,7 @@ interface ApplicationRowProps {
   selectedEmiMonth?: string | null;
   // Batched data props
   batchedStatus?: string;
+  batchedCallingStatus?: string;
   batchedPtpDate?: string | null;
   batchedContactStatus?: BatchContactStatus;
   batchedComments?: BatchComment[];
@@ -29,6 +30,7 @@ const ApplicationRow = memo(({
   onRowClick,
   selectedEmiMonth,
   batchedStatus = 'Unpaid',
+  batchedCallingStatus,
   batchedPtpDate = null,
   batchedContactStatus,
   batchedComments = [],
@@ -76,15 +78,16 @@ const ApplicationRow = memo(({
           <div className="h-4 w-20 bg-gray-200 animate-pulse rounded mx-auto"></div>
         ) : (
           <span className={`px-2 py-1 text-xs rounded-full ${
-            batchedContactStatus?.latest === 'Called - Answered' ? 'bg-green-100 text-green-800' :
-            batchedContactStatus?.latest === 'Called - No Response' ? 'bg-red-100 text-red-800' :
-            batchedContactStatus?.latest === 'Customer Funded the Account' ? 'bg-blue-100 text-blue-800' :
-            batchedContactStatus?.latest === 'PTP Given' ? 'bg-yellow-100 text-yellow-800' :
-            batchedContactStatus?.latest === 'Rude Customer' ? 'bg-red-100 text-red-800' :
-            batchedContactStatus?.latest === 'Wrong Number' ? 'bg-gray-100 text-gray-800' :
+            !batchedCallingStatus ? 'bg-gray-100 text-gray-600' :
+            batchedCallingStatus === 'Called - Answered' ? 'bg-green-100 text-green-800' :
+            batchedCallingStatus === 'Called - No Response' ? 'bg-red-100 text-red-800' :
+            batchedCallingStatus === 'Customer Funded the Account' ? 'bg-blue-100 text-blue-800' :
+            batchedCallingStatus === 'PTP Given' ? 'bg-yellow-100 text-yellow-800' :
+            batchedCallingStatus === 'Rude Customer' ? 'bg-red-100 text-red-800' :
+            batchedCallingStatus === 'Wrong Number' ? 'bg-gray-100 text-gray-800' :
             'bg-gray-100 text-gray-600'
           }`}>
-            {batchedContactStatus?.latest || 'No Calls'}
+            {batchedCallingStatus || 'Not Set'}
           </span>
         )}
       </TableCell>
