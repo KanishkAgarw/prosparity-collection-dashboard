@@ -43,7 +43,7 @@ const Index = () => {
   const [hasRestoredState, setHasRestoredState] = useState(false);
 
   // Debounce search term to reduce API calls
-  const debouncedSearchTerm = useDebounce(searchTerm, 300); // Reduced from 500ms to 300ms
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   // Use optimized cascading filters system
   const { 
@@ -57,10 +57,11 @@ const Index = () => {
     loading: filtersLoading 
   } = useOptimizedCascadingFilters();
 
-  // Use optimized status counts hook
+  // Use optimized status counts hook with search term
   const { statusCounts, loading: statusLoading } = useStatusCounts({ 
     filters, 
-    selectedEmiMonth 
+    selectedEmiMonth,
+    searchTerm: debouncedSearchTerm // Pass search term to update status counts
   });
 
   // Use optimized applications hook V3
@@ -95,7 +96,6 @@ const Index = () => {
     onStatusUpdate: async () => {
       if (!document.hidden) {
         console.log('Real-time status update triggered');
-        // Only refetch if we're viewing the affected applications
         await refetch();
       }
     },
@@ -150,7 +150,7 @@ const Index = () => {
     if (hasRestoredState) {
       const timeout = setTimeout(() => {
         saveFiltersState(filters, searchTerm, currentPage);
-      }, 1000); // Debounce save operations
+      }, 1000);
       
       return () => clearTimeout(timeout);
     }
@@ -167,7 +167,7 @@ const Index = () => {
       const timeout = setTimeout(() => {
         const userIds = [...new Set([user.id])];
         fetchProfiles(userIds);
-      }, 500); // Delay to avoid blocking main render
+      }, 500);
       
       return () => clearTimeout(timeout);
     }
@@ -315,15 +315,12 @@ const Index = () => {
 
       <PWAInstallPrompt />
 
-      {/* Application Details Panel with proper overlay positioning */}
       {selectedApplication && (
         <>
-          {/* Overlay */}
           <div 
             className="fixed inset-0 bg-black bg-opacity-50 z-40"
             onClick={handleApplicationClose}
           />
-          {/* Panel */}
           <div className="fixed inset-y-0 right-0 w-[95%] sm:w-96 lg:w-[500px] z-50">
             <ApplicationDetailsPanel
               application={selectedApplication}
