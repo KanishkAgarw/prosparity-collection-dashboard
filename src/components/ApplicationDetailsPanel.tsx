@@ -1,4 +1,3 @@
-
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -292,9 +291,16 @@ const ApplicationDetailsPanel = ({
 
   const handleAddComment = async (content: string) => {
     if (currentApplication?.applicant_id) {
-      await addComment(currentApplication.applicant_id, content, selectedMonth);
-      toast.success('Comment added');
-      await onDataChanged?.();
+      try {
+        await addComment(currentApplication.applicant_id, content, selectedMonth);
+        toast.success('Comment added');
+        // Force refresh comments after adding
+        await fetchComments(currentApplication.applicant_id);
+        await onDataChanged?.();
+      } catch (error) {
+        console.error('Error adding comment:', error);
+        toast.error('Failed to add comment');
+      }
     }
   };
 

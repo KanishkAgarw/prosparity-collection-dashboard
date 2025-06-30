@@ -45,12 +45,6 @@ export const useComments = (selectedMonth?: string) => {
       return comments;
     }
 
-    // Check if we already have data for this application and month
-    if (lastFetchedApplicationId === applicationId && lastFetchedMonth === selectedMonth && comments.length > 0) {
-      console.log('Comments: Using cached data', { applicationId, selectedMonth, count: comments.length });
-      return comments;
-    }
-
     fetchInProgressRef.current = true;
     setLoading(true);
     
@@ -130,7 +124,7 @@ export const useComments = (selectedMonth?: string) => {
       setLoading(false);
       fetchInProgressRef.current = false;
     }
-  }, [user, fetchProfiles, getUserName, selectedMonth, comments, lastFetchedApplicationId, lastFetchedMonth]);
+  }, [user, fetchProfiles, getUserName, selectedMonth]);
 
   // Remove the bulk fetch function - we'll only fetch on demand now
   const fetchCommentsByApplications = useCallback(async (
@@ -178,15 +172,16 @@ export const useComments = (selectedMonth?: string) => {
       }
 
       console.log('✓ Comment added successfully');
-      // Refresh comments after adding - but only if we have cached data for this app/month
-      if (lastFetchedApplicationId === applicationId && lastFetchedMonth === selectedMonth) {
-        await fetchComments(applicationId);
-      }
+      
+      // Clear cache to force fresh fetch next time
+      setLastFetchedApplicationId(null);
+      setLastFetchedMonth(null);
+      
     } catch (error) {
       console.error('Exception in addComment:', error);
       throw error;
     }
-  }, [user, fetchComments, lastFetchedApplicationId, lastFetchedMonth, selectedMonth]);
+  }, [user]);
 
   // Add a function to clear comments (useful for resetting state)
   const clearComments = useCallback(() => {
