@@ -70,17 +70,17 @@ export const useOptimizedApplicationsV3 = ({
     try {
       console.log('=== STEP 1: BUILDING COMPREHENSIVE QUERY ===');
       
-      // Build the base query from collection table with all necessary data
+      // Build the base query from collection table with proper INNER JOIN to applications
       let dataQuery = supabase
         .from('collection')
         .select(`
           *,
-          applications!inner(*)
+          applications!collection_application_id_fkey(*)
         `)
         .gte('demand_date', start)
         .lte('demand_date', end);
 
-      console.log('=== STEP 2: APPLYING DATABASE-LEVEL FILTERS ===');
+      console.log('=== STEP 2: APPLYING DATABASE-LEVEL FILTERS WITH PROPER JOINS ===');
 
       // Apply collection table filters
       if (filters.teamLead?.length > 0) {
@@ -112,30 +112,94 @@ export const useOptimizedApplicationsV3 = ({
         dataQuery = dataQuery.in('repayment', filters.repayment);
       }
 
-      // Apply applications table filters
+      // Apply applications table filters using the proper foreign key reference
       if (filters.branch?.length > 0) {
-        console.log('🔍 Applying branch filter:', filters.branch);
-        dataQuery = dataQuery.in('applications.branch_name', filters.branch);
+        console.log('🔍 Applying branch filter (FIXED):', filters.branch);
+        // Use a separate query to get application IDs that match branch filter
+        const { data: branchFilteredIds } = await supabase
+          .from('applications')
+          .select('applicant_id')
+          .in('branch_name', filters.branch);
+        
+        if (branchFilteredIds && branchFilteredIds.length > 0) {
+          const appIds = branchFilteredIds.map(row => row.applicant_id);
+          dataQuery = dataQuery.in('application_id', appIds);
+        } else {
+          // No applications match the branch filter, return empty result
+          console.log('🚫 No applications found for selected branches');
+          return {
+            applications: [],
+            totalCount: 0,
+            totalPages: 0,
+            loading: false,
+            refetch: async () => {}
+          };
+        }
       }
+
       if (filters.dealer?.length > 0) {
         console.log('🔍 Applying dealer filter:', filters.dealer);
-        dataQuery = dataQuery.in('applications.dealer_name', filters.dealer);
+        const { data: dealerFilteredIds } = await supabase
+          .from('applications')
+          .select('applicant_id')
+          .in('dealer_name', filters.dealer);
+        
+        if (dealerFilteredIds && dealerFilteredIds.length > 0) {
+          const appIds = dealerFilteredIds.map(row => row.applicant_id);
+          dataQuery = dataQuery.in('application_id', appIds);
+        } else {
+          console.log('🚫 No applications found for selected dealers');
+          return {
+            applications: [],
+            totalCount: 0,
+            totalPages: 0,
+            loading: false,
+            refetch: async () => {}
+          };
+        }
       }
+
       if (filters.lender?.length > 0) {
         console.log('🔍 Applying lender filter:', filters.lender);
-        dataQuery = dataQuery.in('applications.lender_name', filters.lender);
+        const { data: lenderFilteredIds } = await supabase
+          .from('applications')
+          .select('applicant_id')
+          .in('lender_name', filters.lender);
+        
+        if (lenderFilteredIds && lenderFilteredIds.length > 0) {
+          const appIds = lenderFilteredIds.map(row => row.applicant_id);
+          dataQuery = dataQuery.in('application_id', appIds);
+        } else {
+          console.log('🚫 No applications found for selected lenders');
+          return {
+            applications: [],
+            totalCount: 0,
+            totalPages: 0,
+            loading: false,
+            refetch: async () => {}
+          };
+        }
       }
+
       if (filters.vehicleStatus?.length > 0) {
         console.log('🔍 Applying vehicle status filter:', filters.vehicleStatus);
-        if (filters.vehicleStatus.includes('None')) {
-          const nonNoneStatuses = filters.vehicleStatus.filter(s => s !== 'None');
-          if (nonNoneStatuses.length > 0) {
-            dataQuery = dataQuery.or(`applications.vehicle_status.is.null,applications.vehicle_status.in.(${nonNoneStatuses.join(',')})`);
-          } else {
-            dataQuery = dataQuery.is('applications.vehicle_status', null);
-          }
+        const { data: vehicleFilteredIds } = await supabase
+          .from('applications')
+          .select('applicant_id')
+          .in('vehicle_status', filters.vehicleStatus.map(s => s === 'None' ? null : s));
+        
+        if (vehicleFilteredIds && vehicleFilteredIds.length > 0) {
+          const appIds = vehicleFilteredIds.map(row => row.applicant_id);
+          dataQuery = dataQuery.in('application_id', appIds);
         } else {
-          dataQuery = dataQuery.in('applications.vehicle_status', filters.vehicleStatus);
+          console.log('🚫 No applications found for selected vehicle statuses');
+          return {
+            applications: [],
+            totalCount: 0,
+            totalPages: 0,
+            loading: false,
+            refetch: async () => {}
+          };
         }
       }
 
