@@ -1,19 +1,13 @@
+
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { getMonthDateRange } from '@/utils/dateUtils';
 
-export interface ContactStatusInfo {
-  status: string;
-  updatedAt?: string;
-}
-
 export interface BatchContactStatus {
-  applicant?: ContactStatusInfo;
-  coApplicant?: ContactStatusInfo;
-  guarantor?: ContactStatusInfo;
-  reference?: ContactStatusInfo;
-  calling_status?: string;
-  contact_type?: string;
+  applicant?: { status: string; updatedAt?: string };
+  coApplicant?: { status: string; updatedAt?: string };
+  guarantor?: { status: string; updatedAt?: string };
+  reference?: { status: string; updatedAt?: string };
 }
 
 export const useBatchContactCallingStatus = () => {
@@ -69,18 +63,11 @@ export const useBatchContactCallingStatus = () => {
                    contactType === 'applicant' ? 'applicant' :
                    contactType === 'guarantor' ? 'guarantor' : 'reference';
 
-        // Only set if we don't already have a status for this contact type (keeps latest due to ordering)
         if (!contactMap[record.application_id][key as keyof BatchContactStatus]) {
-          (contactMap[record.application_id] as any)[key] = {
+          contactMap[record.application_id][key as keyof BatchContactStatus] = {
             status: record.status,
             updatedAt: record.updated_at
           };
-        }
-
-        // Set the primary calling status (use the latest one)
-        if (!contactMap[record.application_id].calling_status) {
-          contactMap[record.application_id].calling_status = record.status;
-          contactMap[record.application_id].contact_type = record.contact_type;
         }
       });
 

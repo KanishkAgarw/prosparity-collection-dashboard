@@ -18,54 +18,54 @@ const ApplicationDetails = ({ application, selectedEmiMonth }: ApplicationDetail
   });
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {/* Primary applicant info */}
-      <div className="flex items-start gap-3">
-        <User className="h-5 w-5 text-gray-500 mt-1 flex-shrink-0" />
+      <div className="flex items-start gap-2">
+        <User className="h-4 w-4 text-gray-500 mt-0.5 flex-shrink-0" />
         <div className="min-w-0 flex-1">
-          <p className="font-bold text-gray-900 truncate text-base">
+          <p className="font-semibold text-gray-900 truncate">
             {application.applicant_name}
           </p>
-          <p className="text-sm text-gray-600 font-medium">
-            {application.applicant_id}
+          <p className="text-xs text-gray-500">
+            ID: {application.applicant_id}
           </p>
         </div>
       </div>
 
       {/* Contact info */}
       {application.applicant_mobile && (
-        <div className="flex items-center gap-3">
-          <Phone className="h-4 w-4 text-gray-400" />
-          <span className="text-sm text-gray-700 truncate">
+        <div className="flex items-center gap-2">
+          <Phone className="h-3 w-3 text-gray-400" />
+          <span className="text-xs text-gray-600 truncate">
             {application.applicant_mobile}
           </span>
         </div>
       )}
 
       {/* Repayment and EMI info */}
-      <div className="grid grid-cols-2 gap-2 text-sm">
-        <div className="flex items-center gap-2">
-          <Building2 className="h-4 w-4 text-gray-400" />
-          <span className="text-gray-700 truncate font-medium" title={`Repayment: ${application.repayment}`}>
+      <div className="grid grid-cols-2 gap-1 text-xs">
+        <div className="flex items-center gap-1">
+          <Building2 className="h-3 w-3 text-gray-400" />
+          <span className="text-gray-600 truncate" title={`Repayment: ${application.repayment}`}>
             Rep: {application.repayment}
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <MapPin className="h-4 w-4 text-gray-400" />
-          <span className="text-gray-700 truncate font-semibold" title={`EMI: ${formatCurrency(application.emi_amount)}`}>
+        <div className="flex items-center gap-1">
+          <MapPin className="h-3 w-3 text-gray-400" />
+          <span className="text-gray-600 truncate font-medium" title={`EMI: ${formatCurrency(application.emi_amount)}`}>
             {formatCurrency(application.emi_amount)}
           </span>
         </div>
       </div>
 
       {/* Assignment info */}
-      <div className="text-sm text-gray-600 space-y-1">
-        <div><span className="font-medium">RM:</span> {application.rm_name}</div>
+      <div className="text-xs text-gray-500 space-y-0.5">
+        <div>RM: {application.rm_name}</div>
         {application.collection_rm && application.collection_rm !== 'N/A' && (
-          <div><span className="font-medium">Collection RM:</span> {application.collection_rm}</div>
+          <div>Collection RM: {application.collection_rm}</div>
         )}
-        <div><span className="font-medium">Team Lead:</span> {application.team_lead}</div>
-        <div><span className="font-medium">Branch:</span> {application.branch_name}</div>
+        <div>Team Lead: {application.team_lead}</div>
+        <div>Branch: {application.branch_name}</div>
       </div>
     </div>
   );

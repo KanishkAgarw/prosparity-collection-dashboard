@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -19,7 +20,6 @@ interface CascadingFilterOptions {
   ptpDateOptions: string[];
   collectionRms: string[];
   vehicleStatusOptions: string[];
-  callingStatusOptions: string[];
 }
 
 export const useCascadingFilters = () => {
@@ -38,8 +38,7 @@ export const useCascadingFilters = () => {
     lastMonthBounce: [],
     ptpDate: [],
     collectionRm: [],
-    vehicleStatus: [],
-    callingStatus: []
+    vehicleStatus: []
   });
 
   const [availableOptions, setAvailableOptions] = useState<CascadingFilterOptions>({
@@ -54,16 +53,7 @@ export const useCascadingFilters = () => {
     lastMonthBounce: ['Not paid', 'Paid on time', '1-5 days late', '6-15 days late', '15+ days late'],
     ptpDateOptions: ['Overdue PTP', "Today's PTP", "Tomorrow's PTP", 'Future PTP', 'No PTP'],
     collectionRms: [],
-    vehicleStatusOptions: ['None', 'Repossessed', 'Need to repossess', 'Third party'],
-    callingStatusOptions: [
-      'No response',
-      'Customer funded the account',
-      'Customer will fund the account on a future date',
-      'Cash collected',
-      'Cash will be collected on a future date',
-      'Spoken – no commitment',
-      'Refused / unable to fund'
-    ]
+    vehicleStatusOptions: ['Seized', 'Repo', 'Accident', 'None']
   });
 
   const [selectedEmiMonth, setSelectedEmiMonth] = useState<string | null>(null);
@@ -243,16 +233,7 @@ export const useCascadingFilters = () => {
         repayments: [...new Set(allData.map(item => item.repayment).filter(Boolean))].sort(),
         lastMonthBounce: ['Not paid', 'Paid on time', '1-5 days late', '6-15 days late', '15+ days late'],
         ptpDateOptions: ['Overdue PTP', "Today's PTP", "Tomorrow's PTP", 'Future PTP', 'No PTP'],
-        vehicleStatusOptions: ['None', 'Repossessed', 'Need to repossess', 'Third party'],
-        callingStatusOptions: [
-          'No response',
-          'Customer funded the account',
-          'Customer will fund the account on a future date',
-          'Cash collected',
-          'Cash will be collected on a future date',
-          'Spoken – no commitment',
-          'Refused / unable to fund'
-        ],
+        vehicleStatusOptions: ['Seized', 'Repo', 'Accident', 'None'],
         statuses: []
       };
 
@@ -309,8 +290,7 @@ export const useCascadingFilters = () => {
       lastMonthBounce: [],
       ptpDate: [],
       collectionRm: [],
-      vehicleStatus: [],
-      callingStatus: []
+      vehicleStatus: []
     });
   }, []);
 
@@ -328,8 +308,7 @@ export const useCascadingFilters = () => {
       lastMonthBounce: [],
       ptpDate: [],
       collectionRm: [],
-      vehicleStatus: [],
-      callingStatus: []
+      vehicleStatus: []
     });
   }, []);
 

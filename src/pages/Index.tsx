@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useEffect } from "react";
 import { useOptimizedApplicationsV3 } from "@/hooks/useOptimizedApplicationsV3";
 import { useOptimizedCascadingFilters } from "@/hooks/useOptimizedCascadingFilters";
@@ -65,7 +64,7 @@ const Index = () => {
     searchTerm: debouncedSearchTerm // Pass search term to update status counts
   });
 
-  // Use optimized applications hook V3 with comprehensive filtering
+  // Use optimized applications hook V3
   const { 
     applications, 
     totalCount, 
@@ -105,20 +104,6 @@ const Index = () => {
   });
 
   const { exportPtpCommentsReport, exportFullReport, exportPlanVsAchievementReport, planVsAchievementLoading } = useEnhancedExport();
-
-  // Enhanced filter change handler with immediate effect
-  const handleEnhancedFilterChange = (key: string, values: string[]) => {
-    console.log('🔄 Enhanced filter change:', key, values);
-    handleFilterChange(key, values);
-    
-    // Reset to first page when filters change
-    setCurrentPage(1);
-    
-    // Force immediate refetch for real-time filtering
-    setTimeout(() => {
-      refetch();
-    }, 100);
-  };
 
   // Restore state on component mount
   useEffect(() => {
@@ -292,7 +277,7 @@ const Index = () => {
           <FiltersSection
             filters={filters}
             availableOptions={availableOptions}
-            onFilterChange={handleEnhancedFilterChange}
+            onFilterChange={handleFilterChange}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
             selectedEmiMonth={selectedEmiMonth}

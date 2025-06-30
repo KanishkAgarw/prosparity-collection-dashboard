@@ -1,57 +1,70 @@
 
-import { Phone, PhoneCall, PhoneOff } from "lucide-react";
+import { Check } from "lucide-react";
 import { Application } from "@/types/application";
-import { Badge } from "@/components/ui/badge";
 import type { BatchContactStatus } from "@/hooks/useBatchContactCallingStatus";
 
 interface CallStatusDisplayProps {
   application: Application;
-  selectedMonth?: string | null;
+  selectedMonth?: string;
   batchedContactStatus?: BatchContactStatus;
 }
 
 const CallStatusDisplay = ({ application, selectedMonth, batchedContactStatus }: CallStatusDisplayProps) => {
-  // Get the calling status from batched data
-  const callingStatus = batchedContactStatus?.calling_status || 'Not Called';
-  
-  // Get status color and icon based on calling status
-  const getStatusDisplay = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'customer funded the account':
-        return { color: 'bg-green-600 text-white', icon: PhoneCall };
-      case 'customer will fund the account on a future date':
-        return { color: 'bg-blue-600 text-white', icon: PhoneCall };
-      case 'cash collected':
-        return { color: 'bg-green-700 text-white', icon: PhoneCall };
-      case 'cash will be collected on a future date':
-        return { color: 'bg-blue-700 text-white', icon: PhoneCall };
-      case 'spoken – no commitment':
-        return { color: 'bg-yellow-600 text-white', icon: Phone };
-      case 'refused / unable to fund':
-        return { color: 'bg-red-600 text-white', icon: PhoneOff };
-      case 'no response':
-        return { color: 'bg-gray-600 text-white', icon: PhoneOff };
-      case 'not called':
+  // Use batched data if available, otherwise fallback to default
+  const getStatusForContact = (contactType: string): string => {
+    if (!batchedContactStatus) return 'Not Called';
+    
+    switch (contactType) {
+      case 'applicant':
+        return batchedContactStatus.applicant?.status || 'Not Called';
+      case 'co_applicant':
+        return batchedContactStatus.coApplicant?.status || 'Not Called';
+      case 'guarantor':
+        return batchedContactStatus.guarantor?.status || 'Not Called';
+      case 'reference':
+        return batchedContactStatus.reference?.status || 'Not Called';
       default:
-        return { color: 'bg-gray-400 text-white', icon: Phone };
+        return 'Not Called';
     }
   };
 
-  const { color, icon: StatusIcon } = getStatusDisplay(callingStatus);
+  const contacts = [
+    {
+      name: "Applicant",
+      person: application.applicant_name,
+      status: getStatusForContact('applicant')
+    },
+    ...(application.co_applicant_name ? [{
+      name: "Co-Applicant", 
+      person: application.co_applicant_name,
+      status: getStatusForContact('co_applicant')
+    }] : []),
+    ...(application.guarantor_name ? [{
+      name: "Guarantor",
+      person: application.guarantor_name, 
+      status: getStatusForContact('guarantor')
+    }] : []),
+    ...(application.reference_name ? [{
+      name: "Reference",
+      person: application.reference_name,
+      status: getStatusForContact('reference')
+    }] : [])
+  ];
 
   return (
-    <div className="flex items-center gap-2">
-      <StatusIcon className="h-4 w-4 text-gray-500" />
-      <div className="space-y-1">
-        <Badge className={`${color} text-xs px-2 py-1`}>
-          {callingStatus}
-        </Badge>
-        {batchedContactStatus?.contact_type && (
-          <div className="text-xs text-gray-500 capitalize">
-            {batchedContactStatus.contact_type}
-          </div>
-        )}
-      </div>
+    <div className="space-y-1">
+      {contacts.map((contact, index) => (
+        <div key={index} className="flex items-center gap-1 text-xs">
+          <span className="text-gray-600 truncate max-w-[80px]" title={contact.person}>
+            {contact.name}
+          </span>
+          {contact.status && contact.status !== 'Not Called' ? (
+            <Check className={`h-3 w-3 flex-shrink-0 ${contact.status === 'Called - Answered' ? 'text-green-600' : 'text-red-600'}`} />
+          ) : (
+            <div className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" />
+          )}
+        </div>
+      ))}
     </div>
   );
 };
