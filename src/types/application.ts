@@ -40,7 +40,7 @@ export interface Application {
   co_applicant_calling_status?: string;
   guarantor_calling_status?: string;
   reference_calling_status?: string;
-  latest_calling_status?: string;
+  latest_calling_status?: string; // Latest calling status from any contact type
   recent_comments?: Array<{content: string; user_name: string}>;
   disbursement_date?: string;
   loan_amount?: number;

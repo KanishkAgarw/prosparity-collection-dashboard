@@ -11,8 +11,8 @@ interface CallStatusDisplayProps {
 }
 
 const CallStatusDisplay = ({ application, selectedMonth, batchedContactStatus }: CallStatusDisplayProps) => {
-  // Get the calling status from batched data
-  const callingStatus = batchedContactStatus?.calling_status || 'Not Called';
+  // Get the calling status from batched data, fallback to application's latest_calling_status
+  const callingStatus = batchedContactStatus?.calling_status || application.latest_calling_status || 'Not Called';
   
   // Get status color and icon based on calling status
   const getStatusDisplay = (status: string) => {

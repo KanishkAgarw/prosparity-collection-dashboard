@@ -70,15 +70,12 @@ export const useOptimizedApplicationsV3 = ({
     try {
       console.log('=== STEP 1: BUILDING COMPREHENSIVE QUERY ===');
       
-      // Build the base query with all necessary joins
+      // Build the base query from collection table with all necessary data
       let dataQuery = supabase
         .from('collection')
         .select(`
           *,
-          applications!inner(*),
-          field_status:field_status!left(status, created_at),
-          ptp_dates:ptp_dates!left(ptp_date, created_at),
-          contact_calling_status:contact_calling_status!left(status, contact_type, created_at)
+          applications!inner(*)
         `)
         .gte('demand_date', start)
         .lte('demand_date', end);
@@ -152,33 +149,69 @@ export const useOptimizedApplicationsV3 = ({
 
       console.log(`✅ Fetched ${allData?.length || 0} total records from database`);
 
+      // Now fetch related data for each application
+      const applicationIds = allData?.map(record => record.application_id) || [];
+      
+      // Fetch field status data
+      const { data: fieldStatusData } = await supabase
+        .from('field_status')
+        .select('*')
+        .in('application_id', applicationIds)
+        .gte('created_at', start)
+        .lte('created_at', end + ' 23:59:59');
+
+      // Fetch PTP dates data
+      const { data: ptpDatesData } = await supabase
+        .from('ptp_dates')
+        .select('*')
+        .in('application_id', applicationIds)
+        .gte('created_at', start)
+        .lte('created_at', end + ' 23:59:59');
+
+      // Fetch calling status data
+      const { data: callingStatusData } = await supabase
+        .from('contact_calling_status')
+        .select('*')
+        .in('application_id', applicationIds)
+        .gte('created_at', start)
+        .lte('created_at', end + ' 23:59:59');
+
+      console.log('📊 Related data fetched:', {
+        fieldStatus: fieldStatusData?.length || 0,
+        ptpDates: ptpDatesData?.length || 0,
+        callingStatus: callingStatusData?.length || 0
+      });
+
       // Transform and post-process data
       let transformedApplications: Application[] = (allData || []).map(record => {
         const app = record.applications;
         
-        // Get the latest field status
-        const latestFieldStatus = record.field_status?.reduce((latest: any, current: any) => {
-          if (!latest || new Date(current.created_at) > new Date(latest.created_at)) {
-            return current;
-          }
-          return latest;
-        }, null);
+        // Get the latest field status for this application
+        const latestFieldStatus = fieldStatusData?.filter(fs => fs.application_id === record.application_id)
+          ?.reduce((latest: any, current: any) => {
+            if (!latest || new Date(current.created_at) > new Date(latest.created_at)) {
+              return current;
+            }
+            return latest;
+          }, null);
 
-        // Get the latest PTP date
-        const latestPtpDate = record.ptp_dates?.reduce((latest: any, current: any) => {
-          if (!latest || new Date(current.created_at) > new Date(latest.created_at)) {
-            return current;
-          }
-          return latest;
-        }, null);
+        // Get the latest PTP date for this application
+        const latestPtpDate = ptpDatesData?.filter(ptp => ptp.application_id === record.application_id)
+          ?.reduce((latest: any, current: any) => {
+            if (!latest || new Date(current.created_at) > new Date(latest.created_at)) {
+              return current;
+            }
+            return latest;
+          }, null);
 
-        // Get the latest calling status
-        const latestCallingStatus = record.contact_calling_status?.reduce((latest: any, current: any) => {
-          if (!latest || new Date(current.created_at) > new Date(latest.created_at)) {
-            return current;
-          }
-          return latest;
-        }, null);
+        // Get the latest calling status for this application
+        const latestCallingStatus = callingStatusData?.filter(cs => cs.application_id === record.application_id)
+          ?.reduce((latest: any, current: any) => {
+            if (!latest || new Date(current.created_at) > new Date(latest.created_at)) {
+              return current;
+            }
+            return latest;
+          }, null);
 
         return {
           // Collection data (primary)
@@ -195,7 +228,7 @@ export const useOptimizedApplicationsV3 = ({
           last_month_bounce: record.last_month_bounce || 0,
           field_status: latestFieldStatus?.status || 'Unpaid',
           ptp_date: latestPtpDate?.ptp_date || null,
-          calling_status: latestCallingStatus?.status || 'Not Called',
+          latest_calling_status: latestCallingStatus?.status || 'Not Called',
 
           // Application data (secondary)
           applicant_name: app?.applicant_name || 'Unknown',
@@ -241,7 +274,7 @@ export const useOptimizedApplicationsV3 = ({
       if (filters.callingStatus?.length > 0) {
         console.log('🔍 Applying calling status filter:', filters.callingStatus);
         transformedApplications = transformedApplications.filter(app => 
-          filters.callingStatus.includes(app.calling_status || 'Not Called')
+          filters.callingStatus.includes(app.latest_calling_status || 'Not Called')
         );
       }
 
