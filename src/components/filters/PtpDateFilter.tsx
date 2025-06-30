@@ -1,5 +1,5 @@
 
-import { CustomMultiSelectFilter } from "@/components/CustomMultiSelectFilter";
+import CustomMultiSelectFilter from "@/components/CustomMultiSelectFilter";
 import { getPtpDateCategoryLabel } from "@/utils/ptpDateUtils";
 
 interface PtpDateFilterProps {
@@ -31,10 +31,10 @@ const PtpDateFilter = ({ selectedValues, onValueChange, availableOptions }: PtpD
 
   return (
     <CustomMultiSelectFilter
-      title="PTP Date"
+      label="PTP Date"
       options={displayOptions.map(opt => opt.label)}
-      selectedValues={selectedLabels}
-      onValueChange={handleChange}
+      selected={selectedLabels}
+      onSelectionChange={handleChange}
       placeholder="Select PTP dates"
     />
   );

@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { CustomMultiSelectFilter } from "@/components/CustomMultiSelectFilter";
+import CustomMultiSelectFilter from "@/components/CustomMultiSelectFilter";
 import PtpDateFilter from "@/components/filters/PtpDateFilter";
 import { formatEmiMonth } from "@/utils/formatters";
 import { Button } from "@/components/ui/button";
@@ -27,9 +27,12 @@ const FilterBar = ({
 }: FilterBarProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Calculate total active filters
+  // Calculate total active filters with proper typing
   const activeFilterCount = Object.values(filters).reduce((total: number, filterArray: any) => {
-    return total + (Array.isArray(filterArray) ? filterArray.length : 0);
+    if (Array.isArray(filterArray)) {
+      return total + filterArray.length;
+    }
+    return total;
   }, 0);
 
   const clearAllFilters = () => {
@@ -98,86 +101,86 @@ const FilterBar = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {/* Branch Filter */}
             <CustomMultiSelectFilter
-              title="Branch"
+              label="Branch"
               options={availableOptions.branches || []}
-              selectedValues={filters.branch || []}
-              onValueChange={(values) => onFilterChange('branch', values)}
+              selected={filters.branch || []}
+              onSelectionChange={(values) => onFilterChange('branch', values)}
               placeholder="Select branches"
             />
 
             {/* Team Lead Filter */}
             <CustomMultiSelectFilter
-              title="Team Lead"
+              label="Team Lead"
               options={availableOptions.teamLeads || []}
-              selectedValues={filters.teamLead || []}
-              onValueChange={(values) => onFilterChange('teamLead', values)}
+              selected={filters.teamLead || []}
+              onSelectionChange={(values) => onFilterChange('teamLead', values)}
               placeholder="Select team leads"
             />
 
             {/* RM Filter */}
             <CustomMultiSelectFilter
-              title="RM"
+              label="RM"
               options={availableOptions.rms || []}
-              selectedValues={filters.rm || []}
-              onValueChange={(values) => onFilterChange('rm', values)}
+              selected={filters.rm || []}
+              onSelectionChange={(values) => onFilterChange('rm', values)}
               placeholder="Select RMs"
             />
 
             {/* Collection RM Filter */}
             <CustomMultiSelectFilter
-              title="Collection RM"
+              label="Collection RM"
               options={availableOptions.collectionRms || []}
-              selectedValues={filters.collectionRm || []}
-              onValueChange={(values) => onFilterChange('collectionRm', values)}
+              selected={filters.collectionRm || []}
+              onSelectionChange={(values) => onFilterChange('collectionRm', values)}
               placeholder="Select collection RMs"
             />
 
             {/* Dealer Filter */}
             <CustomMultiSelectFilter
-              title="Dealer"
+              label="Dealer"
               options={availableOptions.dealers || []}
-              selectedValues={filters.dealer || []}
-              onValueChange={(values) => onFilterChange('dealer', values)}
+              selected={filters.dealer || []}
+              onSelectionChange={(values) => onFilterChange('dealer', values)}
               placeholder="Select dealers"
             />
 
             {/* Lender Filter */}
             <CustomMultiSelectFilter
-              title="Lender"
+              label="Lender"
               options={availableOptions.lenders || []}
-              selectedValues={filters.lender || []}
-              onValueChange={(values) => onFilterChange('lender', values)}
+              selected={filters.lender || []}
+              onSelectionChange={(values) => onFilterChange('lender', values)}
               placeholder="Select lenders"
             />
 
-            {/* Status Filter - FIXED */}
+            {/* Status Filter */}
             <CustomMultiSelectFilter
-              title="Status"
+              label="Status"
               options={availableOptions.statuses || []}
-              selectedValues={filters.status || []}
-              onValueChange={(values) => onFilterChange('status', values)}
+              selected={filters.status || []}
+              onSelectionChange={(values) => onFilterChange('status', values)}
               placeholder="Select status"
             />
 
             {/* Repayment Filter */}
             <CustomMultiSelectFilter
-              title="Repayment"
+              label="Repayment"
               options={availableOptions.repayments || []}
-              selectedValues={filters.repayment || []}
-              onValueChange={(values) => onFilterChange('repayment', values)}
+              selected={filters.repayment || []}
+              onSelectionChange={(values) => onFilterChange('repayment', values)}
               placeholder="Select repayment"
             />
 
             {/* Last Month Bounce Filter */}
             <CustomMultiSelectFilter
-              title="Last Month Bounce"
+              label="Last Month Bounce"
               options={availableOptions.lastMonthBounce || []}
-              selectedValues={filters.lastMonthBounce || []}
-              onValueChange={(values) => onFilterChange('lastMonthBounce', values)}
+              selected={filters.lastMonthBounce || []}
+              onSelectionChange={(values) => onFilterChange('lastMonthBounce', values)}
               placeholder="Select bounce status"
             />
 
-            {/* PTP Date Filter - FIXED */}
+            {/* PTP Date Filter */}
             <PtpDateFilter
               selectedValues={filters.ptpDate || []}
               onValueChange={(values) => onFilterChange('ptpDate', values)}
@@ -186,10 +189,10 @@ const FilterBar = ({
 
             {/* Vehicle Status Filter */}
             <CustomMultiSelectFilter
-              title="Vehicle Status"
+              label="Vehicle Status"
               options={availableOptions.vehicleStatusOptions || []}
-              selectedValues={filters.vehicleStatus || []}
-              onValueChange={(values) => onFilterChange('vehicleStatus', values)}
+              selected={filters.vehicleStatus || []}
+              onSelectionChange={(values) => onFilterChange('vehicleStatus', values)}
               placeholder="Select vehicle status"
             />
           </div>
