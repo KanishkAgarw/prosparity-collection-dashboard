@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import CustomMultiSelectFilter from "@/components/CustomMultiSelectFilter";
 import PtpDateFilter from "@/components/filters/PtpDateFilter";
@@ -27,7 +28,7 @@ const FilterBar = ({
   const [isOpen, setIsOpen] = useState(false);
 
   // Calculate total active filters with proper typing
-  const activeFilterCount = Object.values(filters).reduce((total, filterArray) => {
+  const activeFilterCount = Object.values(filters).reduce((total: number, filterArray: unknown): number => {
     if (Array.isArray(filterArray)) {
       return total + filterArray.length;
     }
