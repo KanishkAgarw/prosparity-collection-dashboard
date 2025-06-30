@@ -37,10 +37,11 @@ export const useOptimizedApplicationsV3 = ({
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  // Create cache key based on all parameters
+  // Create cache key based on all parameters - normalize empty search term to avoid cache issues
+  const normalizedSearchTerm = searchTerm?.trim() || '';
   const cacheKey = useMemo(() => {
-    return `applications-${selectedEmiMonth}-${JSON.stringify(filters)}-${searchTerm}-${page}-${pageSize}`;
-  }, [selectedEmiMonth, filters, searchTerm, page, pageSize]);
+    return `applications-${selectedEmiMonth}-${JSON.stringify(filters)}-${normalizedSearchTerm}-${page}-${pageSize}`;
+  }, [selectedEmiMonth, filters, normalizedSearchTerm, page, pageSize]);
 
   const fetchApplicationsCore = useCallback(async () => {
     if (!user || !selectedEmiMonth) {
@@ -50,11 +51,11 @@ export const useOptimizedApplicationsV3 = ({
 
     console.log('=== OPTIMIZED V3 FETCH START ===');
     console.log('Selected EMI Month:', selectedEmiMonth);
-    console.log('Search term:', searchTerm);
+    console.log('Search term:', `"${normalizedSearchTerm}"`);
     console.log('Cache key:', cacheKey);
 
     // Check cache first (but skip cache for search operations to ensure fresh results)
-    if (!searchTerm.trim()) {
+    if (!normalizedSearchTerm) {
       const cachedResult = getCachedData(cacheKey);
       if (cachedResult) {
         console.log('✅ Using cached data, skipping API call');
@@ -180,10 +181,10 @@ export const useOptimizedApplicationsV3 = ({
 
       console.log(`🔄 Transformed ${transformedApplications.length} applications`);
 
-      // Apply search filtering if provided
-      if (searchTerm.trim()) {
+      // Apply search filtering if provided (only if search term is not empty)
+      if (normalizedSearchTerm) {
         console.log('=== STEP 2: APPLYING SEARCH FILTER ===');
-        const searchLower = searchTerm.trim().toLowerCase();
+        const searchLower = normalizedSearchTerm.toLowerCase();
         console.log('🔍 Searching for:', `"${searchLower}"`);
         
         const beforeSearchCount = transformedApplications.length;
@@ -214,8 +215,10 @@ export const useOptimizedApplicationsV3 = ({
         
         if (transformedApplications.length === 0) {
           console.log('❌ NO SEARCH RESULTS FOUND');
-          console.log('Sample names available:', transformedApplications.slice(0, 5).map(app => app.applicant_name));
+          console.log('Search term used:', `"${searchLower}"`);
         }
+      } else {
+        console.log('🔍 No search term provided, showing all results');
       }
 
       // Sort by applicant first name (case-insensitive) then by demand_date
@@ -260,7 +263,7 @@ export const useOptimizedApplicationsV3 = ({
       };
 
       // Only cache non-search results to avoid stale search data
-      if (!searchTerm.trim()) {
+      if (!normalizedSearchTerm) {
         setCachedData(cacheKey, result, 2 * 60 * 1000);
         console.log('💾 Result cached');
       } else {
@@ -275,7 +278,7 @@ export const useOptimizedApplicationsV3 = ({
       console.error('❌ Error in fetchApplicationsCore:', error);
       throw error;
     }
-  }, [user, selectedEmiMonth, filters, searchTerm, page, pageSize, cacheKey, getCachedData, setCachedData]);
+  }, [user, selectedEmiMonth, filters, normalizedSearchTerm, page, pageSize, cacheKey, getCachedData, setCachedData]);
 
   // Use debounced API call
   const { data: apiResult, loading: apiLoading, call: debouncedFetch } = useDebouncedAPI(fetchApplicationsCore, 300);
@@ -297,7 +300,7 @@ export const useOptimizedApplicationsV3 = ({
     console.log('🔄 Dependencies changed, triggering fetch...');
     console.log('Dependencies:', {
       selectedEmiMonth,
-      searchTerm: `"${searchTerm}"`,
+      searchTerm: `"${normalizedSearchTerm}"`,
       page,
       hasUser: !!user
     });

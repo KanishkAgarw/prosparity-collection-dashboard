@@ -12,7 +12,10 @@ export const useBatchFieldStatus = () => {
     applicationIds: string[], 
     selectedMonth?: string | null
   ): Promise<Record<string, string>> => {
-    if (!user || applicationIds.length === 0) return {};
+    if (!user || applicationIds.length === 0) {
+      console.log('❌ No user or empty application IDs for batch field status');
+      return {};
+    }
     
     setLoading(true);
     
@@ -39,10 +42,11 @@ export const useBatchFieldStatus = () => {
       // Order by created_at to get latest status per application
       query = query.order('created_at', { ascending: false });
 
+      console.log('📤 Executing batch field status query');
       const { data, error } = await query;
 
       if (error) {
-        console.error('Error fetching batch field status:', error);
+        console.error('❌ Error fetching batch field status:', error);
         // Return empty object instead of throwing to prevent cascade failures
         return {};
       }
@@ -62,7 +66,7 @@ export const useBatchFieldStatus = () => {
       console.log('✅ Batch field status loaded:', Object.keys(statusMap).length, 'applications');
       return statusMap;
     } catch (error) {
-      console.error('Error in fetchBatchFieldStatus:', error);
+      console.error('❌ Error in fetchBatchFieldStatus:', error);
       return {}; // Return empty object to prevent cascade failures
     } finally {
       setLoading(false);
