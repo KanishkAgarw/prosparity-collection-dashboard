@@ -326,20 +326,6 @@ const ApplicationDetailsPanel = ({
           </Button>
         </div>
         <ApplicationHeader application={displayApplication} />
-        
-        {/* Show context information about EMI month filter */}
-        {selectedEmiMonth && (
-          <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
-            <span className="text-blue-700 font-medium">
-              Filtered by EMI Month: {selectedEmiMonth}
-            </span>
-            {selectedMonth && selectedMonth !== selectedEmiMonth && (
-              <span className="text-orange-600 ml-2">
-                (Currently viewing: {formatEmiMonth(selectedMonth)})
-              </span>
-            )}
-          </div>
-        )}
       </div>
 
       <MonthSelector

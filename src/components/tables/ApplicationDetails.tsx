@@ -28,11 +28,6 @@ const ApplicationDetails = ({ application, selectedEmiMonth }: ApplicationDetail
           <p className="text-xs text-gray-500">
             ID: {application.applicant_id}
           </p>
-          {selectedEmiMonth && (
-            <p className="text-xs text-blue-600 font-medium">
-              Month: {selectedEmiMonth}
-            </p>
-          )}
         </div>
       </div>
 
