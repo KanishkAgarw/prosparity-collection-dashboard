@@ -1,94 +1,89 @@
+
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { getMonthDateRange } from '@/utils/dateUtils';
 
 export interface BatchContactStatus {
-  applicant?: string;
-  co_applicant?: string;
-  guarantor?: string;
-  reference?: string;
-  latest?: string;
+  applicant?: { status: string; updatedAt?: string };
+  coApplicant?: { status: string; updatedAt?: string };
+  guarantor?: { status: string; updatedAt?: string };
+  reference?: { status: string; updatedAt?: string };
 }
 
 export const useBatchContactCallingStatus = () => {
-  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
 
   const fetchBatchContactStatus = useCallback(async (
     applicationIds: string[], 
-    selectedMonth?: string | null
+    selectedEmiMonth?: string | null
   ): Promise<Record<string, BatchContactStatus>> => {
-    if (!user || applicationIds.length === 0) return {};
-    
+    if (applicationIds.length === 0) return {};
+
     setLoading(true);
-    
     try {
-      console.log('=== BATCH CONTACT STATUS FETCH ===');
+      console.log('=== FETCHING BATCH CONTACT CALLING STATUS ===');
       console.log('Application IDs:', applicationIds.length);
-      console.log('Selected Month:', selectedMonth);
+      console.log('Selected EMI Month:', selectedEmiMonth);
 
       let query = supabase
         .from('contact_calling_status')
-        .select('application_id, contact_type, status, created_at')
-        .in('application_id', applicationIds);
+        .select('application_id, contact_type, status, updated_at, demand_date')
+        .in('application_id', applicationIds)
+        .order('updated_at', { ascending: false });
 
-      // Add month filter if provided
-      if (selectedMonth) {
-        query = query.eq('demand_date', selectedMonth);
+      // If EMI month is selected, filter by demand_date to get month-specific calling status
+      if (selectedEmiMonth) {
+        const { start, end } = getMonthDateRange(selectedEmiMonth);
+        console.log('Filtering contact calling status by demand_date:', start, 'to', end);
+        
+        query = query
+          .gte('demand_date', start)
+          .lte('demand_date', end);
       }
-
-      // Order by created_at to get latest status per contact type
-      query = query.order('created_at', { ascending: false });
 
       const { data, error } = await query;
 
       if (error) {
-        console.error('Error fetching batch contact status:', error);
-        // Return empty object instead of throwing to prevent cascade failures
+        console.error('Error fetching batch contact calling status:', error);
         return {};
       }
 
-      // Group by application_id and contact_type, getting latest status for each
-      const statusMap: Record<string, BatchContactStatus> = {};
+      console.log(`Found ${data?.length || 0} contact calling status records`);
+
+      // Group by application_id and contact_type, get the latest status for each
+      const contactMap: Record<string, BatchContactStatus> = {};
       
-      if (data) {
-        data.forEach(status => {
-          if (!statusMap[status.application_id]) {
-            statusMap[status.application_id] = {};
-          }
-          
-          // Only set if we don't already have a status for this contact type (keeps latest due to ordering)
-          const contactType = status.contact_type.toLowerCase() as keyof BatchContactStatus;
-          if (!statusMap[status.application_id][contactType]) {
-            statusMap[status.application_id][contactType] = status.status;
-          }
-        });
+      data?.forEach(record => {
+        if (!contactMap[record.application_id]) {
+          contactMap[record.application_id] = {};
+        }
 
-        // Calculate latest calling status for each application
-        Object.keys(statusMap).forEach(appId => {
-          const statuses = Object.values(statusMap[appId]);
-          if (statuses.length > 0) {
-            // Find the most recent non-"Not Called" status, or "Not Called" if all are
-            const activeStatuses = statuses.filter(s => s !== 'Not Called');
-            statusMap[appId].latest = activeStatuses.length > 0 ? activeStatuses[0] : 'No Calls';
-          } else {
-            statusMap[appId].latest = 'No Calls';
-          }
-        });
-      }
+        const contactType = record.contact_type.toLowerCase().replace(/[^a-z]/g, '');
+        const key = contactType === 'coapplicant' ? 'coApplicant' : 
+                   contactType === 'applicant' ? 'applicant' :
+                   contactType === 'guarantor' ? 'guarantor' : 'reference';
 
-      console.log('✅ Batch contact status loaded:', Object.keys(statusMap).length, 'applications');
-      return statusMap;
+        if (!contactMap[record.application_id][key as keyof BatchContactStatus]) {
+          contactMap[record.application_id][key as keyof BatchContactStatus] = {
+            status: record.status,
+            updatedAt: record.updated_at
+          };
+        }
+      });
+
+      console.log('Final contact status map:', Object.keys(contactMap).length, 'applications');
+      return contactMap;
+
     } catch (error) {
       console.error('Error in fetchBatchContactStatus:', error);
-      return {}; // Return empty object to prevent cascade failures
+      return {};
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, []);
 
   return {
-    fetchBatchContactStatus,
-    loading
+    loading,
+    fetchBatchContactStatus
   };
 };

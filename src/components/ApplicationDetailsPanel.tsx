@@ -96,9 +96,9 @@ const ApplicationDetailsPanel = ({
     clearComments();
   }, [currentApplication?.applicant_id, clearComments]);
 
-  // Set initial month based on application's demand_date or selectedEmiMonth or default to most recent
+  // CRITICAL FIX: Initialize month based on selectedEmiMonth from main filter
   useEffect(() => {
-    console.log('ApplicationDetailsPanel: Setting initial month', {
+    console.log('ApplicationDetailsPanel: EMI Month Filter Integration', {
       selectedEmiMonth,
       availableMonths,
       currentApplicationId: currentApplication?.applicant_id,
@@ -109,58 +109,47 @@ const ApplicationDetailsPanel = ({
     if (availableMonths.length > 0 && !selectedMonth && currentApplication?.applicant_id) {
       let initialMonth = '';
       
-      // Priority 1: Try to match the application's own demand_date first
-      if (currentApplication?.demand_date) {
+      // PRIORITY 1: Use selectedEmiMonth from main filter (this is the key fix)
+      if (selectedEmiMonth) {
+        // Try to find exact match first
+        const exactMatch = availableMonths.find(month => 
+          formatEmiMonth(month) === selectedEmiMonth || month === selectedEmiMonth
+        );
+        
+        if (exactMatch) {
+          initialMonth = exactMatch;
+          console.log('ApplicationDetailsPanel: Using selectedEmiMonth from filter', selectedEmiMonth, '->', initialMonth);
+        } else {
+          // Try normalized matching
+          const normalizedSelectedMonth = selectedEmiMonth.toLowerCase().replace(/\s+/g, '');
+          const normalizedMatch = availableMonths.find(month => {
+            const normalizedMonth = formatEmiMonth(month).toLowerCase().replace(/\s+/g, '');
+            return normalizedMonth === normalizedSelectedMonth;
+          });
+          
+          if (normalizedMatch) {
+            initialMonth = normalizedMatch;
+            console.log('ApplicationDetailsPanel: Using normalized match for selectedEmiMonth', selectedEmiMonth, '->', initialMonth);
+          }
+        }
+      }
+      
+      // PRIORITY 2: Fallback to application's demand_date
+      if (!initialMonth && currentApplication?.demand_date) {
         const applicationMonth = availableMonths.find(month => 
           month === currentApplication.demand_date
         );
         
         if (applicationMonth) {
           initialMonth = applicationMonth;
-          console.log('ApplicationDetailsPanel: Found matching month for application demand_date', currentApplication.demand_date, '->', initialMonth);
-        } else {
-          // If exact match not found, try formatted match
-          const applicationMonthFormatted = formatEmiMonth(currentApplication.demand_date);
-          const formattedMatch = availableMonths.find(month => 
-            formatEmiMonth(month) === applicationMonthFormatted
-          );
-          
-          if (formattedMatch) {
-            initialMonth = formattedMatch;
-            console.log('ApplicationDetailsPanel: Found formatted match for application demand_date', applicationMonthFormatted, '->', initialMonth);
-          }
+          console.log('ApplicationDetailsPanel: Using application demand_date', currentApplication.demand_date, '->', initialMonth);
         }
       }
       
-      // Priority 2: If no application month match, try selectedEmiMonth from filters
-      if (!initialMonth && selectedEmiMonth) {
-        const matchingMonth = availableMonths.find(month => 
-          formatEmiMonth(month) === selectedEmiMonth
-        );
-        
-        if (matchingMonth) {
-          initialMonth = matchingMonth;
-          console.log('ApplicationDetailsPanel: Found matching month for selectedEmiMonth', selectedEmiMonth, '->', initialMonth);
-        } else {
-          // If no exact match found, try to find a month that's close
-          // This handles cases where the filter month format might be slightly different
-          const normalizedSelectedMonth = selectedEmiMonth.toLowerCase().replace(/\s+/g, '');
-          const closeMatch = availableMonths.find(month => {
-            const normalizedMonth = formatEmiMonth(month).toLowerCase().replace(/\s+/g, '');
-            return normalizedMonth === normalizedSelectedMonth;
-          });
-          
-          if (closeMatch) {
-            initialMonth = closeMatch;
-            console.log('ApplicationDetailsPanel: Found close match for selectedEmiMonth', selectedEmiMonth, '->', initialMonth);
-          }
-        }
-      }
-      
-      // Priority 3: Fallback to most recent month
+      // PRIORITY 3: Fallback to most recent month
       if (!initialMonth) {
         initialMonth = availableMonths[availableMonths.length - 1];
-        console.log('ApplicationDetailsPanel: No match found, using most recent month', initialMonth);
+        console.log('ApplicationDetailsPanel: Using most recent month fallback', initialMonth);
       }
       
       console.log('ApplicationDetailsPanel: Setting initial month to', initialMonth);
@@ -337,6 +326,20 @@ const ApplicationDetailsPanel = ({
           </Button>
         </div>
         <ApplicationHeader application={displayApplication} />
+        
+        {/* Show context information about EMI month filter */}
+        {selectedEmiMonth && (
+          <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
+            <span className="text-blue-700 font-medium">
+              Filtered by EMI Month: {selectedEmiMonth}
+            </span>
+            {selectedMonth && selectedMonth !== selectedEmiMonth && (
+              <span className="text-orange-600 ml-2">
+                (Currently viewing: {formatEmiMonth(selectedMonth)})
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       <MonthSelector

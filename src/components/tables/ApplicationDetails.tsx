@@ -1,53 +1,78 @@
-import { memo } from "react";
+
+import { User, Phone, Building2, MapPin } from "lucide-react";
 import { Application } from "@/types/application";
-import { formatEmiMonth, formatCurrency } from "@/utils/formatters";
 
 interface ApplicationDetailsProps {
   application: Application;
+  selectedEmiMonth?: string | null;
 }
 
-const formatLenderName = (lenderName: string) => {
-  return lenderName === 'Vivriti Capital Limited' ? 'Vivriti' : lenderName;
-};
+const ApplicationDetails = ({ application, selectedEmiMonth }: ApplicationDetailsProps) => {
+  // Log context for debugging month-specific data display
+  console.log('ApplicationDetails - Month Context:', {
+    selectedEmiMonth,
+    applicationId: application.applicant_id,
+    applicationDemandDate: application.demand_date,
+    applicationName: application.applicant_name
+  });
 
-const ApplicationDetails = memo(({ application }: ApplicationDetailsProps) => {
   return (
-    <div className="space-y-1">
-      <div className="flex items-center space-x-2">
-        <div className="font-semibold text-blue-900">{application.applicant_name}</div>
-        {application.vehicle_status && (
-          <span className="text-xs font-medium bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
-            {application.vehicle_status}
+    <div className="space-y-2">
+      {/* Primary applicant info */}
+      <div className="flex items-start gap-2">
+        <User className="h-4 w-4 text-gray-500 mt-0.5 flex-shrink-0" />
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-gray-900 truncate">
+            {application.applicant_name}
+          </p>
+          <p className="text-xs text-gray-500">
+            ID: {application.applicant_id}
+          </p>
+          {selectedEmiMonth && (
+            <p className="text-xs text-blue-600 font-medium">
+              Month: {selectedEmiMonth}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Contact info */}
+      {application.applicant_mobile && (
+        <div className="flex items-center gap-2">
+          <Phone className="h-3 w-3 text-gray-400" />
+          <span className="text-xs text-gray-600 truncate">
+            {application.applicant_mobile}
           </span>
-        )}
-      </div>
-      <div className="text-sm text-gray-600">
-        <span className="font-medium">ID:</span> {application.applicant_id}
-      </div>
-      <div className="text-sm text-gray-600">
-        <span className="font-medium">EMI Month:</span> {formatEmiMonth(application.demand_date)} | 
-        <span className="font-medium"> EMI Due:</span> {formatCurrency(application.emi_amount)}
-      </div>
-      <div className="text-sm text-gray-600">
-        <span className="font-medium">Branch:</span> {application.branch_name}
-      </div>
-      <div className="text-sm text-gray-600">
-        <span className="font-medium">TL:</span> {application.team_lead} | 
-        <span className="font-medium"> RM:</span> {application.rm_name}
-      </div>
-      {application.collection_rm && (
-        <div className="text-sm text-gray-600">
-          <span className="font-medium">Collection RM:</span> {application.collection_rm}
         </div>
       )}
-      <div className="text-sm text-gray-600">
-        <span className="font-medium">Dealer:</span> {application.dealer_name} | 
-        <span className="font-medium"> Lender:</span> {formatLenderName(application.lender_name)}
+
+      {/* Business info */}
+      <div className="grid grid-cols-2 gap-1 text-xs">
+        <div className="flex items-center gap-1">
+          <Building2 className="h-3 w-3 text-gray-400" />
+          <span className="text-gray-600 truncate" title={application.lender_name}>
+            {application.lender_name === 'Vivriti Capital Limited' ? 'Vivriti' : application.lender_name}
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <MapPin className="h-3 w-3 text-gray-400" />
+          <span className="text-gray-600 truncate" title={application.branch_name}>
+            {application.branch_name}
+          </span>
+        </div>
+      </div>
+
+      {/* Assignment info */}
+      <div className="text-xs text-gray-500 space-y-0.5">
+        <div>RM: {application.rm_name}</div>
+        {application.collection_rm && application.collection_rm !== 'N/A' && (
+          <div>Collection RM: {application.collection_rm}</div>
+        )}
+        <div>Team Lead: {application.team_lead}</div>
+        <div>Repayment: {application.repayment}</div>
       </div>
     </div>
   );
-});
-
-ApplicationDetails.displayName = "ApplicationDetails";
+};
 
 export default ApplicationDetails;

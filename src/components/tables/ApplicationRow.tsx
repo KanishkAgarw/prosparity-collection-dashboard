@@ -15,7 +15,7 @@ interface ApplicationRowProps {
   selectedApplicationId?: string;
   onRowClick: (application: Application) => void;
   selectedEmiMonth?: string | null;
-  // Batched data props
+  // Batched data props - these should be month-specific
   batchedStatus?: string;
   batchedPtpDate?: string | null;
   batchedContactStatus?: BatchContactStatus;
@@ -38,6 +38,16 @@ const ApplicationRow = memo(({
     onRowClick(application);
   };
 
+  // For month-specific display, we need to show the data for the selected EMI month
+  // This ensures that when a user filters by Jun-2025, they see June data, not July data
+  console.log('ApplicationRow - EMI Month Context:', {
+    selectedEmiMonth,
+    applicationId: application.applicant_id,
+    applicationDemandDate: application.demand_date,
+    batchedStatus,
+    batchedPtpDate
+  });
+
   return (
     <TableRow 
       className={`cursor-pointer transition-colors ${
@@ -48,7 +58,10 @@ const ApplicationRow = memo(({
       onClick={handleRowClick}
     >
       <TableCell className="py-3">
-        <ApplicationDetails application={application} />
+        <ApplicationDetails 
+          application={application} 
+          selectedEmiMonth={selectedEmiMonth}
+        />
       </TableCell>
       
       <TableCell className="font-medium text-blue-600">
