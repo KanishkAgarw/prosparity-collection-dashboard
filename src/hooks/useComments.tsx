@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfiles } from '@/hooks/useUserProfiles';
+import { getMonthDateRange } from '@/utils/dateUtils';
 
 export interface Comment {
   id: string;
@@ -49,16 +50,14 @@ export const useComments = (selectedMonth?: string) => {
         .select('*')
         .eq('application_id', applicationId);
 
-      // Add month filtering if selectedMonth is provided - use proper date range
+      // Add month filtering if selectedMonth is provided - filter by demand_date
       if (selectedMonth) {
-        const monthStart = `${selectedMonth}-01`;
-        const nextMonth = new Date(selectedMonth + '-01');
-        nextMonth.setMonth(nextMonth.getMonth() + 1);
-        const monthEnd = nextMonth.toISOString().substring(0, 10);
+        const { start, end } = getMonthDateRange(selectedMonth);
+        console.log('Date range for comments:', { start, end });
         
         query = query
-          .gte('created_at', monthStart)
-          .lt('created_at', monthEnd);
+          .gte('demand_date', start)
+          .lte('demand_date', end);
       }
 
       // Limit to most recent 10 comments for performance
