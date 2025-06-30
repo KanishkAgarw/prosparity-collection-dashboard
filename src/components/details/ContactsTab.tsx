@@ -10,6 +10,7 @@ import ContactCard from "./ContactCard";
 import { useContactCallingStatus, ContactStatusData } from "@/hooks/useContactCallingStatus";
 import LogDialog from "./LogDialog";
 import FiLocationDisplay from "./FiLocationDisplay";
+import { toast } from "sonner";
 
 interface ContactsTabProps {
   application: Application;
@@ -21,11 +22,18 @@ interface ContactsTabProps {
 const ContactsTab = ({ application, callingLogs, onCallingStatusChange, selectedMonth }: ContactsTabProps) => {
   const [showLogDialog, setShowLogDialog] = useState(false);
   const [contactStatuses, setContactStatuses] = useState<ContactStatusData>({});
-  const { fetchContactStatus } = useContactCallingStatus();
+  const { fetchContactStatus, updateContactStatus } = useContactCallingStatus();
 
   const loadContactStatuses = async () => {
-    const statuses = await fetchContactStatus(application.applicant_id, selectedMonth);
-    setContactStatuses(statuses);
+    try {
+      console.log('🔄 Loading contact statuses for:', { applicationId: application.applicant_id, selectedMonth });
+      const statuses = await fetchContactStatus(application.applicant_id, selectedMonth);
+      console.log('✅ Contact statuses loaded:', statuses);
+      setContactStatuses(statuses);
+    } catch (error) {
+      console.error('❌ Error loading contact statuses:', error);
+      toast.error('Failed to load contact statuses');
+    }
   };
 
   useEffect(() => {
@@ -79,6 +87,27 @@ const ContactsTab = ({ application, callingLogs, onCallingStatusChange, selected
     }] : [])
   ];
 
+  const handleContactStatusChange = async (contactType: string, newStatus: string, currentStatus?: string) => {
+    try {
+      console.log('🔄 Updating contact status:', { contactType, from: currentStatus, to: newStatus, applicationId: application.applicant_id, selectedMonth });
+      
+      // Update the contact status using the hook
+      await updateContactStatus(application.applicant_id, contactType, newStatus, selectedMonth);
+      
+      // Call the parent handler for logging
+      await onCallingStatusChange(contactType, newStatus, currentStatus);
+      
+      // Reload the contact statuses to reflect the change
+      await loadContactStatuses();
+      
+      console.log('✅ Contact status updated successfully');
+      toast.success(`${contactType.replace('_', ' ')} status updated successfully`);
+    } catch (error) {
+      console.error('❌ Failed to update contact status:', error);
+      toast.error(`Failed to update ${contactType.replace('_', ' ')} status: ${error.message || 'Unknown error'}`);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Contact Cards */}
@@ -90,10 +119,7 @@ const ContactsTab = ({ application, callingLogs, onCallingStatusChange, selected
             name={contact.name}
             mobile={contact.mobile}
             currentStatus={contact.callingStatus}
-            onStatusChange={async (newStatus) => {
-              await onCallingStatusChange(contact.type, newStatus, contact.callingStatus);
-              await loadContactStatuses();
-            }}
+            onStatusChange={(newStatus) => handleContactStatusChange(contact.type, newStatus, contact.callingStatus)}
           />
         ))}
       </div>

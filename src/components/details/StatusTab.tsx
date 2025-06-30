@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -8,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Application } from "@/types/application";
 import { AuditLog } from "@/hooks/useAuditLogs";
 import { format } from "date-fns";
-import { History, Clock, AlertCircle } from "lucide-react";
+import { History, Clock, AlertCircle, Save } from "lucide-react";
 import { useFilteredAuditLogs } from "@/hooks/useFilteredAuditLogs";
 import { toast } from "sonner";
 import LogDialog from "./LogDialog";
@@ -17,7 +18,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useFieldStatus } from "@/hooks/useFieldStatus";
 import { CALLING_STATUS_OPTIONS } from '@/constants/options';
 import { monthToEmiDate } from '@/utils/dateUtils';
-import { useApplicationHandlers } from "./ApplicationHandlers";
 
 interface StatusTabProps {
   application: Application;
@@ -98,9 +98,15 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
     const fetchStatus = async () => {
       if (!application?.applicant_id || !selectedMonth) return;
       setStatusLoading(true);
-      const statusMap = await fetchFieldStatus([application.applicant_id], selectedMonth);
-      setCurrentStatus(statusMap[application.applicant_id] || 'Unpaid');
-      setStatusLoading(false);
+      try {
+        const statusMap = await fetchFieldStatus([application.applicant_id], selectedMonth);
+        setCurrentStatus(statusMap[application.applicant_id] || 'Unpaid');
+      } catch (error) {
+        console.error('Error fetching field status:', error);
+        toast.error('Failed to fetch status');
+      } finally {
+        setStatusLoading(false);
+      }
     };
     fetchStatus();
   }, [application?.applicant_id, selectedMonth, fetchFieldStatus]);
@@ -110,18 +116,31 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
     const fetchCallingStatus = async () => {
       if (!application?.applicant_id || !selectedMonth) return;
       setCallingStatusLoading(true);
-      const { data, error } = await supabase
-        .from('field_status')
-        .select('calling_status')
-        .eq('application_id', application.applicant_id)
-        .eq('demand_date', monthToEmiDate(selectedMonth))
-        .maybeSingle();
-      if (error) {
+      try {
+        const emiDate = monthToEmiDate(selectedMonth);
+        console.log('🔍 Fetching calling status for:', { applicationId: application.applicant_id, emiDate });
+        
+        const { data, error } = await supabase
+          .from('field_status')
+          .select('calling_status')
+          .eq('application_id', application.applicant_id)
+          .eq('demand_date', emiDate)
+          .maybeSingle();
+          
+        if (error) {
+          console.error('Error fetching calling status:', error);
+          setCurrentCallingStatus('');
+        } else {
+          const status = data?.calling_status || '';
+          console.log('✅ Calling status fetched:', status);
+          setCurrentCallingStatus(status);
+        }
+      } catch (error) {
+        console.error('Exception in fetchCallingStatus:', error);
         setCurrentCallingStatus('');
-      } else {
-        setCurrentCallingStatus(data?.calling_status || '');
+      } finally {
+        setCallingStatusLoading(false);
       }
-      setCallingStatusLoading(false);
     };
     fetchCallingStatus();
   }, [application?.applicant_id, selectedMonth]);
@@ -178,39 +197,151 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
   const handleStatusChange = async (newStatus: string) => {
     setStatusLoading(true);
     try {
+      console.log('🔄 Updating status:', { from: currentStatus, to: newStatus, applicationId: application.applicant_id, selectedMonth });
+      
       if (newStatus === "Paid") {
         await onStatusChange(newStatus);
       } else {
         const prevStatus = currentStatus;
+        
+        // Try to update field status with detailed logging
+        const emiDate = monthToEmiDate(selectedMonth);
+        console.log('📅 Using EMI date for status update:', emiDate);
+        
         await updateFieldStatus(application.applicant_id, newStatus, selectedMonth);
         setCurrentStatus(newStatus);
-        await addAuditLog(application.applicant_id, 'Status', prevStatus, newStatus, selectedMonth);
+        await addAuditLog(application.applicant_id, 'Status', prevStatus, newStatus, emiDate);
         onStatusChange(newStatus);
-        toast.success('Status updated');
+        toast.success('Status updated successfully');
       }
-    } catch (err) {
-      toast.error('Failed to update status');
+    } catch (error) {
+      console.error('❌ Failed to update status:', error);
+      toast.error(`Failed to update status: ${error.message || 'Unknown error'}`);
     } finally {
       setStatusLoading(false);
     }
   };
 
-  const { handleAmountCollectedChange } = useApplicationHandlers(
-    application,
-    { user }, // Assuming user is available from context
-    addAuditLog,
-    () => {}, // addCallingLog not needed here
-    () => {}, // onUpdate will be handled by parent
-    selectedMonth
-  );
-
-  const handleAmountCollectedUpdate = async (newAmount: number | null) => {
+  // Handle calling status change with improved error handling
+  const handleCallingStatusChange = async (newStatus: string) => {
+    setCallingStatusLoading(true);
     try {
-      await handleAmountCollectedChange(newAmount);
+      console.log('🔄 Updating calling status:', { from: currentCallingStatus, to: newStatus, applicationId: application.applicant_id, selectedMonth });
+      
+      const emiDate = monthToEmiDate(selectedMonth);
+      console.log('📅 Using EMI date for calling status update:', emiDate);
+      
+      // Fetch previous value first
+      const { data: existingStatus } = await supabase
+        .from('field_status')
+        .select('calling_status')
+        .eq('application_id', application.applicant_id)
+        .eq('demand_date', emiDate)
+        .maybeSingle();
+      
+      const prevStatus = existingStatus?.calling_status || '';
+      console.log('📋 Previous calling status:', prevStatus);
+      
+      // Prepare upsert data
+      const upsertData = {
+        application_id: application.applicant_id,
+        calling_status: newStatus,
+        demand_date: emiDate,
+        user_id: user?.id,
+        user_email: user?.email,
+        updated_at: new Date().toISOString(),
+      };
+      
+      console.log('📤 Upserting calling status with data:', upsertData);
+      
+      // Upsert new value with proper conflict resolution
+      const { error } = await supabase
+        .from('field_status')
+        .upsert(upsertData, { 
+          onConflict: 'application_id,demand_date',
+          ignoreDuplicates: false 
+        });
+      
+      if (error) {
+        console.error('❌ Database error updating calling status:', error);
+        throw error;
+      }
+      
+      setCurrentCallingStatus(newStatus);
+      
+      if (prevStatus !== newStatus) {
+        await addAuditLog(application.applicant_id, 'Calling Status', prevStatus, newStatus, emiDate);
+      }
+      
+      console.log('✅ Calling status updated successfully');
+      toast.success('Calling status updated successfully');
+    } catch (error) {
+      console.error('❌ Failed to update calling status:', error);
+      toast.error(`Failed to update calling status: ${error.message || 'Unknown error'}`);
+    } finally {
+      setCallingStatusLoading(false);
+    }
+  };
+
+  // Handle amount collected save with improved error handling
+  const handleAmountCollectedSave = async () => {
+    if (!user || !selectedMonth) return;
+    
+    setIsUpdatingAmount(true);
+    try {
+      const previousAmount = application.amount_collected || 0;
+      const newAmount = amountCollected === '' ? null : Number(amountCollected);
+      
+      console.log('💰 Updating amount collected:', { from: previousAmount, to: newAmount, applicationId: application.applicant_id, selectedMonth });
+      
+      const emiDate = monthToEmiDate(selectedMonth);
+      console.log('📅 Using EMI date for amount update:', emiDate);
+      
+      const upsertData = {
+        application_id: application.applicant_id,
+        demand_date: emiDate,
+        amount_collected: newAmount,
+        team_lead: application.team_lead,
+        rm_name: application.rm_name,
+        repayment: application.repayment,
+        emi_amount: application.emi_amount,
+        last_month_bounce: application.last_month_bounce,
+        lms_status: application.lms_status,
+        collection_rm: application.collection_rm,
+        updated_at: new Date().toISOString()
+      };
+      
+      console.log('📤 Upserting amount collected with data:', upsertData);
+      
+      // Use upsert with the correct conflict resolution
+      const { error } = await supabase
+        .from('collection')
+        .upsert(upsertData, {
+          onConflict: 'application_id,demand_date',
+          ignoreDuplicates: false
+        });
+
+      if (error) {
+        console.error('❌ Database error updating amount collected:', error);
+        throw error;
+      }
+
+      // Add audit log
+      await addAuditLog(
+        application.applicant_id,
+        'Amount Collected',
+        previousAmount?.toString() || '0',
+        newAmount?.toString() || '0',
+        emiDate
+      );
+
+      console.log('✅ Amount collected updated successfully');
       toast.success('Amount collected updated successfully');
     } catch (error) {
-      console.error('Failed to update amount collected:', error);
-      toast.error('Failed to update amount collected');
+      console.error('❌ Error updating amount collected:', error);
+      toast.error(`Failed to update amount collected: ${error.message || 'Unknown error'}`);
+    } finally {
+      setIsUpdatingAmount(false);
     }
   };
 
@@ -256,42 +387,6 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
 
   // Check if status is pending approval
   const isPendingApproval = currentStatus?.includes('Pending Approval');
-
-  // Handle calling status change
-  const handleCallingStatusChange = async (newStatus: string) => {
-    setCallingStatusLoading(true);
-    try {
-      // Fetch previous value
-      const { data: existingStatus } = await supabase
-        .from('field_status')
-        .select('calling_status')
-        .eq('application_id', application.applicant_id)
-        .eq('demand_date', monthToEmiDate(selectedMonth))
-        .maybeSingle();
-      const prevStatus = existingStatus?.calling_status || '';
-      // Upsert new value
-      const { error } = await supabase
-        .from('field_status')
-        .upsert({
-          application_id: application.applicant_id,
-          calling_status: newStatus,
-          demand_date: monthToEmiDate(selectedMonth),
-          user_id: user.id,
-          user_email: user.email,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'application_id,demand_date' });
-      if (error) throw error;
-      setCurrentCallingStatus(newStatus);
-      if (prevStatus !== newStatus) {
-        await addAuditLog(application.applicant_id, 'Calling Status', prevStatus, newStatus, monthToEmiDate(selectedMonth));
-      }
-      toast.success('Calling status updated');
-    } catch (err) {
-      toast.error('Failed to update calling status');
-    } finally {
-      setCallingStatusLoading(false);
-    }
-  };
 
   return (
     <div className="space-y-4">
@@ -390,20 +485,36 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
                 )}
               </div>
             </div>
-            {/* AMOUNT COLLECTED INPUT */}
+
+            {/* AMOUNT COLLECTED INPUT with Save Button */}
             <div className="space-y-2">
               <Label htmlFor="amount-collected">Amount Collected</Label>
-              <Input
-                id="amount-collected"
-                type="number"
-                value={application.amount_collected || ''}
-                onChange={(e) => {
-                  const value = e.target.value === '' ? null : Number(e.target.value);
-                  handleAmountCollectedUpdate(value);
-                }}
-                placeholder="Enter amount collected"
-                className="w-full"
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="amount-collected"
+                  type="number"
+                  value={amountCollected}
+                  onChange={(e) => setAmountCollected(e.target.value === '' ? '' : Number(e.target.value))}
+                  placeholder="Enter amount collected"
+                  className="flex-1"
+                  disabled={isUpdatingAmount}
+                />
+                <Button
+                  onClick={handleAmountCollectedSave}
+                  disabled={isUpdatingAmount}
+                  size="sm"
+                  className="px-3"
+                >
+                  {isUpdatingAmount ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              {isUpdatingAmount && (
+                <div className="text-xs text-blue-600">Saving amount...</div>
+              )}
             </div>
           </div>
         </CardContent>
