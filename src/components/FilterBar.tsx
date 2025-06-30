@@ -27,12 +27,12 @@ const FilterBar = ({
   const [isOpen, setIsOpen] = useState(false);
 
   // Calculate total active filters with proper typing
-  const activeFilterCount = Object.values(filters).reduce((total: number, filterArray: unknown): number => {
+  const activeFilterCount = Object.values(filters).reduce((total, filterArray) => {
     if (Array.isArray(filterArray)) {
       return total + filterArray.length;
     }
     return total;
-  }, 0 as number);
+  }, 0);
 
   const clearAllFilters = () => {
     Object.keys(filters).forEach(key => {

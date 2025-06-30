@@ -92,7 +92,7 @@ export const usePtpDates = () => {
       return false;
     }
 
-    console.log('=== PTP UPDATE ATTEMPT - WITH DEMAND DATE ===');
+    console.log('=== PTP UPDATE ATTEMPT - USING UPSERT ===');
     console.log('Application ID:', applicationId);
     console.log('Demand Date:', demandDate);
     console.log('User ID:', user.id);
@@ -111,7 +111,7 @@ export const usePtpDates = () => {
       if (ptpDate && ptpDate.trim() !== '') {
         const parsedDate = new Date(ptpDate);
         if (isNaN(parsedDate.getTime())) {
-          console.error('PTP Update Failed: Invalid date format:', ptpDate);
+          console.error('PTP Update Failed: Invalid PTP date format:', ptpDate);
           return false;
         }
       }
@@ -119,33 +119,60 @@ export const usePtpDates = () => {
       // Convert empty string to null for clearing
       const finalPtpDate = (ptpDate && ptpDate.trim() !== '') ? ptpDate : null;
 
-      // Convert YYYY-MM to actual EMI date (5th of the month)
-      const emiDate = demandDate.match(/^\d{4}-\d{2}$/) 
-        ? `${demandDate}-05` 
-        : demandDate;
+      // Convert YYYY-MM to actual EMI date (5th of the month) and validate
+      let emiDate: string;
+      if (demandDate.match(/^\d{4}-\d{2}$/)) {
+        const [year, month] = demandDate.split('-').map(Number);
+        
+        // Validate month
+        if (month < 1 || month > 12) {
+          console.error('PTP Update Failed: Invalid month in demand date:', demandDate);
+          return false;
+        }
+        
+        // Create date and validate it exists (prevents Feb 31, etc.)
+        const testDate = new Date(year, month - 1, 5);
+        if (testDate.getMonth() !== month - 1) {
+          console.error('PTP Update Failed: Invalid date would be created from:', demandDate);
+          return false;
+        }
+        
+        emiDate = `${demandDate}-05`;
+      } else {
+        // Validate existing date format
+        const testDate = new Date(demandDate);
+        if (isNaN(testDate.getTime())) {
+          console.error('PTP Update Failed: Invalid demand date format:', demandDate);
+          return false;
+        }
+        emiDate = demandDate;
+      }
 
-      console.log('Attempting to insert PTP date record...');
+      console.log('Attempting to upsert PTP date record...');
       console.log('Final PTP Date value:', finalPtpDate);
       console.log('EMI Date:', emiDate);
       
-      // Insert the PTP date record with proper demand_date
-      const { error: insertError, data: insertData } = await supabase
+      // Use upsert to handle both insert and update cases
+      const { error: upsertError, data: upsertData } = await supabase
         .from('ptp_dates')
-        .insert({
+        .upsert({
           application_id: applicationId,
           ptp_date: finalPtpDate,
           demand_date: emiDate,
           user_id: user.id
+        }, {
+          onConflict: 'application_id,demand_date',
+          ignoreDuplicates: false
         })
         .select()
         .single();
 
-      if (insertError) {
-        console.error('❌ PTP Insert Error:', insertError);
+      if (upsertError) {
+        console.error('❌ PTP Upsert Error:', upsertError);
         return false;
       }
 
-      console.log('✅ PTP date record inserted:', insertData);
+      console.log('✅ PTP date record upserted:', upsertData);
       return true;
 
     } catch (error) {
