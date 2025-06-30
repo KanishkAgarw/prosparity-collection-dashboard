@@ -70,17 +70,20 @@ export const useOptimizedApplicationsV3 = ({
     try {
       console.log('=== STEP 1: BUILDING COMPREHENSIVE QUERY ===');
       
-      // Build the base query from collection table with proper INNER JOIN to applications
+      // Build the base query with all necessary joins
       let dataQuery = supabase
         .from('collection')
         .select(`
           *,
-          applications!collection_application_id_fkey(*)
+          applications!inner(*),
+          field_status:field_status!left(status, created_at),
+          ptp_dates:ptp_dates!left(ptp_date, created_at),
+          contact_calling_status:contact_calling_status!left(status, contact_type, created_at)
         `)
         .gte('demand_date', start)
         .lte('demand_date', end);
 
-      console.log('=== STEP 2: APPLYING DATABASE-LEVEL FILTERS WITH PROPER JOINS ===');
+      console.log('=== STEP 2: APPLYING DATABASE-LEVEL FILTERS ===');
 
       // Apply collection table filters
       if (filters.teamLead?.length > 0) {
@@ -112,94 +115,30 @@ export const useOptimizedApplicationsV3 = ({
         dataQuery = dataQuery.in('repayment', filters.repayment);
       }
 
-      // Apply applications table filters using the proper foreign key reference
+      // Apply applications table filters
       if (filters.branch?.length > 0) {
-        console.log('🔍 Applying branch filter (FIXED):', filters.branch);
-        // Use a separate query to get application IDs that match branch filter
-        const { data: branchFilteredIds } = await supabase
-          .from('applications')
-          .select('applicant_id')
-          .in('branch_name', filters.branch);
-        
-        if (branchFilteredIds && branchFilteredIds.length > 0) {
-          const appIds = branchFilteredIds.map(row => row.applicant_id);
-          dataQuery = dataQuery.in('application_id', appIds);
-        } else {
-          // No applications match the branch filter, return empty result
-          console.log('🚫 No applications found for selected branches');
-          return {
-            applications: [],
-            totalCount: 0,
-            totalPages: 0,
-            loading: false,
-            refetch: async () => {}
-          };
-        }
+        console.log('🔍 Applying branch filter:', filters.branch);
+        dataQuery = dataQuery.in('applications.branch_name', filters.branch);
       }
-
       if (filters.dealer?.length > 0) {
         console.log('🔍 Applying dealer filter:', filters.dealer);
-        const { data: dealerFilteredIds } = await supabase
-          .from('applications')
-          .select('applicant_id')
-          .in('dealer_name', filters.dealer);
-        
-        if (dealerFilteredIds && dealerFilteredIds.length > 0) {
-          const appIds = dealerFilteredIds.map(row => row.applicant_id);
-          dataQuery = dataQuery.in('application_id', appIds);
-        } else {
-          console.log('🚫 No applications found for selected dealers');
-          return {
-            applications: [],
-            totalCount: 0,
-            totalPages: 0,
-            loading: false,
-            refetch: async () => {}
-          };
-        }
+        dataQuery = dataQuery.in('applications.dealer_name', filters.dealer);
       }
-
       if (filters.lender?.length > 0) {
         console.log('🔍 Applying lender filter:', filters.lender);
-        const { data: lenderFilteredIds } = await supabase
-          .from('applications')
-          .select('applicant_id')
-          .in('lender_name', filters.lender);
-        
-        if (lenderFilteredIds && lenderFilteredIds.length > 0) {
-          const appIds = lenderFilteredIds.map(row => row.applicant_id);
-          dataQuery = dataQuery.in('application_id', appIds);
-        } else {
-          console.log('🚫 No applications found for selected lenders');
-          return {
-            applications: [],
-            totalCount: 0,
-            totalPages: 0,
-            loading: false,
-            refetch: async () => {}
-          };
-        }
+        dataQuery = dataQuery.in('applications.lender_name', filters.lender);
       }
-
       if (filters.vehicleStatus?.length > 0) {
         console.log('🔍 Applying vehicle status filter:', filters.vehicleStatus);
-        const { data: vehicleFilteredIds } = await supabase
-          .from('applications')
-          .select('applicant_id')
-          .in('vehicle_status', filters.vehicleStatus.map(s => s === 'None' ? null : s));
-        
-        if (vehicleFilteredIds && vehicleFilteredIds.length > 0) {
-          const appIds = vehicleFilteredIds.map(row => row.applicant_id);
-          dataQuery = dataQuery.in('application_id', appIds);
+        if (filters.vehicleStatus.includes('None')) {
+          const nonNoneStatuses = filters.vehicleStatus.filter(s => s !== 'None');
+          if (nonNoneStatuses.length > 0) {
+            dataQuery = dataQuery.or(`applications.vehicle_status.is.null,applications.vehicle_status.in.(${nonNoneStatuses.join(',')})`);
+          } else {
+            dataQuery = dataQuery.is('applications.vehicle_status', null);
+          }
         } else {
-          console.log('🚫 No applications found for selected vehicle statuses');
-          return {
-            applications: [],
-            totalCount: 0,
-            totalPages: 0,
-            loading: false,
-            refetch: async () => {}
-          };
+          dataQuery = dataQuery.in('applications.vehicle_status', filters.vehicleStatus);
         }
       }
 
@@ -213,69 +152,33 @@ export const useOptimizedApplicationsV3 = ({
 
       console.log(`✅ Fetched ${allData?.length || 0} total records from database`);
 
-      // Now fetch related data for each application
-      const applicationIds = allData?.map(record => record.application_id) || [];
-      
-      // Fetch field status data
-      const { data: fieldStatusData } = await supabase
-        .from('field_status')
-        .select('*')
-        .in('application_id', applicationIds)
-        .gte('created_at', start)
-        .lte('created_at', end + ' 23:59:59');
-
-      // Fetch PTP dates data
-      const { data: ptpDatesData } = await supabase
-        .from('ptp_dates')
-        .select('*')
-        .in('application_id', applicationIds)
-        .gte('created_at', start)
-        .lte('created_at', end + ' 23:59:59');
-
-      // Fetch calling status data
-      const { data: callingStatusData } = await supabase
-        .from('contact_calling_status')
-        .select('*')
-        .in('application_id', applicationIds)
-        .gte('created_at', start)
-        .lte('created_at', end + ' 23:59:59');
-
-      console.log('📊 Related data fetched:', {
-        fieldStatus: fieldStatusData?.length || 0,
-        ptpDates: ptpDatesData?.length || 0,
-        callingStatus: callingStatusData?.length || 0
-      });
-
       // Transform and post-process data
       let transformedApplications: Application[] = (allData || []).map(record => {
         const app = record.applications;
         
-        // Get the latest field status for this application
-        const latestFieldStatus = fieldStatusData?.filter(fs => fs.application_id === record.application_id)
-          ?.reduce((latest: any, current: any) => {
-            if (!latest || new Date(current.created_at) > new Date(latest.created_at)) {
-              return current;
-            }
-            return latest;
-          }, null);
+        // Get the latest field status
+        const latestFieldStatus = record.field_status?.reduce((latest: any, current: any) => {
+          if (!latest || new Date(current.created_at) > new Date(latest.created_at)) {
+            return current;
+          }
+          return latest;
+        }, null);
 
-        // Get the latest PTP date for this application
-        const latestPtpDate = ptpDatesData?.filter(ptp => ptp.application_id === record.application_id)
-          ?.reduce((latest: any, current: any) => {
-            if (!latest || new Date(current.created_at) > new Date(latest.created_at)) {
-              return current;
-            }
-            return latest;
-          }, null);
+        // Get the latest PTP date
+        const latestPtpDate = record.ptp_dates?.reduce((latest: any, current: any) => {
+          if (!latest || new Date(current.created_at) > new Date(latest.created_at)) {
+            return current;
+          }
+          return latest;
+        }, null);
 
-        // Get the latest calling status for this application
-        const latestCallingStatus = callingStatusData?.filter(cs => cs.application_id === record.application_id)
-          ?.reduce((latest: any, current: any) => {
-            if (!latest || new Date(current.created_at) > new Date(latest.created_at)) {
-              return current;
-            }
-            return latest;
-          }, null);
+        // Get the latest calling status
+        const latestCallingStatus = record.contact_calling_status?.reduce((latest: any, current: any) => {
+          if (!latest || new Date(current.created_at) > new Date(latest.created_at)) {
+            return current;
+          }
+          return latest;
+        }, null);
 
         return {
           // Collection data (primary)
@@ -292,7 +195,7 @@ export const useOptimizedApplicationsV3 = ({
           last_month_bounce: record.last_month_bounce || 0,
           field_status: latestFieldStatus?.status || 'Unpaid',
           ptp_date: latestPtpDate?.ptp_date || null,
-          latest_calling_status: latestCallingStatus?.status || 'Not Called',
+          calling_status: latestCallingStatus?.status || 'Not Called',
 
           // Application data (secondary)
           applicant_name: app?.applicant_name || 'Unknown',
@@ -338,7 +241,7 @@ export const useOptimizedApplicationsV3 = ({
       if (filters.callingStatus?.length > 0) {
         console.log('🔍 Applying calling status filter:', filters.callingStatus);
         transformedApplications = transformedApplications.filter(app => 
-          filters.callingStatus.includes(app.latest_calling_status || 'Not Called')
+          filters.callingStatus.includes(app.calling_status || 'Not Called')
         );
       }
 

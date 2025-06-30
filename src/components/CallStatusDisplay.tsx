@@ -1,7 +1,7 @@
 
-import { Phone } from "lucide-react";
-import { CircleCheck, CircleX, Circle } from "lucide-react";
+import { Phone, PhoneCall, PhoneOff } from "lucide-react";
 import { Application } from "@/types/application";
+import { Badge } from "@/components/ui/badge";
 import type { BatchContactStatus } from "@/hooks/useBatchContactCallingStatus";
 
 interface CallStatusDisplayProps {
@@ -11,102 +11,46 @@ interface CallStatusDisplayProps {
 }
 
 const CallStatusDisplay = ({ application, selectedMonth, batchedContactStatus }: CallStatusDisplayProps) => {
-  // Get the calling status from batched data, fallback to application's latest_calling_status
-  const overallCallingStatus = batchedContactStatus?.calling_status || application.latest_calling_status || 'Not Called';
+  // Get the calling status from batched data
+  const callingStatus = batchedContactStatus?.calling_status || 'Not Called';
   
-  // Categorize status into one of three types for icon mapping
-  const getStatusCategory = (status: string): 'not-called' | 'unsuccessful' | 'answered' => {
-    const statusLower = status.toLowerCase();
-    
-    if (statusLower === 'not called') {
-      return 'not-called';
+  // Get status color and icon based on calling status
+  const getStatusDisplay = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'customer funded the account':
+        return { color: 'bg-green-600 text-white', icon: PhoneCall };
+      case 'customer will fund the account on a future date':
+        return { color: 'bg-blue-600 text-white', icon: PhoneCall };
+      case 'cash collected':
+        return { color: 'bg-green-700 text-white', icon: PhoneCall };
+      case 'cash will be collected on a future date':
+        return { color: 'bg-blue-700 text-white', icon: PhoneCall };
+      case 'spoken – no commitment':
+        return { color: 'bg-yellow-600 text-white', icon: Phone };
+      case 'refused / unable to fund':
+        return { color: 'bg-red-600 text-white', icon: PhoneOff };
+      case 'no response':
+        return { color: 'bg-gray-600 text-white', icon: PhoneOff };
+      case 'not called':
+      default:
+        return { color: 'bg-gray-400 text-white', icon: Phone };
     }
-    
-    if (statusLower === 'no response' || statusLower === 'refused / unable to fund') {
-      return 'unsuccessful';
-    }
-    
-    // All other statuses (customer funded, cash collected, will fund, will collect, spoken no commitment)
-    return 'answered';
   };
 
-  // Get icon and color based on status category
-  const getStatusIcon = (status: string) => {
-    const category = getStatusCategory(status);
-    
-    switch (category) {
-      case 'not-called':
-        return { Icon: Circle, color: 'text-gray-400' };
-      case 'unsuccessful':
-        return { Icon: CircleX, color: 'text-red-500' };
-      case 'answered':
-        return { Icon: CircleCheck, color: 'text-green-500' };
-    }
-  };
+  const { color, icon: StatusIcon } = getStatusDisplay(callingStatus);
 
   return (
-    <div className="space-y-2">
-      {/* Header */}
-      <div className="text-xs font-medium text-gray-700">
-        Calling Status
-      </div>
-      
-      {/* Individual Contact Statuses */}
+    <div className="flex items-center gap-2">
+      <StatusIcon className="h-4 w-4 text-gray-500" />
       <div className="space-y-1">
-        {/* Applicant Status */}
-        {batchedContactStatus?.applicant && (
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-gray-600 w-16">Applicant:</span>
-            {(() => {
-              const { Icon, color } = getStatusIcon(batchedContactStatus.applicant.status);
-              return <Icon className={`h-3 w-3 ${color}`} />;
-            })()}
-            <span className="text-gray-700">{batchedContactStatus.applicant.status}</span>
+        <Badge className={`${color} text-xs px-2 py-1`}>
+          {callingStatus}
+        </Badge>
+        {batchedContactStatus?.contact_type && (
+          <div className="text-xs text-gray-500 capitalize">
+            {batchedContactStatus.contact_type}
           </div>
         )}
-        
-        {/* Co-Applicant Status */}
-        {batchedContactStatus?.coApplicant && (
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-gray-600 w-16">Co-Applicant:</span>
-            {(() => {
-              const { Icon, color } = getStatusIcon(batchedContactStatus.coApplicant.status);
-              return <Icon className={`h-3 w-3 ${color}`} />;
-            })()}
-            <span className="text-gray-700">{batchedContactStatus.coApplicant.status}</span>
-          </div>
-        )}
-        
-        {/* Reference Status */}
-        {batchedContactStatus?.reference && (
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-gray-600 w-16">Reference:</span>
-            {(() => {
-              const { Icon, color } = getStatusIcon(batchedContactStatus.reference.status);
-              return <Icon className={`h-3 w-3 ${color}`} />;
-            })()}
-            <span className="text-gray-700">{batchedContactStatus.reference.status}</span>
-          </div>
-        )}
-        
-        {/* If no individual statuses available, show a fallback */}
-        {!batchedContactStatus?.applicant && !batchedContactStatus?.coApplicant && !batchedContactStatus?.reference && (
-          <div className="text-xs text-gray-500">
-            No contact status data available
-          </div>
-        )}
-      </div>
-      
-      {/* Overall Calling Status */}
-      <div className="pt-2 border-t border-gray-200">
-        <div className="flex items-center gap-2 text-xs">
-          <span className="text-gray-600">Overall:</span>
-          {(() => {
-            const { Icon, color } = getStatusIcon(overallCallingStatus);
-            return <Icon className={`h-3 w-3 ${color}`} />;
-          })()}
-          <span className="text-gray-700">{overallCallingStatus}</span>
-        </div>
       </div>
     </div>
   );
