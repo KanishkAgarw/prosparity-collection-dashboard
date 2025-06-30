@@ -8,6 +8,12 @@ export const categorizePtpDate = (ptpDateStr?: string | null): PtpDateCategory =
   
   try {
     const ptpDate = new Date(ptpDateStr);
+    
+    // Check if date is valid
+    if (isNaN(ptpDate.getTime())) {
+      return 'no_date';
+    }
+    
     const today = startOfDay(new Date());
     
     if (isToday(ptpDate)) return 'today';
@@ -15,7 +21,8 @@ export const categorizePtpDate = (ptpDateStr?: string | null): PtpDateCategory =
     if (isBefore(ptpDate, today)) return 'overdue';
     if (isAfter(ptpDate, today)) return 'future';
     return 'no_date';
-  } catch {
+  } catch (error) {
+    console.error('Error categorizing PTP date:', error);
     return 'no_date';
   }
 };
@@ -44,4 +51,20 @@ export const getPtpDateCategoryColor = (category: PtpDateCategory): string => {
 
 export const getAllPtpDateCategories = (): PtpDateCategory[] => {
   return ['overdue', 'today', 'tomorrow', 'future', 'no_date'];
+};
+
+export const formatPtpDateForDisplay = (ptpDateStr?: string | null): string => {
+  if (!ptpDateStr) return 'Not Set';
+  
+  try {
+    const ptpDate = new Date(ptpDateStr);
+    if (isNaN(ptpDate.getTime())) {
+      return 'Invalid Date';
+    }
+    
+    return format(ptpDate, 'MMM dd, yyyy');
+  } catch (error) {
+    console.error('Error formatting PTP date:', error);
+    return 'Invalid Date';
+  }
 };

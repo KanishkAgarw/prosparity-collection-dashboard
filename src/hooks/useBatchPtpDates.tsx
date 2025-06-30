@@ -12,7 +12,10 @@ export const useBatchPtpDates = () => {
     applicationIds: string[], 
     selectedMonth?: string | null
   ): Promise<Record<string, string | null>> => {
-    if (!user || applicationIds.length === 0) return {};
+    if (!user || applicationIds.length === 0) {
+      console.log('❌ No user or empty application IDs for batch PTP dates');
+      return {};
+    }
     
     setLoading(true);
     
@@ -42,7 +45,7 @@ export const useBatchPtpDates = () => {
       const { data, error } = await query;
 
       if (error) {
-        console.error('Error fetching batch PTP dates:', error);
+        console.error('❌ Error fetching batch PTP dates:', error);
         // Return empty object instead of throwing to prevent cascade failures
         return {};
       }
@@ -62,7 +65,7 @@ export const useBatchPtpDates = () => {
       console.log('✅ Batch PTP dates loaded:', Object.keys(ptpMap).length, 'applications');
       return ptpMap;
     } catch (error) {
-      console.error('Error in fetchBatchPtpDates:', error);
+      console.error('❌ Error in fetchBatchPtpDates:', error);
       return {}; // Return empty object to prevent cascade failures
     } finally {
       setLoading(false);

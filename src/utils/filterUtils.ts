@@ -25,6 +25,7 @@ export const categorizeLastMonthBounce = (lastMonthBounce: number | null | undef
   
   const days = Number(lastMonthBounce);
   
+  if (isNaN(days)) return 'Not paid';
   if (days === 0) return 'Paid on time';
   if (days >= 1 && days <= 5) return '1-5 days late';
   if (days >= 6 && days <= 15) return '6-15 days late';
@@ -53,4 +54,14 @@ export const isValidPtpDateCategory = (value: string): value is PtpDateCategory 
     'no_date'
   ];
   return validCategories.includes(value as PtpDateCategory);
+};
+
+export const getAllLastMonthBounceCategories = (): LastMonthBounceCategory[] => {
+  return [
+    'Not paid',
+    'Paid on time',
+    '1-5 days late', 
+    '6-15 days late',
+    '15+ days late'
+  ];
 };
