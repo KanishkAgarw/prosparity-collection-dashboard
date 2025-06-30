@@ -55,47 +55,31 @@ export const useFieldStatus = () => {
 
       console.log('Updating field status:', { applicationId, newStatus, emiDate });
 
-      // Check if field status exists for this exact date
-      const { data: existingStatus } = await supabase
+      const updateData = {
+        application_id: applicationId,
+        status: newStatus,
+        demand_date: emiDate,
+        user_id: user.id,
+        user_email: user.email,
+        updated_at: new Date().toISOString()
+      };
+
+      // Use upsert with the correct conflict resolution
+      const { data, error } = await supabase
         .from('field_status')
-        .select('*')
-        .eq('application_id', applicationId)
-        .eq('demand_date', emiDate)
-        .maybeSingle();
+        .upsert(updateData, {
+          onConflict: 'application_id,demand_date',
+          ignoreDuplicates: false
+        })
+        .select()
+        .single();
 
-      if (existingStatus) {
-        // Update existing
-        const { data, error } = await supabase
-          .from('field_status')
-          .update({
-            status: newStatus,
-            user_id: user.id,
-            user_email: user.email,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingStatus.id)
-          .select()
-          .single();
-
-        if (error) throw error;
-        return data;
-      } else {
-        // Create new
-        const { data, error } = await supabase
-          .from('field_status')
-          .insert({
-            application_id: applicationId,
-            status: newStatus,
-            demand_date: emiDate,
-            user_id: user.id,
-            user_email: user.email
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-        return data;
+      if (error) {
+        console.error('Error updating field status:', error);
+        throw error;
       }
+
+      return data;
     } catch (error) {
       console.error('Error updating field status:', error);
       throw error;

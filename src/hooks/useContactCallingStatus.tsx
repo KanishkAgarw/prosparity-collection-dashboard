@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -97,17 +98,52 @@ export const useContactCallingStatus = () => {
       // Add demand_date if selectedMonth is provided
       if (selectedMonth) {
         updateData.demand_date = monthToEmiDate(selectedMonth);
-      }
+        
+        // Use upsert with the correct conflict resolution for records with demand_date
+        const { error } = await supabase
+          .from('contact_calling_status')
+          .upsert(updateData, {
+            onConflict: 'application_id,contact_type,demand_date',
+            ignoreDuplicates: false
+          });
 
-      const { error } = await supabase
-        .from('contact_calling_status')
-        .upsert(updateData, {
-          onConflict: 'application_id,contact_type,demand_date'
-        });
+        if (error) {
+          console.error('Error updating contact status with demand_date:', error);
+          throw error;
+        }
+      } else {
+        // For records without demand_date, we need to handle differently
+        // First try to find existing record without demand_date
+        const { data: existingData } = await supabase
+          .from('contact_calling_status')
+          .select('id')
+          .eq('application_id', applicationId)
+          .eq('contact_type', contactType)
+          .is('demand_date', null)
+          .maybeSingle();
 
-      if (error) {
-        console.error('Error updating contact status:', error);
-        throw error;
+        if (existingData) {
+          // Update existing record
+          const { error } = await supabase
+            .from('contact_calling_status')
+            .update(updateData)
+            .eq('id', existingData.id);
+
+          if (error) {
+            console.error('Error updating existing contact status:', error);
+            throw error;
+          }
+        } else {
+          // Insert new record
+          const { error } = await supabase
+            .from('contact_calling_status')
+            .insert(updateData);
+
+          if (error) {
+            console.error('Error inserting new contact status:', error);
+            throw error;
+          }
+        }
       }
 
       console.log('✅ Contact status updated successfully');

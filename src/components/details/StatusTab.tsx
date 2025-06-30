@@ -17,6 +17,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useFieldStatus } from "@/hooks/useFieldStatus";
 import { CALLING_STATUS_OPTIONS } from '@/constants/options';
 import { monthToEmiDate } from '@/utils/dateUtils';
+import { useApplicationHandlers } from "@/hooks/useApplicationHandlers";
 
 interface StatusTabProps {
   application: Application;
@@ -194,44 +195,22 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
     }
   };
 
-  const handleAmountCollectedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (value === '') {
-      setAmountCollected('');
-    } else if (/^\d*\.?\d*$/.test(value)) {
-      setAmountCollected(Number(value));
-    }
-  };
+  const { handleAmountCollectedChange } = useApplicationHandlers(
+    application,
+    { user }, // Assuming user is available from context
+    addAuditLog,
+    () => {}, // addCallingLog not needed here
+    () => {}, // onUpdate will be handled by parent
+    selectedMonth
+  );
 
-  const saveAmountCollected = async () => {
-    if (!user || !application || !selectedMonth) return;
-    setIsUpdatingAmount(true);
-    const prev = application.amount_collected ?? '';
-    const newVal = amountCollected === '' ? null : Number(amountCollected);
+  const handleAmountCollectedUpdate = async (newAmount: number | null) => {
     try {
-      // Update the collection table instead of applications table
-      const { error } = await supabase
-        .from('collection')
-        .upsert({
-          application_id: application.applicant_id,
-          demand_date: monthToEmiDate(selectedMonth),
-          amount_collected: newVal,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'application_id,demand_date'
-        });
-      
-      if (error) throw error;
-      
-      if (prev !== newVal) {
-        await addAuditLog(application.applicant_id, 'Amount Collected', prev?.toString() ?? '', newVal?.toString() ?? '', monthToEmiDate(selectedMonth));
-      }
-      toast.success('Amount Collected updated');
-      window.location.reload();
-    } catch (err) {
-      toast.error('Failed to update Amount Collected');
-    } finally {
-      setIsUpdatingAmount(false);
+      await handleAmountCollectedChange(newAmount);
+      toast.success('Amount collected updated successfully');
+    } catch (error) {
+      console.error('Failed to update amount collected:', error);
+      toast.error('Failed to update amount collected');
     }
   };
 
@@ -412,32 +391,19 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
               </div>
             </div>
             {/* AMOUNT COLLECTED INPUT */}
-            <div>
-              <Label htmlFor="amountCollected">Amount Collected</Label>
-              <div className="flex gap-2 items-center mt-1">
-                <span className="inline-flex items-center px-3 h-10 border border-r-0 border-input bg-muted text-base rounded-l-md text-gray-600 select-none">
-                  ₹
-                </span>
-                <Input
-                  id="amountCollected"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={amountCollected}
-                  onChange={handleAmountCollectedChange}
-                  className="rounded-l-none"
-                  disabled={isUpdatingAmount}
-                  placeholder="Enter amount"
-                  style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}
-                />
-                <Button
-                  size="sm"
-                  onClick={saveAmountCollected}
-                  disabled={isUpdatingAmount || amountCollected === application.amount_collected}
-                >
-                  {isUpdatingAmount ? 'Saving...' : 'Save'}
-                </Button>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="amount-collected">Amount Collected</Label>
+              <Input
+                id="amount-collected"
+                type="number"
+                value={application.amount_collected || ''}
+                onChange={(e) => {
+                  const value = e.target.value === '' ? null : Number(e.target.value);
+                  handleAmountCollectedUpdate(value);
+                }}
+                placeholder="Enter amount collected"
+                className="w-full"
+              />
             </div>
           </div>
         </CardContent>

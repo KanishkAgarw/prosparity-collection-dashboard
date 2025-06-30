@@ -1,305 +1,238 @@
-import { useState } from 'react';
+import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Application } from '@/types/application';
-import { toast } from 'sonner';
-import { useUserProfiles } from '@/hooks/useUserProfiles';
-import { useFieldStatus } from '@/hooks/useFieldStatus';
 import { monthToEmiDate } from '@/utils/dateUtils';
+import { toast } from 'sonner';
 
 export const useApplicationHandlers = (
   application: Application | null,
   user: any,
-  addAuditLog: (appId: string, field: string, previousValue: string | null, newValue: string | null, demandDate: string) => Promise<void>,
-  addCallingLog: (contactType: string, previousStatus: string, newStatus: string) => Promise<void>,
-  onSave: (updatedApp: Application) => void,
+  addAuditLog: any,
+  addCallingLog: any,
+  onUpdate: (updatedApp: Application) => void,
   selectedMonth?: string
 ) => {
-  const { getUserName } = useUserProfiles();
-  const { fetchFieldStatus } = useFieldStatus();
-  const [isUpdating, setIsUpdating] = useState(false);
+  const handleStatusChange = useCallback(async (newStatus: string) => {
+    if (!application || !user || !selectedMonth) return;
 
-  const handleStatusChange = async (newStatus: string) => {
-    if (!application || !user || isUpdating) return;
+    const originalApplication = application;
+    const previousStatus = originalApplication.lms_status;
+    const updatedApplication = { ...application, lms_status: newStatus };
 
-    setIsUpdating(true);
+    // 1. Optimistic UI update - update both local state and parent
+    onUpdate(updatedApplication);
+
     try {
-      // Fetch previous status for the selected month
-      let previousStatus = 'Unpaid';
-      if (application && selectedMonth) {
-        const statusMap = await fetchFieldStatus([application.applicant_id], selectedMonth);
-        previousStatus = statusMap[application.applicant_id] || 'Unpaid';
+      // 2. Safe database update
+      const { error } = await supabase
+        .from('applications')
+        .update({ lms_status: newStatus })
+        .eq('applicant_id', originalApplication.applicant_id);
+
+      if (error) {
+        console.error('Database error updating status:', error);
+        throw error;
       }
 
-      // Only proceed if status is actually changing
-      if (previousStatus === newStatus) {
-        setIsUpdating(false);
-        return;
-      }
+      // Add to audit log on success - status changes are tracked per month
+      await addAuditLog(
+        originalApplication.applicant_id,
+        'Status',
+        previousStatus,
+        newStatus,
+        monthToEmiDate(selectedMonth) // Use proper date format
+      );
 
-      // Check if this is a request for "Paid" status - requires approval
-      if (newStatus === 'Paid') {
-        // Create a status change request
-        const { error: requestError } = await supabase
-          .from('status_change_requests')
-          .insert({
-            application_id: application.applicant_id,
-            requested_status: newStatus,
-            current_status: previousStatus,
-            requested_by_user_id: user.id,
-            requested_by_email: user.email,
-            requested_by_name: getUserName(user.id, user.email),
-            demand_date: selectedMonth
-          });
-
-        if (requestError) {
-          console.error('Error creating status change request:', requestError);
-          toast.error('Failed to create status change request');
-          return;
-        }
-
-        // Update field_status to show pending approval state
-        const { error } = await supabase
-          .from('field_status')
-          .upsert({
-            application_id: application.applicant_id,
-            status: 'Paid (Pending Approval)',
-            requested_status: newStatus,
-            status_approval_needed: true,
-            user_id: user.id,
-            user_email: user.email,
-            updated_at: new Date().toISOString(),
-            demand_date: monthToEmiDate(selectedMonth)
-          }, {
-            onConflict: 'application_id,demand_date'
-          });
-
-        if (error) {
-          console.error('Error updating field status:', error);
-          toast.error('Failed to update status');
-          return;
-        }
-
-        // Add audit log for the request
-        await addAuditLog(application.applicant_id, 'Status', previousStatus, 'Paid (Pending Approval)', monthToEmiDate(selectedMonth));
-
-        // Update local application state
-        const updatedApp = { 
-          ...application, 
-          field_status: 'Paid (Pending Approval)'
-        };
-        onSave(updatedApp);
-
-        toast.success('Status change request submitted for approval');
-      } else {
-        // Handle normal status changes (non-Paid statuses)
-        const { error } = await supabase
-          .from('field_status')
-          .upsert({
-            application_id: application.applicant_id,
-            status: newStatus,
-            requested_status: null,
-            status_approval_needed: false,
-            user_id: user.id,
-            user_email: user.email,
-            updated_at: new Date().toISOString(),
-            demand_date: monthToEmiDate(selectedMonth)
-          }, {
-            onConflict: 'application_id,demand_date'
-          });
-
-        if (error) {
-          console.error('Error updating field status:', error);
-          toast.error('Failed to update status');
-          return;
-        }
-
-        // Add audit log for the status change
-        await addAuditLog(application.applicant_id, 'Status', previousStatus, newStatus, monthToEmiDate(selectedMonth));
-
-        // Update local application state
-        const updatedApp = { ...application, field_status: newStatus };
-        onSave(updatedApp);
-
-        toast.success('Status updated successfully');
-      }
+      toast.success('Status updated successfully');
     } catch (error) {
-      console.error('Error updating status:', error);
-      toast.error('Failed to update status');
-    } finally {
-      setIsUpdating(false);
+      console.error('Failed to update status:', error);
+      toast.error('Failed to update status. Reverting change.');
+      // 3. Revert UI on failure - update both local state and parent
+      onUpdate(originalApplication);
     }
-  };
+  }, [application, user, addAuditLog, onUpdate, selectedMonth]);
 
-  const handlePtpDateChange = async (newDate: string) => {
-    if (!application || !user || isUpdating || !selectedMonth) return;
+  const handlePtpDateChange = useCallback(async (newPtpDate: string | null) => {
+    if (!application || !user || !selectedMonth) return;
 
-    setIsUpdating(true);
-    console.log('=== PTP DATE CHANGE HANDLER - WITH DEMAND DATE ===');
-    console.log('Application ID:', application.applicant_id);
-    console.log('Demand Date:', selectedMonth);
-    console.log('User ID:', user.id);
-    console.log('Previous PTP date:', application.ptp_date);
-    console.log('New PTP date input:', newDate);
-    console.log('Is clearing date:', newDate === '');
+    const originalApplication = application;
+    const previousPtpDate = originalApplication.ptp_date || null;
+    const updatedApplication = { ...application, ptp_date: newPtpDate };
+
+    // 1. Optimistic UI update - update both local state and parent
+    onUpdate(updatedApplication);
 
     try {
-      const previousDate = application.ptp_date;
-      let formattedDate: string | null = null;
+      // Convert YYYY-MM to EMI date format
+      const emiDate = selectedMonth.match(/^\d{4}-\d{2}$/)
+        ? `${selectedMonth}-05`
+        : selectedMonth;
 
-      // Handle clearing vs setting date
-      if (newDate && newDate.trim() !== '') {
-        // Convert YYYY-MM-DD to ISO string for storage
-        formattedDate = new Date(newDate + 'T00:00:00.000Z').toISOString();
-        console.log('Formatted date for storage:', formattedDate);
-      } else {
-        // Clearing the date - explicitly set to null
-        formattedDate = null;
-        console.log('Clearing date - setting to null');
-      }
-
-      // Step 1: Insert PTP date record with demand_date
-      console.log('Step 1: Inserting PTP date record...');
-      const { error: ptpError, data: ptpData } = await supabase
+      // 2. Safe database update
+      const { error } = await supabase
         .from('ptp_dates')
-        .insert({
-          application_id: application.applicant_id,
-          ptp_date: formattedDate,
-          demand_date: monthToEmiDate(selectedMonth),
-          user_id: user.id
-        })
-        .select()
-        .single();
+        .upsert(
+          {
+            application_id: application.applicant_id,
+            ptp_date: newPtpDate,
+            demand_date: emiDate,
+            user_id: user.id,
+            user_email: user.email,
+            updated_at: new Date().toISOString()
+          },
+          {
+            onConflict: 'application_id,demand_date',
+            ignoreDuplicates: false
+          }
+        );
 
-      if (ptpError) {
-        console.error('❌ PTP Insert Error:', ptpError);
-        toast.error(`Failed to update PTP date: ${ptpError.message}`);
-        return;
+      if (error) {
+        console.error('Database error updating PTP date:', error);
+        throw error;
       }
 
-      console.log('✅ PTP date record inserted:', ptpData);
+      // Add to audit log on success - PTP date changes are tracked per month
+      await addAuditLog(
+        originalApplication.applicant_id,
+        'PTP Date',
+        previousPtpDate || 'None',
+        newPtpDate || 'None',
+        emiDate // Use proper date format
+      );
 
-      // Step 2: Format dates for audit log - use consistent DD-MMM-YYYY format
-      const formatDateForAudit = (dateString: string | null): string => {
-        if (!dateString) return 'Not Set';
-        try {
-          const date = new Date(dateString);
-          return date.toLocaleDateString('en-GB', { 
-            day: '2-digit', 
-            month: 'short', 
-            year: 'numeric' 
-          });
-        } catch (error) {
-          console.error('Error formatting date for audit:', error);
-          return 'Invalid Date';
-        }
+      toast.success('PTP Date updated successfully');
+    } catch (error) {
+      console.error('Failed to update PTP Date:', error);
+      toast.error('Failed to update PTP Date. Reverting change.');
+      // 3. Revert UI on failure - update both local state and parent
+      onUpdate(originalApplication);
+    }
+  }, [application, user, addAuditLog, onUpdate, selectedMonth]);
+
+  const handleCallingStatusChange = useCallback(async (contactType: string, newStatus: string, currentStatus?: string) => {
+    if (!application || !user || !selectedMonth) return;
+
+    try {
+      console.log('=== UPDATING CALLING STATUS ===');
+      console.log('Application ID:', application.applicant_id);
+      console.log('Contact Type:', contactType);
+      console.log('New Status:', newStatus);
+      console.log('Selected Month:', selectedMonth);
+
+      // Convert YYYY-MM to EMI date format
+      const emiDate = selectedMonth.match(/^\d{4}-\d{2}$/)
+        ? `${selectedMonth}-05`
+        : selectedMonth;
+
+      // Optimistically update the UI
+      const updatedApp: Application = {
+        ...application,
+        [`${contactType}_calling_status`]: newStatus,
+      } as Application;
+      onUpdate(updatedApp);
+
+      // Add calling log
+      await addCallingLog(contactType, currentStatus || 'Not Called', newStatus);
+
+      // Update contact calling status
+      const updateData = {
+        application_id: application.applicant_id,
+        contact_type: contactType,
+        status: newStatus,
+        user_id: user.id,
+        user_email: user.email,
+        updated_at: new Date().toISOString(),
+        demand_date: emiDate
       };
 
-      const previousDisplayValue = formatDateForAudit(previousDate);
-      const newDisplayValue = newDate === '' ? 'Cleared' : formatDateForAudit(formattedDate);
-
-      console.log('Step 2: Formatted values for audit log:');
-      console.log('Previous:', previousDisplayValue);
-      console.log('New:', newDisplayValue);
-
-      // Step 3: Add audit log with enhanced error handling and retry
-      console.log('Step 3: Adding audit log...');
-      let auditLogSuccess = false;
-      let auditAttempts = 0;
-      const maxAuditAttempts = 3;
-
-      while (!auditLogSuccess && auditAttempts < maxAuditAttempts) {
-        auditAttempts++;
-        try {
-          console.log(`Audit log attempt ${auditAttempts}/${maxAuditAttempts}`);
-          await addAuditLog(application.applicant_id, 'PTP Date', previousDisplayValue, newDisplayValue, monthToEmiDate(selectedMonth));
-          auditLogSuccess = true;
-          console.log('✅ Audit log added successfully');
-        } catch (auditError) {
-          console.error(`❌ Audit log attempt ${auditAttempts} failed:`, auditError);
-          if (auditAttempts < maxAuditAttempts) {
-            // Wait 500ms before retry
-            await new Promise(resolve => setTimeout(resolve, 500));
-          }
-        }
-      }
-
-      if (!auditLogSuccess) {
-        console.error('❌ All audit log attempts failed');
-        // Don't fail the entire operation, but show warning
-        toast.error('PTP date updated but logging failed');
-      }
-
-      // Step 4: Update local application state
-      console.log('Step 4: Updating local application state...');
-      const updatedApp = { ...application, ptp_date: formattedDate };
-      onSave(updatedApp);
-
-      console.log('✅ PTP date change completed successfully');
-    } catch (error) {
-      console.error('❌ Unexpected error in PTP date change:', error);
-      toast.error('Failed to update PTP date. Please try again.');
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const handleCallingStatusChange = async (contactType: string, newStatus: string) => {
-    if (!application || !user || isUpdating) return;
-
-    setIsUpdating(true);
-    try {
-      const previousStatus = application[`${contactType.toLowerCase()}_calling_status` as keyof Application] as string || 'Not Called';
-
-      // Only proceed if status is actually changing
-      if (previousStatus === newStatus) {
-        setIsUpdating(false);
-        return;
-      }
-
-      // Update calling status with demand date
+      // Use upsert with the correct conflict resolution
       const { error } = await supabase
         .from('contact_calling_status')
-        .upsert({
-          application_id: application.applicant_id,
-          contact_type: contactType,
-          status: newStatus,
-          user_id: user.id,
-          user_email: user.email,
-          updated_at: new Date().toISOString(),
-          demand_date: monthToEmiDate(selectedMonth)
-        }, {
-          onConflict: 'application_id,contact_type,demand_date'
+        .upsert(updateData, {
+          onConflict: 'application_id,contact_type,demand_date',
+          ignoreDuplicates: false
         });
 
       if (error) {
-        console.error('Error updating calling status:', error);
-        toast.error('Failed to update calling status');
-        return;
+        console.error('Error updating contact status:', error);
+        throw error;
       }
 
-      // Add calling log
-      await addCallingLog(contactType, previousStatus, newStatus);
-
-      // Update local application state
-      const updatedApp = { 
-        ...application, 
-        [`${contactType.toLowerCase()}_calling_status`]: newStatus
-      };
-      onSave(updatedApp);
-
-      toast.success(`${contactType} calling status updated successfully`);
+      toast.success(`Calling status updated for ${contactType}`);
     } catch (error) {
-      console.error('Error updating calling status:', error);
+      console.error('Failed to update calling status:', error);
       toast.error('Failed to update calling status');
-    } finally {
-      setIsUpdating(false);
     }
-  };
+  }, [application, user, addCallingLog, onUpdate, selectedMonth]);
+
+  const handleAmountCollectedChange = useCallback(async (newAmount: number | null) => {
+    if (!application || !user || !selectedMonth) return;
+
+    const previousAmount = application.amount_collected || 0;
+    
+    try {
+      console.log('=== UPDATING AMOUNT COLLECTED ===');
+      console.log('Application ID:', application.applicant_id);
+      console.log('New Amount:', newAmount);
+      console.log('Selected Month:', selectedMonth);
+
+      // Convert YYYY-MM to EMI date format
+      const emiDate = selectedMonth.match(/^\d{4}-\d{2}$/) 
+        ? `${selectedMonth}-05` 
+        : selectedMonth;
+
+      const updateData = {
+        application_id: application.applicant_id,
+        demand_date: emiDate,
+        amount_collected: newAmount,
+        // Include other fields that might be needed
+        team_lead: application.team_lead,
+        rm_name: application.rm_name,
+        repayment: application.repayment,
+        emi_amount: application.emi_amount,
+        last_month_bounce: application.last_month_bounce,
+        lms_status: application.lms_status,
+        collection_rm: application.collection_rm,
+        updated_at: new Date().toISOString()
+      };
+
+      // Use upsert with the correct conflict resolution
+      const { error } = await supabase
+        .from('collection')
+        .upsert(updateData, {
+          onConflict: 'application_id,demand_date',
+          ignoreDuplicates: false
+        });
+
+      if (error) {
+        console.error('Error updating amount collected:', error);
+        throw error;
+      }
+
+      // Add audit log
+      await addAuditLog(
+        application.applicant_id,
+        'Amount Collected',
+        previousAmount?.toString() || '0',
+        newAmount?.toString() || '0',
+        emiDate
+      );
+
+      // Update local state
+      const updatedApp = { ...application, amount_collected: newAmount };
+      onUpdate(updatedApp);
+
+      console.log('✅ Amount collected updated successfully');
+    } catch (error) {
+      console.error('Error in handleAmountCollectedChange:', error);
+      throw error;
+    }
+  }, [application, user, addAuditLog, onUpdate, selectedMonth]);
 
   return {
     handleStatusChange,
     handlePtpDateChange,
     handleCallingStatusChange,
-    isUpdating
+    handleAmountCollectedChange
   };
 };
