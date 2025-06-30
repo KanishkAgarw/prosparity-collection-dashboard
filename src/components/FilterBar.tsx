@@ -32,7 +32,7 @@ const FilterBar = ({
     if (Array.isArray(filterArray)) {
       return total + filterArray.length;
     }
-    return total;
+    return total as number;
   }, 0);
 
   const clearAllFilters = () => {
