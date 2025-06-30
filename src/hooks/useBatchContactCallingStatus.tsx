@@ -8,6 +8,8 @@ export interface BatchContactStatus {
   coApplicant?: { status: string; updatedAt?: string };
   guarantor?: { status: string; updatedAt?: string };
   reference?: { status: string; updatedAt?: string };
+  calling_status?: string;
+  contact_type?: string;
 }
 
 export const useBatchContactCallingStatus = () => {
@@ -68,6 +70,12 @@ export const useBatchContactCallingStatus = () => {
             status: record.status,
             updatedAt: record.updated_at
           };
+        }
+
+        // Set the primary calling status (use the latest one)
+        if (!contactMap[record.application_id].calling_status) {
+          contactMap[record.application_id].calling_status = record.status;
+          contactMap[record.application_id].contact_type = record.contact_type;
         }
       });
 

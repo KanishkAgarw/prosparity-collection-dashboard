@@ -3,7 +3,7 @@ import { formatEmiMonth } from "@/utils/formatters";
 import { categorizePtpDate, type PtpDateCategory, getPtpDateCategoryLabel } from "@/utils/ptpDateUtils";
 import { formatRepayment, categorizeLastMonthBounce, isValidLastMonthBounceCategory, isValidPtpDateCategory } from "@/utils/filterUtils";
 import type { FilterState, LastMonthBounceCategory, AvailableOptions } from "@/types/filters";
-import { VEHICLE_STATUS_OPTIONS } from "@/constants/options";
+import { VEHICLE_STATUS_OPTIONS, CALLING_STATUS_OPTIONS } from "@/constants/options";
 
 // Get available filter options based on all applications and current filtered results
 export const getAvailableOptions = (allApplications: any[], filteredApplications: any[], selectedEmiMonth?: string | null): AvailableOptions => {
@@ -64,6 +64,7 @@ export const getAvailableOptions = (allApplications: any[], filteredApplications
   ];
 
   const vehicleStatusOptions = VEHICLE_STATUS_OPTIONS.map(opt => opt.value);
+  const callingStatusOptions = CALLING_STATUS_OPTIONS.map(opt => opt.value);
 
   return {
     branches,
@@ -77,7 +78,8 @@ export const getAvailableOptions = (allApplications: any[], filteredApplications
     lastMonthBounce,
     ptpDateOptions,
     collectionRms,
-    vehicleStatusOptions
+    vehicleStatusOptions,
+    callingStatusOptions
   };
 };
 
