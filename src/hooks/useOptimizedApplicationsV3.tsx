@@ -62,80 +62,7 @@ export const useOptimizedApplicationsV3 = ({
     console.log('Date range:', start, 'to', end);
 
     try {
-      // Step 1: Build the base query for applications with joins
-      let baseQuery = supabase
-        .from('collection')
-        .select(`
-          *,
-          applications!inner(*)
-        `)
-        .gte('demand_date', start)
-        .lte('demand_date', end);
-
-      // Apply collection table filters
-      if (filters.teamLead?.length > 0) {
-        console.log('Applying team lead filter:', filters.teamLead);
-        baseQuery = baseQuery.in('team_lead', filters.teamLead);
-      }
-      if (filters.rm?.length > 0) {
-        console.log('Applying RM filter:', filters.rm);
-        baseQuery = baseQuery.in('rm_name', filters.rm);
-      }
-      if (filters.collectionRm?.length > 0) {
-        console.log('Applying collection RM filter:', filters.collectionRm);
-        const normalizedCollectionRms = filters.collectionRm.map(rm => 
-          rm === 'N/A' || rm === 'NA' ? 'N/A' : rm
-        );
-        baseQuery = baseQuery.or(`collection_rm.in.(${normalizedCollectionRms.join(',')}),collection_rm.is.null`);
-      }
-      if (filters.repayment?.length > 0) {
-        console.log('Applying repayment filter:', filters.repayment);
-        baseQuery = baseQuery.in('repayment', filters.repayment);
-      }
-
-      // Apply applications table filters
-      if (filters.branch?.length > 0) {
-        console.log('Applying branch filter:', filters.branch);
-        baseQuery = baseQuery.in('applications.branch_name', filters.branch);
-      }
-      if (filters.dealer?.length > 0) {
-        console.log('Applying dealer filter:', filters.dealer);
-        baseQuery = baseQuery.in('applications.dealer_name', filters.dealer);
-      }
-      if (filters.lender?.length > 0) {
-        console.log('Applying lender filter:', filters.lender);
-        baseQuery = baseQuery.in('applications.lender_name', filters.lender);
-      }
-
-      // Step 2: Apply search if provided using PostgreSQL text search
-      if (searchTerm.trim()) {
-        const searchPattern = `%${searchTerm.trim()}%`;
-        console.log('=== SEARCH IMPLEMENTATION ===');
-        console.log('Search pattern:', searchPattern);
-        console.log('Search term length:', searchTerm.trim().length);
-        
-        // Create search conditions for all searchable fields
-        const searchConditions = [
-          `applications.applicant_name.ilike.%${searchTerm.trim()}%`,
-          `applications.applicant_id.ilike.%${searchTerm.trim()}%`,
-          `applications.applicant_mobile.ilike.%${searchTerm.trim()}%`,
-          `applications.dealer_name.ilike.%${searchTerm.trim()}%`,
-          `applications.lender_name.ilike.%${searchTerm.trim()}%`,
-          `applications.branch_name.ilike.%${searchTerm.trim()}%`,
-          `rm_name.ilike.%${searchTerm.trim()}%`,
-          `team_lead.ilike.%${searchTerm.trim()}%`,
-          `collection_rm.ilike.%${searchTerm.trim()}%`
-        ];
-        
-        console.log('Search conditions created:', searchConditions.length);
-        console.log('Search conditions:', searchConditions);
-        
-        // Apply OR condition for search
-        baseQuery = baseQuery.or(searchConditions.join(','));
-        console.log('Search filter applied to query');
-      }
-
-      // Step 3: Get total count first using a separate simplified query
+      // Step 1: Get total count using a simpler approach
       console.log('=== GETTING TOTAL COUNT ===');
       
       let countQuery = supabase
@@ -144,7 +71,7 @@ export const useOptimizedApplicationsV3 = ({
         .gte('demand_date', start)
         .lte('demand_date', end);
 
-      // Apply the same filters to count query
+      // Apply collection table filters to count
       if (filters.teamLead?.length > 0) {
         countQuery = countQuery.in('team_lead', filters.teamLead);
       }
@@ -153,74 +80,21 @@ export const useOptimizedApplicationsV3 = ({
       }
       if (filters.collectionRm?.length > 0) {
         const normalizedCollectionRms = filters.collectionRm.map(rm => 
-          rm === 'N/A' || rm === 'NA' ? 'N/A' : rm
+          rm === 'N/A' || rm === 'NA' ? null : rm
         );
-        countQuery = countQuery.or(`collection_rm.in.(${normalizedCollectionRms.join(',')}),collection_rm.is.null`);
+        if (normalizedCollectionRms.includes(null)) {
+          const nonNullRms = normalizedCollectionRms.filter(rm => rm !== null);
+          if (nonNullRms.length > 0) {
+            countQuery = countQuery.or(`collection_rm.in.(${nonNullRms.join(',')}),collection_rm.is.null`);
+          } else {
+            countQuery = countQuery.is('collection_rm', null);
+          }
+        } else {
+          countQuery = countQuery.in('collection_rm', normalizedCollectionRms);
+        }
       }
       if (filters.repayment?.length > 0) {
         countQuery = countQuery.in('repayment', filters.repayment);
-      }
-
-      // For filters that need applications join, we need to include the join in count
-      const needsApplicationsJoin = (
-        (filters.branch?.length > 0) || 
-        (filters.dealer?.length > 0) || 
-        (filters.lender?.length > 0) || 
-        searchTerm.trim()
-      );
-
-      if (needsApplicationsJoin) {
-        // Reset count query with join
-        countQuery = supabase
-          .from('collection')
-          .select('application_id, applications!inner(*)', { count: 'exact', head: true })
-          .gte('demand_date', start)
-          .lte('demand_date', end);
-        
-        // Reapply collection filters
-        if (filters.teamLead?.length > 0) {
-          countQuery = countQuery.in('team_lead', filters.teamLead);
-        }
-        if (filters.rm?.length > 0) {
-          countQuery = countQuery.in('rm_name', filters.rm);
-        }
-        if (filters.collectionRm?.length > 0) {
-          const normalizedCollectionRms = filters.collectionRm.map(rm => 
-            rm === 'N/A' || rm === 'NA' ? 'N/A' : rm
-          );
-          countQuery = countQuery.or(`collection_rm.in.(${normalizedCollectionRms.join(',')}),collection_rm.is.null`);
-        }
-        if (filters.repayment?.length > 0) {
-          countQuery = countQuery.in('repayment', filters.repayment);
-        }
-        
-        // Apply application filters to count
-        if (filters.branch?.length > 0) {
-          countQuery = countQuery.in('applications.branch_name', filters.branch);
-        }
-        if (filters.dealer?.length > 0) {
-          countQuery = countQuery.in('applications.dealer_name', filters.dealer);
-        }
-        if (filters.lender?.length > 0) {
-          countQuery = countQuery.in('applications.lender_name', filters.lender);
-        }
-
-        // Apply search to count query
-        if (searchTerm.trim()) {
-          console.log('Applying search to count query');
-          const searchConditions = [
-            `applications.applicant_name.ilike.%${searchTerm.trim()}%`,
-            `applications.applicant_id.ilike.%${searchTerm.trim()}%`,
-            `applications.applicant_mobile.ilike.%${searchTerm.trim()}%`,
-            `applications.dealer_name.ilike.%${searchTerm.trim()}%`,
-            `applications.lender_name.ilike.%${searchTerm.trim()}%`,
-            `applications.branch_name.ilike.%${searchTerm.trim()}%`,
-            `rm_name.ilike.%${searchTerm.trim()}%`,
-            `team_lead.ilike.%${searchTerm.trim()}%`,
-            `collection_rm.ilike.%${searchTerm.trim()}%`
-          ];
-          countQuery = countQuery.or(searchConditions.join(','));
-        }
       }
 
       console.log('Executing count query...');
@@ -231,37 +105,76 @@ export const useOptimizedApplicationsV3 = ({
         throw countError;
       }
 
-      console.log('Total filtered count:', totalCountResult);
+      console.log('Total base count (before search and application filters):', totalCountResult);
 
-      // Step 4: Get paginated and sorted results
-      console.log('=== FETCHING PAGINATED DATA ===');
-      console.log('Executing main data query...');
+      // Step 2: Get the actual data with joins
+      console.log('=== FETCHING MAIN DATA ===');
       
-      const { data: allData, error: dataError } = await baseQuery;
+      let dataQuery = supabase
+        .from('collection')
+        .select(`
+          *,
+          applications!inner(*)
+        `)
+        .gte('demand_date', start)
+        .lte('demand_date', end);
+
+      // Apply collection table filters to data query
+      if (filters.teamLead?.length > 0) {
+        console.log('Applying team lead filter:', filters.teamLead);
+        dataQuery = dataQuery.in('team_lead', filters.teamLead);
+      }
+      if (filters.rm?.length > 0) {
+        console.log('Applying RM filter:', filters.rm);
+        dataQuery = dataQuery.in('rm_name', filters.rm);
+      }
+      if (filters.collectionRm?.length > 0) {
+        console.log('Applying collection RM filter:', filters.collectionRm);
+        const normalizedCollectionRms = filters.collectionRm.map(rm => 
+          rm === 'N/A' || rm === 'NA' ? null : rm
+        );
+        if (normalizedCollectionRms.includes(null)) {
+          const nonNullRms = normalizedCollectionRms.filter(rm => rm !== null);
+          if (nonNullRms.length > 0) {
+            dataQuery = dataQuery.or(`collection_rm.in.(${nonNullRms.join(',')}),collection_rm.is.null`);
+          } else {
+            dataQuery = dataQuery.is('collection_rm', null);
+          }
+        } else {
+          dataQuery = dataQuery.in('collection_rm', normalizedCollectionRms);
+        }
+      }
+      if (filters.repayment?.length > 0) {
+        console.log('Applying repayment filter:', filters.repayment);
+        dataQuery = dataQuery.in('repayment', filters.repayment);
+      }
+
+      // Apply applications table filters
+      if (filters.branch?.length > 0) {
+        console.log('Applying branch filter:', filters.branch);
+        dataQuery = dataQuery.in('applications.branch_name', filters.branch);
+      }
+      if (filters.dealer?.length > 0) {
+        console.log('Applying dealer filter:', filters.dealer);
+        dataQuery = dataQuery.in('applications.dealer_name', filters.dealer);
+      }
+      if (filters.lender?.length > 0) {
+        console.log('Applying lender filter:', filters.lender);
+        dataQuery = dataQuery.in('applications.lender_name', filters.lender);
+      }
+
+      console.log('Executing main data query...');
+      const { data: allData, error: dataError } = await dataQuery;
 
       if (dataError) {
         console.error('Data query error:', dataError);
         throw dataError;
       }
 
-      console.log(`Fetched ${allData?.length || 0} total filtered records`);
+      console.log(`Fetched ${allData?.length || 0} total records (before search)`);
 
-      if (searchTerm.trim()) {
-        console.log('=== SEARCH RESULTS ===');
-        console.log('Raw search results count:', allData?.length || 0);
-        
-        // Log some sample results for debugging
-        if (allData && allData.length > 0) {
-          console.log('Sample search results:');
-          allData.slice(0, 3).forEach((record, index) => {
-            const app = record.applications;
-            console.log(`${index + 1}. ${app?.applicant_name} (ID: ${app?.applicant_id})`);
-          });
-        }
-      }
-
-      // Transform the joined data into Application format
-      const transformedApplications: Application[] = (allData || []).map(record => {
+      // Step 3: Apply search filtering client-side and transform data
+      let transformedApplications: Application[] = (allData || []).map(record => {
         const app = record.applications;
         return {
           // Collection data (primary)
@@ -307,19 +220,66 @@ export const useOptimizedApplicationsV3 = ({
         } as Application;
       });
 
-      // Sort by applicant first name (case-insensitive) then by demand_date
+      console.log(`Transformed ${transformedApplications.length} applications`);
+
+      // Step 4: Apply search filtering if provided
+      if (searchTerm.trim()) {
+        console.log('=== APPLYING SEARCH FILTER ===');
+        console.log('Search term:', searchTerm.trim());
+        console.log('Search term length:', searchTerm.trim().length);
+        
+        const searchLower = searchTerm.trim().toLowerCase();
+        console.log('Search term (lowercase):', searchLower);
+
+        const searchResults = transformedApplications.filter(app => {
+          const matches = [
+            app.applicant_name?.toLowerCase().includes(searchLower),
+            app.applicant_id?.toLowerCase().includes(searchLower),
+            app.applicant_mobile?.toLowerCase().includes(searchLower),
+            app.dealer_name?.toLowerCase().includes(searchLower),
+            app.lender_name?.toLowerCase().includes(searchLower),
+            app.branch_name?.toLowerCase().includes(searchLower),
+            app.rm_name?.toLowerCase().includes(searchLower),
+            app.team_lead?.toLowerCase().includes(searchLower),
+            app.collection_rm?.toLowerCase().includes(searchLower)
+          ].some(match => match === true);
+
+          if (matches) {
+            console.log(`✓ MATCH FOUND: ${app.applicant_name} (ID: ${app.applicant_id})`);
+          }
+
+          return matches;
+        });
+
+        console.log(`Search results: ${searchResults.length} applications found`);
+        
+        if (searchResults.length > 0) {
+          console.log('First 3 search results:');
+          searchResults.slice(0, 3).forEach((app, index) => {
+            console.log(`${index + 1}. ${app.applicant_name} (ID: ${app.applicant_id})`);
+          });
+        } else {
+          console.log('❌ NO SEARCH RESULTS FOUND');
+          console.log('Sample application names to compare:');
+          transformedApplications.slice(0, 5).forEach((app, index) => {
+            console.log(`${index + 1}. "${app.applicant_name}" vs search "${searchLower}"`);
+          });
+        }
+
+        transformedApplications = searchResults;
+      }
+
+      // Step 5: Sort by applicant first name (case-insensitive) then by demand_date
       console.log('=== SORTING RESULTS ===');
       const sortedApplications = transformedApplications.sort((a, b) => {
         // Extract first name from full name
-        const getFirstName = (fullName: string) => {
+        const getFirstName = (fullName: string = '') => {
           const firstName = fullName.split(' ')[0];
           return firstName ? firstName.toLowerCase() : '';
         };
         
         const firstNameA = getFirstName(a.applicant_name);
         const firstNameB = getFirstName(b.applicant_name);
-        
-        console.log(`Comparing: "${firstNameA}" vs "${firstNameB}"`);
         
         const nameComparison = firstNameA.localeCompare(firstNameB);
         if (nameComparison !== 0) return nameComparison;
@@ -328,7 +288,7 @@ export const useOptimizedApplicationsV3 = ({
         return new Date(b.demand_date || '').getTime() - new Date(a.demand_date || '').getTime();
       });
 
-      console.log('Sorted applications count:', sortedApplications.length);
+      console.log(`Sorted applications count: ${sortedApplications.length}`);
       if (sortedApplications.length > 0) {
         console.log('First 3 sorted names:');
         sortedApplications.slice(0, 3).forEach((app, index) => {
@@ -336,7 +296,7 @@ export const useOptimizedApplicationsV3 = ({
         });
       }
 
-      // Apply pagination after sorting
+      // Step 6: Apply pagination after sorting
       const offset = (page - 1) * pageSize;
       const paginatedApplications = sortedApplications.slice(offset, offset + pageSize);
 
@@ -344,10 +304,13 @@ export const useOptimizedApplicationsV3 = ({
       console.log(`Page: ${page}, PageSize: ${pageSize}, Offset: ${offset}`);
       console.log(`Paginated results: ${paginatedApplications.length}`);
 
+      // Use the filtered count for total count when search is applied
+      const finalTotalCount = searchTerm.trim() ? sortedApplications.length : (totalCountResult || 0);
+
       const result = {
         applications: paginatedApplications,
-        totalCount: totalCountResult || 0,
-        totalPages: Math.ceil((totalCountResult || 0) / pageSize),
+        totalCount: finalTotalCount,
+        totalPages: Math.ceil(finalTotalCount / pageSize),
         loading: false,
         refetch: async () => {}
       };
@@ -356,7 +319,7 @@ export const useOptimizedApplicationsV3 = ({
       setCachedData(cacheKey, result, 2 * 60 * 1000);
       
       console.log('=== OPTIMIZED V3 FETCH COMPLETE ===');
-      console.log(`Total: ${totalCountResult}, Page: ${page}, Results: ${paginatedApplications.length}`);
+      console.log(`Total: ${finalTotalCount}, Page: ${page}, Results: ${paginatedApplications.length}`);
       
       return result;
     } catch (error) {
