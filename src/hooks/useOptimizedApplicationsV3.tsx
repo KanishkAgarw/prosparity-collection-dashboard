@@ -118,7 +118,7 @@ export const useOptimizedApplicationsV3 = ({
       // Step 2: Get total count with all filters applied
       console.log('Getting total count with all filters applied...');
       const { count: totalCountResult, error: countError } = await baseQuery
-        .select('application_id', { count: 'exact', head: true });
+        .select('*', { count: 'exact', head: true });
 
       if (countError) {
         console.error('Count query error:', countError);
