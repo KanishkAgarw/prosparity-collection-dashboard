@@ -49,26 +49,16 @@ export const useComments = (selectedMonth?: string) => {
         .select('*')
         .eq('application_id', applicationId);
 
-      // Add month filtering if selectedMonth is provided - filter by demand_date, not created_at
+      // Add month filtering if selectedMonth is provided - use proper date range
       if (selectedMonth) {
-        // Handle both YYYY-MM-DD and YYYY-MM formats
-        let monthFilter = selectedMonth;
-        if (selectedMonth.length === 10) {
-          // If it's YYYY-MM-DD format, extract YYYY-MM
-          monthFilter = selectedMonth.substring(0, 7);
-        }
-        
-        // Create date range for the month
-        const monthStart = `${monthFilter}-01`;
-        const nextMonth = new Date(monthFilter + '-01');
+        const monthStart = `${selectedMonth}-01`;
+        const nextMonth = new Date(selectedMonth + '-01');
         nextMonth.setMonth(nextMonth.getMonth() + 1);
         const monthEnd = nextMonth.toISOString().substring(0, 10);
         
-        console.log('Filtering comments by demand_date:', monthStart, 'to', monthEnd);
-        
         query = query
-          .gte('demand_date', monthStart)
-          .lt('demand_date', monthEnd);
+          .gte('created_at', monthStart)
+          .lt('created_at', monthEnd);
       }
 
       // Limit to most recent 10 comments for performance
@@ -152,7 +142,7 @@ export const useComments = (selectedMonth?: string) => {
         user_email: user.email
       };
 
-      // Add demand_date if provided - store as full date for proper filtering
+      // Add demand_date if provided - but store as full date for proper filtering
       if (demandDate) {
         // If demandDate is just YYYY-MM, convert to first day of month
         const fullDate = demandDate.length === 7 ? `${demandDate}-01` : demandDate;

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -35,26 +34,16 @@ export const useBatchComments = (selectedMonth?: string | null) => {
         .select('*')
         .in('application_id', applicationIds);
 
-      // Add month filtering if selectedMonth is provided - filter by demand_date
+      // Add month filtering if selectedMonth is provided
       if (selectedMonth) {
-        // Handle both YYYY-MM-DD and YYYY-MM formats
-        let monthFilter = selectedMonth;
-        if (selectedMonth.length === 10) {
-          // If it's YYYY-MM-DD format, extract YYYY-MM
-          monthFilter = selectedMonth.substring(0, 7);
-        }
-        
-        // Create date range for the month
-        const monthStart = `${monthFilter}-01`;
-        const nextMonth = new Date(monthFilter + '-01');
+        const monthStart = `${selectedMonth}-01`;
+        const nextMonth = new Date(selectedMonth + '-01');
         nextMonth.setMonth(nextMonth.getMonth() + 1);
         const monthEnd = nextMonth.toISOString().substring(0, 10);
         
-        console.log('Filtering batch comments by demand_date:', monthStart, 'to', monthEnd);
-        
         query = query
-          .gte('demand_date', monthStart)
-          .lt('demand_date', monthEnd);
+          .gte('created_at', monthStart)
+          .lt('created_at', monthEnd);
       }
 
       // Order by most recent and limit per application
@@ -70,7 +59,7 @@ export const useBatchComments = (selectedMonth?: string | null) => {
       }
 
       if (!commentsData || commentsData.length === 0) {
-        console.log('No comments found for applications in selected month');
+        console.log('No comments found for applications');
         setComments({});
         return {};
       }

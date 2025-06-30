@@ -1,71 +1,69 @@
-
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { getMonthDateRange } from '@/utils/dateUtils';
+import { useAuth } from '@/hooks/useAuth';
 
 export const useBatchFieldStatus = () => {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
 
   const fetchBatchFieldStatus = useCallback(async (
     applicationIds: string[], 
-    selectedEmiMonth?: string | null
+    selectedMonth?: string | null
   ): Promise<Record<string, string>> => {
-    if (applicationIds.length === 0) return {};
-
+    if (!user || applicationIds.length === 0) return {};
+    
     setLoading(true);
+    
     try {
-      console.log('=== FETCHING BATCH FIELD STATUS ===');
+      console.log('=== BATCH FIELD STATUS FETCH ===');
       console.log('Application IDs:', applicationIds.length);
-      console.log('Selected EMI Month:', selectedEmiMonth);
+      console.log('Selected Month:', selectedMonth);
 
       let query = supabase
         .from('field_status')
-        .select('application_id, status, created_at, demand_date')
-        .in('application_id', applicationIds)
-        .order('created_at', { ascending: false });
+        .select('application_id, status, created_at')
+        .in('application_id', applicationIds);
 
-      // If EMI month is selected, filter by demand_date to get month-specific status
-      if (selectedEmiMonth) {
-        const { start, end } = getMonthDateRange(selectedEmiMonth);
-        console.log('Filtering field status by demand_date:', start, 'to', end);
-        
-        query = query
-          .gte('demand_date', start)
-          .lte('demand_date', end);
+      // Add month filter if provided
+      if (selectedMonth) {
+        query = query.eq('demand_date', selectedMonth);
       }
+
+      // Order by created_at to get latest status per application
+      query = query.order('created_at', { ascending: false });
 
       const { data, error } = await query;
 
       if (error) {
         console.error('Error fetching batch field status:', error);
+        // Return empty object instead of throwing to prevent cascade failures
         return {};
       }
 
-      console.log(`Found ${data?.length || 0} field status records`);
-
-      // Group by application_id and get the latest status for each
+      // Group by application_id and get the latest status
       const statusMap: Record<string, string> = {};
       
-      data?.forEach(record => {
-        if (!statusMap[record.application_id]) {
-          statusMap[record.application_id] = record.status;
-          console.log(`Status for ${record.application_id}: ${record.status}`);
-        }
-      });
+      if (data) {
+        data.forEach(status => {
+          // Only set if we don't already have a status for this application (keeps latest due to ordering)
+          if (!statusMap[status.application_id]) {
+            statusMap[status.application_id] = status.status;
+          }
+        });
+      }
 
-      console.log('Final status map:', Object.keys(statusMap).length, 'applications');
+      console.log('✅ Batch field status loaded:', Object.keys(statusMap).length, 'applications');
       return statusMap;
-
     } catch (error) {
       console.error('Error in fetchBatchFieldStatus:', error);
-      return {};
+      return {}; // Return empty object to prevent cascade failures
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   return {
-    loading,
-    fetchBatchFieldStatus
+    fetchBatchFieldStatus,
+    loading
   };
 };

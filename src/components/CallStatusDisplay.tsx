@@ -16,13 +16,13 @@ const CallStatusDisplay = ({ application, selectedMonth, batchedContactStatus }:
     
     switch (contactType) {
       case 'applicant':
-        return batchedContactStatus.applicant?.status || 'Not Called';
+        return batchedContactStatus.applicant || 'Not Called';
       case 'co_applicant':
-        return batchedContactStatus.coApplicant?.status || 'Not Called';
+        return batchedContactStatus.co_applicant || 'Not Called';
       case 'guarantor':
-        return batchedContactStatus.guarantor?.status || 'Not Called';
+        return batchedContactStatus.guarantor || 'Not Called';
       case 'reference':
-        return batchedContactStatus.reference?.status || 'Not Called';
+        return batchedContactStatus.reference || 'Not Called';
       default:
         return 'Not Called';
     }

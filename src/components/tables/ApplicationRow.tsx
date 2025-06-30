@@ -2,7 +2,7 @@
 import { memo } from "react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Application } from "@/types/application";
-import { formatCurrency, formatPtpDate } from "@/utils/formatters";
+import { formatEmiMonth, formatCurrency, formatPtpDate } from "@/utils/formatters";
 import StatusBadge from "./StatusBadge";
 import ApplicationDetails from "./ApplicationDetails";
 import CallStatusDisplay from "../CallStatusDisplay";
@@ -15,7 +15,7 @@ interface ApplicationRowProps {
   selectedApplicationId?: string;
   onRowClick: (application: Application) => void;
   selectedEmiMonth?: string | null;
-  // Batched data props - these should be month-specific
+  // Batched data props
   batchedStatus?: string;
   batchedPtpDate?: string | null;
   batchedContactStatus?: BatchContactStatus;
@@ -38,17 +38,6 @@ const ApplicationRow = memo(({
     onRowClick(application);
   };
 
-  // For month-specific display, we need to show the data for the selected EMI month
-  // This ensures that when a user filters by Jun-2025, they see June data, not July data
-  console.log('ApplicationRow - EMI Month Context:', {
-    selectedEmiMonth,
-    applicationId: application.applicant_id,
-    applicationDemandDate: application.demand_date,
-    batchedStatus,
-    batchedPtpDate,
-    batchedComments: batchedComments.length
-  });
-
   return (
     <TableRow 
       className={`cursor-pointer transition-colors ${
@@ -59,10 +48,11 @@ const ApplicationRow = memo(({
       onClick={handleRowClick}
     >
       <TableCell className="py-3">
-        <ApplicationDetails 
-          application={application} 
-          selectedEmiMonth={selectedEmiMonth}
-        />
+        <ApplicationDetails application={application} />
+      </TableCell>
+      
+      <TableCell className="font-medium text-blue-600">
+        {formatCurrency(application.emi_amount)}
       </TableCell>
       
       <TableCell>
@@ -93,14 +83,6 @@ const ApplicationRow = memo(({
             selectedMonth={selectedEmiMonth}
             batchedContactStatus={batchedContactStatus}
           />
-        )}
-      </TableCell>
-
-      <TableCell className="font-medium text-green-600">
-        {isLoading ? (
-          <div className="h-4 w-20 bg-gray-200 animate-pulse rounded"></div>
-        ) : (
-          application.amount_collected ? formatCurrency(application.amount_collected) : '₹0'
         )}
       </TableCell>
       
