@@ -81,7 +81,7 @@ export const useApplicationHandlers = (
             updated_at: new Date().toISOString()
           },
           {
-            onConflict: 'application_id,demand_date',
+            onConflict: 'ptp_dates_application_demand_unique',
             ignoreDuplicates: false
           }
         );
