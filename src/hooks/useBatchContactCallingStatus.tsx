@@ -3,11 +3,16 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { getMonthDateRange } from '@/utils/dateUtils';
 
+export interface ContactStatusInfo {
+  status: string;
+  updatedAt?: string;
+}
+
 export interface BatchContactStatus {
-  applicant?: { status: string; updatedAt?: string };
-  coApplicant?: { status: string; updatedAt?: string };
-  guarantor?: { status: string; updatedAt?: string };
-  reference?: { status: string; updatedAt?: string };
+  applicant?: ContactStatusInfo;
+  coApplicant?: ContactStatusInfo;
+  guarantor?: ContactStatusInfo;
+  reference?: ContactStatusInfo;
   calling_status?: string;
   contact_type?: string;
 }
@@ -69,7 +74,7 @@ export const useBatchContactCallingStatus = () => {
           contactMap[record.application_id][key as keyof BatchContactStatus] = {
             status: record.status,
             updatedAt: record.updated_at
-          };
+          } as ContactStatusInfo;
         }
 
         // Set the primary calling status (use the latest one)
