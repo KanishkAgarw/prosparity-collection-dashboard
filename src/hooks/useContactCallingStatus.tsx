@@ -1,147 +1,125 @@
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { monthToEmiDate } from '@/utils/dateUtils';
 
-export interface ContactCallingStatus {
-  id: string;
-  application_id: string;
-  contact_type: string;
-  status: string;
-  user_id: string;
-  user_email: string | null;
-  created_at: string;
-  updated_at: string;
-  demand_date: string;
+export interface ContactStatusData {
+  applicant?: string;
+  co_applicant?: string;
+  guarantor?: string;
+  reference?: string;
 }
 
-export const useContactCallingStatus = (applicationId?: string, selectedMonth?: string) => {
+export const useContactCallingStatus = () => {
   const { user } = useAuth();
-  const [callingStatuses, setCallingStatuses] = useState<ContactCallingStatus[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchCallingStatuses = async () => {
-    if (!applicationId || !user || !selectedMonth) return;
+  const fetchContactStatus = useCallback(async (applicationId: string, selectedMonth?: string): Promise<ContactStatusData> => {
+    if (!user || !applicationId) return {};
+    
     setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('contact_calling_status')
-        .select('*')
-        .eq('application_id', applicationId)
-        .eq('demand_date', selectedMonth)
-        .order('updated_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching calling statuses:', error);
-      } else {
-        setCallingStatuses(data || []);
-      }
-    } catch (error) {
-      console.error('Error fetching calling statuses:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchContactStatuses = useCallback(async (applicationIds: string[]): Promise<Record<string, Record<string, string>>> => {
-    if (!user || applicationIds.length === 0) return {};
     
     try {
-      const { data, error } = await supabase
+      console.log('=== CONTACT STATUS FETCH ===');
+      console.log('Application ID:', applicationId);
+      console.log('Selected Month:', selectedMonth);
+
+      let query = supabase
         .from('contact_calling_status')
-        .select('application_id, contact_type, status, created_at')
-        .in('application_id', applicationIds)
-        .order('created_at', { ascending: false });
+        .select('contact_type, status, created_at')
+        .eq('application_id', applicationId);
+
+      // Add month filter if provided - filter by demand_date
+      if (selectedMonth) {
+        const emiDate = monthToEmiDate(selectedMonth);
+        console.log('Filtering by demand_date:', emiDate);
+        
+        query = query.eq('demand_date', emiDate);
+      }
+
+      // Order by created_at to get latest status per contact type
+      query = query.order('created_at', { ascending: false });
+
+      const { data, error } = await query;
 
       if (error) {
-        console.error('Error fetching contact statuses:', error);
+        console.error('Error fetching contact status:', error);
         return {};
       }
 
-      // Group by application_id and get latest status for each contact type
-      const statusMap: Record<string, Record<string, string>> = {};
-      data?.forEach(status => {
-        if (!statusMap[status.application_id]) {
-          statusMap[status.application_id] = {};
-        }
-        
-        // Only set if we don't already have a status for this contact type (keeps latest due to ordering)
-        if (!statusMap[status.application_id][status.contact_type]) {
-          statusMap[status.application_id][status.contact_type] = status.status;
-        }
-      });
+      // Group by contact_type and get the latest status
+      const statusData: ContactStatusData = {};
+      
+      if (data) {
+        data.forEach(status => {
+          const contactType = status.contact_type.toLowerCase() as keyof ContactStatusData;
+          // Only set if we don't already have a status for this contact type (keeps latest due to ordering)
+          if (!statusData[contactType]) {
+            statusData[contactType] = status.status;
+          }
+        });
+      }
 
-      // Add latest calling status for each application
-      Object.keys(statusMap).forEach(appId => {
-        const statuses = Object.values(statusMap[appId]);
-        if (statuses.length > 0) {
-          // Find the most recent non-"Not Called" status, or "Not Called" if all are
-          const activeStatuses = statuses.filter(s => s !== 'Not Called');
-          statusMap[appId].latest = activeStatuses.length > 0 ? activeStatuses[0] : 'No Calls';
-        } else {
-          statusMap[appId].latest = 'No Calls';
-        }
-      });
-
-      return statusMap;
+      console.log('✅ Contact status loaded:', statusData);
+      return statusData;
     } catch (error) {
-      console.error('Error fetching contact statuses:', error);
+      console.error('Error in fetchContactStatus:', error);
       return {};
+    } finally {
+      setLoading(false);
     }
   }, [user]);
 
-  const updateCallingStatus = async (contactType: string, newStatus: string) => {
-    if (!applicationId || !user || !selectedMonth) return;
+  const updateContactStatus = useCallback(async (
+    applicationId: string, 
+    contactType: string, 
+    newStatus: string,
+    selectedMonth?: string
+  ): Promise<void> => {
+    if (!user) return;
 
     try {
-      const { data, error } = await supabase
-        .from('contact_calling_status')
-        .upsert({
-          application_id: applicationId,
-          contact_type: contactType,
-          status: newStatus,
-          user_id: user.id,
-          user_email: user.email,
-          demand_date: selectedMonth,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'application_id,contact_type,demand_date'
-        })
-        .select()
-        .single();
+      console.log('=== UPDATING CONTACT STATUS ===');
+      console.log('Application ID:', applicationId);
+      console.log('Contact Type:', contactType);
+      console.log('New Status:', newStatus);
+      console.log('Selected Month:', selectedMonth);
 
-      if (error) {
-        console.error('Error updating calling status:', error);
-        return false;
+      const updateData: any = {
+        application_id: applicationId,
+        contact_type: contactType,
+        status: newStatus,
+        user_id: user.id,
+        user_email: user.email,
+        updated_at: new Date().toISOString()
+      };
+
+      // Add demand_date if selectedMonth is provided
+      if (selectedMonth) {
+        updateData.demand_date = monthToEmiDate(selectedMonth);
       }
 
-      await fetchCallingStatuses();
-      return true;
+      const { error } = await supabase
+        .from('contact_calling_status')
+        .upsert(updateData, {
+          onConflict: 'application_id,contact_type,demand_date'
+        });
+
+      if (error) {
+        console.error('Error updating contact status:', error);
+        throw error;
+      }
+
+      console.log('✅ Contact status updated successfully');
     } catch (error) {
-      console.error('Error updating calling status:', error);
-      return false;
+      console.error('Error in updateContactStatus:', error);
+      throw error;
     }
-  };
-
-  const getStatusForContact = (contactType: string): string => {
-    const status = callingStatuses.find(s => s.contact_type === contactType);
-    return status?.status || 'Not Called';
-  };
-
-  const refetch = fetchCallingStatuses;
-
-  useEffect(() => {
-    if (applicationId && user && selectedMonth) {
-      fetchCallingStatuses();
-    }
-  }, [applicationId, user, selectedMonth]);
+  }, [user]);
 
   return {
-    callingStatuses,
-    loading,
-    updateCallingStatus,
-    getStatusForContact,
-    refetch,
-    fetchContactStatuses
+    fetchContactStatus,
+    updateContactStatus,
+    loading
   };
 };

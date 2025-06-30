@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useFieldStatus } from "@/hooks/useFieldStatus";
 import { CALLING_STATUS_OPTIONS } from '@/constants/options';
+import { monthToEmiDate } from '@/utils/dateUtils';
 
 interface StatusTabProps {
   application: Application;
@@ -112,7 +113,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
         .from('field_status')
         .select('calling_status')
         .eq('application_id', application.applicant_id)
-        .eq('demand_date', selectedMonth)
+        .eq('demand_date', monthToEmiDate(selectedMonth))
         .maybeSingle();
       if (error) {
         setCurrentCallingStatus('');
@@ -213,7 +214,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
         .from('collection')
         .upsert({
           application_id: application.applicant_id,
-          demand_date: selectedMonth,
+          demand_date: monthToEmiDate(selectedMonth),
           amount_collected: newVal,
           updated_at: new Date().toISOString()
         }, {
@@ -223,7 +224,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
       if (error) throw error;
       
       if (prev !== newVal) {
-        await addAuditLog(application.applicant_id, 'Amount Collected', prev?.toString() ?? '', newVal?.toString() ?? '', selectedMonth);
+        await addAuditLog(application.applicant_id, 'Amount Collected', prev?.toString() ?? '', newVal?.toString() ?? '', monthToEmiDate(selectedMonth));
       }
       toast.success('Amount Collected updated');
       window.location.reload();
@@ -286,7 +287,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
         .from('field_status')
         .select('calling_status')
         .eq('application_id', application.applicant_id)
-        .eq('demand_date', selectedMonth)
+        .eq('demand_date', monthToEmiDate(selectedMonth))
         .maybeSingle();
       const prevStatus = existingStatus?.calling_status || '';
       // Upsert new value
@@ -295,7 +296,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
         .upsert({
           application_id: application.applicant_id,
           calling_status: newStatus,
-          demand_date: selectedMonth,
+          demand_date: monthToEmiDate(selectedMonth),
           user_id: user.id,
           user_email: user.email,
           updated_at: new Date().toISOString(),
@@ -303,7 +304,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
       if (error) throw error;
       setCurrentCallingStatus(newStatus);
       if (prevStatus !== newStatus) {
-        await addAuditLog(application.applicant_id, 'Calling Status', prevStatus, newStatus, selectedMonth);
+        await addAuditLog(application.applicant_id, 'Calling Status', prevStatus, newStatus, monthToEmiDate(selectedMonth));
       }
       toast.success('Calling status updated');
     } catch (err) {

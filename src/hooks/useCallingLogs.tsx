@@ -1,131 +1,161 @@
-import { useState, useEffect, useMemo } from 'react';
+
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfiles } from '@/hooks/useUserProfiles';
+import { monthToEmiDate } from '@/utils/dateUtils';
 
 export interface CallingLog {
   id: string;
-  application_id: string;
   contact_type: string;
   previous_status: string | null;
   new_status: string;
+  created_at: string;
   user_id: string;
   user_email: string | null;
-  user_name: string | null;
-  created_at: string;
+  user_name: string;
+  application_id: string;
   demand_date?: string;
 }
 
 export const useCallingLogs = (applicationId?: string, selectedMonth?: string) => {
   const { user } = useAuth();
-  const { fetchProfiles, getUserName } = useUserProfiles();
-  const [rawCallingLogs, setRawCallingLogs] = useState<Omit<CallingLog, 'user_name'>[]>([]);
+  const { getUserName, fetchProfiles } = useUserProfiles();
+  const [callingLogs, setCallingLogs] = useState<CallingLog[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchCallingLogs = async () => {
-    if (!applicationId || !user) return;
-    
+  const fetchCallingLogs = useCallback(async () => {
+    if (!user || !applicationId) return;
+
     setLoading(true);
     try {
       console.log('=== FETCHING CALLING LOGS ===');
       console.log('Application ID:', applicationId);
       console.log('Selected Month:', selectedMonth);
-      
-      // Build query with month filtering if selectedMonth is provided
+
       let query = supabase
         .from('calling_logs')
         .select('*')
         .eq('application_id', applicationId);
 
-      // Add month filtering if selectedMonth is provided
+      // Add month filtering if selectedMonth is provided - filter by demand_date
       if (selectedMonth) {
-        query = query.eq('demand_date', selectedMonth);
+        const emiDate = monthToEmiDate(selectedMonth);
+        console.log('Filtering calling logs by demand_date:', emiDate);
+        
+        query = query.eq('demand_date', emiDate);
       }
 
+      // Order by most recent first
       query = query.order('created_at', { ascending: false });
 
-      const { data, error } = await query;
+      const { data: logsData, error: logsError } = await query;
 
-      if (error) {
-        console.error('Error fetching calling logs:', error);
-      } else {
-        console.log('Fetched calling logs:', data);
-        setRawCallingLogs(data || []);
-        
-        // Fetch profiles for all unique user IDs
-        const userIds = [...new Set(data?.map(log => log.user_id) || [])];
-        if (userIds.length > 0) {
-          console.log('Fetching profiles for calling log users:', userIds);
-          await fetchProfiles(userIds);
-          // Small delay to ensure profiles are cached
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
+      if (logsError) {
+        console.error('Error fetching calling logs:', logsError);
+        return;
       }
+
+      if (!logsData || logsData.length === 0) {
+        console.log('No calling logs found for application:', applicationId, 'month:', selectedMonth);
+        setCallingLogs([]);
+        return;
+      }
+
+      console.log('Raw calling logs data:', logsData);
+
+      // Get unique user IDs for profile fetching
+      const userIds = [...new Set(logsData.map(log => log.user_id))];
+      console.log('Fetching profiles for user IDs:', userIds);
+
+      // Fetch user profiles first and wait for completion
+      await fetchProfiles(userIds);
+
+      // Small delay to ensure profiles are cached
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Map calling logs with resolved user names
+      const mappedLogs: CallingLog[] = logsData.map(log => {
+        const userName = getUserName(log.user_id, log.user_email);
+        console.log(`✓ Calling log ${log.id}: user_id=${log.user_id} -> resolved_name="${userName}"`);
+        
+        return {
+          ...log,
+          user_name: userName
+        };
+      });
+
+      console.log('Final mapped calling logs with resolved names:', mappedLogs);
+      setCallingLogs(mappedLogs);
     } catch (error) {
-      console.error('Error fetching calling logs:', error);
+      console.error('Exception in fetchCallingLogs:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, applicationId, selectedMonth, fetchProfiles, getUserName]);
 
-  // Memoize calling logs with user names to prevent unnecessary re-renders
-  const callingLogs = useMemo(() => {
-    return rawCallingLogs.map(log => {
-      const userName = getUserName(log.user_id, log.user_email);
-      console.log(`✓ Calling log ${log.id}: user_id=${log.user_id} -> resolved_name="${userName}"`);
-      return {
-        ...log,
-        user_name: userName
-      };
-    });
-  }, [rawCallingLogs, getUserName]);
-
-  const addCallingLog = async (contactType: string, previousStatus: string | null, newStatus: string) => {
-    if (!applicationId || !user || !selectedMonth) return;
+  const addCallingLog = useCallback(async (
+    contactType: string, 
+    previousStatus: string, 
+    newStatus: string
+  ): Promise<void> => {
+    if (!user || !applicationId) return;
 
     try {
       console.log('=== ADDING CALLING LOG ===');
       console.log('Application ID:', applicationId);
-      console.log('Contact type:', contactType);
-      console.log('Previous status:', previousStatus);
-      console.log('New status:', newStatus);
+      console.log('Contact Type:', contactType);
+      console.log('Previous Status:', previousStatus);
+      console.log('New Status:', newStatus);
       console.log('User ID:', user.id);
       console.log('User email:', user.email);
       console.log('Selected Month:', selectedMonth);
-      
+
+      const logData: any = {
+        application_id: applicationId,
+        contact_type: contactType,
+        previous_status: previousStatus,
+        new_status: newStatus,
+        user_id: user.id,
+        user_email: user.email,
+        user_name: getUserName(user.id, user.email)
+      };
+
+      // Add demand_date if selectedMonth is provided
+      if (selectedMonth) {
+        logData.demand_date = monthToEmiDate(selectedMonth);
+      }
+
       const { error } = await supabase
         .from('calling_logs')
-        .insert({
-          application_id: applicationId,
-          contact_type: contactType,
-          previous_status: previousStatus,
-          new_status: newStatus,
-          user_id: user.id,
-          user_email: user.email,
-          demand_date: selectedMonth
-        });
+        .insert(logData);
 
       if (error) {
         console.error('Error adding calling log:', error);
-      } else {
-        console.log('✓ Calling log added successfully');
-        await fetchCallingLogs(); // Refresh calling logs
+        throw error;
       }
+
+      console.log('✓ Calling log added successfully');
+      // Refresh calling logs after adding
+      await fetchCallingLogs();
     } catch (error) {
-      console.error('Error adding calling log:', error);
+      console.error('Exception in addCallingLog:', error);
+      throw error;
     }
-  };
+  }, [user, applicationId, selectedMonth, getUserName, fetchCallingLogs]);
 
   useEffect(() => {
-    if (applicationId && user) {
-      fetchCallingLogs();
-    }
-  }, [applicationId, user, selectedMonth]);
+    fetchCallingLogs();
+  }, [fetchCallingLogs]);
+
+  const refetch = useCallback(async () => {
+    await fetchCallingLogs();
+  }, [fetchCallingLogs]);
 
   return {
     callingLogs,
     loading,
     addCallingLog,
-    refetch: fetchCallingLogs
+    refetch
   };
 };

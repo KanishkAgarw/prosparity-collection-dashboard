@@ -20,6 +20,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useMonthlyApplicationData } from '@/hooks/useMonthlyApplicationData';
 import MonthSelector from './details/MonthSelector';
 import { formatEmiMonth } from "@/utils/formatters";
+import { monthToEmiDate } from "@/utils/dateUtils";
 
 interface ApplicationDetailsPanelProps {
   application: Application | null;
@@ -71,7 +72,7 @@ const ApplicationDetailsPanel = ({
           .from('ptp_dates')
           .select('ptp_date')
           .eq('application_id', currentApplication.applicant_id)
-          .eq('demand_date', selectedMonth)
+          .eq('demand_date', monthToEmiDate(selectedMonth))
           .order('created_at', { ascending: false })
           .limit(1)
           .single();
@@ -223,7 +224,7 @@ const ApplicationDetailsPanel = ({
           .from('ptp_dates')
           .select('ptp_date')
           .eq('application_id', currentApplication.applicant_id)
-          .eq('demand_date', selectedMonth)
+          .eq('demand_date', monthToEmiDate(selectedMonth))
           .order('created_at', { ascending: false })
           .limit(1)
           .single();
@@ -312,7 +313,7 @@ const ApplicationDetailsPanel = ({
         'Vehicle Status',
         previousStatus,
         newStatus || 'None',
-        selectedMonth // Vehicle status changes are tracked per month
+        monthToEmiDate(selectedMonth) // Use proper date format
       );
       
       toast.success('Vehicle status updated successfully');

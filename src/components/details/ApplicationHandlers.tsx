@@ -4,6 +4,7 @@ import { Application } from '@/types/application';
 import { toast } from 'sonner';
 import { useUserProfiles } from '@/hooks/useUserProfiles';
 import { useFieldStatus } from '@/hooks/useFieldStatus';
+import { monthToEmiDate } from '@/utils/dateUtils';
 
 export const useApplicationHandlers = (
   application: Application | null,
@@ -67,7 +68,7 @@ export const useApplicationHandlers = (
             user_id: user.id,
             user_email: user.email,
             updated_at: new Date().toISOString(),
-            demand_date: selectedMonth
+            demand_date: monthToEmiDate(selectedMonth)
           }, {
             onConflict: 'application_id,demand_date'
           });
@@ -79,7 +80,7 @@ export const useApplicationHandlers = (
         }
 
         // Add audit log for the request
-        await addAuditLog(application.applicant_id, 'Status', previousStatus, 'Paid (Pending Approval)', selectedMonth);
+        await addAuditLog(application.applicant_id, 'Status', previousStatus, 'Paid (Pending Approval)', monthToEmiDate(selectedMonth));
 
         // Update local application state
         const updatedApp = { 
@@ -101,7 +102,7 @@ export const useApplicationHandlers = (
             user_id: user.id,
             user_email: user.email,
             updated_at: new Date().toISOString(),
-            demand_date: selectedMonth
+            demand_date: monthToEmiDate(selectedMonth)
           }, {
             onConflict: 'application_id,demand_date'
           });
@@ -113,7 +114,7 @@ export const useApplicationHandlers = (
         }
 
         // Add audit log for the status change
-        await addAuditLog(application.applicant_id, 'Status', previousStatus, newStatus, selectedMonth);
+        await addAuditLog(application.applicant_id, 'Status', previousStatus, newStatus, monthToEmiDate(selectedMonth));
 
         // Update local application state
         const updatedApp = { ...application, field_status: newStatus };
@@ -163,7 +164,7 @@ export const useApplicationHandlers = (
         .insert({
           application_id: application.applicant_id,
           ptp_date: formattedDate,
-          demand_date: selectedMonth,
+          demand_date: monthToEmiDate(selectedMonth),
           user_id: user.id
         })
         .select()
@@ -210,7 +211,7 @@ export const useApplicationHandlers = (
         auditAttempts++;
         try {
           console.log(`Audit log attempt ${auditAttempts}/${maxAuditAttempts}`);
-          await addAuditLog(application.applicant_id, 'PTP Date', previousDisplayValue, newDisplayValue, selectedMonth);
+          await addAuditLog(application.applicant_id, 'PTP Date', previousDisplayValue, newDisplayValue, monthToEmiDate(selectedMonth));
           auditLogSuccess = true;
           console.log('✅ Audit log added successfully');
         } catch (auditError) {
@@ -265,7 +266,7 @@ export const useApplicationHandlers = (
           user_id: user.id,
           user_email: user.email,
           updated_at: new Date().toISOString(),
-          demand_date: selectedMonth
+          demand_date: monthToEmiDate(selectedMonth)
         }, {
           onConflict: 'application_id,contact_type,demand_date'
         });
