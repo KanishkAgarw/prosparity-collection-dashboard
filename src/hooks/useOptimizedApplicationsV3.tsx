@@ -7,6 +7,8 @@ import { FilterState } from '@/types/filters';
 import { getMonthDateRange } from '@/utils/dateUtils';
 import { useQueryCache } from './useQueryCache';
 import { useDebouncedAPI } from './useDebouncedAPI';
+import { categorizeLastMonthBounce, formatRepayment } from '@/utils/filterUtils';
+import { categorizePtpDate } from '@/utils/ptpDateUtils';
 
 interface UseOptimizedApplicationsV3Props {
   filters: FilterState;
@@ -48,13 +50,13 @@ export const useOptimizedApplicationsV3 = ({
       return { applications: [], totalCount: 0, totalPages: 0, loading: false, refetch: async () => {} };
     }
 
-    console.log('=== OPTIMIZED V3 FETCH START ===');
+    console.log('=== OPTIMIZED V3 FETCH WITH COMPREHENSIVE FILTERING ===');
     console.log('Selected EMI Month:', selectedEmiMonth);
     console.log('Search term:', searchTerm);
-    console.log('Cache key:', cacheKey);
+    console.log('Active filters:', filters);
 
     // Check cache first (but skip cache for search operations to ensure fresh results)
-    if (!searchTerm.trim()) {
+    if (!searchTerm.trim() && Object.values(filters).every(f => f.length === 0)) {
       const cachedResult = getCachedData(cacheKey);
       if (cachedResult) {
         console.log('✅ Using cached data, skipping API call');
@@ -66,18 +68,24 @@ export const useOptimizedApplicationsV3 = ({
     console.log('📅 Date range for month', selectedEmiMonth, ':', start, 'to', end);
 
     try {
-      console.log('=== STEP 1: FETCHING MAIN DATA ===');
+      console.log('=== STEP 1: BUILDING COMPREHENSIVE QUERY ===');
       
+      // Build the base query with all necessary joins
       let dataQuery = supabase
         .from('collection')
         .select(`
           *,
-          applications!inner(*)
+          applications!inner(*),
+          field_status:field_status!left(status, created_at),
+          ptp_dates:ptp_dates!left(ptp_date, created_at),
+          contact_calling_status:contact_calling_status!left(status, contact_type, created_at)
         `)
         .gte('demand_date', start)
         .lte('demand_date', end);
 
-      // Apply collection table filters to data query
+      console.log('=== STEP 2: APPLYING DATABASE-LEVEL FILTERS ===');
+
+      // Apply collection table filters
       if (filters.teamLead?.length > 0) {
         console.log('🔍 Applying team lead filter:', filters.teamLead);
         dataQuery = dataQuery.in('team_lead', filters.teamLead);
@@ -120,8 +128,21 @@ export const useOptimizedApplicationsV3 = ({
         console.log('🔍 Applying lender filter:', filters.lender);
         dataQuery = dataQuery.in('applications.lender_name', filters.lender);
       }
+      if (filters.vehicleStatus?.length > 0) {
+        console.log('🔍 Applying vehicle status filter:', filters.vehicleStatus);
+        if (filters.vehicleStatus.includes('None')) {
+          const nonNoneStatuses = filters.vehicleStatus.filter(s => s !== 'None');
+          if (nonNoneStatuses.length > 0) {
+            dataQuery = dataQuery.or(`applications.vehicle_status.is.null,applications.vehicle_status.in.(${nonNoneStatuses.join(',')})`);
+          } else {
+            dataQuery = dataQuery.is('applications.vehicle_status', null);
+          }
+        } else {
+          dataQuery = dataQuery.in('applications.vehicle_status', filters.vehicleStatus);
+        }
+      }
 
-      console.log('📤 Executing main data query for month:', selectedEmiMonth);
+      console.log('📤 Executing comprehensive query for month:', selectedEmiMonth);
       const { data: allData, error: dataError } = await dataQuery;
 
       if (dataError) {
@@ -131,9 +152,34 @@ export const useOptimizedApplicationsV3 = ({
 
       console.log(`✅ Fetched ${allData?.length || 0} total records from database`);
 
-      // Transform data first
+      // Transform and post-process data
       let transformedApplications: Application[] = (allData || []).map(record => {
         const app = record.applications;
+        
+        // Get the latest field status
+        const latestFieldStatus = record.field_status?.reduce((latest: any, current: any) => {
+          if (!latest || new Date(current.created_at) > new Date(latest.created_at)) {
+            return current;
+          }
+          return latest;
+        }, null);
+
+        // Get the latest PTP date
+        const latestPtpDate = record.ptp_dates?.reduce((latest: any, current: any) => {
+          if (!latest || new Date(current.created_at) > new Date(latest.created_at)) {
+            return current;
+          }
+          return latest;
+        }, null);
+
+        // Get the latest calling status
+        const latestCallingStatus = record.contact_calling_status?.reduce((latest: any, current: any) => {
+          if (!latest || new Date(current.created_at) > new Date(latest.created_at)) {
+            return current;
+          }
+          return latest;
+        }, null);
+
         return {
           // Collection data (primary)
           id: record.application_id,
@@ -147,7 +193,9 @@ export const useOptimizedApplicationsV3 = ({
           rm_name: record.rm_name || '',
           repayment: record.repayment || '',
           last_month_bounce: record.last_month_bounce || 0,
-          field_status: 'Unpaid', // Will be updated by field status hook
+          field_status: latestFieldStatus?.status || 'Unpaid',
+          ptp_date: latestPtpDate?.ptp_date || null,
+          calling_status: latestCallingStatus?.status || 'Not Called',
 
           // Application data (secondary)
           applicant_name: app?.applicant_name || 'Unknown',
@@ -180,9 +228,56 @@ export const useOptimizedApplicationsV3 = ({
 
       console.log(`🔄 Transformed ${transformedApplications.length} applications`);
 
+      // Apply remaining filters that need client-side processing
+      console.log('=== STEP 3: APPLYING CLIENT-SIDE FILTERS ===');
+      
+      if (filters.status?.length > 0) {
+        console.log('🔍 Applying status filter:', filters.status);
+        transformedApplications = transformedApplications.filter(app => 
+          filters.status.includes(app.field_status || 'Unpaid')
+        );
+      }
+
+      if (filters.callingStatus?.length > 0) {
+        console.log('🔍 Applying calling status filter:', filters.callingStatus);
+        transformedApplications = transformedApplications.filter(app => 
+          filters.callingStatus.includes(app.calling_status || 'Not Called')
+        );
+      }
+
+      if (filters.lastMonthBounce?.length > 0) {
+        console.log('🔍 Applying last month bounce filter:', filters.lastMonthBounce);
+        transformedApplications = transformedApplications.filter(app => {
+          const category = categorizeLastMonthBounce(app.last_month_bounce);
+          return filters.lastMonthBounce.includes(category);
+        });
+      }
+
+      if (filters.ptpDate?.length > 0) {
+        console.log('🔍 Applying PTP date filter:', filters.ptpDate);
+        transformedApplications = transformedApplications.filter(app => {
+          const category = categorizePtpDate(app.ptp_date);
+          return filters.ptpDate.some(filterValue => {
+            // Direct category match
+            if (filterValue === category) return true;
+            
+            // Convert display label to category
+            const labelToCategoryMap: { [key: string]: string } = {
+              "Overdue PTP": 'overdue',
+              "Today's PTP": 'today',
+              "Tomorrow's PTP": 'tomorrow',
+              "Future PTP": 'future',
+              "No PTP": 'no_date'
+            };
+            
+            return labelToCategoryMap[filterValue] === category;
+          });
+        });
+      }
+
       // Apply search filtering if provided
       if (searchTerm.trim()) {
-        console.log('=== STEP 2: APPLYING SEARCH FILTER ===');
+        console.log('=== STEP 4: APPLYING SEARCH FILTER ===');
         const searchLower = searchTerm.trim().toLowerCase();
         console.log('🔍 Searching for:', `"${searchLower}"`);
         
@@ -201,25 +296,14 @@ export const useOptimizedApplicationsV3 = ({
             app.collection_rm?.toLowerCase() || ''
           ];
 
-          const matches = searchableFields.some(field => field.includes(searchLower));
-          
-          if (matches) {
-            console.log(`✅ MATCH: ${app.applicant_name} (ID: ${app.applicant_id})`);
-          }
-          
-          return matches;
+          return searchableFields.some(field => field.includes(searchLower));
         });
 
         console.log(`🔍 Search results: ${transformedApplications.length} from ${beforeSearchCount} total`);
-        
-        if (transformedApplications.length === 0) {
-          console.log('❌ NO SEARCH RESULTS FOUND');
-          console.log('Sample names available:', transformedApplications.slice(0, 5).map(app => app.applicant_name));
-        }
       }
 
       // Sort by applicant first name (case-insensitive) then by demand_date
-      console.log('=== STEP 3: SORTING RESULTS ===');
+      console.log('=== STEP 5: SORTING RESULTS ===');
       const sortedApplications = transformedApplications.sort((a, b) => {
         const getFirstName = (fullName: string = '') => {
           const firstName = fullName.split(' ')[0];
@@ -236,19 +320,15 @@ export const useOptimizedApplicationsV3 = ({
       });
 
       console.log(`📋 Final sorted applications: ${sortedApplications.length}`);
-      if (sortedApplications.length > 0) {
-        console.log('👥 First 3 names after sorting:', sortedApplications.slice(0, 3).map(app => app.applicant_name));
-      }
 
       // Apply pagination after sorting
       const offset = (page - 1) * pageSize;
       const paginatedApplications = sortedApplications.slice(offset, offset + pageSize);
 
-      console.log('=== STEP 4: PAGINATION ===');
+      console.log('=== STEP 6: PAGINATION ===');
       console.log(`📄 Page: ${page}, Size: ${pageSize}, Offset: ${offset}`);
       console.log(`📋 Paginated results: ${paginatedApplications.length}`);
 
-      // Use the actual filtered count as total count (this is important for search)
       const finalTotalCount = sortedApplications.length;
 
       const result = {
@@ -260,11 +340,11 @@ export const useOptimizedApplicationsV3 = ({
       };
 
       // Only cache non-search results to avoid stale search data
-      if (!searchTerm.trim()) {
+      if (!searchTerm.trim() && Object.values(filters).every(f => f.length === 0)) {
         setCachedData(cacheKey, result, 2 * 60 * 1000);
         console.log('💾 Result cached');
       } else {
-        console.log('🚫 Search result not cached (to ensure fresh data)');
+        console.log('🚫 Filtered/search result not cached (to ensure fresh data)');
       }
       
       console.log('=== OPTIMIZED V3 FETCH COMPLETE ===');
@@ -294,12 +374,13 @@ export const useOptimizedApplicationsV3 = ({
 
   // Trigger debounced fetch when dependencies change
   useEffect(() => {
-    console.log('🔄 Dependencies changed, triggering fetch...');
+    console.log('🔄 Dependencies changed, triggering comprehensive fetch...');
     console.log('Dependencies:', {
       selectedEmiMonth,
       searchTerm: `"${searchTerm}"`,
       page,
-      hasUser: !!user
+      hasUser: !!user,
+      activeFilters: Object.entries(filters).filter(([, values]) => values.length > 0).map(([key, values]) => `${key}: ${values.length}`)
     });
     
     setLoading(true);

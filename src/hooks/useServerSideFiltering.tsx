@@ -20,6 +20,7 @@ export const useServerSideFiltering = () => {
   });
 
   const handleFilterChange = useCallback((key: string, values: string[]) => {
+    console.log('🔄 Server-side filter change:', key, values);
     setFilters(prev => ({
       ...prev,
       [key]: values
@@ -27,6 +28,7 @@ export const useServerSideFiltering = () => {
   }, []);
 
   const clearAllFilters = useCallback(() => {
+    console.log('🧹 Clearing all filters');
     setFilters({
       branch: [],
       teamLead: [],
@@ -52,10 +54,24 @@ export const useServerSideFiltering = () => {
     return null;
   }, [filters.emiMonth]);
 
+  // Get count of active filters
+  const activeFilterCount = useMemo(() => {
+    return Object.entries(filters)
+      .filter(([key]) => key !== 'emiMonth') // Exclude EMI month from count
+      .reduce((count, [, values]) => count + values.length, 0);
+  }, [filters]);
+
+  // Check if any filters are active
+  const hasActiveFilters = useMemo(() => {
+    return activeFilterCount > 0;
+  }, [activeFilterCount]);
+
   return {
     filters,
     handleFilterChange,
     clearAllFilters,
-    selectedEmiMonth
+    selectedEmiMonth,
+    activeFilterCount,
+    hasActiveFilters
   };
 };

@@ -55,10 +55,10 @@ const FilterBar = ({
 }: FilterBarProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Local state for pending filters
+  // Local state for pending filters - initialize with current filters
   const [pendingFilters, setPendingFilters] = useState({ ...filters });
 
-  // Sync local state when filters prop changes (e.g., after apply)
+  // Sync local state when filters prop changes (e.g., when filters are cleared)
   useEffect(() => {
     setPendingFilters({ ...filters });
   }, [filters]);
@@ -104,19 +104,25 @@ const FilterBar = ({
 
   // Handler for local filter changes
   const handlePendingFilterChange = (key: string, values: string[]) => {
+    console.log('🔄 Pending filter change:', key, values);
     setPendingFilters(prev => ({
       ...prev,
       [key]: values
     }));
   };
 
-  // Handler for Done button
+  // Handler for Apply Filters button - immediately apply all filters
   const handleApplyFilters = () => {
+    console.log('✅ Applying all filters:', pendingFilters);
+    
+    // Apply all pending filters immediately
     Object.entries(pendingFilters).forEach(([key, values]) => {
       if (key !== 'emiMonth') { // EMI month is managed separately
+        console.log(`🔄 Applying ${key} filter:`, values);
         onFilterChange(key, values as string[]);
       }
     });
+    
     setIsOpen(false);
   };
 
@@ -197,6 +203,16 @@ const FilterBar = ({
               </div>
 
               <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Last Month Status</label>
+                <CustomMultiSelectFilter
+                  label="Last Month Status"
+                  options={safeFilterOptions.lastMonthBounce}
+                  selected={safeFilters.lastMonthBounce}
+                  onSelectionChange={(values) => handlePendingFilterChange('lastMonthBounce', values)}
+                />
+              </div>
+
+              <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Branches</label>
                 <CustomMultiSelectFilter
                   label="Branches"
@@ -267,16 +283,6 @@ const FilterBar = ({
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Last Month Status</label>
-                <CustomMultiSelectFilter
-                  label="Last Month Status"
-                  options={safeFilterOptions.lastMonthBounce}
-                  selected={safeFilters.lastMonthBounce}
-                  onSelectionChange={(values) => handlePendingFilterChange('lastMonthBounce', values)}
-                />
-              </div>
-
-              <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Vehicle Status</label>
                 <CustomMultiSelectFilter
                   label="Vehicle Status"
@@ -287,15 +293,15 @@ const FilterBar = ({
               </div>
             </div>
             
-            {/* Done button with border and background */}
+            {/* Apply Filters button with enhanced styling */}
             <div className="mt-6 flex justify-end">
-              <div className="border border-blue-500 rounded-lg p-2 bg-blue-50">
+              <div className="border-2 border-blue-500 rounded-lg p-2 bg-blue-50">
                 <Button
                   variant="default"
-                  className="px-8 py-2 text-base font-semibold"
+                  className="px-8 py-2 text-base font-semibold bg-blue-600 hover:bg-blue-700"
                   onClick={handleApplyFilters}
                 >
-                  Apply Filters
+                  Apply Filters ({activeFilterCount})
                 </Button>
               </div>
             </div>
