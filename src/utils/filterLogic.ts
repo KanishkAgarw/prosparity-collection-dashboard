@@ -1,4 +1,3 @@
-
 import { formatEmiMonth } from "@/utils/formatters";
 import { categorizePtpDate, type PtpDateCategory, getPtpDateCategoryLabel } from "@/utils/ptpDateUtils";
 import { formatRepayment, categorizeLastMonthBounce, isValidLastMonthBounceCategory, isValidPtpDateCategory } from "@/utils/filterUtils";
@@ -168,7 +167,7 @@ export const processFilterChange = (
     // Type-safe handling for lastMonthBounce filter
     const validValues = values.filter(isValidLastMonthBounceCategory);
     console.log('Valid lastMonthBounce values:', validValues);
-    setFilters(prev => ({ ...prev, [key]: validValues as LastMonthBounceCategory[] }));
+    setFilters(prev => ({ ...prev, [key]: validValues }));
   } else if (key === 'ptpDate') {
     // For PTP date filter, store the display labels directly
     // The filtering logic will handle the conversion
