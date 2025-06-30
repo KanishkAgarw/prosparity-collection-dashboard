@@ -1,10 +1,10 @@
-
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { FilterState } from '@/types/filters';
 import { useQueryCache } from './useQueryCache';
 import { normalizeEmiMonth, groupDatesByMonth } from '@/utils/dateUtils';
+import { CALLING_STATUS_OPTIONS, VEHICLE_STATUS_OPTIONS } from '@/constants/options';
 
 interface CascadingFilterOptions {
   branches: string[];
@@ -19,6 +19,7 @@ interface CascadingFilterOptions {
   ptpDateOptions: string[];
   collectionRms: string[];
   vehicleStatusOptions: string[];
+  callingStatusOptions: string[];
 }
 
 export const useOptimizedCascadingFilters = () => {
@@ -37,7 +38,8 @@ export const useOptimizedCascadingFilters = () => {
     lastMonthBounce: [],
     ptpDate: [],
     collectionRm: [],
-    vehicleStatus: []
+    vehicleStatus: [],
+    callingStatus: []
   });
 
   const [availableOptions, setAvailableOptions] = useState<CascadingFilterOptions>({
@@ -52,7 +54,8 @@ export const useOptimizedCascadingFilters = () => {
     lastMonthBounce: ['Not paid', 'Paid on time', '1-5 days late', '6-15 days late', '15+ days late'],
     ptpDateOptions: ['Overdue PTP', "Today's PTP", "Tomorrow's PTP", 'Future PTP', 'No PTP'],
     collectionRms: [],
-    vehicleStatusOptions: ['Seized', 'Repo', 'Accident', 'None']
+    vehicleStatusOptions: VEHICLE_STATUS_OPTIONS.map(opt => opt.value),
+    callingStatusOptions: CALLING_STATUS_OPTIONS.map(opt => opt.value)
   });
 
   const [selectedEmiMonth, setSelectedEmiMonth] = useState<string | null>(null);
@@ -120,7 +123,8 @@ export const useOptimizedCascadingFilters = () => {
         lastMonthBounce: ['Not paid', 'Paid on time', '1-5 days late', '6-15 days late', '15+ days late'],
         ptpDateOptions: ['Overdue PTP', "Today's PTP", "Tomorrow's PTP", 'Future PTP', 'No PTP'],
         collectionRms: [],
-        vehicleStatusOptions: ['Seized', 'Repo', 'Accident', 'None']
+        vehicleStatusOptions: VEHICLE_STATUS_OPTIONS.map(opt => opt.value),
+        callingStatusOptions: CALLING_STATUS_OPTIONS.map(opt => opt.value)
       };
       
       setCachedData(cacheKey, cacheData, 10 * 60 * 1000);
@@ -169,6 +173,14 @@ export const useOptimizedCascadingFilters = () => {
         .lte('demand_date', monthEnd)
         .limit(5000); // Reasonable limit
 
+      // Get field status options for the selected month
+      const { data: statusData } = await supabase
+        .from('field_status')
+        .select('status')
+        .gte('demand_date', monthStart)
+        .lte('demand_date', monthEnd)
+        .order('status');
+
       if (!combinedData) return;
 
       console.log(`Processing ${combinedData.length} combined records for filter options`);
@@ -189,8 +201,9 @@ export const useOptimizedCascadingFilters = () => {
         emiMonths: [selectedEmiMonth],
         lastMonthBounce: ['Not paid', 'Paid on time', '1-5 days late', '6-15 days late', '15+ days late'],
         ptpDateOptions: ['Overdue PTP', "Today's PTP", "Tomorrow's PTP", 'Future PTP', 'No PTP'],
-        vehicleStatusOptions: ['Seized', 'Repo', 'Accident', 'None'],
-        statuses: [] // Will be populated separately if needed
+        vehicleStatusOptions: VEHICLE_STATUS_OPTIONS.map(opt => opt.value),
+        callingStatusOptions: CALLING_STATUS_OPTIONS.map(opt => opt.value),
+        statuses: [...new Set(statusData?.map(s => s.status) || ['Unpaid', 'Paid', 'Partially Paid', 'Paid (Pending Approval)'])].sort()
       };
 
       // Cache for 8 minutes
@@ -205,7 +218,6 @@ export const useOptimizedCascadingFilters = () => {
     }
   }, [user, selectedEmiMonth, filters, getCachedData, setCachedData]);
 
-  // Rest of the hook remains the same but with memoized callbacks
   const handleFilterChange = useCallback((key: string, values: string[]) => {
     setFilters(prev => ({
       ...prev,
@@ -227,7 +239,8 @@ export const useOptimizedCascadingFilters = () => {
       lastMonthBounce: [],
       ptpDate: [],
       collectionRm: [],
-      vehicleStatus: []
+      vehicleStatus: [],
+      callingStatus: []
     });
   }, []);
 
@@ -244,7 +257,8 @@ export const useOptimizedCascadingFilters = () => {
       lastMonthBounce: [],
       ptpDate: [],
       collectionRm: [],
-      vehicleStatus: []
+      vehicleStatus: [],
+      callingStatus: []
     });
   }, []);
 

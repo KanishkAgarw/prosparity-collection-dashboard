@@ -6,6 +6,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import CustomMultiSelectFilter from "./CustomMultiSelectFilter";
 import { formatEmiMonth } from "@/utils/formatters";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CALLING_STATUS_OPTIONS, VEHICLE_STATUS_OPTIONS } from "@/constants/options";
 
 interface FilterBarProps {
   filters: {
@@ -21,6 +22,7 @@ interface FilterBarProps {
     ptpDate: string[];
     collectionRm: string[];
     vehicleStatus: string[];
+    callingStatus?: string[];
   };
   onFilterChange: (key: string, values: string[]) => void;
   availableOptions: {
@@ -36,6 +38,7 @@ interface FilterBarProps {
     ptpDateOptions: string[];
     collectionRms: string[];
     vehicleStatusOptions: string[];
+    callingStatusOptions?: string[];
   };
   selectedEmiMonth?: string | null;
   onEmiMonthChange?: (month: string) => void;
@@ -73,7 +76,8 @@ const FilterBar = ({
     lastMonthBounce: availableOptions?.lastMonthBounce || [],
     ptpDateOptions: availableOptions?.ptpDateOptions || [],
     collectionRms: availableOptions?.collectionRms || [],
-    vehicleStatusOptions: availableOptions?.vehicleStatusOptions || [],
+    vehicleStatusOptions: VEHICLE_STATUS_OPTIONS.map(opt => opt.value),
+    callingStatusOptions: CALLING_STATUS_OPTIONS.map(opt => opt.value),
   };
 
   // Use pendingFilters for UI
@@ -90,6 +94,7 @@ const FilterBar = ({
     ptpDate: pendingFilters?.ptpDate || [],
     collectionRm: pendingFilters?.collectionRm || [],
     vehicleStatus: pendingFilters?.vehicleStatus || [],
+    callingStatus: pendingFilters?.callingStatus || [],
   };
 
   // Count total active filters (excluding EMI month since it's managed separately)
@@ -162,6 +167,26 @@ const FilterBar = ({
               </div>
 
               <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Collection Status</label>
+                <CustomMultiSelectFilter
+                  label="Collection Status"
+                  options={safeFilterOptions.statuses}
+                  selected={safeFilters.status}
+                  onSelectionChange={(values) => handlePendingFilterChange('status', values)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Calling Status</label>
+                <CustomMultiSelectFilter
+                  label="Calling Status"
+                  options={safeFilterOptions.callingStatusOptions}
+                  selected={safeFilters.callingStatus}
+                  onSelectionChange={(values) => handlePendingFilterChange('callingStatus', values)}
+                />
+              </div>
+
+              <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">PTP Date</label>
                 <CustomMultiSelectFilter
                   label="PTP Date"
@@ -228,16 +253,6 @@ const FilterBar = ({
                   options={safeFilterOptions.lenders}
                   selected={safeFilters.lender}
                   onSelectionChange={(values) => handlePendingFilterChange('lender', values)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Status</label>
-                <CustomMultiSelectFilter
-                  label="Status"
-                  options={safeFilterOptions.statuses}
-                  selected={safeFilters.status}
-                  onSelectionChange={(values) => handlePendingFilterChange('status', values)}
                 />
               </div>
 
