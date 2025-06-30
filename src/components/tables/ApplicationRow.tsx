@@ -2,7 +2,7 @@
 import { memo } from "react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Application } from "@/types/application";
-import { formatPtpDate } from "@/utils/formatters";
+import { formatEmiMonth, formatCurrency, formatPtpDate } from "@/utils/formatters";
 import StatusBadge from "./StatusBadge";
 import ApplicationDetails from "./ApplicationDetails";
 import CallStatusDisplay from "../CallStatusDisplay";
@@ -49,6 +49,10 @@ const ApplicationRow = memo(({
     >
       <TableCell className="py-3">
         <ApplicationDetails application={application} />
+      </TableCell>
+      
+      <TableCell className="font-medium text-blue-600">
+        {formatCurrency(application.emi_amount)}
       </TableCell>
       
       <TableCell>
