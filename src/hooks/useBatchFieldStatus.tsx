@@ -11,7 +11,7 @@ export const useBatchFieldStatus = () => {
   const fetchBatchFieldStatus = useCallback(async (
     applicationIds: string[], 
     selectedMonth?: string | null
-  ): Promise<Record<string, { status: string; callingStatus?: string }>> => {
+  ): Promise<Record<string, string>> => {
     if (!user || applicationIds.length === 0) return {};
     
     setLoading(true);
@@ -23,7 +23,7 @@ export const useBatchFieldStatus = () => {
 
       let query = supabase
         .from('field_status')
-        .select('application_id, status, calling_status, created_at')
+        .select('application_id, status, created_at')
         .in('application_id', applicationIds);
 
       // Add month filter if provided - filter by demand_date using proper date range
@@ -48,16 +48,13 @@ export const useBatchFieldStatus = () => {
       }
 
       // Group by application_id and get the latest status
-      const statusMap: Record<string, { status: string; callingStatus?: string }> = {};
+      const statusMap: Record<string, string> = {};
       
       if (data) {
         data.forEach(status => {
           // Only set if we don't already have a status for this application (keeps latest due to ordering)
           if (!statusMap[status.application_id]) {
-            statusMap[status.application_id] = {
-              status: status.status,
-              callingStatus: status.calling_status || undefined
-            };
+            statusMap[status.application_id] = status.status;
           }
         });
       }

@@ -1,9 +1,8 @@
-
 import { memo, useEffect, useState } from "react";
 import { Application } from "@/types/application";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Eye, User, Building, Phone } from "lucide-react";
+import { Eye, User, Building } from "lucide-react";
 import { formatCurrency, formatPtpDate } from "@/utils/formatters";
 import CallButton from "../../CallButton";
 import CallStatusDisplay from "../../CallStatusDisplay";
@@ -11,8 +10,6 @@ import { useFieldStatus } from "@/hooks/useFieldStatus";
 import { useMonthlyApplicationData } from "@/hooks/useMonthlyApplicationData";
 import { usePtpDates } from "@/hooks/usePtpDates";
 import { useComments } from "@/hooks/useComments";
-import { useBatchContactCallingStatus } from "@/hooks/useBatchContactCallingStatus";
-import type { BatchContactStatus } from "@/hooks/useBatchContactCallingStatus";
 
 interface MobileApplicationCardProps {
   application: Application;
@@ -29,18 +26,6 @@ const getStatusColor = (status: string) => {
     case 'Cash Collected from Customer': return 'bg-orange-100 text-orange-800 border-orange-200';
     case 'Customer Deposited to Bank': return 'bg-indigo-100 text-indigo-800 border-indigo-200';
     default: return 'bg-gray-100 text-gray-800 border-gray-200';
-  }
-};
-
-const getCallingStatusColor = (status: string) => {
-  switch (status) {
-    case 'Called - Answered': return 'bg-green-100 text-green-800';
-    case 'Called - No Response': return 'bg-red-100 text-red-800';
-    case 'Customer Funded the Account': return 'bg-blue-100 text-blue-800';
-    case 'PTP Given': return 'bg-yellow-100 text-yellow-800';
-    case 'Rude Customer': return 'bg-red-100 text-red-800';
-    case 'Wrong Number': return 'bg-gray-100 text-gray-800';
-    default: return 'bg-gray-100 text-gray-600';
   }
 };
 
@@ -86,17 +71,6 @@ const MobileApplicationCard = memo(({
     fetchComments(application.applicant_id);
   }, [application.applicant_id, monthToShow, fetchComments]);
 
-  // Fetch calling status
-  const { fetchBatchContactStatus } = useBatchContactCallingStatus();
-  const [callingStatus, setCallingStatus] = useState<BatchContactStatus>();
-  useEffect(() => {
-    const fetchCallingStatus = async () => {
-      const statusMap = await fetchBatchContactStatus([application.applicant_id], monthToShow);
-      setCallingStatus(statusMap[application.applicant_id]);
-    };
-    fetchCallingStatus();
-  }, [application.applicant_id, monthToShow, fetchBatchContactStatus]);
-
   return (
     <Card 
       className={`cursor-pointer transition-all duration-200 hover:shadow-md active:scale-[0.98] ${
@@ -131,24 +105,11 @@ const MobileApplicationCard = memo(({
           </div>
         </div>
 
-        {/* Calling Status */}
-        {callingStatus?.latest && (
-          <div className="mb-3 p-3 bg-gray-50 rounded-lg border-l-4 border-gray-400">
-            <div className="flex items-center gap-2">
-              <Phone className="h-4 w-4 text-gray-600" />
-              <span className="text-xs text-gray-600 font-medium">Latest Call Status:</span>
-            </div>
-            <Badge className={`mt-1 text-xs px-2 py-1 ${getCallingStatusColor(callingStatus.latest)}`}>
-              {callingStatus.latest}
-            </Badge>
-          </div>
-        )}
-
         {/* Contact & Action Row */}
         <div className="flex items-center justify-between mb-3 p-3 bg-gray-50 rounded-lg">
           <div className="flex items-center gap-2">
             <User className="h-4 w-4 text-gray-600" />
-            <CallStatusDisplay application={{...application, ...monthData}} selectedMonth={monthToShow} batchedContactStatus={callingStatus} />
+            <CallStatusDisplay application={{...application, ...monthData}} selectedMonth={monthToShow} />
           </div>
           {application.applicant_mobile && (
             <CallButton 
