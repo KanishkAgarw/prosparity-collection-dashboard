@@ -2,8 +2,8 @@
 import { memo, useCallback, useMemo } from 'react';
 import { FixedSizeList as List } from 'react-window';
 import { Application } from '@/types/application';
-import { TableHeader } from '@/components/ui/table';
 import ApplicationRow from './tables/ApplicationRow';
+import OptimizedTableHeader from './tables/OptimizedTableHeader';
 
 interface VirtualizedTableProps {
   applications: Application[];
@@ -54,7 +54,7 @@ const VirtualizedTable = memo(({
     <div className="rounded-lg border border-gray-200 overflow-hidden shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full">
-          <TableHeader />
+          <OptimizedTableHeader />
         </table>
         {applications.length > 0 ? (
           memoizedList

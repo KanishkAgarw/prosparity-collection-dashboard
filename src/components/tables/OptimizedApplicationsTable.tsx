@@ -1,7 +1,7 @@
 
 import { memo, useEffect, useState } from "react";
 import { Application } from "@/types/application";
-import TableHeader from "./TableHeader";
+import OptimizedTableHeader from "./OptimizedTableHeader";
 import ApplicationRow from "./ApplicationRow";
 import { Table, TableBody } from "@/components/ui/table";
 import { useBatchComments } from "@/hooks/useBatchComments";
@@ -84,7 +84,7 @@ const OptimizedApplicationsTable = memo(({
     <div className="rounded-lg border border-gray-200 overflow-hidden shadow-sm">
       <div className="overflow-x-auto">
         <Table>
-          <TableHeader />
+          <OptimizedTableHeader />
           <TableBody>
             {applications.map((application) => (
               <ApplicationRow
