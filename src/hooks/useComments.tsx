@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfiles } from '@/hooks/useUserProfiles';
@@ -22,22 +22,37 @@ export const useComments = (selectedMonth?: string) => {
   const { getUserName, fetchProfiles } = useUserProfiles();
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
-  const [currentApplicationId, setCurrentApplicationId] = useState<string | null>(null);
+  const [lastFetchedApplicationId, setLastFetchedApplicationId] = useState<string | null>(null);
+  const [lastFetchedMonth, setLastFetchedMonth] = useState<string | null>(null);
+  const fetchInProgressRef = useRef<boolean>(false);
 
   // Clear comments when selectedMonth changes to prevent stale data
   useEffect(() => {
-    setComments([]);
-    setCurrentApplicationId(null);
-  }, [selectedMonth]);
+    if (selectedMonth !== lastFetchedMonth) {
+      console.log('Comments: Clearing due to month change', { from: lastFetchedMonth, to: selectedMonth });
+      setComments([]);
+      setLastFetchedApplicationId(null);
+      setLastFetchedMonth(null);
+    }
+  }, [selectedMonth, lastFetchedMonth]);
 
   const fetchComments = useCallback(async (applicationId: string): Promise<Comment[]> => {
     if (!user || !applicationId) return [];
 
-    // Don't fetch if we're already loading for this application
-    if (loading && currentApplicationId === applicationId) return [];
+    // Prevent duplicate fetches
+    if (fetchInProgressRef.current) {
+      console.log('Comments: Fetch already in progress, skipping');
+      return comments;
+    }
 
+    // Check if we already have data for this application and month
+    if (lastFetchedApplicationId === applicationId && lastFetchedMonth === selectedMonth && comments.length > 0) {
+      console.log('Comments: Using cached data', { applicationId, selectedMonth, count: comments.length });
+      return comments;
+    }
+
+    fetchInProgressRef.current = true;
     setLoading(true);
-    setCurrentApplicationId(applicationId);
     
     try {
       console.log('=== FETCHING COMMENTS ===');
@@ -75,6 +90,8 @@ export const useComments = (selectedMonth?: string) => {
       if (!commentsData || commentsData.length === 0) {
         console.log('No comments found for application:', applicationId, 'month:', selectedMonth);
         setComments([]);
+        setLastFetchedApplicationId(applicationId);
+        setLastFetchedMonth(selectedMonth);
         return [];
       }
 
@@ -103,14 +120,17 @@ export const useComments = (selectedMonth?: string) => {
 
       console.log('Final mapped comments with resolved names:', mappedComments);
       setComments(mappedComments);
+      setLastFetchedApplicationId(applicationId);
+      setLastFetchedMonth(selectedMonth);
       return mappedComments;
     } catch (error) {
       console.error('Exception in fetchComments:', error);
       return [];
     } finally {
       setLoading(false);
+      fetchInProgressRef.current = false;
     }
-  }, [user, fetchProfiles, getUserName, selectedMonth, loading, currentApplicationId]);
+  }, [user, fetchProfiles, getUserName, selectedMonth, comments, lastFetchedApplicationId, lastFetchedMonth]);
 
   // Remove the bulk fetch function - we'll only fetch on demand now
   const fetchCommentsByApplications = useCallback(async (
@@ -158,18 +178,22 @@ export const useComments = (selectedMonth?: string) => {
       }
 
       console.log('✓ Comment added successfully');
-      // Refresh comments after adding
-      await fetchComments(applicationId);
+      // Refresh comments after adding - but only if we have cached data for this app/month
+      if (lastFetchedApplicationId === applicationId && lastFetchedMonth === selectedMonth) {
+        await fetchComments(applicationId);
+      }
     } catch (error) {
       console.error('Exception in addComment:', error);
       throw error;
     }
-  }, [user, fetchComments]);
+  }, [user, fetchComments, lastFetchedApplicationId, lastFetchedMonth, selectedMonth]);
 
   // Add a function to clear comments (useful for resetting state)
   const clearComments = useCallback(() => {
+    console.log('Comments: Clearing all cached data');
     setComments([]);
-    setCurrentApplicationId(null);
+    setLastFetchedApplicationId(null);
+    setLastFetchedMonth(null);
   }, []);
 
   return {

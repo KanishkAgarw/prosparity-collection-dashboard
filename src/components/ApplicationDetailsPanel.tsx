@@ -1,3 +1,4 @@
+
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,7 +15,7 @@ import StatusTab from "./details/StatusTab";
 import CommentsTab from "./details/CommentsTab";
 import DetailsTab from "./details/DetailsTab";
 import { useApplicationHandlers } from "./details/ApplicationHandlers";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRepaymentHistory } from "@/hooks/useRepaymentHistory";
 import { supabase } from '@/integrations/supabase/client';
 import { useMonthlyApplicationData } from '@/hooks/useMonthlyApplicationData';
@@ -41,6 +42,7 @@ const ApplicationDetailsPanel = ({
   const [currentApplication, setCurrentApplication] = useState<Application | null>(application);
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [monthSpecificPtpDate, setMonthSpecificPtpDate] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>('contacts');
   const { monthlyData, availableMonths, availableMonthsFormatted, loading: monthlyLoading, getApplicationForMonth } = useMonthlyApplicationData(currentApplication?.applicant_id);
 
   // Handle application changes
@@ -53,7 +55,7 @@ const ApplicationDetailsPanel = ({
   
   const { repaymentHistory } = useRepaymentHistory(currentApplication?.applicant_id);
   
-  // Initialize comments hook but don't auto-fetch
+  // Initialize comments hook but only fetch when needed
   const { comments, fetchComments, addComment, clearComments } = useComments(selectedMonth);
   
   const { auditLogs, addAuditLog, refetch: refetchAuditLogs } = useAuditLogs(currentApplication?.applicant_id, selectedMonth);
@@ -169,18 +171,28 @@ const ApplicationDetailsPanel = ({
     }
   }, [availableMonths, selectedMonth, currentApplication?.applicant_id, currentApplication?.demand_date, selectedEmiMonth]);
 
-  // Only fetch comments when the comments tab is actively accessed
-  const [commentsTabAccessed, setCommentsTabAccessed] = useState(false);
-  
-  useEffect(() => {
-    if (commentsTabAccessed && currentApplication?.applicant_id && selectedMonth) {
+  // Only fetch comments when the comments tab is active AND we have the required data
+  const handleCommentsTabAccess = useCallback(async () => {
+    if (currentApplication?.applicant_id && selectedMonth) {
       console.log('ApplicationDetailsPanel: Fetching comments for active tab', {
         applicationId: currentApplication.applicant_id,
         selectedMonth
       });
-      fetchComments(currentApplication.applicant_id);
+      try {
+        await fetchComments(currentApplication.applicant_id);
+      } catch (error) {
+        console.error('Error fetching comments:', error);
+      }
     }
-  }, [commentsTabAccessed, currentApplication?.applicant_id, selectedMonth, fetchComments]);
+  }, [currentApplication?.applicant_id, selectedMonth, fetchComments]);
+
+  // Handle tab changes
+  const handleTabChange = useCallback((value: string) => {
+    setActiveTab(value);
+    if (value === 'comments') {
+      handleCommentsTabAccess();
+    }
+  }, [handleCommentsTabAccess]);
 
   const monthlyCollectionData = selectedMonth ? getApplicationForMonth(selectedMonth) : null;
 
@@ -194,7 +206,9 @@ const ApplicationDetailsPanel = ({
       await onDataChanged?.(); 
     },
     onCommentUpdate: async () => { 
-      if (currentApplication?.applicant_id) fetchComments(currentApplication.applicant_id); 
+      if (currentApplication?.applicant_id && activeTab === 'comments') {
+        await handleCommentsTabAccess();
+      }
       await onDataChanged?.(); 
     },
     onApplicationUpdate: async () => {
@@ -349,11 +363,7 @@ const ApplicationDetailsPanel = ({
       />
 
       <div className="flex-1 flex-col-min-h-0">
-        <Tabs defaultValue="contacts" className="h-full flex flex-col" onValueChange={(value) => {
-          if (value === 'comments') {
-            setCommentsTabAccessed(true);
-          }
-        }}>
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full flex flex-col">
           <div className="flex-shrink-0 pt-3 sm:pt-4 border-b">
             <TabsList className="grid w-full grid-cols-4 text-xs sm:text-sm h-auto">
               <TabsTrigger value="contacts" className="py-2">Contacts</TabsTrigger>
