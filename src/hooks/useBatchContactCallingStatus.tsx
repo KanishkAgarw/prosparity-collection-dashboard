@@ -3,10 +3,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
 export interface BatchContactStatus {
-  applicant: string;
-  co_applicant: string;
-  guarantor: string;
-  reference: string;
+  applicant?: string;
+  co_applicant?: string;
+  guarantor?: string;
+  reference?: string;
+  latest?: string;
 }
 
 export const useBatchContactCallingStatus = () => {
@@ -17,80 +18,77 @@ export const useBatchContactCallingStatus = () => {
     applicationIds: string[], 
     selectedMonth?: string | null
   ): Promise<Record<string, BatchContactStatus>> => {
-    if (!user || !applicationIds.length) return {};
-
+    if (!user || applicationIds.length === 0) return {};
+    
     setLoading(true);
     
     try {
-      console.log('=== BATCH FETCHING CONTACT CALLING STATUS ===');
-      console.log('Application IDs:', applicationIds.slice(0, 5), '... and', Math.max(0, applicationIds.length - 5), 'more');
+      console.log('=== BATCH CONTACT STATUS FETCH ===');
+      console.log('Application IDs:', applicationIds.length);
       console.log('Selected Month:', selectedMonth);
 
-      // Build query for batch contact status fetching
       let query = supabase
         .from('contact_calling_status')
         .select('application_id, contact_type, status, created_at')
         .in('application_id', applicationIds);
 
-      // Add month filtering if selectedMonth is provided
+      // Add month filter if provided
       if (selectedMonth) {
-        const monthStart = `${selectedMonth}-01`;
-        const nextMonth = new Date(selectedMonth + '-01');
-        nextMonth.setMonth(nextMonth.getMonth() + 1);
-        const monthEnd = nextMonth.toISOString().substring(0, 10);
-        
-        query = query
-          .gte('created_at', monthStart)
-          .lt('created_at', monthEnd);
+        query = query.eq('demand_date', selectedMonth);
       }
 
-      // Order by most recent
+      // Order by created_at to get latest status per contact type
       query = query.order('created_at', { ascending: false });
 
-      const { data: statusData, error } = await query;
+      const { data, error } = await query;
 
       if (error) {
-        console.error('Error batch fetching contact calling status:', error);
+        console.error('Error fetching batch contact status:', error);
+        // Return empty object instead of throwing to prevent cascade failures
         return {};
       }
 
-      if (!statusData || statusData.length === 0) {
-        console.log('No contact calling status found for applications');
-        return {};
-      }
-
-      // Group by application and contact type, keeping most recent
+      // Group by application_id and contact_type, getting latest status for each
       const statusMap: Record<string, BatchContactStatus> = {};
       
-      statusData.forEach(status => {
-        if (!statusMap[status.application_id]) {
-          statusMap[status.application_id] = {
-            applicant: 'Not Called',
-            co_applicant: 'Not Called',
-            guarantor: 'Not Called',
-            reference: 'Not Called'
-          };
-        }
-        
-        // Only update if we don't already have a status for this contact type (most recent wins)
-        const contactKey = status.contact_type as keyof BatchContactStatus;
-        if (statusMap[status.application_id][contactKey] === 'Not Called') {
-          statusMap[status.application_id][contactKey] = status.status || 'Not Called';
-        }
-      });
+      if (data) {
+        data.forEach(status => {
+          if (!statusMap[status.application_id]) {
+            statusMap[status.application_id] = {};
+          }
+          
+          // Only set if we don't already have a status for this contact type (keeps latest due to ordering)
+          const contactType = status.contact_type.toLowerCase() as keyof BatchContactStatus;
+          if (!statusMap[status.application_id][contactType]) {
+            statusMap[status.application_id][contactType] = status.status;
+          }
+        });
 
-      console.log('Batch contact status result:', Object.keys(statusMap).length, 'applications have contact status');
+        // Calculate latest calling status for each application
+        Object.keys(statusMap).forEach(appId => {
+          const statuses = Object.values(statusMap[appId]);
+          if (statuses.length > 0) {
+            // Find the most recent non-"Not Called" status, or "Not Called" if all are
+            const activeStatuses = statuses.filter(s => s !== 'Not Called');
+            statusMap[appId].latest = activeStatuses.length > 0 ? activeStatuses[0] : 'No Calls';
+          } else {
+            statusMap[appId].latest = 'No Calls';
+          }
+        });
+      }
+
+      console.log('✅ Batch contact status loaded:', Object.keys(statusMap).length, 'applications');
       return statusMap;
     } catch (error) {
-      console.error('Exception in batch fetchContactStatus:', error);
-      return {};
+      console.error('Error in fetchBatchContactStatus:', error);
+      return {}; // Return empty object to prevent cascade failures
     } finally {
       setLoading(false);
     }
   }, [user]);
 
   return {
-    loading,
-    fetchBatchContactStatus
+    fetchBatchContactStatus,
+    loading
   };
 };

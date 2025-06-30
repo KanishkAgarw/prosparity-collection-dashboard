@@ -1,67 +1,70 @@
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 
 export const useDebouncedAPI = <T,>(
-  apiFunction: (...args: any[]) => Promise<T>,
-  delay: number = 500
+  apiFunction: () => Promise<T>,
+  debounceMs: number = 300
 ) => {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  
   const timeoutRef = useRef<NodeJS.Timeout>();
-  const requestIdRef = useRef(0);
+  const cancelledRef = useRef(false);
 
-  const debouncedCall = useCallback(
-    (...args: any[]) => {
-      // Clear existing timeout
+  const call = useCallback(async () => {
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    // Reset error state
+    setError(null);
+    
+    // Set up debounced execution
+    timeoutRef.current = setTimeout(async () => {
+      if (cancelledRef.current) return;
+      
+      setLoading(true);
+      
+      try {
+        const result = await apiFunction();
+        
+        if (!cancelledRef.current) {
+          setData(result);
+        }
+      } catch (err) {
+        if (!cancelledRef.current) {
+          console.error('Debounced API call failed:', err);
+          setError(err instanceof Error ? err : new Error('Unknown error'));
+          
+          // Optionally retry after a delay for network errors
+          if (err instanceof Error && err.message.includes('fetch')) {
+            console.log('Network error detected, will retry in 2 seconds...');
+            setTimeout(() => {
+              if (!cancelledRef.current) {
+                call();
+              }
+            }, 2000);
+          }
+        }
+      } finally {
+        if (!cancelledRef.current) {
+          setLoading(false);
+        }
+      }
+    }, debounceMs);
+  }, [apiFunction, debounceMs]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cancelledRef.current = true;
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-
-      // Increment request ID to handle race conditions
-      const currentRequestId = ++requestIdRef.current;
-
-      // Set loading state immediately
-      setLoading(true);
-      setError(null);
-
-      timeoutRef.current = setTimeout(async () => {
-        try {
-          console.log('Debounced API call executing with args:', args);
-          const result = await apiFunction(...args);
-          
-          // Only update if this is still the latest request
-          if (currentRequestId === requestIdRef.current) {
-            setData(result);
-            setError(null);
-          }
-        } catch (err) {
-          if (currentRequestId === requestIdRef.current) {
-            setError(err as Error);
-            console.error('Debounced API call failed:', err);
-          }
-        } finally {
-          if (currentRequestId === requestIdRef.current) {
-            setLoading(false);
-          }
-        }
-      }, delay);
-    },
-    [apiFunction, delay]
-  );
-
-  const cancel = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      setLoading(false);
-    }
+    };
   }, []);
 
-  return {
-    data,
-    loading,
-    error,
-    call: debouncedCall,
-    cancel
-  };
+  return { data, loading, error, call };
 };

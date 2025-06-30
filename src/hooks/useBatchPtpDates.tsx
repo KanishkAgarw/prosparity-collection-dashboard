@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,68 +10,60 @@ export const useBatchPtpDates = () => {
     applicationIds: string[], 
     selectedMonth?: string | null
   ): Promise<Record<string, string | null>> => {
-    if (!user || !applicationIds.length) return {};
-
+    if (!user || applicationIds.length === 0) return {};
+    
     setLoading(true);
     
     try {
-      console.log('=== BATCH FETCHING PTP DATES ===');
-      console.log('Application IDs:', applicationIds.slice(0, 5), '... and', Math.max(0, applicationIds.length - 5), 'more');
+      console.log('=== BATCH PTP DATES FETCH ===');
+      console.log('Application IDs:', applicationIds.length);
       console.log('Selected Month:', selectedMonth);
 
-      // Build query for batch PTP fetching
       let query = supabase
         .from('ptp_dates')
         .select('application_id, ptp_date, created_at')
         .in('application_id', applicationIds);
 
-      // Add month filtering if selectedMonth is provided
+      // Add month filter if provided
       if (selectedMonth) {
-        const monthStart = `${selectedMonth}-01`;
-        const nextMonth = new Date(selectedMonth + '-01');
-        nextMonth.setMonth(nextMonth.getMonth() + 1);
-        const monthEnd = nextMonth.toISOString().substring(0, 10);
-        
-        query = query
-          .gte('created_at', monthStart)
-          .lt('created_at', monthEnd);
+        query = query.eq('demand_date', selectedMonth);
       }
 
-      // Order by most recent
+      // Order by created_at to get latest PTP date per application
       query = query.order('created_at', { ascending: false });
 
-      const { data: ptpData, error } = await query;
+      const { data, error } = await query;
 
       if (error) {
-        console.error('Error batch fetching PTP dates:', error);
+        console.error('Error fetching batch PTP dates:', error);
+        // Return empty object instead of throwing to prevent cascade failures
         return {};
       }
 
-      if (!ptpData || ptpData.length === 0) {
-        console.log('No PTP dates found for applications');
-        return {};
-      }
-
-      // Get the most recent PTP date for each application
+      // Group by application_id and get the latest PTP date
       const ptpMap: Record<string, string | null> = {};
-      ptpData.forEach(ptp => {
-        if (!ptpMap[ptp.application_id]) {
-          ptpMap[ptp.application_id] = ptp.ptp_date;
-        }
-      });
+      
+      if (data) {
+        data.forEach(ptp => {
+          // Only set if we don't already have a PTP date for this application (keeps latest due to ordering)
+          if (!ptpMap.hasOwnProperty(ptp.application_id)) {
+            ptpMap[ptp.application_id] = ptp.ptp_date;
+          }
+        });
+      }
 
-      console.log('Batch PTP dates result:', Object.keys(ptpMap).length, 'applications have PTP dates');
+      console.log('✅ Batch PTP dates loaded:', Object.keys(ptpMap).length, 'applications');
       return ptpMap;
     } catch (error) {
-      console.error('Exception in batch fetchPtpDates:', error);
-      return {};
+      console.error('Error in fetchBatchPtpDates:', error);
+      return {}; // Return empty object to prevent cascade failures
     } finally {
       setLoading(false);
     }
   }, [user]);
 
   return {
-    loading,
-    fetchBatchPtpDates
+    fetchBatchPtpDates,
+    loading
   };
 };

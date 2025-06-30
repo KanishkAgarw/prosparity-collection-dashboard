@@ -14,6 +14,8 @@ interface FiltersSectionProps {
   onEmiMonthChange?: (month: string) => void;
   emiMonthOptions?: string[];
   loading?: boolean;
+  searchLoading?: boolean;
+  totalCount?: number;
 }
 
 const FiltersSection = ({
@@ -25,7 +27,9 @@ const FiltersSection = ({
   selectedEmiMonth,
   onEmiMonthChange,
   emiMonthOptions = [],
-  loading = false
+  loading = false,
+  searchLoading = false,
+  totalCount
 }: FiltersSectionProps) => {
   const isMobile = useIsMobile();
 
@@ -62,6 +66,8 @@ const FiltersSection = ({
           value={searchTerm}
           onChange={onSearchChange}
           placeholder="Search applications..."
+          loading={searchLoading}
+          resultCount={searchTerm ? totalCount : undefined}
         />
       </div>
     </div>

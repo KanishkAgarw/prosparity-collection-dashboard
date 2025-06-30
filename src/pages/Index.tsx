@@ -43,7 +43,7 @@ const Index = () => {
   const [hasRestoredState, setHasRestoredState] = useState(false);
 
   // Debounce search term to reduce API calls
-  const debouncedSearchTerm = useDebounce(searchTerm, 500); // Increased debounce
+  const debouncedSearchTerm = useDebounce(searchTerm, 300); // Reduced from 500ms to 300ms
 
   // Use optimized cascading filters system
   const { 
@@ -284,6 +284,8 @@ const Index = () => {
             onEmiMonthChange={handleEmiMonthChange}
             emiMonthOptions={emiMonthOptions}
             loading={filtersLoading}
+            searchLoading={appsLoading}
+            totalCount={totalCount}
           />
 
           {statusLoading ? (

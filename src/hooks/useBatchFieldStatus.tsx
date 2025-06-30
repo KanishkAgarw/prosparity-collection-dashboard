@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,68 +10,60 @@ export const useBatchFieldStatus = () => {
     applicationIds: string[], 
     selectedMonth?: string | null
   ): Promise<Record<string, string>> => {
-    if (!user || !applicationIds.length) return {};
-
+    if (!user || applicationIds.length === 0) return {};
+    
     setLoading(true);
     
     try {
-      console.log('=== BATCH FETCHING FIELD STATUS ===');
-      console.log('Application IDs:', applicationIds.slice(0, 5), '... and', Math.max(0, applicationIds.length - 5), 'more');
+      console.log('=== BATCH FIELD STATUS FETCH ===');
+      console.log('Application IDs:', applicationIds.length);
       console.log('Selected Month:', selectedMonth);
 
-      // Build query for batch status fetching
       let query = supabase
         .from('field_status')
         .select('application_id, status, created_at')
         .in('application_id', applicationIds);
 
-      // Add month filtering if selectedMonth is provided
+      // Add month filter if provided
       if (selectedMonth) {
-        const monthStart = `${selectedMonth}-01`;
-        const nextMonth = new Date(selectedMonth + '-01');
-        nextMonth.setMonth(nextMonth.getMonth() + 1);
-        const monthEnd = nextMonth.toISOString().substring(0, 10);
-        
-        query = query
-          .gte('created_at', monthStart)
-          .lt('created_at', monthEnd);
+        query = query.eq('demand_date', selectedMonth);
       }
 
-      // Order by most recent
+      // Order by created_at to get latest status per application
       query = query.order('created_at', { ascending: false });
 
-      const { data: statusData, error } = await query;
+      const { data, error } = await query;
 
       if (error) {
-        console.error('Error batch fetching field status:', error);
+        console.error('Error fetching batch field status:', error);
+        // Return empty object instead of throwing to prevent cascade failures
         return {};
       }
 
-      if (!statusData || statusData.length === 0) {
-        console.log('No field status found for applications');
-        return {};
-      }
-
-      // Get the most recent status for each application
+      // Group by application_id and get the latest status
       const statusMap: Record<string, string> = {};
-      statusData.forEach(status => {
-        if (!statusMap[status.application_id]) {
-          statusMap[status.application_id] = status.status || 'Unpaid';
-        }
-      });
+      
+      if (data) {
+        data.forEach(status => {
+          // Only set if we don't already have a status for this application (keeps latest due to ordering)
+          if (!statusMap[status.application_id]) {
+            statusMap[status.application_id] = status.status;
+          }
+        });
+      }
 
-      console.log('Batch field status result:', Object.keys(statusMap).length, 'applications have status');
+      console.log('✅ Batch field status loaded:', Object.keys(statusMap).length, 'applications');
       return statusMap;
     } catch (error) {
-      console.error('Exception in batch fetchFieldStatus:', error);
-      return {};
+      console.error('Error in fetchBatchFieldStatus:', error);
+      return {}; // Return empty object to prevent cascade failures
     } finally {
       setLoading(false);
     }
   }, [user]);
 
   return {
-    loading,
-    fetchBatchFieldStatus
+    fetchBatchFieldStatus,
+    loading
   };
 };
