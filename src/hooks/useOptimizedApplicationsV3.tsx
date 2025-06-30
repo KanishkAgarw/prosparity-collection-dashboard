@@ -61,7 +61,7 @@ export const useOptimizedApplicationsV3 = ({
     console.log('Date range:', start, 'to', end);
 
     try {
-      // Step 1: Build the base query with all filters and search (BEFORE pagination)
+      // Step 1: Build the base query with all filters (BEFORE search and pagination)
       let baseQuery = supabase
         .from('collection')
         .select(`
@@ -99,7 +99,7 @@ export const useOptimizedApplicationsV3 = ({
         baseQuery = baseQuery.in('applications.lender_name', filters.lender);
       }
 
-      // Apply search across ALL fields BEFORE pagination
+      // Step 2: Apply search if provided
       if (searchTerm.trim()) {
         const searchPattern = `%${searchTerm.trim()}%`;
         baseQuery = baseQuery.or(`
@@ -115,10 +115,64 @@ export const useOptimizedApplicationsV3 = ({
         `);
       }
 
-      // Step 2: Get total count with all filters applied
+      // Step 3: Get total count with all filters and search applied
       console.log('Getting total count with all filters applied...');
-      const { count: totalCountResult, error: countError } = await baseQuery
-        .select('*', { count: 'exact', head: true });
+      
+      // For count queries, we need to use a simpler approach
+      let countQuery = supabase
+        .from('collection')
+        .select('application_id', { count: 'exact' })
+        .gte('demand_date', start)
+        .lte('demand_date', end);
+
+      // Reapply all filters for count
+      if (filters.teamLead?.length > 0) {
+        countQuery = countQuery.in('team_lead', filters.teamLead);
+      }
+      if (filters.rm?.length > 0) {
+        countQuery = countQuery.in('rm_name', filters.rm);
+      }
+      if (filters.collectionRm?.length > 0) {
+        const normalizedCollectionRms = filters.collectionRm.map(rm => 
+          rm === 'N/A' || rm === 'NA' ? 'N/A' : rm
+        );
+        countQuery = countQuery.or(`collection_rm.in.(${normalizedCollectionRms.join(',')}),collection_rm.is.null`);
+      }
+      if (filters.repayment?.length > 0) {
+        countQuery = countQuery.in('repayment', filters.repayment);
+      }
+
+      // For search in count query, we need to join with applications
+      if (searchTerm.trim() || filters.branch?.length > 0 || filters.dealer?.length > 0 || filters.lender?.length > 0) {
+        countQuery = countQuery.select('application_id, applications!inner(*)', { count: 'exact' });
+        
+        if (filters.branch?.length > 0) {
+          countQuery = countQuery.in('applications.branch_name', filters.branch);
+        }
+        if (filters.dealer?.length > 0) {
+          countQuery = countQuery.in('applications.dealer_name', filters.dealer);
+        }
+        if (filters.lender?.length > 0) {
+          countQuery = countQuery.in('applications.lender_name', filters.lender);
+        }
+
+        if (searchTerm.trim()) {
+          const searchPattern = `%${searchTerm.trim()}%`;
+          countQuery = countQuery.or(`
+            applications.applicant_name.ilike.${searchPattern},
+            applications.applicant_id.ilike.${searchPattern},
+            applications.applicant_mobile.ilike.${searchPattern},
+            applications.dealer_name.ilike.${searchPattern},
+            applications.lender_name.ilike.${searchPattern},
+            applications.branch_name.ilike.${searchPattern},
+            rm_name.ilike.${searchPattern},
+            team_lead.ilike.${searchPattern},
+            collection_rm.ilike.${searchPattern}
+          `);
+        }
+      }
+
+      const { count: totalCountResult, error: countError } = await countQuery;
 
       if (countError) {
         console.error('Count query error:', countError);
@@ -127,78 +181,22 @@ export const useOptimizedApplicationsV3 = ({
 
       console.log('Total filtered count:', totalCountResult);
 
-      // Step 3: Get paginated results with proper sorting
+      // Step 4: Get paginated and sorted results
       console.log('Fetching paginated results...');
       const offset = (page - 1) * pageSize;
       
-      let paginatedQuery = supabase
-        .from('collection')
-        .select(`
-          *,
-          applications!inner(*)
-        `)
-        .gte('demand_date', start)
-        .lte('demand_date', end);
-
-      // Reapply all the same filters for consistency
-      if (filters.teamLead?.length > 0) {
-        paginatedQuery = paginatedQuery.in('team_lead', filters.teamLead);
-      }
-      if (filters.rm?.length > 0) {
-        paginatedQuery = paginatedQuery.in('rm_name', filters.rm);
-      }
-      if (filters.collectionRm?.length > 0) {
-        const normalizedCollectionRms = filters.collectionRm.map(rm => 
-          rm === 'N/A' || rm === 'NA' ? 'N/A' : rm
-        );
-        paginatedQuery = paginatedQuery.or(`collection_rm.in.(${normalizedCollectionRms.join(',')}),collection_rm.is.null`);
-      }
-      if (filters.repayment?.length > 0) {
-        paginatedQuery = paginatedQuery.in('repayment', filters.repayment);
-      }
-      if (filters.branch?.length > 0) {
-        paginatedQuery = paginatedQuery.in('applications.branch_name', filters.branch);
-      }
-      if (filters.dealer?.length > 0) {
-        paginatedQuery = paginatedQuery.in('applications.dealer_name', filters.dealer);
-      }
-      if (filters.lender?.length > 0) {
-        paginatedQuery = paginatedQuery.in('applications.lender_name', filters.lender);
-      }
-
-      // Reapply search for paginated query
-      if (searchTerm.trim()) {
-        const searchPattern = `%${searchTerm.trim()}%`;
-        paginatedQuery = paginatedQuery.or(`
-          applications.applicant_name.ilike.${searchPattern},
-          applications.applicant_id.ilike.${searchPattern},
-          applications.applicant_mobile.ilike.${searchPattern},
-          applications.dealer_name.ilike.${searchPattern},
-          applications.lender_name.ilike.${searchPattern},
-          applications.branch_name.ilike.${searchPattern},
-          rm_name.ilike.${searchPattern},
-          team_lead.ilike.${searchPattern},
-          collection_rm.ilike.${searchPattern}
-        `);
-      }
-
-      // Apply sorting by applicant name (case-insensitive) and then by demand_date
-      paginatedQuery = paginatedQuery
-        .order('applicant_name', { ascending: true, referencedTable: 'applications' })
-        .order('demand_date', { ascending: false })
-        .range(offset, offset + pageSize - 1);
-
-      const { data: collectionData, error: dataError } = await paginatedQuery;
+      // Get all data first, then sort and paginate client-side for better control
+      const { data: allData, error: dataError } = await baseQuery;
 
       if (dataError) {
-        console.error('Paginated query error:', dataError);
+        console.error('Data query error:', dataError);
         throw dataError;
       }
 
-      console.log(`Fetched ${collectionData?.length || 0} records`);
+      console.log(`Fetched ${allData?.length || 0} total filtered records`);
 
       // Transform the joined data into Application format
-      const transformedApplications: Application[] = (collectionData || []).map(record => {
+      const transformedApplications: Application[] = (allData || []).map(record => {
         const app = record.applications;
         return {
           // Collection data (primary)
@@ -244,8 +242,20 @@ export const useOptimizedApplicationsV3 = ({
         } as Application;
       });
 
+      // Sort by applicant name (case-insensitive) then by demand_date
+      const sortedApplications = transformedApplications.sort((a, b) => {
+        const nameComparison = a.applicant_name.toLowerCase().localeCompare(b.applicant_name.toLowerCase());
+        if (nameComparison !== 0) return nameComparison;
+        
+        // If names are the same, sort by demand_date (newest first)
+        return new Date(b.demand_date || '').getTime() - new Date(a.demand_date || '').getTime();
+      });
+
+      // Apply pagination after sorting
+      const paginatedApplications = sortedApplications.slice(offset, offset + pageSize);
+
       const result = {
-        applications: transformedApplications,
+        applications: paginatedApplications,
         totalCount: totalCountResult || 0,
         totalPages: Math.ceil((totalCountResult || 0) / pageSize),
         loading: false,
@@ -256,7 +266,7 @@ export const useOptimizedApplicationsV3 = ({
       setCachedData(cacheKey, result, 2 * 60 * 1000);
       
       console.log('=== OPTIMIZED V3 FETCH COMPLETE ===');
-      console.log(`Total: ${totalCountResult}, Page: ${page}, Results: ${transformedApplications.length}`);
+      console.log(`Total: ${totalCountResult}, Page: ${page}, Results: ${paginatedApplications.length}`);
       
       return result;
     } catch (error) {
@@ -265,7 +275,7 @@ export const useOptimizedApplicationsV3 = ({
     }
   }, [user, selectedEmiMonth, filters, searchTerm, page, pageSize, cacheKey, getCachedData, setCachedData]);
 
-  // Use debounced API call - only pass the function, no second argument
+  // Use debounced API call - pass only the function parameter
   const { data: apiResult, loading: apiLoading, call: debouncedFetch } = useDebouncedAPI(fetchApplicationsCore);
 
   // Update local state when API result changes
