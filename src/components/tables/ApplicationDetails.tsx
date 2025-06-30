@@ -1,6 +1,7 @@
 
 import { User, Phone, Building2, MapPin } from "lucide-react";
 import { Application } from "@/types/application";
+import { formatCurrency } from "@/utils/formatters";
 
 interface ApplicationDetailsProps {
   application: Application;
@@ -41,18 +42,18 @@ const ApplicationDetails = ({ application, selectedEmiMonth }: ApplicationDetail
         </div>
       )}
 
-      {/* Business info */}
+      {/* Repayment and EMI info */}
       <div className="grid grid-cols-2 gap-1 text-xs">
         <div className="flex items-center gap-1">
           <Building2 className="h-3 w-3 text-gray-400" />
-          <span className="text-gray-600 truncate" title={application.lender_name}>
-            {application.lender_name === 'Vivriti Capital Limited' ? 'Vivriti' : application.lender_name}
+          <span className="text-gray-600 truncate" title={`Repayment: ${application.repayment}`}>
+            Rep: {application.repayment}
           </span>
         </div>
         <div className="flex items-center gap-1">
           <MapPin className="h-3 w-3 text-gray-400" />
-          <span className="text-gray-600 truncate" title={application.branch_name}>
-            {application.branch_name}
+          <span className="text-gray-600 truncate font-medium" title={`EMI: ${formatCurrency(application.emi_amount)}`}>
+            {formatCurrency(application.emi_amount)}
           </span>
         </div>
       </div>
@@ -64,7 +65,7 @@ const ApplicationDetails = ({ application, selectedEmiMonth }: ApplicationDetail
           <div>Collection RM: {application.collection_rm}</div>
         )}
         <div>Team Lead: {application.team_lead}</div>
-        <div>Repayment: {application.repayment}</div>
+        <div>Branch: {application.branch_name}</div>
       </div>
     </div>
   );

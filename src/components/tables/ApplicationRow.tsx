@@ -2,7 +2,7 @@
 import { memo } from "react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Application } from "@/types/application";
-import { formatEmiMonth, formatCurrency, formatPtpDate } from "@/utils/formatters";
+import { formatCurrency, formatPtpDate } from "@/utils/formatters";
 import StatusBadge from "./StatusBadge";
 import ApplicationDetails from "./ApplicationDetails";
 import CallStatusDisplay from "../CallStatusDisplay";
@@ -45,7 +45,8 @@ const ApplicationRow = memo(({
     applicationId: application.applicant_id,
     applicationDemandDate: application.demand_date,
     batchedStatus,
-    batchedPtpDate
+    batchedPtpDate,
+    batchedComments: batchedComments.length
   });
 
   return (
@@ -62,10 +63,6 @@ const ApplicationRow = memo(({
           application={application} 
           selectedEmiMonth={selectedEmiMonth}
         />
-      </TableCell>
-      
-      <TableCell className="font-medium text-blue-600">
-        {formatCurrency(application.emi_amount)}
       </TableCell>
       
       <TableCell>
@@ -96,6 +93,14 @@ const ApplicationRow = memo(({
             selectedMonth={selectedEmiMonth}
             batchedContactStatus={batchedContactStatus}
           />
+        )}
+      </TableCell>
+
+      <TableCell className="font-medium text-green-600">
+        {isLoading ? (
+          <div className="h-4 w-20 bg-gray-200 animate-pulse rounded"></div>
+        ) : (
+          application.amount_collected ? formatCurrency(application.amount_collected) : '₹0'
         )}
       </TableCell>
       
