@@ -52,8 +52,8 @@ const ApplicationDetailsPanel = ({
   
   const { repaymentHistory } = useRepaymentHistory(currentApplication?.applicant_id);
   
-  // Initialize comments hook and fetch immediately when application/month changes
-  const { comments, fetchComments, addComment, clearComments, loading: commentsLoading } = useComments(selectedMonth);
+  // Initialize comments hook but don't auto-fetch
+  const { comments, fetchComments, addComment, clearComments } = useComments(selectedMonth);
   
   const { auditLogs, addAuditLog, refetch: refetchAuditLogs } = useAuditLogs(currentApplication?.applicant_id, selectedMonth);
   const { callingLogs, addCallingLog, refetch: refetchCallingLogs } = useCallingLogs(currentApplication?.applicant_id, selectedMonth);
@@ -168,18 +168,19 @@ const ApplicationDetailsPanel = ({
     }
   }, [availableMonths, selectedMonth, currentApplication?.applicant_id, currentApplication?.demand_date, selectedEmiMonth]);
 
-  // Fetch comments immediately when application and month are available (not just when tab is accessed)
+  // Only fetch comments when the comments tab is actively accessed
+  const [commentsTabAccessed, setCommentsTabAccessed] = useState(false);
+  
   useEffect(() => {
-    if (currentApplication?.applicant_id && selectedMonth) {
-      console.log('ApplicationDetailsPanel: Auto-fetching comments for', {
+    if (commentsTabAccessed && currentApplication?.applicant_id && selectedMonth) {
+      console.log('ApplicationDetailsPanel: Fetching comments for active tab', {
         applicationId: currentApplication.applicant_id,
         selectedMonth
       });
       fetchComments(currentApplication.applicant_id);
     }
-  }, [currentApplication?.applicant_id, selectedMonth, fetchComments]);
+  }, [commentsTabAccessed, currentApplication?.applicant_id, selectedMonth, fetchComments]);
 
-  // Remove the comments tab accessed state since we're loading immediately
   const monthlyCollectionData = selectedMonth ? getApplicationForMonth(selectedMonth) : null;
 
   useRealtimeUpdates({
@@ -347,20 +348,16 @@ const ApplicationDetailsPanel = ({
       />
 
       <div className="flex-1 flex-col-min-h-0">
-        <Tabs defaultValue="contacts" className="h-full flex flex-col">
+        <Tabs defaultValue="contacts" className="h-full flex flex-col" onValueChange={(value) => {
+          if (value === 'comments') {
+            setCommentsTabAccessed(true);
+          }
+        }}>
           <div className="flex-shrink-0 pt-3 sm:pt-4 border-b">
             <TabsList className="grid w-full grid-cols-4 text-xs sm:text-sm h-auto">
               <TabsTrigger value="contacts" className="py-2">Contacts</TabsTrigger>
               <TabsTrigger value="status" className="py-2">Status</TabsTrigger>
-              <TabsTrigger value="comments" className="py-2">
-                Comments
-                {commentsLoading && <span className="ml-1 text-xs">(Loading...)</span>}
-                {!commentsLoading && comments.length > 0 && (
-                  <span className="ml-1 text-xs bg-blue-100 text-blue-800 px-1 rounded-full">
-                    {comments.length}
-                  </span>
-                )}
-              </TabsTrigger>
+              <TabsTrigger value="comments" className="py-2">Comments</TabsTrigger>
               <TabsTrigger value="details" className="py-2">Details</TabsTrigger>
             </TabsList>
           </div>

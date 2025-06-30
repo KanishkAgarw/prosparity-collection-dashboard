@@ -49,46 +49,16 @@ export const useComments = (selectedMonth?: string) => {
         .select('*')
         .eq('application_id', applicationId);
 
-      // Add month filtering if selectedMonth is provided - use proper date handling
+      // Add month filtering if selectedMonth is provided - use proper date range
       if (selectedMonth) {
-        // Parse the selectedMonth properly - it should be in YYYY-MM-DD format
-        let monthStart: string;
-        let monthEnd: string;
+        const monthStart = `${selectedMonth}-01`;
+        const nextMonth = new Date(selectedMonth + '-01');
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        const monthEnd = nextMonth.toISOString().substring(0, 10);
         
-        try {
-          if (selectedMonth.length === 10 && selectedMonth.includes('-')) {
-            // selectedMonth is already in YYYY-MM-DD format
-            const date = new Date(selectedMonth);
-            const year = date.getFullYear();
-            const month = date.getMonth();
-            
-            monthStart = new Date(year, month, 1).toISOString().split('T')[0];
-            const nextMonth = new Date(year, month + 1, 1);
-            monthEnd = nextMonth.toISOString().split('T')[0];
-          } else if (selectedMonth.length === 7) {
-            // selectedMonth is in YYYY-MM format
-            monthStart = `${selectedMonth}-01`;
-            const [year, month] = selectedMonth.split('-');
-            const nextMonth = new Date(parseInt(year), parseInt(month), 1);
-            monthEnd = nextMonth.toISOString().split('T')[0];
-          } else {
-            // Fallback - treat as YYYY-MM-DD
-            const date = new Date(selectedMonth);
-            monthStart = date.toISOString().split('T')[0];
-            const nextDay = new Date(date);
-            nextDay.setDate(date.getDate() + 1);
-            monthEnd = nextDay.toISOString().split('T')[0];
-          }
-          
-          console.log('Date range for comments:', monthStart, 'to', monthEnd);
-          
-          query = query
-            .gte('created_at', monthStart)
-            .lt('created_at', monthEnd);
-        } catch (dateError) {
-          console.error('Error parsing selectedMonth for comments:', dateError);
-          // Continue without date filtering if parsing fails
-        }
+        query = query
+          .gte('created_at', monthStart)
+          .lt('created_at', monthEnd);
       }
 
       // Limit to most recent 10 comments for performance
@@ -172,27 +142,11 @@ export const useComments = (selectedMonth?: string) => {
         user_email: user.email
       };
 
-      // Add demand_date if provided - standardize date format
+      // Add demand_date if provided - but store as full date for proper filtering
       if (demandDate) {
-        let formattedDate: string;
-        try {
-          if (demandDate.length === 7) {
-            // YYYY-MM format, convert to first day of month
-            formattedDate = `${demandDate}-01`;
-          } else if (demandDate.length === 10) {
-            // Already in YYYY-MM-DD format
-            formattedDate = demandDate;
-          } else {
-            // Try to parse and format
-            const date = new Date(demandDate);
-            formattedDate = date.toISOString().split('T')[0];
-          }
-          commentData.demand_date = formattedDate;
-          console.log('Formatted demand_date for comment:', formattedDate);
-        } catch (dateError) {
-          console.error('Error formatting demand_date for comment:', dateError);
-          // Continue without demand_date if parsing fails
-        }
+        // If demandDate is just YYYY-MM, convert to first day of month
+        const fullDate = demandDate.length === 7 ? `${demandDate}-01` : demandDate;
+        commentData.demand_date = fullDate;
       }
 
       const { error } = await supabase

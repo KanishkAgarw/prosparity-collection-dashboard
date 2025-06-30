@@ -15,28 +15,6 @@ export interface ContactCallingStatus {
   demand_date: string;
 }
 
-// Helper function to normalize date format
-const normalizeDate = (date: string | null | undefined): string | null => {
-  if (!date) return null;
-  
-  try {
-    if (date.length === 7) {
-      // YYYY-MM format, convert to first day of month
-      return `${date}-01`;
-    } else if (date.length === 10) {
-      // Already in YYYY-MM-DD format
-      return date;
-    } else {
-      // Try to parse and format
-      const parsedDate = new Date(date);
-      return parsedDate.toISOString().split('T')[0];
-    }
-  } catch (error) {
-    console.error('Error normalizing date:', error);
-    return null;
-  }
-};
-
 export const useContactCallingStatus = (applicationId?: string, selectedMonth?: string) => {
   const { user } = useAuth();
   const [callingStatuses, setCallingStatuses] = useState<ContactCallingStatus[]>([]);
@@ -44,36 +22,22 @@ export const useContactCallingStatus = (applicationId?: string, selectedMonth?: 
 
   const fetchCallingStatuses = async () => {
     if (!applicationId || !user || !selectedMonth) return;
-    
-    const normalizedMonth = normalizeDate(selectedMonth);
-    if (!normalizedMonth) {
-      console.error('Invalid selectedMonth format:', selectedMonth);
-      return;
-    }
-
     setLoading(true);
     try {
-      console.log('=== FETCHING CONTACT CALLING STATUSES ===');
-      console.log('Application ID:', applicationId);
-      console.log('Selected Month (normalized):', normalizedMonth);
-
       const { data, error } = await supabase
         .from('contact_calling_status')
         .select('*')
         .eq('application_id', applicationId)
-        .eq('demand_date', normalizedMonth)
+        .eq('demand_date', selectedMonth)
         .order('updated_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching calling statuses:', error);
-        throw error;
       } else {
-        console.log('✓ Fetched calling statuses:', data?.length || 0);
         setCallingStatuses(data || []);
       }
     } catch (error) {
-      console.error('Exception in fetchCallingStatuses:', error);
-      setCallingStatuses([]);
+      console.error('Error fetching calling statuses:', error);
     } finally {
       setLoading(false);
     }
@@ -83,9 +47,6 @@ export const useContactCallingStatus = (applicationId?: string, selectedMonth?: 
     if (!user || applicationIds.length === 0) return {};
     
     try {
-      console.log('=== FETCHING BATCH CONTACT STATUSES ===');
-      console.log('Application IDs:', applicationIds.length);
-
       const { data, error } = await supabase
         .from('contact_calling_status')
         .select('application_id, contact_type, status, created_at')
@@ -122,7 +83,6 @@ export const useContactCallingStatus = (applicationId?: string, selectedMonth?: 
         }
       });
 
-      console.log('✓ Processed contact statuses for', Object.keys(statusMap).length, 'applications');
       return statusMap;
     } catch (error) {
       console.error('Error fetching contact statuses:', error);
@@ -131,24 +91,9 @@ export const useContactCallingStatus = (applicationId?: string, selectedMonth?: 
   }, [user]);
 
   const updateCallingStatus = async (contactType: string, newStatus: string) => {
-    if (!applicationId || !user || !selectedMonth) {
-      console.error('Missing required parameters for updateCallingStatus');
-      return false;
-    }
-
-    const normalizedMonth = normalizeDate(selectedMonth);
-    if (!normalizedMonth) {
-      console.error('Invalid selectedMonth format for updateCallingStatus:', selectedMonth);
-      return false;
-    }
+    if (!applicationId || !user || !selectedMonth) return;
 
     try {
-      console.log('=== UPDATING CONTACT CALLING STATUS ===');
-      console.log('Application ID:', applicationId);
-      console.log('Contact Type:', contactType);
-      console.log('New Status:', newStatus);
-      console.log('Demand Date (normalized):', normalizedMonth);
-
       const { data, error } = await supabase
         .from('contact_calling_status')
         .upsert({
@@ -157,7 +102,7 @@ export const useContactCallingStatus = (applicationId?: string, selectedMonth?: 
           status: newStatus,
           user_id: user.id,
           user_email: user.email,
-          demand_date: normalizedMonth,
+          demand_date: selectedMonth,
           updated_at: new Date().toISOString()
         }, {
           onConflict: 'application_id,contact_type,demand_date'
@@ -167,14 +112,13 @@ export const useContactCallingStatus = (applicationId?: string, selectedMonth?: 
 
       if (error) {
         console.error('Error updating calling status:', error);
-        throw error;
+        return false;
       }
 
-      console.log('✓ Contact calling status updated successfully:', data);
       await fetchCallingStatuses();
       return true;
     } catch (error) {
-      console.error('Exception in updateCallingStatus:', error);
+      console.error('Error updating calling status:', error);
       return false;
     }
   };
