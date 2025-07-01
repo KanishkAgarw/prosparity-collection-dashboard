@@ -4,10 +4,7 @@ import { Application } from "@/types/application";
 import TableHeader from "./TableHeader";
 import ApplicationRow from "./ApplicationRow";
 import { Table, TableBody } from "@/components/ui/table";
-import { useBatchComments } from "@/hooks/useBatchComments";
-import { useBatchFieldStatus } from "@/hooks/useBatchFieldStatus";
-import { useBatchPtpDates } from "@/hooks/useBatchPtpDates";
-import { useBatchContactCallingStatus } from "@/hooks/useBatchContactCallingStatus";
+import { useCentralizedDataManager } from "@/hooks/useCentralizedDataManager";
 
 interface OptimizedApplicationsTableProps {
   applications: Application[];
@@ -23,87 +20,43 @@ const OptimizedApplicationsTable = memo(({
   selectedApplicationId,
   selectedEmiMonth
 }: OptimizedApplicationsTableProps) => {
-  // Batch loading hooks
-  const { comments, loading: commentsLoading, fetchBatchComments } = useBatchComments(selectedEmiMonth);
-  const { loading: statusLoading, fetchBatchFieldStatus } = useBatchFieldStatus();
-  const { loading: ptpLoading, fetchBatchPtpDates } = useBatchPtpDates();
-  const { loading: contactLoading, fetchBatchContactStatus } = useBatchContactCallingStatus();
-
-  // Batch data state with proper initialization
-  const [batchedData, setBatchedData] = useState<{
-    statuses: Record<string, string>;
-    ptpDates: Record<string, string | null>;
-    contactStatuses: Record<string, any>;
-  }>({
-    statuses: {},
-    ptpDates: {},
-    contactStatuses: {}
-  });
-
-  // Loading state to track batch data loading
-  const [batchDataLoading, setBatchDataLoading] = useState(false);
+  
+  const { data, loading, error, fetchAllData, clearData } = useCentralizedDataManager();
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Extract application IDs for batch loading
   const applicationIds = applications.map(app => app.applicant_id);
   const applicationIdsString = applicationIds.join(',');
 
-  // Clear batch data when applications change (important for search clearing)
-  const clearBatchData = useCallback(() => {
-    setBatchedData({
-      statuses: {},
-      ptpDates: {},
-      contactStatuses: {}
-    });
-  }, []);
-
   // Load all batch data when applications or selectedEmiMonth changes
   const loadBatchData = useCallback(async () => {
     if (applicationIds.length === 0) {
-      clearBatchData();
+      clearData();
       return;
     }
 
-    console.log('=== LOADING BATCH DATA FOR VISIBLE APPLICATIONS ===');
+    console.log('=== LOADING OPTIMIZED BATCH DATA ===');
     console.log('Applications:', applicationIds.length);
     console.log('Selected EMI Month:', selectedEmiMonth);
-    console.log('Application IDs:', applicationIds.slice(0, 5), '...'); // Log first 5 for debugging
-
-    setBatchDataLoading(true);
 
     try {
-      // Load all data in parallel
-      const [statusData, ptpData, contactData] = await Promise.all([
-        fetchBatchFieldStatus(applicationIds, selectedEmiMonth),
-        fetchBatchPtpDates(applicationIds, selectedEmiMonth),
-        fetchBatchContactStatus(applicationIds, selectedEmiMonth)
-      ]);
-
-      // Also load comments
-      await fetchBatchComments(applicationIds);
-
-      setBatchedData({
-        statuses: statusData,
-        ptpDates: ptpData,
-        contactStatuses: contactData
+      await fetchAllData(applicationIds, {
+        selectedEmiMonth,
+        priority: isInitialLoad ? 'high' : 'medium'
       });
 
-      console.log('✅ Batch data loading complete');
-      console.log('Loaded statuses for:', Object.keys(statusData).length, 'applications');
-      console.log('Loaded PTP dates for:', Object.keys(ptpData).length, 'applications');
-      console.log('Loaded contact statuses for:', Object.keys(contactData).length, 'applications');
+      console.log('✅ Optimized batch data loading complete');
     } catch (error) {
-      console.error('❌ Error loading batch data:', error);
-      // Clear data on error to ensure clean state
-      clearBatchData();
+      console.error('❌ Error loading optimized batch data:', error);
     } finally {
-      setBatchDataLoading(false);
+      setIsInitialLoad(false);
     }
-  }, [applicationIdsString, selectedEmiMonth, fetchBatchFieldStatus, fetchBatchPtpDates, fetchBatchContactStatus, fetchBatchComments, clearBatchData]);
+  }, [applicationIdsString, selectedEmiMonth, fetchAllData, clearData, isInitialLoad]);
 
   // Effect to load batch data when dependencies change
   useEffect(() => {
     // Clear existing data first to ensure fresh load
-    clearBatchData();
+    clearData();
     
     // Small delay to ensure state is cleared before loading new data
     const timeoutId = setTimeout(() => {
@@ -113,17 +66,15 @@ const OptimizedApplicationsTable = memo(({
     return () => clearTimeout(timeoutId);
   }, [loadBatchData]);
 
-  // Combined loading state
-  const isLoading = commentsLoading || statusLoading || ptpLoading || contactLoading || batchDataLoading;
-
   console.log('=== OPTIMIZED TABLE RENDER ===');
   console.log('Applications count:', applications.length);
-  console.log('Is loading:', isLoading);
+  console.log('Is loading:', loading);
+  console.log('Has error:', !!error);
   console.log('Batch data keys:', {
-    statuses: Object.keys(batchedData.statuses).length,
-    ptpDates: Object.keys(batchedData.ptpDates).length,
-    contactStatuses: Object.keys(batchedData.contactStatuses).length,
-    comments: Object.keys(comments).length
+    statuses: Object.keys(data.statuses).length,
+    ptpDates: Object.keys(data.ptpDates).length,
+    contactStatuses: Object.keys(data.contactStatuses).length,
+    comments: Object.keys(data.comments).length
   });
 
   return (
@@ -140,25 +91,38 @@ const OptimizedApplicationsTable = memo(({
                 onRowClick={onRowClick}
                 selectedEmiMonth={selectedEmiMonth}
                 // Pass batched data as props
-                batchedStatus={batchedData.statuses[application.applicant_id] || 'Unpaid'}
-                batchedPtpDate={batchedData.ptpDates[application.applicant_id] || null}
-                batchedContactStatus={batchedData.contactStatuses[application.applicant_id]}
-                batchedComments={comments[application.applicant_id] || []}
-                isLoading={isLoading}
+                batchedStatus={data.statuses[application.applicant_id] || 'Unpaid'}
+                batchedPtpDate={data.ptpDates[application.applicant_id] || null}
+                batchedContactStatus={data.contactStatuses[application.applicant_id]}
+                batchedComments={data.comments[application.applicant_id] || []}
+                isLoading={loading}
               />
             ))}
           </TableBody>
         </Table>
       </div>
       
-      {applications.length === 0 && !isLoading && (
+      {error && (
+        <div className="text-center py-8 text-red-600 bg-red-50">
+          <p className="text-lg font-medium">Error loading data</p>
+          <p className="text-sm">{error.message}</p>
+          <button 
+            onClick={loadBatchData}
+            className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+      
+      {applications.length === 0 && !loading && !error && (
         <div className="text-center py-12 text-muted-foreground">
           <p className="text-lg font-medium text-gray-500">No applications found</p>
           <p className="text-sm text-gray-400">Try adjusting your filters</p>
         </div>
       )}
 
-      {isLoading && applications.length === 0 && (
+      {loading && applications.length === 0 && (
         <div className="text-center py-12 text-muted-foreground">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-lg font-medium text-gray-500">Loading applications...</p>

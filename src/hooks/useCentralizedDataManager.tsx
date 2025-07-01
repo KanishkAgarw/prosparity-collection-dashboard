@@ -1,0 +1,201 @@
+
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { useFieldStatusManager } from '@/hooks/useFieldStatusManager';
+import { useBatchComments } from '@/hooks/useBatchComments';
+import { useBatchPtpDates } from '@/hooks/useBatchPtpDates';
+import { useBatchContactCallingStatus } from '@/hooks/useBatchContactCallingStatus';
+
+interface CentralizedData {
+  statuses: Record<string, string>;
+  comments: Record<string, any[]>;
+  ptpDates: Record<string, string | null>;
+  contactStatuses: Record<string, any>;
+}
+
+interface DataManagerOptions {
+  selectedEmiMonth?: string | null;
+  priority?: 'high' | 'medium' | 'low';
+}
+
+export const useCentralizedDataManager = () => {
+  const { fetchFieldStatus, loading: statusLoading } = useFieldStatusManager();
+  const { fetchBatchComments, comments, loading: commentsLoading } = useBatchComments();
+  const { fetchBatchPtpDates, loading: ptpLoading } = useBatchPtpDates();
+  const { fetchBatchContactStatus, loading: contactLoading } = useBatchContactCallingStatus();
+
+  const [data, setData] = useState<CentralizedData>({
+    statuses: {},
+    comments: {},
+    ptpDates: {},
+    contactStatuses: {}
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const lastRequestRef = useRef<string>('');
+
+  const fetchAllData = useCallback(async (
+    applicationIds: string[],
+    options: DataManagerOptions = {}
+  ): Promise<CentralizedData> => {
+    if (applicationIds.length === 0) {
+      const emptyData = {
+        statuses: {},
+        comments: {},
+        ptpDates: {},
+        contactStatuses: {}
+      };
+      setData(emptyData);
+      return emptyData;
+    }
+
+    // Cancel previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    abortControllerRef.current = new AbortController();
+    const requestId = `${applicationIds.join(',')}-${options.selectedEmiMonth || 'none'}`;
+
+    // Skip duplicate requests
+    if (lastRequestRef.current === requestId) {
+      console.log('⏭️ Skipping duplicate centralized data request');
+      return data;
+    }
+
+    lastRequestRef.current = requestId;
+    setLoading(true);
+    setError(null);
+
+    try {
+      console.log('=== CENTRALIZED DATA MANAGER ===');
+      console.log('Application IDs:', applicationIds.length);
+      console.log('Selected EMI Month:', options.selectedEmiMonth);
+      console.log('Priority:', options.priority || 'medium');
+
+      // Determine request strategy based on priority and data size
+      const shouldParallelize = applicationIds.length < 500 && options.priority !== 'low';
+
+      let newData: CentralizedData;
+
+      if (shouldParallelize) {
+        // Fetch all data in parallel for better performance
+        console.log('📊 Fetching all data in parallel...');
+        const [statusData, ptpData, contactData] = await Promise.allSettled([
+          fetchFieldStatus(applicationIds, options.selectedEmiMonth),
+          fetchBatchPtpDates(applicationIds, options.selectedEmiMonth),
+          fetchBatchContactStatus(applicationIds, options.selectedEmiMonth)
+        ]);
+
+        // Handle comments separately as it doesn't depend on month
+        await fetchBatchComments(applicationIds);
+
+        newData = {
+          statuses: statusData.status === 'fulfilled' ? statusData.value : {},
+          ptpDates: ptpData.status === 'fulfilled' ? ptpData.value : {},
+          contactStatuses: contactData.status === 'fulfilled' ? contactData.value : {},
+          comments: comments
+        };
+
+        // Log any failures
+        [statusData, ptpData, contactData].forEach((result, index) => {
+          if (result.status === 'rejected') {
+            const dataType = ['statuses', 'ptp dates', 'contact statuses'][index];
+            console.warn(`⚠️ Failed to fetch ${dataType}:`, result.reason);
+          }
+        });
+      } else {
+        // Sequential loading for large datasets or low priority
+        console.log('📊 Fetching data sequentially...');
+        
+        const statusData = await fetchFieldStatus(applicationIds, options.selectedEmiMonth);
+        
+        if (abortControllerRef.current?.signal.aborted) return data;
+        
+        const ptpData = await fetchBatchPtpDates(applicationIds, options.selectedEmiMonth);
+        
+        if (abortControllerRef.current?.signal.aborted) return data;
+        
+        const contactData = await fetchBatchContactStatus(applicationIds, options.selectedEmiMonth);
+        
+        if (abortControllerRef.current?.signal.aborted) return data;
+        
+        await fetchBatchComments(applicationIds);
+
+        newData = {
+          statuses: statusData,
+          ptpDates: ptpData,
+          contactStatuses: contactData,
+          comments: comments
+        };
+      }
+
+      // Check if request was cancelled
+      if (abortControllerRef.current?.signal.aborted) {
+        return data;
+      }
+
+      console.log('✅ Centralized data fetch complete:', {
+        statuses: Object.keys(newData.statuses).length,
+        ptpDates: Object.keys(newData.ptpDates).length,
+        contactStatuses: Object.keys(newData.contactStatuses).length,
+        comments: Object.keys(newData.comments).length
+      });
+
+      setData(newData);
+      return newData;
+
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('🛑 Centralized data fetch was cancelled');
+        return data;
+      }
+
+      console.error('❌ Error in centralized data fetch:', error);
+      setError(error instanceof Error ? error : new Error('Unknown error'));
+      
+      // Return partial data instead of throwing
+      return data;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchFieldStatus, fetchBatchComments, fetchBatchPtpDates, fetchBatchContactStatus, comments, data]);
+
+  const clearData = useCallback(() => {
+    setData({
+      statuses: {},
+      comments: {},
+      ptpDates: {},
+      contactStatuses: {}
+    });
+    setError(null);
+  }, []);
+
+  const cancelRequests = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    setLoading(false);
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  const isLoading = loading || statusLoading || commentsLoading || ptpLoading || contactLoading;
+
+  return {
+    data,
+    loading: isLoading,
+    error,
+    fetchAllData,
+    clearData,
+    cancelRequests
+  };
+};

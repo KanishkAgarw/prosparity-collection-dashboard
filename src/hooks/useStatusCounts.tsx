@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { FilterState } from '@/types/filters';
@@ -35,6 +35,8 @@ export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: 
     statusPendingApproval: 0
   });
   const [loading, setLoading] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const lastRequestRef = useRef<string>('');
 
   const validateInputs = useCallback((month?: string | null): boolean => {
     if (!user) {
@@ -51,7 +53,24 @@ export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: 
   const fetchStatusCounts = useCallback(async () => {
     if (!validateInputs(selectedEmiMonth)) return;
 
+    // Cancel previous request if still running
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller
+    abortControllerRef.current = new AbortController();
+    const currentRequestId = `${selectedEmiMonth}-${JSON.stringify(filters)}-${searchTerm}`;
+
+    // Skip if this is the same request as last time
+    if (lastRequestRef.current === currentRequestId) {
+      console.log('⏭️ Skipping duplicate status counts request');
+      return;
+    }
+
+    lastRequestRef.current = currentRequestId;
     setLoading(true);
+
     try {
       console.log('=== FETCHING STATUS COUNTS ===');
       console.log('Selected EMI Month:', selectedEmiMonth);
@@ -79,7 +98,8 @@ export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: 
           )
         `)
         .gte('demand_date', start)
-        .lte('demand_date', end);
+        .lte('demand_date', end)
+        .abortSignal(abortControllerRef.current.signal);
 
       // Apply filters to collection query
       if (filters.teamLead?.length > 0) {
@@ -121,6 +141,10 @@ export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: 
       const { data: collectionData, error: collectionError } = await collectionQuery;
 
       if (collectionError) {
+        if (collectionError.name === 'AbortError') {
+          console.log('🛑 Status counts request was cancelled');
+          return;
+        }
         console.error('Error fetching collection for status counts:', collectionError);
         return;
       }
@@ -185,8 +209,19 @@ export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: 
         return;
       }
 
-      // Fetch field status using the centralized manager
+      // Check if request was cancelled before proceeding
+      if (abortControllerRef.current?.signal.aborted) {
+        return;
+      }
+
+      // Fetch field status using the centralized manager (now with chunking)
+      console.log('📊 Fetching field status for status counts...');
       const statusMap = await fetchFieldStatus(applicationIds, selectedEmiMonth);
+
+      // Check again if request was cancelled
+      if (abortControllerRef.current?.signal.aborted) {
+        return;
+      }
 
       // Count statuses for all applications
       const counts = applicationIds.reduce((acc, applicationId) => {
@@ -230,6 +265,11 @@ export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: 
       setStatusCounts(counts);
 
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('🛑 Status counts fetch was cancelled');
+        return;
+      }
+      
       console.error('Error fetching status counts:', error);
       // Set empty counts on error to prevent UI issues
       setStatusCounts({
@@ -246,9 +286,28 @@ export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: 
     }
   }, [user, selectedEmiMonth, filters, searchTerm, fetchFieldStatus, validateInputs]);
 
+  // Effect with proper cleanup
   useEffect(() => {
-    fetchStatusCounts();
+    const timeoutId = setTimeout(() => {
+      fetchStatusCounts();
+    }, 300); // Debounce requests
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [fetchStatusCounts]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   return {
     statusCounts,
