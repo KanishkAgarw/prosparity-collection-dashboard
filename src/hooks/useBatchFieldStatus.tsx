@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -26,17 +25,15 @@ export const useBatchFieldStatus = () => {
 
       let query = supabase
         .from('field_status')
-        .select('application_id, status, created_at')
+        .select('application_id, status, created_at, demand_date')
         .in('application_id', applicationIds);
 
-      // Add month filter if provided - filter by demand_date using proper date range
+      // Add month filter if provided - use single 'and' clause for demand_date range
       if (selectedMonth) {
         const { start, end } = getMonthDateRange(selectedMonth);
         console.log('Date range for field status:', { start, end });
         
-        query = query
-          .gte('demand_date', start)
-          .lte('demand_date', end);
+        query = query.and(`demand_date.gte.${start},demand_date.lte.${end}`);
       }
 
       // Order by created_at to get latest status per application
