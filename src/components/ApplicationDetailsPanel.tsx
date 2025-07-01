@@ -1,3 +1,4 @@
+
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,7 +15,7 @@ import StatusTab from "./details/StatusTab";
 import CommentsTab from "./details/CommentsTab";
 import DetailsTab from "./details/DetailsTab";
 import { useApplicationHandlers } from "./details/ApplicationHandlers";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRepaymentHistory } from "@/hooks/useRepaymentHistory";
 import { supabase } from '@/integrations/supabase/client';
 import { useMonthlyApplicationData } from '@/hooks/useMonthlyApplicationData';
@@ -42,12 +43,21 @@ const ApplicationDetailsPanel = ({
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [monthSpecificPtpDate, setMonthSpecificPtpDate] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('contacts');
+  
+  // Add tracking for user-initiated month changes
+  const userSelectedMonthRef = useRef<boolean>(false);
+  const isUpdatingStatusRef = useRef<boolean>(false);
+  const initializedRef = useRef<boolean>(false);
+  
   const { monthlyData, availableMonths, availableMonthsFormatted, loading: monthlyLoading, getApplicationForMonth } = useMonthlyApplicationData(currentApplication?.applicant_id);
 
   // Handle application changes
   useEffect(() => {
     console.log('ApplicationDetailsPanel: Application changed', application?.applicant_id);
     setCurrentApplication(application);
+    // Reset initialization flag when application changes
+    initializedRef.current = false;
+    userSelectedMonthRef.current = false;
     // Clear selectedMonth when application changes to force proper initialization
     setSelectedMonth('');
   }, [application]);
@@ -98,17 +108,32 @@ const ApplicationDetailsPanel = ({
     clearComments();
   }, [currentApplication?.applicant_id, clearComments]);
 
-  // Set initial month based on application's demand_date or selectedEmiMonth or default to most recent
+  // Improved month initialization logic with user selection tracking
   useEffect(() => {
-    console.log('ApplicationDetailsPanel: Setting initial month', {
+    console.log('ApplicationDetailsPanel: Month initialization check', {
       selectedEmiMonth,
       availableMonths,
       currentApplicationId: currentApplication?.applicant_id,
       selectedMonth,
-      applicationDemandDate: currentApplication?.demand_date
+      applicationDemandDate: currentApplication?.demand_date,
+      userSelectedMonth: userSelectedMonthRef.current,
+      isUpdatingStatus: isUpdatingStatusRef.current,
+      initialized: initializedRef.current
     });
     
-    if (availableMonths.length > 0 && !selectedMonth && currentApplication?.applicant_id) {
+    // Don't reinitialize if:
+    // 1. Already initialized and user has made a selection
+    // 2. Currently updating status (prevents interference)
+    // 3. No available months or application
+    if ((initializedRef.current && userSelectedMonthRef.current) || 
+        isUpdatingStatusRef.current || 
+        availableMonths.length === 0 || 
+        !currentApplication?.applicant_id) {
+      return;
+    }
+    
+    // Only initialize if we don't have a selected month yet
+    if (!selectedMonth) {
       let initialMonth = '';
       
       // Priority 1: Try to match the application's own demand_date first
@@ -145,7 +170,6 @@ const ApplicationDetailsPanel = ({
           console.log('ApplicationDetailsPanel: Found matching month for selectedEmiMonth', selectedEmiMonth, '->', initialMonth);
         } else {
           // If no exact match found, try to find a month that's close
-          // This handles cases where the filter month format might be slightly different
           const normalizedSelectedMonth = selectedEmiMonth.toLowerCase().replace(/\s+/g, '');
           const closeMatch = availableMonths.find(month => {
             const normalizedMonth = formatEmiMonth(month).toLowerCase().replace(/\s+/g, '');
@@ -167,8 +191,18 @@ const ApplicationDetailsPanel = ({
       
       console.log('ApplicationDetailsPanel: Setting initial month to', initialMonth);
       setSelectedMonth(initialMonth);
+      initializedRef.current = true;
+      // This is automatic initialization, not user-initiated
+      userSelectedMonthRef.current = false;
     }
   }, [availableMonths, selectedMonth, currentApplication?.applicant_id, currentApplication?.demand_date, selectedEmiMonth]);
+
+  // Handle user-initiated month changes
+  const handleMonthChange = useCallback((newMonth: string) => {
+    console.log('ApplicationDetailsPanel: User changed month to', newMonth);
+    setSelectedMonth(newMonth);
+    userSelectedMonthRef.current = true; // Mark as user-initiated
+  }, []);
 
   // Only fetch comments when the comments tab is active AND we have the required data
   const handleCommentsTabAccess = useCallback(async () => {
@@ -195,24 +229,31 @@ const ApplicationDetailsPanel = ({
 
   const monthlyCollectionData = selectedMonth ? getApplicationForMonth(selectedMonth) : null;
 
+  // Enhanced real-time updates with status update tracking
   useRealtimeUpdates({
     onCallingLogUpdate: async () => { 
       refetchCallingLogs(); 
-      await onDataChanged?.(); 
+      if (!isUpdatingStatusRef.current) {
+        await onDataChanged?.(); 
+      }
     },
     onAuditLogUpdate: async () => { 
       refetchAuditLogs(); 
-      await onDataChanged?.(); 
+      if (!isUpdatingStatusRef.current) {
+        await onDataChanged?.(); 
+      }
     },
     onCommentUpdate: async () => { 
       if (currentApplication?.applicant_id && activeTab === 'comments') {
         await handleCommentsTabAccess();
       }
-      await onDataChanged?.(); 
+      if (!isUpdatingStatusRef.current) {
+        await onDataChanged?.(); 
+      }
     },
     onApplicationUpdate: async () => {
       // When application data changes from real-time, update both local state and parent
-      if (currentApplication?.applicant_id) {
+      if (currentApplication?.applicant_id && !isUpdatingStatusRef.current) {
         // Fetch the latest application data
         supabase
           .from('applications')
@@ -227,12 +268,14 @@ const ApplicationDetailsPanel = ({
             }
           });
       }
-      await onDataChanged?.();
+      if (!isUpdatingStatusRef.current) {
+        await onDataChanged?.();
+      }
     },
     onPtpDateUpdate: async () => { 
       refetchAuditLogs(); 
       // Refresh month-specific PTP date
-      if (currentApplication?.applicant_id && selectedMonth) {
+      if (currentApplication?.applicant_id && selectedMonth && !isUpdatingStatusRef.current) {
         const { data, error } = await supabase
           .from('ptp_dates')
           .select('ptp_date')
@@ -248,7 +291,9 @@ const ApplicationDetailsPanel = ({
           setMonthSpecificPtpDate(null);
         }
       }
-      await onDataChanged?.(); 
+      if (!isUpdatingStatusRef.current) {
+        await onDataChanged?.(); 
+      }
     }
   });
 
@@ -261,6 +306,32 @@ const ApplicationDetailsPanel = ({
     onSave(updatedApp);
     onDataChanged?.();
   }, selectedMonth);
+
+  // Enhanced status change handler with update tracking
+  const handleStatusChangeWithTracking = useCallback(async (newStatus: string) => {
+    isUpdatingStatusRef.current = true;
+    try {
+      await handleStatusChange(newStatus);
+    } finally {
+      // Reset the flag after a delay to allow for real-time updates to settle
+      setTimeout(() => {
+        isUpdatingStatusRef.current = false;
+      }, 1000);
+    }
+  }, [handleStatusChange]);
+
+  // Enhanced PTP date change handler with update tracking
+  const handlePtpDateChangeWithTracking = useCallback(async (newDate: string) => {
+    isUpdatingStatusRef.current = true;
+    try {
+      await handlePtpDateChange(newDate);
+    } finally {
+      // Reset the flag after a delay to allow for real-time updates to settle
+      setTimeout(() => {
+        isUpdatingStatusRef.current = false;
+      }, 1000);
+    }
+  }, [handlePtpDateChange]);
 
   const displayApplication = (() => {
     if (!currentApplication) return null;
@@ -364,7 +435,7 @@ const ApplicationDetailsPanel = ({
         availableMonths={availableMonths}
         availableMonthsFormatted={availableMonthsFormatted}
         selectedMonth={selectedMonth}
-        onMonthChange={setSelectedMonth}
+        onMonthChange={handleMonthChange}
         loading={monthlyLoading}
       />
 
@@ -392,8 +463,8 @@ const ApplicationDetailsPanel = ({
               <StatusTab 
                 application={displayApplication}
                 auditLogs={auditLogs}
-                onStatusChange={handleStatusChange}
-                onPtpDateChange={handlePtpDateChange}
+                onStatusChange={handleStatusChangeWithTracking}
+                onPtpDateChange={handlePtpDateChangeWithTracking}
                 addAuditLog={addAuditLog}
                 selectedMonth={selectedMonth}
               />

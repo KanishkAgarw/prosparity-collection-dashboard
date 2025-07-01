@@ -21,6 +21,7 @@ export const useRealtimeUpdates = ({
   const { user } = useAuth();
   const channelsRef = useRef<any[]>([]);
   const isActiveRef = useRef(true);
+  const updateTimeoutRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
     if (!user) return;
@@ -33,21 +34,24 @@ export const useRealtimeUpdates = ({
       
       if (document.hidden) {
         console.log('🛑 Tab hidden - pausing real-time updates');
-        // Don't unsubscribe, just mark as inactive to reduce processing
+        // Clear any pending updates
+        if (updateTimeoutRef.current) {
+          clearTimeout(updateTimeoutRef.current);
+        }
       } else {
         console.log('👁️ Tab visible - resuming real-time updates');
-        // Trigger a refresh when tab becomes active again
-        setTimeout(() => {
+        // Trigger a delayed refresh when tab becomes active again
+        updateTimeoutRef.current = setTimeout(() => {
           if (isActiveRef.current) {
             onApplicationUpdate?.();
           }
-        }, 500);
+        }, 1000); // Increased delay to allow for settling
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Create optimized real-time subscriptions
+    // Create optimized real-time subscriptions with improved debouncing
     const createSubscription = (tableName: string, callback: () => void) => {
       return supabase
         .channel(`${tableName}-changes-optimized`)
@@ -62,7 +66,18 @@ export const useRealtimeUpdates = ({
             // Only process updates if tab is active
             if (isActiveRef.current) {
               console.log(`✅ ${tableName} update received:`, payload);
-              callback();
+              
+              // Clear any existing timeout to debounce rapid updates
+              if (updateTimeoutRef.current) {
+                clearTimeout(updateTimeoutRef.current);
+              }
+              
+              // Debounce the callback to prevent rapid-fire updates
+              updateTimeoutRef.current = setTimeout(() => {
+                if (isActiveRef.current) {
+                  callback();
+                }
+              }, 500); // 500ms debounce for better stability
             } else {
               console.log(`⏸️ ${tableName} update received but tab inactive`);
             }
@@ -71,16 +86,16 @@ export const useRealtimeUpdates = ({
         .subscribe();
     };
 
-    // Subscribe to critical tables only
+    // Subscribe to critical tables only with improved callback handling
     const subscriptions = [
       createSubscription('ptp_dates', () => {
         onPtpDateUpdate?.();
-        // Small delay to ensure database consistency
+        // Delayed application update to ensure database consistency
         setTimeout(() => {
           if (isActiveRef.current) {
             onApplicationUpdate?.();
           }
-        }, 300);
+        }, 800);
       }),
       
       createSubscription('audit_logs', () => {
@@ -101,6 +116,16 @@ export const useRealtimeUpdates = ({
       
       createSubscription('comments', () => {
         onCommentUpdate?.();
+      }),
+
+      // Add field_status subscription for status updates
+      createSubscription('field_status', () => {
+        onApplicationUpdate?.();
+      }),
+
+      // Add collection subscription for amount updates
+      createSubscription('collection', () => {
+        onApplicationUpdate?.();
       })
     ];
 
@@ -109,6 +134,12 @@ export const useRealtimeUpdates = ({
     return () => {
       console.log('🧹 Cleaning up optimized real-time subscriptions');
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      
+      // Clear any pending timeouts
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+      
       subscriptions.forEach(channel => {
         supabase.removeChannel(channel);
       });
