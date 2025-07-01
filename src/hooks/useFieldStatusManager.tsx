@@ -1,4 +1,5 @@
 
+
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -111,11 +112,15 @@ export const useFieldStatusManager = () => {
         const processedApps = new Set<string>();
 
         data?.forEach(record => {
-          if (record && typeof record === 'object' && 'application_id' in record && 'status' in record) {
-            const appId = record.application_id as string;
-            if (!processedApps.has(appId)) {
-              statusMap[appId] = (record.status as string) || 'Unpaid';
-              processedApps.add(appId);
+          // Add explicit null check and type assertion
+          if (record !== null && record !== undefined && typeof record === 'object') {
+            // Now TypeScript knows record is not null
+            if ('application_id' in record && 'status' in record && record.application_id && record.status) {
+              const appId = record.application_id as string;
+              if (!processedApps.has(appId)) {
+                statusMap[appId] = (record.status as string) || 'Unpaid';
+                processedApps.add(appId);
+              }
             }
           }
         });
@@ -190,3 +195,4 @@ export const useFieldStatusManager = () => {
     clearCache
   };
 };
+
