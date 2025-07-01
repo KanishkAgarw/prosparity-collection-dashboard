@@ -169,13 +169,12 @@ export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: 
         return;
       }
 
-      // Fetch field status for these applications using date range
+      // Fetch field status for these applications - get LATEST status regardless of date
+      // This fixes the 400 error by removing duplicate demand_date filters
       const { data: fieldStatusData } = await supabase
         .from('field_status')
-        .select('application_id, status, created_at')
+        .select('application_id, status, created_at, demand_date')
         .in('application_id', applicationIds)
-        .gte('demand_date', start)
-        .lte('demand_date', end)
         .order('created_at', { ascending: false });
 
       console.log(`Found ${fieldStatusData?.length || 0} field status records for status counting`);
