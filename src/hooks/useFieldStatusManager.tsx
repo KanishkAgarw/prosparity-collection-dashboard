@@ -1,5 +1,4 @@
 
-
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -27,9 +26,9 @@ export const useFieldStatusManager = () => {
   const [loading, setLoading] = useState(false);
   const cancelTokenRef = useRef<boolean>(false);
 
-  const getCacheKey = useCallback((query: FieldStatusQuery): string => {
-    const sortedIds = [...query.applicationIds].sort();
-    return `field-status-${query.selectedMonth || 'all'}-${query.includeAllMonths ? 'all-months' : 'filtered'}-${sortedIds.join(',')}`;
+  const getCacheKey = useCallback((queryParams: FieldStatusQuery): string => {
+    const sortedIds = [...queryParams.applicationIds].sort();
+    return `field-status-${queryParams.selectedMonth || 'all'}-${queryParams.includeAllMonths ? 'all-months' : 'filtered'}-${sortedIds.join(',')}`;
   }, []);
 
   const isValidApplicationId = useCallback((id: any): id is string => {
@@ -112,13 +111,15 @@ export const useFieldStatusManager = () => {
         const processedApps = new Set<string>();
 
         data?.forEach(record => {
-          // Add explicit null check and type assertion
-          if (record !== null && record !== undefined && typeof record === 'object') {
-            // Now TypeScript knows record is not null
-            if ('application_id' in record && 'status' in record && record.application_id && record.status) {
-              const appId = record.application_id as string;
+          // Enhanced null and type checking
+          if (record && typeof record === 'object') {
+            // Use type assertion with proper property checking
+            const typedRecord = record as { application_id?: string; status?: string };
+            
+            if (typedRecord.application_id && typedRecord.status) {
+              const appId = typedRecord.application_id;
               if (!processedApps.has(appId)) {
-                statusMap[appId] = (record.status as string) || 'Unpaid';
+                statusMap[appId] = typedRecord.status || 'Unpaid';
                 processedApps.add(appId);
               }
             }
@@ -195,4 +196,3 @@ export const useFieldStatusManager = () => {
     clearCache
   };
 };
-
