@@ -1,9 +1,9 @@
 
 import { Application } from "@/types/application";
 import SimpleApplicationsTable from "@/components/tables/SimpleApplicationsTable";
-import { PaginationControls } from "@/components/PaginationControls";
-import { useMobile } from "@/hooks/use-mobile";
-import { OptimizedMobileTable } from "@/components/tables/mobile/OptimizedMobileTable";
+import PaginationControls from "@/components/PaginationControls";
+import { useIsMobile } from "@/hooks/use-mobile";
+import OptimizedMobileTable from "@/components/tables/mobile/OptimizedMobileTable";
 
 interface MainContentProps {
   applications: Application[];
@@ -29,7 +29,7 @@ const MainContent = ({
   pageSize,
   selectedEmiMonth
 }: MainContentProps) => {
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
 
   return (
     <div className="space-y-4">
