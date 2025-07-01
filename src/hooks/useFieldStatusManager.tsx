@@ -40,14 +40,14 @@ export const useFieldStatusManager = () => {
     return fields.filter(Boolean).join(', ');
   }, []);
 
-  const fetchFieldStatusBatch = useCallback(async (query: FieldStatusQuery): Promise<Record<string, string>> => {
+  const fetchFieldStatusBatch = useCallback(async (queryParams: FieldStatusQuery): Promise<Record<string, string>> => {
     if (!user) {
       console.warn('❌ No user for field status fetch');
       return {};
     }
 
     // Validate and filter application IDs
-    const validApplicationIds = query.applicationIds.filter(isValidApplicationId);
+    const validApplicationIds = queryParams.applicationIds.filter(isValidApplicationId);
     if (validApplicationIds.length === 0) {
       console.warn('❌ No valid application IDs provided');
       return {};
@@ -55,10 +55,10 @@ export const useFieldStatusManager = () => {
 
     console.log('=== FIELD STATUS MANAGER FETCH ===');
     console.log('Valid Application IDs:', validApplicationIds.length);
-    console.log('Selected Month:', query.selectedMonth);
-    console.log('Include All Months:', query.includeAllMonths);
+    console.log('Selected Month:', queryParams.selectedMonth);
+    console.log('Include All Months:', queryParams.includeAllMonths);
 
-    const cacheKey = getCacheKey({ ...query, applicationIds: validApplicationIds });
+    const cacheKey = getCacheKey({ ...queryParams, applicationIds: validApplicationIds });
     
     // Check cache first
     const cached = cache[cacheKey];
@@ -76,25 +76,25 @@ export const useFieldStatusManager = () => {
     // Create new request
     const requestPromise = (async (): Promise<Record<string, string>> => {
       try {
-        let query = supabase
+        let supabaseQuery = supabase
           .from('field_status')
           .select(buildSelectClause())
           .in('application_id', validApplicationIds);
 
         // Add month filtering if specified and not including all months
-        if (query.selectedMonth && !query.includeAllMonths) {
-          const monthStart = `${query.selectedMonth}-01`;
-          const monthEnd = `${query.selectedMonth}-31`;
-          query = query
+        if (queryParams.selectedMonth && !queryParams.includeAllMonths) {
+          const monthStart = `${queryParams.selectedMonth}-01`;
+          const monthEnd = `${queryParams.selectedMonth}-31`;
+          supabaseQuery = supabaseQuery
             .gte('demand_date', monthStart)
             .lte('demand_date', monthEnd);
         }
 
         // Always order by created_at to get latest status per application
-        query = query.order('created_at', { ascending: false });
+        supabaseQuery = supabaseQuery.order('created_at', { ascending: false });
 
         console.log('📤 Executing field status query...');
-        const { data, error } = await query;
+        const { data, error } = await supabaseQuery;
 
         if (error) {
           console.error('❌ Field status query error:', error);
@@ -111,9 +111,12 @@ export const useFieldStatusManager = () => {
         const processedApps = new Set<string>();
 
         data?.forEach(record => {
-          if (!processedApps.has(record.application_id)) {
-            statusMap[record.application_id] = record.status || 'Unpaid';
-            processedApps.add(record.application_id);
+          if (record && typeof record === 'object' && 'application_id' in record && 'status' in record) {
+            const appId = record.application_id as string;
+            if (!processedApps.has(appId)) {
+              statusMap[appId] = (record.status as string) || 'Unpaid';
+              processedApps.add(appId);
+            }
           }
         });
 
