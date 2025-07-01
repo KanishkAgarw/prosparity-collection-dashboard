@@ -26,10 +26,10 @@ export const useBatchFieldStatus = () => {
 
       let query = supabase
         .from('field_status')
-        .select('application_id, status, created_at, demand_date')
+        .select('application_id, status, created_at')
         .in('application_id', applicationIds);
 
-      // Add month filter if provided - use proper chaining for demand_date range
+      // Add month filter if provided - filter by demand_date using proper date range
       if (selectedMonth) {
         const { start, end } = getMonthDateRange(selectedMonth);
         console.log('Date range for field status:', { start, end });
