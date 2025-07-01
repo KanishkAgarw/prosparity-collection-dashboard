@@ -1,9 +1,9 @@
 
 import { Application } from "@/types/application";
-import { useIsMobile } from "@/hooks/use-mobile";
-import ApplicationsTable from "@/components/ApplicationsTable";
-import MobileOptimizedTable from "@/components/MobileOptimizedTable";
-import PaginationControls from "@/components/PaginationControls";
+import SimpleApplicationsTable from "@/components/tables/SimpleApplicationsTable";
+import { PaginationControls } from "@/components/PaginationControls";
+import { useMobile } from "@/hooks/use-mobile";
+import { OptimizedMobileTable } from "@/components/tables/mobile/OptimizedMobileTable";
 
 interface MainContentProps {
   applications: Application[];
@@ -21,7 +21,6 @@ interface MainContentProps {
 const MainContent = ({
   applications,
   onRowClick,
-  onApplicationDeleted,
   selectedApplicationId,
   currentPage,
   totalPages,
@@ -30,36 +29,46 @@ const MainContent = ({
   pageSize,
   selectedEmiMonth
 }: MainContentProps) => {
-  const isMobile = useIsMobile();
+  const isMobile = useMobile();
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-1">
-        {isMobile ? (
-          <MobileOptimizedTable
-            applications={applications}
-            onRowClick={onRowClick}
-            selectedApplicationId={selectedApplicationId}
-            selectedEmiMonth={selectedEmiMonth}
-          />
-        ) : (
-          <ApplicationsTable
-            applications={applications}
-            onRowClick={onRowClick}
-            onApplicationDeleted={onApplicationDeleted}
-            selectedApplicationId={selectedApplicationId}
-            selectedEmiMonth={selectedEmiMonth}
-          />
+    <div className="space-y-4">
+      {/* Results Summary */}
+      <div className="flex justify-between items-center text-sm text-gray-600">
+        <span>
+          Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} applications
+        </span>
+        {totalCount >= 1000 && (
+          <span className="text-amber-600 font-medium">
+            Showing first 1,000 results
+          </span>
         )}
       </div>
 
-      <PaginationControls
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={onPageChange}
-        totalCount={totalCount}
-        pageSize={pageSize}
-      />
+      {/* Table */}
+      {isMobile ? (
+        <OptimizedMobileTable
+          applications={applications}
+          onRowClick={onRowClick}
+          selectedApplicationId={selectedApplicationId}
+          selectedEmiMonth={selectedEmiMonth}
+        />
+      ) : (
+        <SimpleApplicationsTable
+          applications={applications}
+          onRowClick={onRowClick}
+          selectedApplicationId={selectedApplicationId}
+        />
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={onPageChange}
+        />
+      )}
     </div>
   );
 };

@@ -1,12 +1,11 @@
+
 import { useState, useMemo, useEffect } from "react";
-import { useOptimizedApplicationsV3 } from "@/hooks/useOptimizedApplicationsV3";
+import { useSimpleApplications } from "@/hooks/useSimpleApplications";
 import { useOptimizedCascadingFilters } from "@/hooks/useOptimizedCascadingFilters";
-import { useOptimizedRealtimeUpdates } from "@/hooks/useOptimizedRealtimeUpdates";
 import { useStatusCounts } from "@/hooks/useStatusCounts";
 import { useEnhancedExport } from "@/hooks/useEnhancedExport";
 import { useUserProfiles } from "@/hooks/useUserProfiles";
 import { useUserRoles } from "@/hooks/useUserRoles";
-import { useStatePersistence } from "@/hooks/useStatePersistence";
 import { useDebounce } from "@/hooks/useDebounce";
 import { Application } from "@/types/application";
 import ApplicationDetailsPanel from "@/components/ApplicationDetailsPanel";
@@ -26,21 +25,9 @@ const Index = () => {
   const { isAdmin, loading: rolesLoading } = useUserRoles();
   const { fetchProfiles } = useUserProfiles();
   
-  // State persistence hooks
-  const {
-    saveScrollPosition,
-    restoreScrollPosition,
-    saveFiltersState,
-    restoreFiltersState,
-    saveSelectedApplication,
-    restoreSelectedApplication,
-    setIsRestoringState
-  } = useStatePersistence();
-
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
-  const [hasRestoredState, setHasRestoredState] = useState(false);
 
   // Debounce search term to reduce API calls
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -57,21 +44,14 @@ const Index = () => {
     loading: filtersLoading 
   } = useOptimizedCascadingFilters();
 
-  // Use optimized status counts hook with search term
-  const { statusCounts, loading: statusLoading } = useStatusCounts({ 
-    filters, 
-    selectedEmiMonth,
-    searchTerm: debouncedSearchTerm // Pass search term to update status counts
-  });
-
-  // Use optimized applications hook V3
+  // Use simplified applications hook
   const { 
     applications, 
     totalCount, 
     totalPages, 
     loading: appsLoading, 
     refetch 
-  } = useOptimizedApplicationsV3({
+  } = useSimpleApplications({
     filters,
     searchTerm: debouncedSearchTerm,
     page: currentPage,
@@ -79,89 +59,21 @@ const Index = () => {
     selectedEmiMonth
   });
 
-  // Get current application IDs for selective real-time updates
-  const currentApplicationIds = useMemo(() => 
-    applications.map(app => app.applicant_id), 
-    [applications]
-  );
-
-  // Use optimized real-time updates
-  const { isActive: realtimeActive } = useOptimizedRealtimeUpdates({
-    onApplicationUpdate: async () => {
-      if (!document.hidden) {
-        console.log('Real-time application update triggered');
-        await refetch();
-      }
-    },
-    onStatusUpdate: async () => {
-      if (!document.hidden) {
-        console.log('Real-time status update triggered');
-        await refetch();
-      }
-    },
+  // Use status counts hook with search term
+  const { statusCounts, loading: statusLoading } = useStatusCounts({ 
+    filters, 
     selectedEmiMonth,
-    currentApplicationIds
+    searchTerm: debouncedSearchTerm
   });
 
   const { exportPtpCommentsReport, exportFullReport, exportPlanVsAchievementReport, planVsAchievementLoading } = useEnhancedExport();
-
-  // Restore state on component mount
-  useEffect(() => {
-    if (!hasRestoredState && !authLoading && user && defaultEmiMonth) {
-      setIsRestoringState(true);
-      
-      // Restore filters and search state
-      const savedFiltersState = restoreFiltersState();
-      if (savedFiltersState) {
-        setSearchTerm(savedFiltersState.searchTerm || "");
-        setCurrentPage(savedFiltersState.currentPage || 1);
-      }
-
-      // Restore selected application
-      const savedApplicationId = restoreSelectedApplication();
-      if (savedApplicationId && applications.length > 0) {
-        const app = applications.find(a => a.id === savedApplicationId);
-        if (app) {
-          setSelectedApplication(app);
-        }
-      }
-
-      // Restore scroll position
-      restoreScrollPosition();
-      
-      setHasRestoredState(true);
-      setIsRestoringState(false);
-    }
-  }, [hasRestoredState, authLoading, user, applications, defaultEmiMonth, restoreFiltersState, restoreSelectedApplication, restoreScrollPosition, setIsRestoringState]);
-
-  // Save scroll position when user scrolls (throttled)
-  useEffect(() => {
-    const handleScroll = () => {
-      saveScrollPosition(window.scrollY);
-    };
-
-    const throttledScroll = throttle(handleScroll, 1000);
-    window.addEventListener('scroll', throttledScroll);
-    return () => window.removeEventListener('scroll', throttledScroll);
-  }, [saveScrollPosition]);
-
-  // Save filters state when they change (with debounce)
-  useEffect(() => {
-    if (hasRestoredState) {
-      const timeout = setTimeout(() => {
-        saveFiltersState(filters, searchTerm, currentPage);
-      }, 1000);
-      
-      return () => clearTimeout(timeout);
-    }
-  }, [filters, searchTerm, currentPage, hasRestoredState, saveFiltersState]);
 
   // Reset page when search term or filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [debouncedSearchTerm, filters, selectedEmiMonth]);
 
-  // Optimized user profiles loading
+  // Load user profiles
   useEffect(() => {
     if (user && applications.length > 0) {
       const timeout = setTimeout(() => {
@@ -176,12 +88,10 @@ const Index = () => {
   const handleApplicationDeleted = () => {
     refetch();
     setSelectedApplication(null);
-    saveSelectedApplication(null);
   };
 
   const handleApplicationUpdated = (updatedApp: Application) => {
     setSelectedApplication(updatedApp);
-    saveSelectedApplication(updatedApp.id);
     refetch();
   };
 
@@ -197,12 +107,10 @@ const Index = () => {
 
   const handleApplicationSelect = (app: Application) => {
     setSelectedApplication(app);
-    saveSelectedApplication(app.id);
   };
 
   const handleApplicationClose = () => {
     setSelectedApplication(null);
-    saveSelectedApplication(null);
   };
 
   const handleExportFull = async () => {
@@ -335,17 +243,5 @@ const Index = () => {
     </div>
   );
 };
-
-// Simple throttle utility
-function throttle(func: Function, limit: number) {
-  let inThrottle: boolean;
-  return function(this: any, ...args: any[]) {
-    if (!inThrottle) {
-      func.apply(this, args);
-      inThrottle = true;
-      setTimeout(() => inThrottle = false, limit);
-    }
-  }
-}
 
 export default Index;
