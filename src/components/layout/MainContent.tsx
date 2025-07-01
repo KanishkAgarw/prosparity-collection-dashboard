@@ -1,4 +1,5 @@
 
+
 import { Application } from "@/types/application";
 import SimpleApplicationsTable from "@/components/tables/SimpleApplicationsTable";
 import PaginationControls from "@/components/PaginationControls";
@@ -67,6 +68,8 @@ const MainContent = ({
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={onPageChange}
+          totalCount={totalCount}
+          pageSize={pageSize}
         />
       )}
     </div>
@@ -74,3 +77,4 @@ const MainContent = ({
 };
 
 export default MainContent;
+
