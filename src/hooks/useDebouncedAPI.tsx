@@ -11,45 +11,30 @@ export const useDebouncedAPI = <T,>(
   
   const timeoutRef = useRef<NodeJS.Timeout>();
   const cancelledRef = useRef(false);
-  const currentCallIdRef = useRef<number>(0);
 
   const call = useCallback(async () => {
-    // Generate a unique ID for this call
-    const callId = ++currentCallIdRef.current;
-    
     // Clear any existing timeout
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
 
-    // Reset error state immediately
+    // Reset error state
     setError(null);
-    
-    // If we're already loading, immediately reset loading state
-    // This prevents the spinner from getting stuck when calls are superseded
-    if (loading) {
-      setLoading(false);
-    }
     
     // Set up debounced execution
     timeoutRef.current = setTimeout(async () => {
-      // Check if this call is still the current one
-      if (cancelledRef.current || callId !== currentCallIdRef.current) {
-        return;
-      }
+      if (cancelledRef.current) return;
       
       setLoading(true);
       
       try {
         const result = await apiFunction();
         
-        // Only update state if this is still the current call
-        if (!cancelledRef.current && callId === currentCallIdRef.current) {
+        if (!cancelledRef.current) {
           setData(result);
         }
       } catch (err) {
-        // Only update error state if this is still the current call
-        if (!cancelledRef.current && callId === currentCallIdRef.current) {
+        if (!cancelledRef.current) {
           console.error('Debounced API call failed:', err);
           setError(err instanceof Error ? err : new Error('Unknown error'));
           
@@ -57,20 +42,19 @@ export const useDebouncedAPI = <T,>(
           if (err instanceof Error && err.message.includes('fetch')) {
             console.log('Network error detected, will retry in 2 seconds...');
             setTimeout(() => {
-              if (!cancelledRef.current && callId === currentCallIdRef.current) {
+              if (!cancelledRef.current) {
                 call();
               }
             }, 2000);
           }
         }
       } finally {
-        // Always reset loading state if this is still the current call
-        if (!cancelledRef.current && callId === currentCallIdRef.current) {
+        if (!cancelledRef.current) {
           setLoading(false);
         }
       }
     }, debounceMs);
-  }, [apiFunction, debounceMs, loading]);
+  }, [apiFunction, debounceMs]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -79,8 +63,6 @@ export const useDebouncedAPI = <T,>(
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-      // Ensure loading is reset on cleanup
-      setLoading(false);
     };
   }, []);
 
