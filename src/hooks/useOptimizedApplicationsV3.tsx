@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -8,7 +9,7 @@ import { useQueryCache } from './useQueryCache';
 import { useDebouncedAPI } from './useDebouncedAPI';
 import { useBatchPtpDates } from './useBatchPtpDates';
 import { useBatchFieldStatus } from './useBatchFieldStatus';
-import { categorizePtpDate, type PtpDateCategory } from '@/utils/ptpDateUtils';
+import { categorizePtpDate } from '@/utils/ptpDateUtils';
 import { categorizeLastMonthBounce, isValidPtpDateCategory, isValidLastMonthBounceCategory } from '@/utils/filterUtils';
 
 interface UseOptimizedApplicationsV3Props {
@@ -59,10 +60,8 @@ export const useOptimizedApplicationsV3 = ({
     console.log('=== OPTIMIZED V3 FETCH START ===');
     console.log('Selected EMI Month:', selectedEmiMonth);
     console.log('Search term:', `"${normalizedSearchTerm}"`);
-    console.log('Filters:', filters);
-    console.log('Active filters:', Object.entries(filters).filter(([, arr]) => arr.length > 0));
 
-    // Skip cache for search operations to ensure fresh results
+    // Check cache first for non-search queries
     if (!normalizedSearchTerm && Object.values(filters).every(arr => arr.length === 0)) {
       const cachedResult = getCachedData(cacheKey);
       if (cachedResult) {
@@ -88,15 +87,12 @@ export const useOptimizedApplicationsV3 = ({
 
       // Apply server-side filters
       if (filters.teamLead?.length > 0) {
-        console.log('🔍 Applying team lead filter:', filters.teamLead);
         dataQuery = dataQuery.in('team_lead', filters.teamLead);
       }
       if (filters.rm?.length > 0) {
-        console.log('🔍 Applying RM filter:', filters.rm);
         dataQuery = dataQuery.in('rm_name', filters.rm);
       }
       if (filters.collectionRm?.length > 0) {
-        console.log('🔍 Applying collection RM filter:', filters.collectionRm);
         const normalizedCollectionRms = filters.collectionRm.map(rm => 
           rm === 'N/A' || rm === 'NA' ? null : rm
         );
@@ -112,27 +108,18 @@ export const useOptimizedApplicationsV3 = ({
         }
       }
       if (filters.repayment?.length > 0) {
-        console.log('🔍 Applying repayment filter:', filters.repayment);
         dataQuery = dataQuery.in('repayment', filters.repayment);
       }
-
-      // Apply applications table filters
       if (filters.branch?.length > 0) {
-        console.log('🔍 Applying branch filter:', filters.branch);
         dataQuery = dataQuery.in('applications.branch_name', filters.branch);
       }
       if (filters.dealer?.length > 0) {
-        console.log('🔍 Applying dealer filter:', filters.dealer);
         dataQuery = dataQuery.in('applications.dealer_name', filters.dealer);
       }
       if (filters.lender?.length > 0) {
-        console.log('🔍 Applying lender filter:', filters.lender);
         dataQuery = dataQuery.in('applications.lender_name', filters.lender);
       }
-      
-      // FIXED: Apply vehicle status filter with proper NULL handling
       if (filters.vehicleStatus?.length > 0) {
-        console.log('🔍 Applying vehicle status filter:', filters.vehicleStatus);
         const normalizedVehicleStatuses = filters.vehicleStatus.map(status => 
           status === 'None' || status === 'N/A' ? null : status
         );
@@ -162,7 +149,6 @@ export const useOptimizedApplicationsV3 = ({
       let transformedApplications: Application[] = (allData || []).map(record => {
         const app = record.applications;
         return {
-          // Collection data (primary)
           id: record.application_id,
           applicant_id: record.application_id,
           demand_date: record.demand_date,
@@ -174,9 +160,7 @@ export const useOptimizedApplicationsV3 = ({
           rm_name: record.rm_name || '',
           repayment: record.repayment || '',
           last_month_bounce: record.last_month_bounce || 0,
-          field_status: 'Unpaid', // Will be updated by field status hook
-
-          // Application data (secondary)
+          field_status: 'Unpaid',
           applicant_name: app?.applicant_name || 'Unknown',
           applicant_mobile: app?.applicant_mobile || '',
           applicant_address: app?.applicant_address || '',
@@ -205,103 +189,10 @@ export const useOptimizedApplicationsV3 = ({
         } as Application;
       });
 
-      console.log(`🔄 Transformed ${transformedApplications.length} applications`);
-
-      // Step 2: Apply client-side filters that require additional data
-      console.log('=== STEP 2: APPLYING CLIENT-SIDE FILTERS ===');
-      
-      const applicationIds = transformedApplications.map(app => app.applicant_id);
-      
-      // Fetch additional data for client-side filtering
-      let ptpDatesMap: Record<string, string | null> = {};
-      let fieldStatusMap: Record<string, string> = {};
-      
-      // FIXED: Always fetch if needed for filtering
-      const needsPtpData = filters.ptpDate?.length > 0;
-      const needsStatusData = filters.status?.length > 0;
-      
-      if (needsPtpData || needsStatusData) {
-        console.log('🔍 Fetching additional data for client-side filtering');
-        
-        if (needsPtpData) {
-          ptpDatesMap = await fetchBatchPtpDates(applicationIds, selectedEmiMonth);
-          console.log('✅ Fetched PTP dates for filtering:', Object.keys(ptpDatesMap).length);
-        }
-        
-        if (needsStatusData) {
-          fieldStatusMap = await fetchBatchFieldStatus(applicationIds, selectedEmiMonth);
-          console.log('✅ Fetched field status for filtering:', Object.keys(fieldStatusMap).length);
-        }
-      }
-
-      // FIXED: Apply PTP date filter with proper categorization
-      if (filters.ptpDate?.length > 0) {
-        console.log('🔍 Applying PTP date filter:', filters.ptpDate);
-        const beforePtpCount = transformedApplications.length;
-        
-        transformedApplications = transformedApplications.filter(app => {
-          const ptpDate = ptpDatesMap[app.applicant_id];
-          const category = categorizePtpDate(ptpDate);
-          
-          const matches = filters.ptpDate.some(selectedCategory => {
-            if (isValidPtpDateCategory(selectedCategory)) {
-              return category === selectedCategory;
-            }
-            return false;
-          });
-          
-          return matches;
-        });
-        
-        console.log(`🔍 PTP date filter: ${transformedApplications.length} from ${beforePtpCount} applications`);
-      }
-
-      // FIXED: Apply status filter with field status priority
-      if (filters.status?.length > 0) {
-        console.log('🔍 Applying status filter:', filters.status);
-        const beforeStatusCount = transformedApplications.length;
-        
-        transformedApplications = transformedApplications.filter(app => {
-          // Use field status if available, otherwise fall back to LMS status
-          const currentStatus = fieldStatusMap[app.applicant_id] || app.lms_status;
-          const matches = filters.status.includes(currentStatus);
-          
-          if (!matches) {
-            console.log(`🚫 Status filter excluded: ${app.applicant_name} (${currentStatus} not in ${filters.status.join(', ')})`);
-          }
-          
-          return matches;
-        });
-        
-        console.log(`🔍 Status filter: ${transformedApplications.length} from ${beforeStatusCount} applications`);
-      }
-
-      // Apply last month bounce filter
-      if (filters.lastMonthBounce?.length > 0) {
-        console.log('🔍 Applying last month bounce filter:', filters.lastMonthBounce);
-        const beforeBounceCount = transformedApplications.length;
-        
-        transformedApplications = transformedApplications.filter(app => {
-          const bounceCategory = categorizeLastMonthBounce(app.last_month_bounce);
-          
-          return filters.lastMonthBounce.some(selectedCategory => {
-            if (isValidLastMonthBounceCategory(selectedCategory)) {
-              return bounceCategory === selectedCategory;
-            }
-            return false;
-          });
-        });
-        
-        console.log(`🔍 Last month bounce filter: ${transformedApplications.length} from ${beforeBounceCount} applications`);
-      }
-
-      // Apply search filtering if provided
+      // Apply search filtering first to reduce dataset size
       if (normalizedSearchTerm) {
-        console.log('=== STEP 3: APPLYING SEARCH FILTER ===');
+        console.log('=== STEP 2: APPLYING SEARCH FILTER ===');
         const searchLower = normalizedSearchTerm.toLowerCase();
-        console.log('🔍 Searching for:', `"${searchLower}"`);
-        
-        const beforeSearchCount = transformedApplications.length;
         
         transformedApplications = transformedApplications.filter(app => {
           const searchableFields = [
@@ -316,15 +207,69 @@ export const useOptimizedApplicationsV3 = ({
             app.collection_rm?.toLowerCase() || ''
           ];
 
-          const matches = searchableFields.some(field => field.includes(searchLower));
-          return matches;
+          return searchableFields.some(field => field.includes(searchLower));
         });
 
-        console.log(`🔍 Search results: ${transformedApplications.length} from ${beforeSearchCount} total`);
+        console.log(`🔍 Search results: ${transformedApplications.length} applications`);
       }
 
-      // Sort by applicant first name then by demand_date
-      console.log('=== STEP 4: SORTING RESULTS ===');
+      // Apply client-side filters only if needed
+      const needsPtpData = filters.ptpDate?.length > 0;
+      const needsStatusData = filters.status?.length > 0;
+      
+      if (needsPtpData || needsStatusData) {
+        console.log('=== STEP 3: APPLYING CLIENT-SIDE FILTERS ===');
+        
+        const applicationIds = transformedApplications.map(app => app.applicant_id);
+        
+        let ptpDatesMap: Record<string, string | null> = {};
+        let fieldStatusMap: Record<string, string> = {};
+        
+        if (needsPtpData) {
+          ptpDatesMap = await fetchBatchPtpDates(applicationIds, selectedEmiMonth);
+        }
+        
+        if (needsStatusData) {
+          fieldStatusMap = await fetchBatchFieldStatus(applicationIds, selectedEmiMonth);
+        }
+
+        // Apply PTP date filter
+        if (filters.ptpDate?.length > 0) {
+          transformedApplications = transformedApplications.filter(app => {
+            const ptpDate = ptpDatesMap[app.applicant_id];
+            const category = categorizePtpDate(ptpDate);
+            return filters.ptpDate.some(selectedCategory => {
+              if (isValidPtpDateCategory(selectedCategory)) {
+                return category === selectedCategory;
+              }
+              return false;
+            });
+          });
+        }
+
+        // Apply status filter
+        if (filters.status?.length > 0) {
+          transformedApplications = transformedApplications.filter(app => {
+            const currentStatus = fieldStatusMap[app.applicant_id] || app.lms_status;
+            return filters.status.includes(currentStatus);
+          });
+        }
+      }
+
+      // Apply last month bounce filter
+      if (filters.lastMonthBounce?.length > 0) {
+        transformedApplications = transformedApplications.filter(app => {
+          const bounceCategory = categorizeLastMonthBounce(app.last_month_bounce);
+          return filters.lastMonthBounce.some(selectedCategory => {
+            if (isValidLastMonthBounceCategory(selectedCategory)) {
+              return bounceCategory === selectedCategory;
+            }
+            return false;
+          });
+        });
+      }
+
+      // Sort by applicant name
       const sortedApplications = transformedApplications.sort((a, b) => {
         const getFirstName = (fullName: string = '') => {
           const firstName = fullName.split(' ')[0];
@@ -340,15 +285,9 @@ export const useOptimizedApplicationsV3 = ({
         return new Date(b.demand_date || '').getTime() - new Date(a.demand_date || '').getTime();
       });
 
-      console.log(`📋 Final sorted applications: ${sortedApplications.length}`);
-
-      // Apply pagination after sorting
+      // Apply pagination
       const offset = (page - 1) * pageSize;
       const paginatedApplications = sortedApplications.slice(offset, offset + pageSize);
-
-      console.log('=== STEP 5: PAGINATION ===');
-      console.log(`📄 Page: ${page}, Size: ${pageSize}, Offset: ${offset}`);
-      console.log(`📋 Paginated results: ${paginatedApplications.length}`);
 
       const finalTotalCount = sortedApplications.length;
 
@@ -360,13 +299,10 @@ export const useOptimizedApplicationsV3 = ({
         refetch: async () => {}
       };
 
-      // Only cache non-search and non-filter results
+      // Cache non-search results
       const hasActiveFilters = Object.values(filters).some(arr => arr.length > 0);
       if (!normalizedSearchTerm && !hasActiveFilters) {
         setCachedData(cacheKey, result, 2 * 60 * 1000);
-        console.log('💾 Result cached');
-      } else {
-        console.log('🚫 Result not cached (search or filters active)');
       }
       
       console.log('=== OPTIMIZED V3 FETCH COMPLETE ===');
@@ -379,16 +315,12 @@ export const useOptimizedApplicationsV3 = ({
     }
   }, [user, selectedEmiMonth, filters, normalizedSearchTerm, page, pageSize, cacheKey, getCachedData, setCachedData, fetchBatchPtpDates, fetchBatchFieldStatus]);
 
-  // Use debounced API call
-  const { data: apiResult, loading: apiLoading, call: debouncedFetch } = useDebouncedAPI(fetchApplicationsCore, 300);
+  // Use debounced API call with longer debounce for stability
+  const { data: apiResult, loading: apiLoading, call: debouncedFetch } = useDebouncedAPI(fetchApplicationsCore, 500);
 
   // Update local state when API result changes
   useEffect(() => {
     if (apiResult) {
-      console.log('📊 Updating local state with API result:', {
-        applications: apiResult.applications.length,
-        totalCount: apiResult.totalCount
-      });
       setApplications(apiResult.applications);
       setTotalCount(apiResult.totalCount);
     }
@@ -396,15 +328,6 @@ export const useOptimizedApplicationsV3 = ({
 
   // Trigger debounced fetch when dependencies change
   useEffect(() => {
-    console.log('🔄 Dependencies changed, triggering fetch...');
-    console.log('Dependencies:', {
-      selectedEmiMonth,
-      searchTerm: `"${normalizedSearchTerm}"`,
-      page,
-      hasUser: !!user,
-      filters: Object.entries(filters).filter(([, arr]) => arr.length > 0)
-    });
-    
     setLoading(true);
     debouncedFetch();
   }, [debouncedFetch]);
@@ -418,7 +341,7 @@ export const useOptimizedApplicationsV3 = ({
     return Math.ceil(totalCount / pageSize);
   }, [totalCount, pageSize]);
 
-  // Refetch function that invalidates cache
+  // Refetch function
   const refetch = useCallback(async () => {
     console.log('🔄 Refetch called - invalidating cache');
     invalidateCache(selectedEmiMonth || 'applications');

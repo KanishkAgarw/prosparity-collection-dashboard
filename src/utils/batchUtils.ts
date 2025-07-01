@@ -10,7 +10,7 @@ export const chunkArray = <T>(array: T[], chunkSize: number): T[][] => {
 };
 
 // Reduced batch size to prevent URL length issues
-export const BATCH_SIZE = 100; // Safe batch size for URL length limits
+export const BATCH_SIZE = 50; // Even safer batch size
 
 // Calculate estimated URL length for a batch
 export const estimateUrlLength = (baseUrl: string, applicationIds: string[]): number => {
@@ -19,7 +19,7 @@ export const estimateUrlLength = (baseUrl: string, applicationIds: string[]): nu
 };
 
 // Get optimal batch size based on URL length constraints
-export const getOptimalBatchSize = (applicationIds: string[], maxUrlLength: number = 2000): number => {
+export const getOptimalBatchSize = (applicationIds: string[], maxUrlLength: number = 1500): number => {
   if (applicationIds.length === 0) return BATCH_SIZE;
   
   const avgIdLength = applicationIds.reduce((sum, id) => sum + id.length, 0) / applicationIds.length;
@@ -28,4 +28,9 @@ export const getOptimalBatchSize = (applicationIds: string[], maxUrlLength: numb
   const estimatedBatchSize = Math.floor(maxIdsLength / (avgIdLength + 3)); // +3 for commas and encoding
   
   return Math.min(Math.max(estimatedBatchSize, 10), BATCH_SIZE); // Between 10 and BATCH_SIZE
+};
+
+// Validate request size before sending
+export const isRequestSizeSafe = (url: string, maxLength: number = 1500): boolean => {
+  return url.length <= maxLength;
 };

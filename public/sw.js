@@ -1,10 +1,8 @@
 
-const CACHE_NAME = 'prosparity-v4';
-const API_CACHE_NAME = 'prosparity-api-v3';
+const CACHE_NAME = 'prosparity-v5';
+const API_CACHE_NAME = 'prosparity-api-v4';
 const urlsToCache = [
   '/',
-  '/static/js/bundle.js',
-  '/static/css/main.css',
   '/manifest.json',
   '/lovable-uploads/879123ce-9339-4aec-90c9-3857e3b77417.png'
 ];
@@ -19,7 +17,7 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('Caching app shell');
-        return cache.addAll(urlsToCache.filter(url => url !== '/static/js/bundle.js' && url !== '/static/css/main.css'));
+        return cache.addAll(urlsToCache);
       })
       .then(() => {
         console.log('Service Worker installed successfully');
@@ -51,7 +49,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - improved caching strategy with proper response handling
+// Fetch event - simplified and more reliable caching strategy
 self.addEventListener('fetch', (event) => {
   // Only handle GET requests
   if (event.request.method !== 'GET') {
@@ -61,120 +59,121 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   const requestKey = `${event.request.method}:${event.request.url}`;
 
-  // Handle Supabase API calls with network-first strategy and deduplication
+  // Handle Supabase API calls with network-first strategy
   if (url.hostname.includes('supabase.co')) {
     event.respondWith(
       (async () => {
         try {
           // Check if there's already an ongoing request for this URL
           if (ongoingRequests.has(requestKey)) {
-            console.log('Deduplicating request:', requestKey);
+            console.log('Waiting for ongoing request:', requestKey);
             return await ongoingRequests.get(requestKey);
           }
 
           // Create the network request promise
-          const networkPromise = fetch(event.request.clone())
-            .then((response) => {
+          const networkPromise = (async () => {
+            try {
+              const response = await fetch(event.request);
+              
               // Always clone the response before using it
               const responseClone = response.clone();
               
-              // Don't cache failed responses or responses that are not ok
+              // Cache successful responses
               if (response.ok && response.status === 200) {
-                caches.open(API_CACHE_NAME)
-                  .then(cache => {
-                    // Clone again for caching to avoid "body already read" error
-                    cache.put(event.request.clone(), responseClone.clone());
-                  })
-                  .catch(err => console.log('Cache put failed:', err));
+                try {
+                  const cache = await caches.open(API_CACHE_NAME);
+                  // Clone the request as well to avoid issues
+                  await cache.put(event.request.clone(), responseClone.clone());
+                } catch (cacheError) {
+                  console.log('Cache put failed:', cacheError);
+                }
               }
               
               return response;
-            })
-            .catch((error) => {
-              console.log('Network request failed:', error);
+            } catch (networkError) {
+              console.log('Network request failed, trying cache:', networkError);
               // Try cache as fallback
-              return caches.match(event.request.clone());
-            })
-            .finally(() => {
-              // Clean up ongoing request tracking
-              ongoingRequests.delete(requestKey);
-            });
+              const cachedResponse = await caches.match(event.request);
+              if (cachedResponse) {
+                return cachedResponse;
+              }
+              throw networkError;
+            }
+          })();
 
           // Store the ongoing request
           ongoingRequests.set(requestKey, networkPromise);
           
-          return await networkPromise;
+          const result = await networkPromise;
+          
+          // Clean up ongoing request tracking
+          ongoingRequests.delete(requestKey);
+          
+          return result;
         } catch (error) {
           console.error('Service worker fetch error:', error);
+          ongoingRequests.delete(requestKey);
+          
           // Try cache as last resort
-          const cachedResponse = await caches.match(event.request.clone());
-          return cachedResponse || new Response('Network error', { status: 503 });
+          const cachedResponse = await caches.match(event.request);
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          
+          return new Response('Network error', { status: 503 });
         }
       })()
     );
     return;
   }
 
-  // Handle other requests with cache-first strategy for static assets
+  // Handle static assets with cache-first strategy
   if (url.pathname.includes('.js') || url.pathname.includes('.css') || url.pathname.includes('.png') || url.pathname.includes('.ico')) {
     event.respondWith(
-      caches.match(event.request.clone())
-        .then((response) => {
-          if (response) {
-            return response;
+      (async () => {
+        try {
+          const cachedResponse = await caches.match(event.request);
+          if (cachedResponse) {
+            return cachedResponse;
           }
-          return fetch(event.request.clone()).then((response) => {
-            if (response.ok) {
-              const responseClone = response.clone();
-              caches.open(CACHE_NAME)
-                .then(cache => cache.put(event.request.clone(), responseClone))
-                .catch(err => console.log('Static cache put failed:', err));
-            }
-            return response;
-          });
-        })
-        .catch(() => {
+          
+          const response = await fetch(event.request);
+          if (response.ok) {
+            const cache = await caches.open(CACHE_NAME);
+            await cache.put(event.request.clone(), response.clone());
+          }
+          return response;
+        } catch (error) {
+          console.error('Static asset fetch failed:', error);
           return new Response('Asset not found', { status: 404 });
-        })
+        }
+      })()
     );
     return;
   }
 
   // For HTML pages, try network first with cache fallback
   event.respondWith(
-    fetch(event.request.clone())
-      .then((response) => {
+    (async () => {
+      try {
+        const response = await fetch(event.request);
         if (response.ok) {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME)
-            .then(cache => cache.put(event.request.clone(), responseClone))
-            .catch(err => console.log('HTML cache put failed:', err));
+          const cache = await caches.open(CACHE_NAME);
+          await cache.put(event.request.clone(), response.clone());
         }
         return response;
-      })
-      .catch(() => {
-        return caches.match('/').then(response => response || new Response('Offline', { status: 503 }));
-      })
+      } catch (error) {
+        const cachedResponse = await caches.match('/');
+        return cachedResponse || new Response('Offline', { status: 503 });
+      }
+    })()
   );
-});
-
-// Handle errors gracefully
-self.addEventListener('error', (event) => {
-  console.error('Service Worker error:', event.error);
-});
-
-self.addEventListener('unhandledrejection', (event) => {
-  console.error('Service Worker unhandled rejection:', event.reason);
-  event.preventDefault();
 });
 
 // Clean up ongoing requests periodically
 setInterval(() => {
-  const now = Date.now();
-  for (const [key, promise] of ongoingRequests.entries()) {
-    // Remove requests older than 30 seconds (they're likely stale)
-    if (promise.timestamp && now - promise.timestamp > 30000) {
-      ongoingRequests.delete(key);
-    }
+  if (ongoingRequests.size > 50) {
+    console.log('Cleaning up ongoing requests map');
+    ongoingRequests.clear();
   }
-}, 30000);
+}, 60000);

@@ -12,12 +12,21 @@ export const useDebouncedAPI = <T,>(
   const timeoutRef = useRef<NodeJS.Timeout>();
   const cancelledRef = useRef(false);
   const requestIdRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const call = useCallback(async () => {
     // Clear any existing timeout
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
+
+    // Cancel any ongoing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller
+    abortControllerRef.current = new AbortController();
 
     // Increment request ID to handle race conditions
     const currentRequestId = ++requestIdRef.current;
@@ -44,10 +53,15 @@ export const useDebouncedAPI = <T,>(
           
           // Improved error handling
           if (err instanceof Error) {
-            // Check for specific Supabase/network errors
+            if (err.name === 'AbortError') {
+              console.log('Request was cancelled');
+              return;
+            }
+            
+            // Check for specific error types
             if (err.message.includes('400') || err.message.includes('Bad Request')) {
               setError(new Error('Invalid request parameters. Please check your filters and try again.'));
-            } else if (err.message.includes('fetch') || err.message.includes('network')) {
+            } else if (err.message.includes('Failed to fetch') || err.message.includes('network')) {
               setError(new Error('Network error. Please check your connection and retry.'));
             } else {
               setError(err);
@@ -71,6 +85,9 @@ export const useDebouncedAPI = <T,>(
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
     };
   }, []);
 
@@ -84,6 +101,9 @@ export const useDebouncedAPI = <T,>(
   const cancel = useCallback(() => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
+    }
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
     cancelledRef.current = true;
     setLoading(false);
