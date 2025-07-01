@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { FilterState } from '@/types/filters';
 import { getMonthDateRange } from '@/utils/dateUtils';
+import { useFieldStatusManager } from '@/hooks/useFieldStatusManager';
 
 interface StatusCounts {
   total: number;
@@ -18,11 +19,12 @@ interface StatusCounts {
 interface UseStatusCountsProps {
   filters: FilterState;
   selectedEmiMonth?: string | null;
-  searchTerm?: string; // Add search term to update counts for search results
+  searchTerm?: string;
 }
 
 export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: UseStatusCountsProps) => {
   const { user } = useAuth();
+  const { fetchFieldStatus } = useFieldStatusManager();
   const [statusCounts, setStatusCounts] = useState<StatusCounts>({
     total: 0,
     statusUnpaid: 0,
@@ -34,8 +36,20 @@ export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: 
   });
   const [loading, setLoading] = useState(false);
 
+  const validateInputs = useCallback((month?: string | null): boolean => {
+    if (!user) {
+      console.warn('❌ No user for status counts');
+      return false;
+    }
+    if (!month) {
+      console.warn('❌ No selected EMI month for status counts');
+      return false;
+    }
+    return true;
+  }, [user]);
+
   const fetchStatusCounts = useCallback(async () => {
-    if (!user || !selectedEmiMonth) return;
+    if (!validateInputs(selectedEmiMonth)) return;
 
     setLoading(true);
     try {
@@ -43,7 +57,7 @@ export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: 
       console.log('Selected EMI Month:', selectedEmiMonth);
       console.log('Search term:', searchTerm);
 
-      const { start, end } = getMonthDateRange(selectedEmiMonth);
+      const { start, end } = getMonthDateRange(selectedEmiMonth!);
       console.log('Status counts - querying date range:', start, 'to', end);
 
       // Get all applications from collection table for this month with joins
@@ -153,8 +167,10 @@ export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: 
         console.log(`After search filter: ${filteredData.length} applications for status counting`);
       }
 
-      // Get application IDs from filtered data
-      const applicationIds = filteredData.map(col => col.application_id);
+      // Get application IDs from filtered data - validate they are strings
+      const applicationIds = filteredData
+        .map(col => col.application_id)
+        .filter((id): id is string => typeof id === 'string' && id.trim().length > 0);
 
       if (applicationIds.length === 0) {
         setStatusCounts({
@@ -169,29 +185,14 @@ export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: 
         return;
       }
 
-      // Fetch field status for these applications - get LATEST status regardless of date
-      // This fixes the 400 error by removing duplicate demand_date filters
-      const { data: fieldStatusData } = await supabase
-        .from('field_status')
-        .select('application_id, status, created_at, demand_date')
-        .in('application_id', applicationIds)
-        .order('created_at', { ascending: false });
-
-      console.log(`Found ${fieldStatusData?.length || 0} field status records for status counting`);
-
-      // Create status map (latest status per application)
-      const statusMap = new Map<string, string>();
-      fieldStatusData?.forEach(fs => {
-        if (!statusMap.has(fs.application_id)) {
-          statusMap.set(fs.application_id, fs.status);
-        }
-      });
+      // Fetch field status using the centralized manager
+      const statusMap = await fetchFieldStatus(applicationIds, selectedEmiMonth);
 
       // Count statuses for all applications
       const counts = applicationIds.reduce((acc, applicationId) => {
         acc.total++;
         
-        const status = statusMap.get(applicationId) || 'Unpaid';
+        const status = statusMap[applicationId] || 'Unpaid';
         
         switch (status) {
           case 'Unpaid':
@@ -230,10 +231,20 @@ export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: 
 
     } catch (error) {
       console.error('Error fetching status counts:', error);
+      // Set empty counts on error to prevent UI issues
+      setStatusCounts({
+        total: 0,
+        statusUnpaid: 0,
+        statusPartiallyPaid: 0,
+        statusCashCollected: 0,
+        statusCustomerDeposited: 0,
+        statusPaid: 0,
+        statusPendingApproval: 0
+      });
     } finally {
       setLoading(false);
     }
-  }, [user, selectedEmiMonth, filters, searchTerm]);
+  }, [user, selectedEmiMonth, filters, searchTerm, fetchFieldStatus, validateInputs]);
 
   useEffect(() => {
     fetchStatusCounts();

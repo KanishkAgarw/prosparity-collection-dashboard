@@ -11,6 +11,7 @@ export const useDebouncedAPI = <T,>(
   
   const timeoutRef = useRef<NodeJS.Timeout>();
   const cancelledRef = useRef(false);
+  const requestIdRef = useRef(0);
 
   const call = useCallback(async () => {
     // Clear any existing timeout
@@ -18,38 +19,45 @@ export const useDebouncedAPI = <T,>(
       clearTimeout(timeoutRef.current);
     }
 
+    // Increment request ID to handle race conditions
+    const currentRequestId = ++requestIdRef.current;
+
     // Reset error state
     setError(null);
     
     // Set up debounced execution
     timeoutRef.current = setTimeout(async () => {
-      if (cancelledRef.current) return;
+      if (cancelledRef.current || currentRequestId !== requestIdRef.current) return;
       
       setLoading(true);
       
       try {
         const result = await apiFunction();
         
-        if (!cancelledRef.current) {
+        // Only update state if this is still the latest request
+        if (!cancelledRef.current && currentRequestId === requestIdRef.current) {
           setData(result);
         }
       } catch (err) {
-        if (!cancelledRef.current) {
+        if (!cancelledRef.current && currentRequestId === requestIdRef.current) {
           console.error('Debounced API call failed:', err);
-          setError(err instanceof Error ? err : new Error('Unknown error'));
           
-          // Optionally retry after a delay for network errors
-          if (err instanceof Error && err.message.includes('fetch')) {
-            console.log('Network error detected, will retry in 2 seconds...');
-            setTimeout(() => {
-              if (!cancelledRef.current) {
-                call();
-              }
-            }, 2000);
+          // Improved error handling
+          if (err instanceof Error) {
+            // Check for specific Supabase/network errors
+            if (err.message.includes('400') || err.message.includes('Bad Request')) {
+              setError(new Error('Invalid request parameters. Please check your filters and try again.'));
+            } else if (err.message.includes('fetch') || err.message.includes('network')) {
+              setError(new Error('Network error. Please check your connection and retry.'));
+            } else {
+              setError(err);
+            }
+          } else {
+            setError(new Error('Unknown error occurred'));
           }
         }
       } finally {
-        if (!cancelledRef.current) {
+        if (!cancelledRef.current && currentRequestId === requestIdRef.current) {
           setLoading(false);
         }
       }
@@ -66,5 +74,20 @@ export const useDebouncedAPI = <T,>(
     };
   }, []);
 
-  return { data, loading, error, call };
+  const reset = useCallback(() => {
+    setData(null);
+    setError(null);
+    setLoading(false);
+    requestIdRef.current = 0;
+  }, []);
+
+  const cancel = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    cancelledRef.current = true;
+    setLoading(false);
+  }, []);
+
+  return { data, loading, error, call, reset, cancel };
 };

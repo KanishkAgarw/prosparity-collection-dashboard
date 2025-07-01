@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -107,7 +106,6 @@ export const useOptimizedCascadingFilters = () => {
         }
       }
 
-      // Cache complete structure with all required properties
       const cacheData: CascadingFilterOptions = {
         branches: [],
         teamLeads: [],
@@ -130,6 +128,22 @@ export const useOptimizedCascadingFilters = () => {
     }
   }, [user, selectedEmiMonth, getCachedData, setCachedData]);
 
+  const buildFieldStatusQuery = useCallback((monthStart: string, monthEnd: string) => {
+    try {
+      const selectFields = ['status'].filter(Boolean).join(', ');
+      
+      return supabase
+        .from('field_status')
+        .select(selectFields)
+        .gte('demand_date', monthStart)
+        .lte('demand_date', monthEnd)
+        .limit(2000);
+    } catch (error) {
+      console.error('Error building field status query:', error);
+      return null;
+    }
+  }, []);
+
   // Optimized filter options fetch with status and PTP fixes
   const fetchFilterOptions = useCallback(async () => {
     if (!user || !selectedEmiMonth) return;
@@ -145,7 +159,7 @@ export const useOptimizedCascadingFilters = () => {
 
     setLoading(true);
     try {
-      console.log('Fetching filter options with status and PTP fixes');
+      console.log('Fetching filter options with improved error handling');
 
       const monthStart = `${selectedEmiMonth}-01`;
       const monthEnd = `${selectedEmiMonth}-31`;
@@ -170,21 +184,28 @@ export const useOptimizedCascadingFilters = () => {
         .lte('demand_date', monthEnd)
         .limit(5000);
 
-      // CRITICAL FIX: Fetch actual field status values
-      const { data: fieldStatusData } = await supabase
-        .from('field_status')
-        .select('status')
-        .gte('demand_date', monthStart)
-        .lte('demand_date', monthEnd)
-        .limit(2000);
+      // Fetch field status with improved error handling
+      let fieldStatusData: any[] = [];
+      try {
+        const fieldStatusQuery = buildFieldStatusQuery(monthStart, monthEnd);
+        if (fieldStatusQuery) {
+          const { data, error } = await fieldStatusQuery;
+          if (error) {
+            console.warn('⚠️ Field status query failed, continuing without field statuses:', error.message);
+          } else {
+            fieldStatusData = data || [];
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Field status fetch failed, continuing without field statuses:', error);
+      }
 
-      console.log('Field status data fetched:', fieldStatusData?.length || 0);
+      console.log('Field status data fetched:', fieldStatusData.length);
 
       if (!combinedData) return;
 
       console.log(`Processing ${combinedData.length} combined records for filter options`);
 
-      // Extract unique values efficiently
       const options: CascadingFilterOptions = {
         branches: [...new Set(combinedData.map(item => item.applications?.branch_name).filter(Boolean))].sort(),
         teamLeads: [...new Set(combinedData.map(item => item.team_lead).filter(Boolean))].sort(),
@@ -199,15 +220,14 @@ export const useOptimizedCascadingFilters = () => {
         repayments: [...new Set(combinedData.map(item => item.repayment).filter(Boolean))].sort(),
         emiMonths: [selectedEmiMonth],
         lastMonthBounce: ['Not paid', 'Paid on time', '1-5 days late', '6-15 days late', '15+ days late'],
-        ptpDateOptions: ['overdue', 'today', 'tomorrow', 'future', 'no_date'], // FIXED: Use internal values
+        ptpDateOptions: ['overdue', 'today', 'tomorrow', 'future', 'no_date'],
         vehicleStatusOptions: ['Seized', 'Repo', 'Accident', 'None'],
-        // CRITICAL FIX: Populate status options from both sources
         statuses: []
       };
 
-      // Combine LMS status and field status values
+      // Combine LMS status and field status values with error handling
       const lmsStatuses = [...new Set(combinedData.map(item => item.lms_status).filter(Boolean))];
-      const fieldStatuses = [...new Set(fieldStatusData?.map(s => s.status) || [])];
+      const fieldStatuses = [...new Set(fieldStatusData.map(s => s.status).filter(Boolean))];
       const allStatuses = [...new Set([...lmsStatuses, ...fieldStatuses])].sort();
       
       options.statuses = allStatuses;
@@ -223,7 +243,7 @@ export const useOptimizedCascadingFilters = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, selectedEmiMonth, filters, getCachedData, setCachedData]);
+  }, [user, selectedEmiMonth, filters, getCachedData, setCachedData, buildFieldStatusQuery]);
 
   // Rest of the hook remains the same but with memoized callbacks
   const handleFilterChange = useCallback((key: string, values: string[]) => {
