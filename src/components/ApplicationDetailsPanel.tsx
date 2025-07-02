@@ -1,11 +1,12 @@
+
 import React, { useState, useEffect } from "react";
 import { Application } from "@/types/application";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import ApplicationHeader from "./ApplicationHeader";
-import DetailsTab from "./tabs/DetailsTab";
-import ContactsTab from "./tabs/ContactsTab";
-import StatusTab from "./tabs/StatusTab";
-import CommentsTab from "./tabs/CommentsTab";
+import ApplicationHeader from "./details/ApplicationHeader";
+import DetailsTab from "./details/DetailsTab";
+import ContactsTab from "./details/ContactsTab";
+import StatusTab from "./details/StatusTab";
+import CommentsTab from "./details/CommentsTab";
 
 interface ApplicationDetailsPanelProps {
   application: Application;
@@ -35,9 +36,9 @@ const ApplicationDetailsPanel: React.FC<ApplicationDetailsPanelProps> = ({
         />
       </div>
 
-      {/* Scrollable Content Area */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-4">
+      {/* Scrollable Content Area - Fixed CSS */}
+      <div className="flex-1 overflow-hidden">
+        <div className="h-full overflow-y-auto p-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-4 mb-4">
               <TabsTrigger value="details">Details</TabsTrigger>

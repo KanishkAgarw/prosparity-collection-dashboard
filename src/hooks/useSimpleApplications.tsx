@@ -257,17 +257,11 @@ export const useSimpleApplications = ({
         console.log('Calling status updated for applications');
       }
 
-      // Fetch recent comments (latest 2) for each application
+      // Fetch recent comments (latest 2) for each application - Fixed query without profiles join
       console.log('Fetching recent comments for applications...');
       const { data: commentsData, error: commentsError } = await supabase
         .from('comments')
-        .select(`
-          application_id,
-          content,
-          created_at,
-          user_id,
-          profiles!inner(full_name)
-        `)
+        .select('application_id, content, created_at, user_id, user_email')
         .in('application_id', appIds)
         .order('created_at', { ascending: false });
 
@@ -283,7 +277,7 @@ export const useSimpleApplications = ({
           if (commentsByApp[comment.application_id].length < 2) {
             commentsByApp[comment.application_id].push({
               content: comment.content,
-              user_name: comment.profiles?.full_name || 'Unknown User',
+              user_name: comment.user_email || 'Unknown User',
               created_at: comment.created_at
             });
           }
