@@ -6,21 +6,6 @@ import { useQueryCache } from './useQueryCache';
 import { normalizeEmiMonth, groupDatesByMonth } from '@/utils/dateUtils';
 import { VEHICLE_STATUS_OPTIONS } from '@/constants/options';
 
-interface CascadingFilterOptions {
-  branches: string[];
-  teamLeads: string[];
-  rms: string[];
-  dealers: string[];
-  lenders: string[];
-  statuses: string[];
-  emiMonths: string[];
-  repayments: string[];
-  lastMonthBounce: string[];
-  ptpDateOptions: string[];
-  collectionRms: string[];
-  vehicleStatusOptions: string[];
-}
-
 export const useOptimizedCascadingFilters = () => {
   const { user } = useAuth();
   const { getCachedData, setCachedData } = useQueryCache<CascadingFilterOptions>();

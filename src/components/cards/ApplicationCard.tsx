@@ -29,105 +29,80 @@ const ApplicationCard = memo(({
       onClick={() => onClick(application)}
     >
       <CardContent className="p-4">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Left Block - Application Details */}
-          <div className="space-y-2">
-            <div>
+        <div className="grid grid-cols-6 gap-4 items-center">
+          {/* Application Details */}
+          <div className="col-span-1">
+            <div className="space-y-1">
               <h3 className="font-semibold text-gray-900 text-sm">
                 {application.applicant_name}
               </h3>
               <p className="text-xs text-gray-500">ID: {application.applicant_id}</p>
+              <div className="text-xs text-gray-600 space-y-0.5">
+                <div>Branch: <span className="font-medium">{application.branch_name}</span></div>
+                <div>TL: <span className="font-medium">{application.team_lead}</span></div>
+                <div>RM: <span className="font-medium">{application.rm_name}</span></div>
+              </div>
             </div>
-            
+          </div>
+
+          {/* EMI Amount */}
+          <div className="col-span-1 text-center">
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-600">EMI:</span>
-                <span className="font-medium text-sm">
-                  ₹{application.emi_amount?.toLocaleString() || '0'}
-                </span>
-                {selectedEmiMonth && (
-                  <span className="text-xs text-gray-500">({selectedEmiMonth})</span>
-                )}
+              <div className="text-lg font-bold text-gray-900">
+                ₹{application.emi_amount?.toLocaleString() || '0'}
               </div>
-              
-              <div className="grid grid-cols-2 gap-1 text-xs">
-                <div>
-                  <span className="text-gray-500">Branch:</span>
-                  <p className="font-medium text-gray-700 truncate">{application.branch_name}</p>
+              {selectedEmiMonth && (
+                <div className="text-xs text-gray-500">
+                  EMI for {selectedEmiMonth}
                 </div>
-                <div>
-                  <span className="text-gray-500">TL:</span>
-                  <p className="font-medium text-gray-700 truncate">{application.team_lead}</p>
-                </div>
-                <div>
-                  <span className="text-gray-500">RM:</span>
-                  <p className="font-medium text-gray-700 truncate">{application.rm_name}</p>
-                </div>
-                <div>
-                  <span className="text-gray-500">Collection RM:</span>
-                  <p className="font-medium text-gray-700 truncate">{application.collection_rm || 'N/A'}</p>
-                </div>
-                <div>
-                  <span className="text-gray-500">Dealer:</span>
-                  <p className="font-medium text-gray-700 truncate">{application.dealer_name}</p>
-                </div>
-                <div>
-                  <span className="text-gray-500">Lender:</span>
-                  <p className="font-medium text-gray-700 truncate">{application.lender_name}</p>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
-          {/* Middle Block - Status and PTP Date */}
-          <div className="space-y-3">
-            <div>
-              <span className="text-xs text-gray-500 block mb-1">Status</span>
-              <StatusBadge status={application.lms_status} />
-            </div>
-            
-            {application.ptp_date && (
-              <div>
-                <span className="text-xs text-gray-500 block mb-1">PTP Date</span>
-                <div className={`text-sm font-medium ${ptpColorClass}`}>
-                  {formatPtpDateForDisplay(application.ptp_date)}
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <span className="text-gray-500">Principal:</span>
-                <p className="font-medium">₹{application.principle_due?.toLocaleString() || '0'}</p>
-              </div>
-              <div>
-                <span className="text-gray-500">Interest:</span>
-                <p className="font-medium">₹{application.interest_due?.toLocaleString() || '0'}</p>
-              </div>
-            </div>
+          {/* Status */}
+          <div className="col-span-1 text-center">
+            <StatusBadge status={application.lms_status} />
           </div>
 
-          {/* Right Block - Recent Comments */}
-          <div className="space-y-2">
-            <span className="text-xs text-gray-500 block">Recent Comments</span>
-            {application.recent_comments && application.recent_comments.length > 0 ? (
-              <div className="space-y-2 max-h-20 overflow-y-auto">
-                {application.recent_comments.slice(0, 2).map((comment, index) => (
-                  <div key={index} className="text-xs">
-                    <div className="flex items-start gap-1">
-                      <span className="font-medium text-gray-700 text-xs">
-                        {comment.user_name || 'Unknown'}:
-                      </span>
-                    </div>
-                    <p className="text-gray-600 text-xs leading-tight mt-1 line-clamp-2">
-                      {comment.content}
-                    </p>
-                  </div>
-                ))}
+          {/* PTP Date */}
+          <div className="col-span-1 text-center">
+            {application.ptp_date ? (
+              <div className={`text-sm font-medium ${ptpColorClass}`}>
+                {formatPtpDateForDisplay(application.ptp_date)}
               </div>
             ) : (
-              <p className="text-xs text-gray-400 italic">No recent comments</p>
+              <div className="text-sm text-gray-400">No PTP Date</div>
             )}
+          </div>
+
+          {/* Calling Status */}
+          <div className="col-span-1 text-center">
+            <div className="text-sm text-gray-600">
+              {application.calling_status || 'Not Called'}
+            </div>
+          </div>
+
+          {/* Recent Comments */}
+          <div className="col-span-1">
+            <div className="space-y-1">
+              <span className="text-xs text-gray-500 block">Recent Comments</span>
+              {application.recent_comments && application.recent_comments.length > 0 ? (
+                <div className="space-y-1 max-h-16 overflow-y-auto">
+                  {application.recent_comments.slice(0, 2).map((comment, index) => (
+                    <div key={index} className="text-xs">
+                      <div className="font-medium text-gray-700 truncate">
+                        {comment.user_name || 'Unknown'}:
+                      </div>
+                      <p className="text-gray-600 text-xs leading-tight line-clamp-1">
+                        {comment.content}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400 italic">No comments</p>
+              )}
+            </div>
           </div>
         </div>
       </CardContent>

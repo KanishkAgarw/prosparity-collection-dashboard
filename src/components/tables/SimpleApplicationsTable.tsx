@@ -2,6 +2,8 @@
 import { memo } from "react";
 import { Application } from "@/types/application";
 import ApplicationCard from "@/components/cards/ApplicationCard";
+import MobileApplicationCard from "@/components/cards/MobileApplicationCard";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface SimpleApplicationsTableProps {
   applications: Application[];
@@ -16,6 +18,7 @@ const SimpleApplicationsTable = memo(({
   selectedApplicationId,
   selectedEmiMonth
 }: SimpleApplicationsTableProps) => {
+  const isMobile = useIsMobile();
 
   if (applications.length === 0) {
     return (
@@ -28,14 +31,36 @@ const SimpleApplicationsTable = memo(({
 
   return (
     <div className="space-y-4">
+      {/* Column Headers for Desktop */}
+      {!isMobile && (
+        <div className="grid grid-cols-6 gap-4 px-4 py-2 bg-gray-50 rounded-lg text-sm font-medium text-gray-700">
+          <div>Application Details</div>
+          <div className="text-center">EMI Amount</div>
+          <div className="text-center">Status</div>
+          <div className="text-center">PTP Date</div>
+          <div className="text-center">Calling Status</div>
+          <div>Recent Comments</div>
+        </div>
+      )}
+      
       {applications.map((application) => (
-        <ApplicationCard
-          key={application.id}
-          application={application}
-          onClick={onRowClick}
-          isSelected={selectedApplicationId === application.id}
-          selectedEmiMonth={selectedEmiMonth}
-        />
+        isMobile ? (
+          <MobileApplicationCard
+            key={application.id}
+            application={application}
+            onClick={onRowClick}
+            isSelected={selectedApplicationId === application.id}
+            selectedEmiMonth={selectedEmiMonth}
+          />
+        ) : (
+          <ApplicationCard
+            key={application.id}
+            application={application}
+            onClick={onRowClick}
+            isSelected={selectedApplicationId === application.id}
+            selectedEmiMonth={selectedEmiMonth}
+          />
+        )
       ))}
     </div>
   );
