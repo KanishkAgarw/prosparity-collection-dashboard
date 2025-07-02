@@ -1,3 +1,4 @@
+
 export interface Application {
   id: string;
   applicant_id: string;
@@ -41,7 +42,7 @@ export interface Application {
   guarantor_calling_status?: string;
   reference_calling_status?: string;
   latest_calling_status?: string;
-  recent_comments?: Array<{content: string; user_name: string}>;
+  recent_comments?: Array<{content: string; user_name: string; created_at: string}>;
   disbursement_date?: string;
   loan_amount?: number;
   vehicle_status?: string;
