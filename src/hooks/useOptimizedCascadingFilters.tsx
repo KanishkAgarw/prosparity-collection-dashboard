@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { FilterState } from '@/types/filters';
+import { FilterState, CascadingFilterOptions } from '@/types/filters';
 import { useQueryCache } from './useQueryCache';
 import { normalizeEmiMonth, groupDatesByMonth } from '@/utils/dateUtils';
+import { VEHICLE_STATUS_OPTIONS } from '@/constants/options';
 
 interface CascadingFilterOptions {
   branches: string[];
@@ -51,7 +52,7 @@ export const useOptimizedCascadingFilters = () => {
     lastMonthBounce: ['Not paid', 'Paid on time', '1-5 days late', '6-15 days late', '15+ days late'],
     ptpDateOptions: ['overdue', 'today', 'tomorrow', 'future', 'no_date'],
     collectionRms: [],
-    vehicleStatusOptions: ['Seized', 'Repo', 'Accident', 'None']
+    vehicleStatusOptions: VEHICLE_STATUS_OPTIONS.map(opt => opt.value)
   });
 
   const [selectedEmiMonth, setSelectedEmiMonth] = useState<string | null>(null);
@@ -118,7 +119,7 @@ export const useOptimizedCascadingFilters = () => {
         lastMonthBounce: ['Not paid', 'Paid on time', '1-5 days late', '6-15 days late', '15+ days late'],
         ptpDateOptions: ['overdue', 'today', 'tomorrow', 'future', 'no_date'],
         collectionRms: [],
-        vehicleStatusOptions: ['Seized', 'Repo', 'Accident', 'None']
+        vehicleStatusOptions: VEHICLE_STATUS_OPTIONS.map(opt => opt.value)
       };
       
       setCachedData(cacheKey, cacheData, 10 * 60 * 1000);
@@ -221,7 +222,7 @@ export const useOptimizedCascadingFilters = () => {
         emiMonths: [selectedEmiMonth],
         lastMonthBounce: ['Not paid', 'Paid on time', '1-5 days late', '6-15 days late', '15+ days late'],
         ptpDateOptions: ['overdue', 'today', 'tomorrow', 'future', 'no_date'],
-        vehicleStatusOptions: ['Seized', 'Repo', 'Accident', 'None'],
+        vehicleStatusOptions: VEHICLE_STATUS_OPTIONS.map(opt => opt.value),
         statuses: []
       };
 

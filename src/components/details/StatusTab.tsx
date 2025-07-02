@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -26,9 +25,10 @@ interface StatusTabProps {
   onPtpDateChange: (newDate: string) => void;
   addAuditLog: (appId: string, field: string, previousValue: string | null, newValue: string | null, demandDate: string) => Promise<void>;
   selectedMonth: string;
+  refetchStatusCounts?: () => void;
 }
 
-const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, addAuditLog, selectedMonth }: StatusTabProps) => {
+const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, addAuditLog, selectedMonth, refetchStatusCounts }: StatusTabProps) => {
   const [ptpDate, setPtpDate] = useState('');
   const [showLogDialog, setShowLogDialog] = useState(false);
   const [isUpdatingPtp, setIsUpdatingPtp] = useState(false);
@@ -197,22 +197,50 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
   const handleStatusChange = async (newStatus: string) => {
     setStatusLoading(true);
     try {
-      console.log('🔄 Updating status:', { from: currentStatus, to: newStatus, applicationId: application.applicant_id, selectedMonth });
-      
+      let statusToSet = newStatus;
       if (newStatus === "Paid") {
-        await onStatusChange(newStatus);
-      } else {
-        const prevStatus = currentStatus;
-        
-        // Try to update field status with detailed logging
-        const emiDate = monthToEmiDate(selectedMonth);
-        console.log('📅 Using EMI date for status update:', emiDate);
-        
-        await updateFieldStatus(application.applicant_id, newStatus, selectedMonth);
-        setCurrentStatus(newStatus);
-        await addAuditLog(application.applicant_id, 'Status', prevStatus, newStatus, emiDate);
-        onStatusChange(newStatus);
+        statusToSet = "Paid (Pending Approval)";
+      }
+      const emiDate = monthToEmiDate(selectedMonth);
+
+      // Fetch the actual current status from the DB
+      const { data: statusRow, error: statusError } = await supabase
+        .from('field_status')
+        .select('status')
+        .eq('application_id', application.applicant_id)
+        .eq('demand_date', selectedMonth)
+        .order('created_at', { ascending: false })
+        .maybeSingle();
+
+      const prevStatus = statusRow?.status || "Unpaid";
+
+      // Only update and log if the status is actually changing
+      if (statusToSet !== prevStatus) {
+        await updateFieldStatus(application.applicant_id, statusToSet, selectedMonth);
+        setCurrentStatus(statusToSet);
+        await addAuditLog(application.applicant_id, 'Status', prevStatus, statusToSet, emiDate);
+        onStatusChange(statusToSet);
+
+        // Create status_change_requests row for admin approval if needed
+        if (newStatus === "Paid") {
+          await supabase.from('status_change_requests').insert({
+            application_id: application.applicant_id,
+            requested_status: "Paid",
+            current_status: prevStatus,
+            approval_status: "pending",
+            requested_by_user_id: user?.id,
+            requested_by_email: user?.email,
+            requested_by_name: user?.full_name,
+            demand_date: selectedMonth,
+            request_timestamp: new Date().toISOString()
+          });
+        }
+        if (refetchStatusCounts) {
+          refetchStatusCounts();
+        }
         toast.success('Status updated successfully');
+      } else {
+        toast.info('No status change detected.');
       }
     } catch (error) {
       console.error('❌ Failed to update status:', error);

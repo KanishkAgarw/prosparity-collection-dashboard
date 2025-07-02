@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useEffect } from "react";
 import { useSimpleApplications } from "@/hooks/useSimpleApplications";
 import { useOptimizedCascadingFilters } from "@/hooks/useOptimizedCascadingFilters";
@@ -18,6 +17,7 @@ import { ApplicationTableSkeleton, StatusCardsSkeleton } from "@/components/Load
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import PendingApprovals from "@/components/PendingApprovals";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -60,7 +60,7 @@ const Index = () => {
   });
 
   // Use status counts hook with search term
-  const { statusCounts, loading: statusLoading } = useStatusCounts({ 
+  const { statusCounts, loading: statusLoading, refetch: refetchStatusCounts } = useStatusCounts({ 
     filters, 
     selectedEmiMonth,
     searchTerm: debouncedSearchTerm
@@ -97,6 +97,7 @@ const Index = () => {
 
   const handleDataChanged = async () => {
     await refetch();
+    await refetchStatusCounts();
     if (selectedApplication) {
       const updatedApp = applications.find(app => app.applicant_id === selectedApplication.applicant_id);
       if (updatedApp) {
@@ -201,6 +202,8 @@ const Index = () => {
           ) : (
             <StatusCards statusCounts={statusCounts} />
           )}
+
+          <PendingApprovals onUpdate={refetch} />
 
           {appsLoading ? (
             <ApplicationTableSkeleton />

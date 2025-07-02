@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -6,6 +5,7 @@ import { FilterState } from '@/types/filters';
 import { formatEmiMonth } from '@/utils/formatters';
 import { useFilterCache } from './useFilterCache';
 import { normalizeEmiMonth, groupDatesByMonth } from '@/utils/dateUtils';
+import { VEHICLE_STATUS_OPTIONS } from '@/constants/options';
 
 interface CascadingFilterOptions {
   branches: string[];
@@ -53,7 +53,7 @@ export const useCascadingFilters = () => {
     lastMonthBounce: ['Not paid', 'Paid on time', '1-5 days late', '6-15 days late', '15+ days late'],
     ptpDateOptions: ['Overdue PTP', "Today's PTP", "Tomorrow's PTP", 'Future PTP', 'No PTP'],
     collectionRms: [],
-    vehicleStatusOptions: ['Seized', 'Repo', 'Accident', 'None']
+    vehicleStatusOptions: VEHICLE_STATUS_OPTIONS.map(opt => opt.value)
   });
 
   const [selectedEmiMonth, setSelectedEmiMonth] = useState<string | null>(null);
@@ -233,7 +233,7 @@ export const useCascadingFilters = () => {
         repayments: [...new Set(allData.map(item => item.repayment).filter(Boolean))].sort(),
         lastMonthBounce: ['Not paid', 'Paid on time', '1-5 days late', '6-15 days late', '15+ days late'],
         ptpDateOptions: ['Overdue PTP', "Today's PTP", "Tomorrow's PTP", 'Future PTP', 'No PTP'],
-        vehicleStatusOptions: ['Seized', 'Repo', 'Accident', 'None'],
+        vehicleStatusOptions: VEHICLE_STATUS_OPTIONS.map(opt => opt.value),
         statuses: []
       };
 

@@ -1,10 +1,9 @@
-
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Application } from '@/types/application';
 import { FilterState } from '@/types/filters';
-import { getMonthDateRange } from '@/utils/dateUtils';
+import { getMonthDateRange, monthToEmiDate } from '@/utils/dateUtils';
 import { useQueryCache } from './useQueryCache';
 import { useDebouncedAPI } from './useDebouncedAPI';
 import { useBatchPtpDates } from './useBatchPtpDates';
@@ -249,9 +248,10 @@ export const useOptimizedApplicationsV3 = ({
 
         // Apply status filter
         if (filters.status?.length > 0) {
+          const emiDate = monthToEmiDate(selectedEmiMonth);
           transformedApplications = transformedApplications.filter(app => {
             const currentStatus = fieldStatusMap[app.applicant_id] || app.lms_status;
-            return filters.status.includes(currentStatus);
+            return filters.status.includes(currentStatus) && app.demand_date === emiDate;
           });
         }
       }

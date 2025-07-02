@@ -51,6 +51,7 @@ const PendingApprovals = ({ onUpdate }: PendingApprovalsProps) => {
     const saved = localStorage.getItem('pendingApprovalsOpen');
     return saved !== null ? JSON.parse(saved) : true;
   });
+  const [sortByMonth, setSortByMonth] = useState(false);
 
   // Save toggle state to localStorage
   useEffect(() => {
@@ -345,55 +346,30 @@ const PendingApprovals = ({ onUpdate }: PendingApprovalsProps) => {
                   )}
                 </div>
 
-                {/* Individual Requests */}
-                {requests.map((request) => (
-                  <div key={request.id} className="border rounded-lg p-4 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-3">
-                        <Checkbox
-                          checked={selectedRequests.includes(request.id)}
-                          onCheckedChange={(checked) => handleSelectRequest(request.id, checked as boolean)}
-                        />
-                        <div className="space-y-1">
-                          <div className="font-semibold text-blue-900">
-                            {request.applicant_name} ({request.applicant_id})
-                            {request.demand_date && (
-                              <span className="ml-2 text-xs text-gray-500 font-normal">EMI Month: {formatEmiMonth(request.demand_date)}</span>
-                            )}
+                {/* Table header for sorting */}
+                <div className="flex font-semibold text-gray-700 border-b pb-2 mb-2">
+                  <div className="w-1/4">Applicant</div>
+                  <div className="w-1/4">Status Change</div>
+                  <div className="w-1/4 cursor-pointer" onClick={() => setSortByMonth((prev) => !prev)}>
+                    Demand Month
+                    <span className="ml-1">{sortByMonth ? "▲" : "▼"}</span>
                           </div>
-                          <div className="text-sm text-gray-600">
-                            Requested by: {request.requested_by_name || request.requested_by_email}
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            Requested: {format(new Date(request.request_timestamp), 'dd-MMM-yyyy HH:mm')}
-                          </div>
-                        </div>
-                      </div>
-                      <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
-                        Pending Approval
-                      </Badge>
+                  <div className="w-1/4">Actions</div>
                     </div>
 
-                    <div className="flex items-center gap-4 text-sm">
-                      <span className="text-gray-600">Status Change:</span>
-                      <span className="px-2 py-1 bg-red-50 text-red-700 rounded">{request.current_status}</span>
-                      <span>→</span>
-                      <span className="px-2 py-1 bg-green-50 text-green-700 rounded">{request.requested_status}</span>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Textarea
-                        placeholder="Add review comments (optional)"
-                        value={reviewComments[request.id] || ''}
-                        onChange={(e) => setReviewComments(prev => ({
-                          ...prev,
-                          [request.id]: e.target.value
-                        }))}
-                        className="text-sm"
-                        rows={2}
-                      />
-                    </div>
-
+                {/* Sort requests by demand month if enabled */}
+                {requests
+                  .slice()
+                  .sort((a, b) => sortByMonth
+                    ? (a.demand_date || "").localeCompare(b.demand_date || "")
+                    : 0
+                  )
+                  .map((request) => (
+                    <div key={request.id} className="flex items-center border-b py-2">
+                      <div className="w-1/4">{request.applicant_name} ({request.applicant_id})</div>
+                      <div className="w-1/4">{request.current_status} → {request.requested_status}</div>
+                      <div className="w-1/4">{formatEmiMonth(request.demand_date)}</div>
+                      <div className="w-1/4">
                     <div className="flex gap-2">
                       <Button
                         size="sm"
@@ -414,6 +390,7 @@ const PendingApprovals = ({ onUpdate }: PendingApprovalsProps) => {
                         <XCircle className="h-4 w-4" />
                         Reject
                       </Button>
+                        </div>
                     </div>
                   </div>
                 ))}

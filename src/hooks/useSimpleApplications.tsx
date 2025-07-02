@@ -1,10 +1,10 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Application } from '@/types/application';
 import { FilterState } from '@/types/filters';
-import { getMonthDateRange } from '@/utils/dateUtils';
+import { getMonthDateRange, monthToEmiDate } from '@/utils/dateUtils';
+import { resolvePTPDateFilter } from '@/utils/ptpDateUtils';
 
 interface UseSimpleApplicationsProps {
   filters: FilterState;
@@ -73,6 +73,24 @@ export const useSimpleApplications = ({
       if (filters.repayment?.length > 0) {
         query = query.in('repayment', filters.repayment);
       }
+      if (filters.branch?.length > 0) {
+        query = query.in('applications.branch_name', filters.branch);
+      }
+      if (filters.collectionRm?.length > 0) {
+        query = query.in('collection_rm', filters.collectionRm);
+      }
+      if (filters.dealer?.length > 0) {
+        query = query.in('applications.dealer_name', filters.dealer);
+      }
+      if (filters.lender?.length > 0) {
+        query = query.in('applications.lender_name', filters.lender);
+      }
+      if (filters.lastMonthBounce?.length > 0) {
+        query = query.in('last_month_bounce', filters.lastMonthBounce);
+      }
+      if (filters.vehicleStatus?.length > 0) {
+        query = query.in('applications.vehicle_status', filters.vehicleStatus);
+      }
 
       const { data, error: queryError } = await query;
 
@@ -130,6 +148,77 @@ export const useSimpleApplications = ({
         } as Application;
       });
 
+      // Apply PTP date filtering if specified
+      if (filters.ptpDate?.length > 0) {
+        console.log('🔍 Applying PTP date filter:', filters.ptpDate);
+        
+        const appIds = transformedApplications.map(app => app.applicant_id);
+        const { startDate, endDate, includeNoDate } = resolvePTPDateFilter(filters.ptpDate);
+        
+        console.log('PTP filter resolved:', { startDate, endDate, includeNoDate });
+        
+        // Fetch PTP dates for the applications
+        let ptpQuery = supabase
+          .from('ptp_dates')
+          .select('application_id, ptp_date, created_at')
+          .in('application_id', appIds)
+          .order('application_id', { ascending: true })
+          .order('created_at', { ascending: false });
+
+        // Apply date range filter if specified
+        if (startDate && endDate) {
+          ptpQuery = ptpQuery.gte('ptp_date', startDate).lte('ptp_date', endDate);
+        }
+
+        const { data: ptpData, error: ptpError } = await ptpQuery;
+
+        if (ptpError) {
+          console.error('Error fetching PTP dates:', ptpError);
+        } else {
+          // Build a map of latest PTP date for each application
+          const ptpMap: Record<string, string | null> = {};
+          const processedApps = new Set<string>();
+          
+          ptpData?.forEach(ptp => {
+            if (!processedApps.has(ptp.application_id)) {
+              ptpMap[ptp.application_id] = ptp.ptp_date;
+              processedApps.add(ptp.application_id);
+            }
+          });
+
+          console.log('PTP data fetched:', Object.keys(ptpMap).length, 'applications with PTP dates');
+
+          // Filter applications based on PTP criteria
+          const originalCount = transformedApplications.length;
+          transformedApplications = transformedApplications.filter(app => {
+            const appPtpDate = ptpMap[app.applicant_id];
+            
+            if (includeNoDate && !appPtpDate) {
+              return true; // Include applications with no PTP date
+            }
+            
+            if (appPtpDate) {
+              // Check if the PTP date falls within the specified range
+              if (startDate && endDate) {
+                const ptpDateStr = new Date(appPtpDate).toISOString().split('T')[0];
+                return ptpDateStr >= startDate && ptpDateStr <= endDate;
+              }
+              return true; // If no date range specified, include all with PTP dates
+            }
+            
+            return false; // Exclude applications without PTP dates (unless includeNoDate is true)
+          });
+
+          console.log('PTP filtering result:', originalCount, '->', transformedApplications.length, 'applications');
+
+          // Add PTP dates to the applications
+          transformedApplications = transformedApplications.map(app => ({
+            ...app,
+            ptp_date: ptpMap[app.applicant_id] || undefined
+          }));
+        }
+      }
+
       // Apply client-side search filter
       if (searchTerm?.trim()) {
         const searchLower = searchTerm.toLowerCase().trim();
@@ -160,7 +249,34 @@ export const useSimpleApplications = ({
       const offset = (page - 1) * pageSize;
       const paginatedApplications = transformedApplications.slice(offset, offset + pageSize);
 
-      setApplications(paginatedApplications);
+      // After transforming applications, fetch latest status for each application for the selected EMI month
+      const emiDate = monthToEmiDate(selectedEmiMonth);
+      if (filters.status?.length > 0 && transformedApplications.length > 0) {
+        const appIds = transformedApplications.map(app => app.applicant_id);
+        // Fetch latest status for each application for the selected EMI month
+        const { data: statusRows, error: statusError } = await supabase
+          .from('field_status')
+          .select('application_id, status, demand_date, created_at')
+          .in('application_id', appIds)
+          .eq('demand_date', emiDate);
+        if (!statusError && statusRows) {
+          // Build a map of latest status for each application
+          const latestStatusMap: Record<string, string> = {};
+          statusRows.forEach(row => {
+            if (!latestStatusMap[row.application_id] || new Date(row.created_at) > new Date(latestStatusMap[row.application_id + '_created_at'] || 0)) {
+              latestStatusMap[row.application_id] = row.status;
+              latestStatusMap[row.application_id + '_created_at'] = row.created_at;
+            }
+          });
+          // Filter applications by status
+          transformedApplications = transformedApplications.filter(app => {
+            const status = latestStatusMap[app.applicant_id] || 'Unpaid';
+            return filters.status!.includes(status);
+          });
+        }
+      }
+
+      setApplications(transformedApplications);
       setTotalCount(transformedApplications.length);
 
       console.log('Applications loaded successfully:', {

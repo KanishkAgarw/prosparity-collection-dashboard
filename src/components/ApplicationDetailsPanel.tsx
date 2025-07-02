@@ -1,4 +1,3 @@
-
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -29,6 +28,7 @@ interface ApplicationDetailsPanelProps {
   onSave: (updatedApp: Application) => void;
   onDataChanged?: () => void;
   selectedEmiMonth?: string | null;
+  refetchStatusCounts?: () => void;
 }
 
 const ApplicationDetailsPanel = ({ 
@@ -36,7 +36,8 @@ const ApplicationDetailsPanel = ({
   onClose, 
   onSave, 
   onDataChanged, 
-  selectedEmiMonth 
+  selectedEmiMonth,
+  refetchStatusCounts
 }: ApplicationDetailsPanelProps) => {
   const { user } = useAuth();
   const [currentApplication, setCurrentApplication] = useState<Application | null>(application);
@@ -463,10 +464,11 @@ const ApplicationDetailsPanel = ({
               <StatusTab 
                 application={displayApplication}
                 auditLogs={auditLogs}
-                onStatusChange={handleStatusChangeWithTracking}
+                onStatusChange={() => {}}
                 onPtpDateChange={handlePtpDateChangeWithTracking}
                 addAuditLog={addAuditLog}
                 selectedMonth={selectedMonth}
+                refetchStatusCounts={refetchStatusCounts}
               />
             </TabsContent>
             <TabsContent value="comments" className="m-0">

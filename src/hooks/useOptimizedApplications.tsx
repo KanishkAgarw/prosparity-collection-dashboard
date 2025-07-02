@@ -1,9 +1,9 @@
-
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Application } from '@/types/application';
 import { FilterState } from '@/types/filters';
+import { VEHICLE_STATUS_OPTIONS } from '@/constants/options';
 
 interface UseOptimizedApplicationsProps {
   filters: FilterState;
@@ -244,7 +244,7 @@ export const useOptimizedApplications = ({
         repayments,
         lastMonthBounce: ['Not paid', 'Paid on time', '1-5 days late', '6-15 days late', '15+ days late'],
         ptpDateOptions: ['Overdue PTP', "Today's PTP", "Tomorrow's PTP", 'Future PTP', 'No PTP'],
-        vehicleStatusOptions: ['Seized', 'Repo', 'Accident', 'None']
+        vehicleStatusOptions: VEHICLE_STATUS_OPTIONS.map(opt => opt.value)
       };
     } catch (error) {
       console.error('Error fetching filter options:', error);
