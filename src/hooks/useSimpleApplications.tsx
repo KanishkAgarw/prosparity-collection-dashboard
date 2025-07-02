@@ -86,7 +86,17 @@ export const useSimpleApplications = ({
         query = query.in('applications.lender_name', filters.lender);
       }
       if (filters.lastMonthBounce?.length > 0) {
-        query = query.in('last_month_bounce', filters.lastMonthBounce);
+        const bounceValues = filters.lastMonthBounce.map(category => {
+          switch (category) {
+            case 'Not paid': return 0;
+            case 'Paid on time': return 1;
+            case '1-5 days late': return 2;
+            case '6-15 days late': return 3;
+            case '15+ days late': return 4;
+            default: return 0;
+          }
+        });
+        query = query.in('last_month_bounce', bounceValues);
       }
       if (filters.vehicleStatus?.length > 0) {
         query = query.in('applications.vehicle_status', filters.vehicleStatus);

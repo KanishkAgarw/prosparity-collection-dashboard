@@ -193,7 +193,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
     }
   };
 
-  // Update status handler to use per-month update
+  // Handle status change handler to use per-month update
   const handleStatusChange = async (newStatus: string) => {
     setStatusLoading(true);
     try {
@@ -230,7 +230,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
             approval_status: "pending",
             requested_by_user_id: user?.id,
             requested_by_email: user?.email,
-            requested_by_name: user?.full_name,
+            requested_by_name: user?.email || 'Unknown User', // Fix: use email instead of full_name
             demand_date: selectedMonth,
             request_timestamp: new Date().toISOString()
           });
