@@ -78,7 +78,7 @@ const ApplicationCard = memo(({
           {/* Calling Status */}
           <div className="col-span-1 text-center">
             <div className="text-sm text-gray-600">
-              {application.calling_status || 'Not Called'}
+              {application.latest_calling_status || application.applicant_calling_status || 'Not Called'}
             </div>
           </div>
 

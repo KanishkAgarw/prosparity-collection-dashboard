@@ -72,7 +72,7 @@ const MobileApplicationCard = memo(({
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div>
               <span className="text-gray-500">Calling Status:</span>
-              <p className="font-medium text-gray-700">{application.calling_status || 'Not Called'}</p>
+              <p className="font-medium text-gray-700">{application.latest_calling_status || application.applicant_calling_status || 'Not Called'}</p>
             </div>
             <div>
               <span className="text-gray-500">Branch:</span>
