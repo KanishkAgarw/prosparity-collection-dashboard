@@ -25,6 +25,19 @@ const ApplicationDetailsPanel: React.FC<ApplicationDetailsPanelProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState("details");
 
+  // Transform recent_comments to match Comment interface expected by CommentsTab
+  const transformedComments = (application.recent_comments || []).map((comment, index) => ({
+    id: `comment-${application.id}-${index}`, // Generate a temporary ID
+    content: comment.content,
+    user_name: comment.user_name,
+    created_at: comment.created_at,
+    updated_at: comment.created_at, // Use created_at as updated_at
+    user_id: '', // Empty string as fallback
+    user_email: comment.user_name, // Use user_name as email fallback
+    application_id: application.applicant_id,
+    demand_date: null
+  }));
+
   return (
     <div className="bg-white shadow-lg border-l border-gray-200 h-full flex flex-col">
       {/* Header - Fixed */}
@@ -78,7 +91,7 @@ const ApplicationDetailsPanel: React.FC<ApplicationDetailsPanelProps> = ({
 
               <TabsContent value="comments" className="mt-0">
                 <CommentsTab 
-                  comments={application.recent_comments || []}
+                  comments={transformedComments}
                   onAddComment={async () => {}}
                 />
               </TabsContent>
