@@ -1,67 +1,84 @@
 
 import { memo } from "react";
 import { Application } from "@/types/application";
-import ApplicationCard from "@/components/cards/ApplicationCard";
-import MobileApplicationCard from "@/components/cards/MobileApplicationCard";
-import { useIsMobile } from "@/hooks/use-mobile";
+import TableHeader from "./TableHeader";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
+import StatusBadge from "./StatusBadge";
 
 interface SimpleApplicationsTableProps {
   applications: Application[];
   onRowClick: (application: Application) => void;
   selectedApplicationId?: string;
-  selectedEmiMonth?: string | null;
 }
 
 const SimpleApplicationsTable = memo(({
   applications,
   onRowClick,
-  selectedApplicationId,
-  selectedEmiMonth
+  selectedApplicationId
 }: SimpleApplicationsTableProps) => {
-  const isMobile = useIsMobile();
-
-  if (applications.length === 0) {
-    return (
-      <div className="text-center py-12 text-muted-foreground">
-        <p className="text-lg font-medium text-gray-500">No applications found</p>
-        <p className="text-sm text-gray-400">Try adjusting your filters</p>
-      </div>
-    );
-  }
 
   return (
-    <div className="space-y-4">
-      {/* Column Headers for Desktop */}
-      {!isMobile && (
-        <div className="grid grid-cols-6 gap-4 px-4 py-2 bg-gray-50 rounded-lg text-sm font-medium text-gray-700">
-          <div>Application Details</div>
-          <div className="text-center">EMI Amount</div>
-          <div className="text-center">Status</div>
-          <div className="text-center">PTP Date</div>
-          <div className="text-center">Calling Status</div>
-          <div>Recent Comments</div>
+    <div className="rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader />
+          <TableBody>
+            {applications.map((application) => (
+              <TableRow
+                key={application.id}
+                className={`hover:bg-gray-50 cursor-pointer transition-colors ${
+                  selectedApplicationId === application.id ? 'bg-blue-50' : ''
+                }`}
+                onClick={() => onRowClick(application)}
+              >
+                <TableCell className="font-medium text-sm">
+                  {application.applicant_name}
+                </TableCell>
+                <TableCell className="text-sm text-gray-600">
+                  {application.applicant_id}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {application.branch_name}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {application.team_lead}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {application.rm_name}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {application.dealer_name}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {application.lender_name}
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={application.lms_status} />
+                </TableCell>
+                <TableCell className="text-sm font-medium">
+                  ₹{application.emi_amount?.toLocaleString() || '0'}
+                </TableCell>
+                <TableCell className="text-sm">
+                  ₹{application.principle_due?.toLocaleString() || '0'}
+                </TableCell>
+                <TableCell className="text-sm">
+                  ₹{application.interest_due?.toLocaleString() || '0'}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {application.demand_date ? new Date(application.demand_date).toLocaleDateString() : '-'}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      
+      {applications.length === 0 && (
+        <div className="text-center py-12 text-muted-foreground">
+          <p className="text-lg font-medium text-gray-500">No applications found</p>
+          <p className="text-sm text-gray-400">Try adjusting your filters</p>
         </div>
       )}
-      
-      {applications.map((application) => (
-        isMobile ? (
-          <MobileApplicationCard
-            key={application.id}
-            application={application}
-            onClick={onRowClick}
-            isSelected={selectedApplicationId === application.id}
-            selectedEmiMonth={selectedEmiMonth}
-          />
-        ) : (
-          <ApplicationCard
-            key={application.id}
-            application={application}
-            onClick={onRowClick}
-            isSelected={selectedApplicationId === application.id}
-            selectedEmiMonth={selectedEmiMonth}
-          />
-        )
-      ))}
     </div>
   );
 });

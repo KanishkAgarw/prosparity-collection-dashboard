@@ -35,6 +35,7 @@ export const useSimpleApplications = ({
   const [applications, setApplications] = useState<Application[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
 
   const fetchApplications = useCallback(async () => {
     if (!user || !selectedEmiMonth) {
@@ -45,10 +46,10 @@ export const useSimpleApplications = ({
     }
 
     setLoading(true);
+    setError(null);
 
     try {
       const { start, end } = getMonthDateRange(selectedEmiMonth);
-      const emiDate = monthToEmiDate(selectedEmiMonth);
       console.log('Fetching applications for month:', selectedEmiMonth);
 
       // Simple, direct query with basic joins
@@ -85,17 +86,7 @@ export const useSimpleApplications = ({
         query = query.in('applications.lender_name', filters.lender);
       }
       if (filters.lastMonthBounce?.length > 0) {
-        const bounceValues = filters.lastMonthBounce.map(category => {
-          switch (category) {
-            case 'Not paid': return 0;
-            case 'Paid on time': return 1;
-            case '1-5 days late': return 2;
-            case '6-15 days late': return 3;
-            case '15+ days late': return 4;
-            default: return 0;
-          }
-        });
-        query = query.in('last_month_bounce', bounceValues);
+        query = query.in('last_month_bounce', filters.lastMonthBounce);
       }
       if (filters.vehicleStatus?.length > 0) {
         query = query.in('applications.vehicle_status', filters.vehicleStatus);
@@ -157,188 +148,80 @@ export const useSimpleApplications = ({
         } as Application;
       });
 
-      const appIds = transformedApplications.map(app => app.applicant_id);
-
-      // Fetch latest field status for each application
-      console.log('Fetching latest field status for applications...');
-      const { data: statusRows, error: statusError } = await supabase
-        .from('field_status')
-        .select('application_id, status, demand_date, created_at')
-        .in('application_id', appIds)
-        .eq('demand_date', emiDate)
-        .order('created_at', { ascending: false });
-
-      if (!statusError && statusRows) {
-        const latestStatusMap: Record<string, string> = {};
-        statusRows.forEach(row => {
-          if (!latestStatusMap[row.application_id]) {
-            latestStatusMap[row.application_id] = row.status;
-          }
-        });
-
-        // Update applications with field status
-        transformedApplications = transformedApplications.map(app => ({
-          ...app,
-          field_status: latestStatusMap[app.applicant_id] || app.lms_status || 'Unpaid'
-        }));
-        
-        console.log('Field status updated for applications');
-      }
-
-      // Always fetch PTP dates for all applications
-      console.log('Fetching PTP dates for all applications...');
-      const { data: ptpData, error: ptpError } = await supabase
-        .from('ptp_dates')
-        .select('application_id, ptp_date, created_at')
-        .in('application_id', appIds)
-        .order('application_id', { ascending: true })
-        .order('created_at', { ascending: false });
-
-      if (!ptpError && ptpData) {
-        const ptpMap: Record<string, string | null> = {};
-        const processedApps = new Set<string>();
-        
-        ptpData.forEach(ptp => {
-          if (!processedApps.has(ptp.application_id)) {
-            ptpMap[ptp.application_id] = ptp.ptp_date;
-            processedApps.add(ptp.application_id);
-          }
-        });
-
-        // Update applications with PTP dates
-        transformedApplications = transformedApplications.map(app => ({
-          ...app,
-          ptp_date: ptpMap[app.applicant_id] || undefined
-        }));
-        
-        console.log('PTP dates updated for applications');
-      }
-
-      // Fetch latest calling status for each application
-      console.log('Fetching calling status for applications...');
-      const { data: callingData, error: callingError } = await supabase
-        .from('contact_calling_status')
-        .select('application_id, contact_type, status, created_at')
-        .in('application_id', appIds)
-        .order('created_at', { ascending: false });
-
-      if (!callingError && callingData) {
-        const contactStatusesMap: Record<string, any> = {};
-        
-        callingData.forEach(status => {
-          if (!contactStatusesMap[status.application_id]) {
-            contactStatusesMap[status.application_id] = {};
-          }
-          
-          const contactType = status.contact_type.toLowerCase();
-          if (!contactStatusesMap[status.application_id][contactType]) {
-            contactStatusesMap[status.application_id][contactType] = status.status;
-            
-            // Set latest calling status to the most recent status overall
-            if (!contactStatusesMap[status.application_id].latest) {
-              contactStatusesMap[status.application_id].latest = status.status;
-            }
-          }
-        });
-
-        // Update applications with calling status
-        transformedApplications = transformedApplications.map(app => {
-          const contactStatuses = contactStatusesMap[app.applicant_id] || {};
-          return {
-            ...app,
-            applicant_calling_status: contactStatuses.applicant || 'Not Called',
-            co_applicant_calling_status: contactStatuses.co_applicant || 'Not Called',
-            guarantor_calling_status: contactStatuses.guarantor || 'Not Called',
-            reference_calling_status: contactStatuses.reference || 'Not Called',
-            latest_calling_status: contactStatuses.latest || 'Not Called'
-          };
-        });
-        
-        console.log('Calling status updated for applications');
-      }
-
-      // Fetch recent comments (latest 2) for each application - Fixed query without profiles join
-      console.log('Fetching recent comments for applications...');
-      const { data: commentsData, error: commentsError } = await supabase
-        .from('comments')
-        .select('application_id, content, created_at, user_id, user_email')
-        .in('application_id', appIds)
-        .order('created_at', { ascending: false });
-
-      if (!commentsError && commentsData) {
-        const commentsByApp: Record<string, any[]> = {};
-        
-        commentsData.forEach(comment => {
-          if (!commentsByApp[comment.application_id]) {
-            commentsByApp[comment.application_id] = [];
-          }
-          
-          // Only keep latest 2 comments per application
-          if (commentsByApp[comment.application_id].length < 2) {
-            commentsByApp[comment.application_id].push({
-              content: comment.content,
-              user_name: comment.user_email || 'Unknown User',
-              created_at: comment.created_at
-            });
-          }
-        });
-
-        // Update applications with comments
-        transformedApplications = transformedApplications.map(app => ({
-          ...app,
-          recent_comments: commentsByApp[app.applicant_id] || []
-        }));
-        
-        console.log('Recent comments updated for applications');
-      }
-
       // Apply PTP date filtering if specified
       if (filters.ptpDate?.length > 0) {
         console.log('🔍 Applying PTP date filter:', filters.ptpDate);
         
+        const appIds = transformedApplications.map(app => app.applicant_id);
         const { startDate, endDate, includeNoDate } = resolvePTPDateFilter(filters.ptpDate);
+        
         console.log('PTP filter resolved:', { startDate, endDate, includeNoDate });
+        
+        // Fetch PTP dates for the applications
+        let ptpQuery = supabase
+          .from('ptp_dates')
+          .select('application_id, ptp_date, created_at')
+          .in('application_id', appIds)
+          .order('application_id', { ascending: true })
+          .order('created_at', { ascending: false });
 
-        const originalCount = transformedApplications.length;
-        transformedApplications = transformedApplications.filter(app => {
-          const appPtpDate = app.ptp_date;
+        // Apply date range filter if specified
+        if (startDate && endDate) {
+          ptpQuery = ptpQuery.gte('ptp_date', startDate).lte('ptp_date', endDate);
+        }
+
+        const { data: ptpData, error: ptpError } = await ptpQuery;
+
+        if (ptpError) {
+          console.error('Error fetching PTP dates:', ptpError);
+        } else {
+          // Build a map of latest PTP date for each application
+          const ptpMap: Record<string, string | null> = {};
+          const processedApps = new Set<string>();
           
-          if (includeNoDate && !appPtpDate) {
-            return true;
-          }
-          
-          if (appPtpDate) {
-            if (startDate && endDate) {
-              const ptpDateStr = new Date(appPtpDate).toISOString().split('T')[0];
-              return ptpDateStr >= startDate && ptpDateStr <= endDate;
+          ptpData?.forEach(ptp => {
+            if (!processedApps.has(ptp.application_id)) {
+              ptpMap[ptp.application_id] = ptp.ptp_date;
+              processedApps.add(ptp.application_id);
             }
-            return true;
-          }
-          
-          return false;
-        });
+          });
 
-        console.log('PTP filtering result:', originalCount, '->', transformedApplications.length, 'applications');
-      }
+          console.log('PTP data fetched:', Object.keys(ptpMap).length, 'applications with PTP dates');
 
-      // Apply status filtering if specified
-      if (filters.status?.length > 0) {
-        console.log('🔍 Applying status filter:', filters.status);
-        const originalCount = transformedApplications.length;
-        
-        transformedApplications = transformedApplications.filter(app => {
-          const currentStatus = app.field_status || app.lms_status || 'Unpaid';
-          return filters.status!.includes(currentStatus);
-        });
-        
-        console.log('Status filtering result:', originalCount, '->', transformedApplications.length, 'applications');
+          // Filter applications based on PTP criteria
+          const originalCount = transformedApplications.length;
+          transformedApplications = transformedApplications.filter(app => {
+            const appPtpDate = ptpMap[app.applicant_id];
+            
+            if (includeNoDate && !appPtpDate) {
+              return true; // Include applications with no PTP date
+            }
+            
+            if (appPtpDate) {
+              // Check if the PTP date falls within the specified range
+              if (startDate && endDate) {
+                const ptpDateStr = new Date(appPtpDate).toISOString().split('T')[0];
+                return ptpDateStr >= startDate && ptpDateStr <= endDate;
+              }
+              return true; // If no date range specified, include all with PTP dates
+            }
+            
+            return false; // Exclude applications without PTP dates (unless includeNoDate is true)
+          });
+
+          console.log('PTP filtering result:', originalCount, '->', transformedApplications.length, 'applications');
+
+          // Add PTP dates to the applications
+          transformedApplications = transformedApplications.map(app => ({
+            ...app,
+            ptp_date: ptpMap[app.applicant_id] || undefined
+          }));
+        }
       }
 
       // Apply client-side search filter
       if (searchTerm?.trim()) {
         const searchLower = searchTerm.toLowerCase().trim();
-        const originalCount = transformedApplications.length;
-        
         transformedApplications = transformedApplications.filter(app => {
           const searchableFields = [
             app.applicant_name?.toLowerCase() || '',
@@ -353,8 +236,6 @@ export const useSimpleApplications = ({
           ];
           return searchableFields.some(field => field.includes(searchLower));
         });
-        
-        console.log('Search filtering result:', originalCount, '->', transformedApplications.length, 'applications');
       }
 
       // Sort by applicant name
@@ -364,26 +245,49 @@ export const useSimpleApplications = ({
         return nameA.localeCompare(nameB);
       });
 
-      // Set total count to filtered results (before pagination)
-      const filteredCount = transformedApplications.length;
-      setTotalCount(filteredCount);
-
-      // Apply pagination LAST - return only the requested page
+      // Apply pagination
       const offset = (page - 1) * pageSize;
       const paginatedApplications = transformedApplications.slice(offset, offset + pageSize);
 
-      setApplications(paginatedApplications);
+      // After transforming applications, fetch latest status for each application for the selected EMI month
+      const emiDate = monthToEmiDate(selectedEmiMonth);
+      if (filters.status?.length > 0 && transformedApplications.length > 0) {
+        const appIds = transformedApplications.map(app => app.applicant_id);
+        // Fetch latest status for each application for the selected EMI month
+        const { data: statusRows, error: statusError } = await supabase
+          .from('field_status')
+          .select('application_id, status, demand_date, created_at')
+          .in('application_id', appIds)
+          .eq('demand_date', emiDate);
+        if (!statusError && statusRows) {
+          // Build a map of latest status for each application
+          const latestStatusMap: Record<string, string> = {};
+          statusRows.forEach(row => {
+            if (!latestStatusMap[row.application_id] || new Date(row.created_at) > new Date(latestStatusMap[row.application_id + '_created_at'] || 0)) {
+              latestStatusMap[row.application_id] = row.status;
+              latestStatusMap[row.application_id + '_created_at'] = row.created_at;
+            }
+          });
+          // Filter applications by status
+          transformedApplications = transformedApplications.filter(app => {
+            const status = latestStatusMap[app.applicant_id] || 'Unpaid';
+            return filters.status!.includes(status);
+          });
+        }
+      }
+
+      setApplications(transformedApplications);
+      setTotalCount(transformedApplications.length);
 
       console.log('Applications loaded successfully:', {
-        totalFiltered: filteredCount,
+        total: transformedApplications.length,
         page,
-        pageSize,
-        returned: paginatedApplications.length,
-        totalPages: Math.ceil(filteredCount / pageSize)
+        results: paginatedApplications.length
       });
 
     } catch (err) {
       console.error('Error fetching applications:', err);
+      setError(err instanceof Error ? err : new Error('Unknown error'));
       setApplications([]);
       setTotalCount(0);
     } finally {
