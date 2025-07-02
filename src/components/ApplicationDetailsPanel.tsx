@@ -30,9 +30,7 @@ const ApplicationDetailsPanel: React.FC<ApplicationDetailsPanelProps> = ({
       {/* Header - Fixed */}
       <div className="flex-shrink-0 border-b border-gray-200 p-4">
         <ApplicationHeader 
-          application={application} 
-          onClose={onClose}
-          selectedEmiMonth={selectedEmiMonth}
+          application={application}
         />
       </div>
 
@@ -49,30 +47,39 @@ const ApplicationDetailsPanel: React.FC<ApplicationDetailsPanelProps> = ({
 
             <div className="space-y-4">
               <TabsContent value="details" className="mt-0">
-                <DetailsTab application={application} />
+                <DetailsTab 
+                  application={application}
+                  repaymentHistory={[]}
+                  auditLogs={[]}
+                  onVehicleStatusChange={() => {}}
+                  monthlyData={[]}
+                />
               </TabsContent>
 
               <TabsContent value="contacts" className="mt-0">
                 <ContactsTab 
                   application={application}
-                  onDataChanged={onDataChanged}
-                  selectedEmiMonth={selectedEmiMonth}
+                  callingLogs={[]}
+                  onCallingStatusChange={() => {}}
+                  selectedMonth={selectedEmiMonth || ''}
                 />
               </TabsContent>
 
               <TabsContent value="status" className="mt-0">
                 <StatusTab 
                   application={application}
-                  onDataChanged={onDataChanged}
-                  selectedEmiMonth={selectedEmiMonth}
+                  auditLogs={[]}
+                  onStatusChange={() => {}}
+                  onPtpDateChange={() => {}}
+                  addAuditLog={async () => {}}
+                  selectedMonth={selectedEmiMonth || ''}
                 />
               </TabsContent>
 
               <TabsContent value="comments" className="mt-0">
                 <CommentsTab 
-                  application={application}
-                  onDataChanged={onDataChanged}
-                  selectedEmiMonth={selectedEmiMonth}
+                  comments={application.recent_comments || []}
+                  onAddComment={async () => {}}
                 />
               </TabsContent>
             </div>
