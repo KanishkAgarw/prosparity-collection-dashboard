@@ -46,7 +46,7 @@ const MainContent = ({
         )}
       </div>
 
-      {/* Table */}
+      {/* Table/Cards */}
       {isMobile ? (
         <OptimizedMobileTable
           applications={applications}
@@ -59,6 +59,7 @@ const MainContent = ({
           applications={applications}
           onRowClick={onRowClick}
           selectedApplicationId={selectedApplicationId}
+          selectedEmiMonth={selectedEmiMonth}
         />
       )}
 
@@ -77,4 +78,3 @@ const MainContent = ({
 };
 
 export default MainContent;
-
