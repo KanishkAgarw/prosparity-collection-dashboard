@@ -19,6 +19,8 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import PendingApprovals from "@/components/PendingApprovals";
 
+const PAGE_SIZE = 20;
+
 const Index = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -37,12 +39,17 @@ const Index = () => {
     filters, 
     availableOptions, 
     handleFilterChange, 
-    selectedEmiMonth,
+    selectedEmiMonth: selectedEmiMonthRaw,
     handleEmiMonthChange,
     emiMonthOptions,
     defaultEmiMonth,
     loading: filtersLoading 
   } = useOptimizedCascadingFilters();
+
+  // Always extract selectedEmiMonth as a single value (for mobile multi-select compatibility)
+  const selectedEmiMonth = Array.isArray(filters.emiMonth) && filters.emiMonth.length > 0
+    ? filters.emiMonth[0]
+    : selectedEmiMonthRaw || null;
 
   // Use simplified applications hook
   const { 
@@ -55,7 +62,7 @@ const Index = () => {
     filters,
     searchTerm: debouncedSearchTerm,
     page: currentPage,
-    pageSize: 20,
+    pageSize: PAGE_SIZE,
     selectedEmiMonth
   });
 
@@ -217,7 +224,7 @@ const Index = () => {
               totalPages={totalPages}
               onPageChange={setCurrentPage}
               totalCount={totalCount}
-              pageSize={20}
+              pageSize={PAGE_SIZE}
               selectedEmiMonth={selectedEmiMonth}
             />
           )}

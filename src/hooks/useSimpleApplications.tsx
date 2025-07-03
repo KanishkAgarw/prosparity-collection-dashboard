@@ -260,7 +260,6 @@ export const useSimpleApplications = ({
           .in('application_id', appIds)
           .eq('demand_date', emiDate);
         if (!statusError && statusRows) {
-          // Build a map of latest status for each application
           const latestStatusMap: Record<string, string> = {};
           statusRows.forEach(row => {
             if (!latestStatusMap[row.application_id] || new Date(row.created_at) > new Date(latestStatusMap[row.application_id + '_created_at'] || 0)) {
@@ -268,15 +267,19 @@ export const useSimpleApplications = ({
               latestStatusMap[row.application_id + '_created_at'] = row.created_at;
             }
           });
-          // Filter applications by status
           transformedApplications = transformedApplications.filter(app => {
             const status = latestStatusMap[app.applicant_id] || 'Unpaid';
             return filters.status!.includes(status);
           });
+          // Re-apply pagination after status filter
+          const offset = (page - 1) * pageSize;
+          setApplications(transformedApplications.slice(offset, offset + pageSize));
+          setTotalCount(transformedApplications.length);
+          return;
         }
       }
 
-      setApplications(transformedApplications);
+      setApplications(paginatedApplications);
       setTotalCount(transformedApplications.length);
 
       console.log('Applications loaded successfully:', {

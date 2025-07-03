@@ -1,4 +1,3 @@
-
 import { useIsMobile } from "@/hooks/use-mobile";
 import FilterBar from "@/components/FilterBar";
 import MobileFilterBar from "@/components/MobileFilterBar";
@@ -47,6 +46,7 @@ const FiltersSection = ({
             filters={filters}
             availableOptions={availableOptions}
             onFilterChange={onFilterChange}
+            emiMonthOptions={emiMonthOptions}
           />
         ) : (
           <FilterBar

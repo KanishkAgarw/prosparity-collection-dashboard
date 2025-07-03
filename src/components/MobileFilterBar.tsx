@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,9 +32,10 @@ interface MobileFilterBarProps {
     ptpDateOptions: string[];
     collectionRms: string[];
   };
+  emiMonthOptions?: string[];
 }
 
-const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFilterBarProps) => {
+const MobileFilterBar = ({ filters, onFilterChange, availableOptions, emiMonthOptions }: MobileFilterBarProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
   // Ensure all filter options have default empty arrays
@@ -46,12 +46,14 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
     dealers: availableOptions?.dealers || [],
     lenders: availableOptions?.lenders || [],
     statuses: availableOptions?.statuses || [],
-    emiMonths: availableOptions?.emiMonths || [],
     repayments: availableOptions?.repayments || [],
     lastMonthBounce: availableOptions?.lastMonthBounce || [],
     ptpDateOptions: availableOptions?.ptpDateOptions || [],
     collectionRms: availableOptions?.collectionRms || [],
   };
+
+  // Use the prop if provided, else fallback to availableOptions.emiMonths
+  const safeEmiMonthOptions = emiMonthOptions || availableOptions?.emiMonths || [];
 
   // Ensure all filters have default empty arrays
   const safeFilters = {
@@ -114,7 +116,7 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions }: MobileFi
                 <label className="block text-xs font-medium text-gray-700">EMI Months</label>
                 <CustomMultiSelectFilter
                   label="EMI Months"
-                  options={safeFilterOptions.emiMonths}
+                  options={safeEmiMonthOptions}
                   selected={safeFilters.emiMonth}
                   onSelectionChange={(values) => onFilterChange('emiMonth', values)}
                 />

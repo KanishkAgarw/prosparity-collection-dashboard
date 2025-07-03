@@ -1,5 +1,3 @@
-
-
 import { Application } from "@/types/application";
 import SimpleApplicationsTable from "@/components/tables/SimpleApplicationsTable";
 import PaginationControls from "@/components/PaginationControls";
@@ -59,6 +57,7 @@ const MainContent = ({
           applications={applications}
           onRowClick={onRowClick}
           selectedApplicationId={selectedApplicationId}
+          selectedEmiMonth={selectedEmiMonth}
         />
       )}
 

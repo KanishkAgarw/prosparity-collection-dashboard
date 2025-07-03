@@ -13,4 +13,13 @@ export const CALLING_STATUS_OPTIONS = [
   { value: "Cash will be collected on a future date", label: "Cash will be collected on a future date" },
   { value: "Spoken – no commitment", label: "Spoken – no commitment" },
   { value: "Refused / unable to fund", label: "Refused / unable to fund" }
+];
+
+export const STATUS_FILTER_OPTIONS = [
+  "Unpaid",
+  "Partially Paid",
+  "Cash Collected from Customer",
+  "Customer Deposited to Bank",
+  "Paid",
+  "Paid (Pending Approval)"
 ]; 

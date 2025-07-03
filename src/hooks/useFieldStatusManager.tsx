@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -58,8 +57,10 @@ export const useFieldStatusManager = () => {
 
       // Add month filtering if specified and not including all months
       if (queryParams.selectedMonth && !queryParams.includeAllMonths) {
+        const [year, month] = queryParams.selectedMonth.split('-').map(Number);
+        const lastDay = new Date(year, month, 0).getDate();
         const monthStart = `${queryParams.selectedMonth}-01`;
-        const monthEnd = `${queryParams.selectedMonth}-31`;
+        const monthEnd = `${queryParams.selectedMonth}-${String(lastDay).padStart(2, '0')}`;
         supabaseQuery = supabaseQuery
           .gte('demand_date', monthStart)
           .lte('demand_date', monthEnd);
@@ -183,6 +184,13 @@ export const useFieldStatusManager = () => {
             successfulChunks++;
           } else {
             console.error(`❌ Chunk ${index + 1} failed:`, result.reason);
+          }
+        });
+
+        // Ensure every applicationId has a status for the selected month; default to 'Unpaid' if missing
+        validApplicationIds.forEach(appId => {
+          if (!combinedStatusMap[appId]) {
+            combinedStatusMap[appId] = 'Unpaid';
           }
         });
 

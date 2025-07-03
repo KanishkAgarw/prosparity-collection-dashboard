@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useFieldStatusManager } from '@/hooks/useFieldStatusManager';
 import { useBatchComments } from '@/hooks/useBatchComments';
@@ -17,10 +16,10 @@ interface DataManagerOptions {
   priority?: 'high' | 'medium' | 'low';
 }
 
-export const useCentralizedDataManager = () => {
+export const useCentralizedDataManager = (selectedEmiMonth?: string | null) => {
   const { fetchFieldStatus, loading: statusLoading } = useFieldStatusManager();
-  const { fetchBatchComments, comments, loading: commentsLoading } = useBatchComments();
-  const { fetchBatchPtpDates, loading: ptpLoading } = useBatchPtpDates();
+  const { fetchBatchComments, comments, loading: commentsLoading } = useBatchComments(selectedEmiMonth);
+  const { fetchBatchPtpDates, fetchBatchPtpDatesFromAuditLog, loading: ptpLoading } = useBatchPtpDates();
   const { fetchBatchContactStatus, loading: contactLoading } = useBatchContactCallingStatus();
 
   const [data, setData] = useState<CentralizedData>({
@@ -84,18 +83,18 @@ export const useCentralizedDataManager = () => {
         console.log('📊 Fetching all data in parallel...');
         const [statusData, ptpData, contactData] = await Promise.allSettled([
           fetchFieldStatus(applicationIds, options.selectedEmiMonth),
-          fetchBatchPtpDates(applicationIds, options.selectedEmiMonth),
+          fetchBatchPtpDatesFromAuditLog(applicationIds, options.selectedEmiMonth),
           fetchBatchContactStatus(applicationIds, options.selectedEmiMonth)
         ]);
 
         // Handle comments separately as it doesn't depend on month
-        await fetchBatchComments(applicationIds);
+        const commentsResult = await fetchBatchComments(applicationIds);
 
         newData = {
           statuses: statusData.status === 'fulfilled' ? statusData.value : {},
           ptpDates: ptpData.status === 'fulfilled' ? ptpData.value : {},
           contactStatuses: contactData.status === 'fulfilled' ? contactData.value : {},
-          comments: comments
+          comments: commentsResult
         };
 
         // Log any failures
@@ -113,7 +112,7 @@ export const useCentralizedDataManager = () => {
         
         if (abortControllerRef.current?.signal.aborted) return data;
         
-        const ptpData = await fetchBatchPtpDates(applicationIds, options.selectedEmiMonth);
+        const ptpData = await fetchBatchPtpDatesFromAuditLog(applicationIds, options.selectedEmiMonth);
         
         if (abortControllerRef.current?.signal.aborted) return data;
         
@@ -121,13 +120,13 @@ export const useCentralizedDataManager = () => {
         
         if (abortControllerRef.current?.signal.aborted) return data;
         
-        await fetchBatchComments(applicationIds);
+        const commentsResult = await fetchBatchComments(applicationIds);
 
         newData = {
           statuses: statusData,
           ptpDates: ptpData,
           contactStatuses: contactData,
-          comments: comments
+          comments: commentsResult
         };
       }
 
@@ -160,7 +159,7 @@ export const useCentralizedDataManager = () => {
     } finally {
       setLoading(false);
     }
-  }, [fetchFieldStatus, fetchBatchComments, fetchBatchPtpDates, fetchBatchContactStatus, comments, data]);
+  }, [fetchFieldStatus, fetchBatchComments, fetchBatchPtpDates, fetchBatchPtpDatesFromAuditLog, fetchBatchContactStatus, comments, data]);
 
   const clearData = useCallback(() => {
     setData({

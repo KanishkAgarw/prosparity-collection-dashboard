@@ -1,4 +1,3 @@
-
 import { memo, useEffect, useState, useCallback } from "react";
 import { Application } from "@/types/application";
 import TableHeader from "./TableHeader";
@@ -21,7 +20,7 @@ const OptimizedApplicationsTable = memo(({
   selectedEmiMonth
 }: OptimizedApplicationsTableProps) => {
   
-  const { data, loading, error, fetchAllData, clearData } = useCentralizedDataManager();
+  const { data, loading, error, fetchAllData, clearData } = useCentralizedDataManager(selectedEmiMonth);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Extract application IDs for batch loading

@@ -1,21 +1,37 @@
-
 import { memo } from "react";
 import { Application } from "@/types/application";
 import TableHeader from "./TableHeader";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import StatusBadge from "./StatusBadge";
+import ApplicationRow from "./ApplicationRow";
+import { useCentralizedDataManager } from '@/hooks/useCentralizedDataManager';
+import { useEffect } from 'react';
 
 interface SimpleApplicationsTableProps {
   applications: Application[];
   onRowClick: (application: Application) => void;
   selectedApplicationId?: string;
+  selectedEmiMonth?: string | null;
 }
 
 const SimpleApplicationsTable = memo(({
   applications,
   onRowClick,
-  selectedApplicationId
+  selectedApplicationId,
+  selectedEmiMonth
 }: SimpleApplicationsTableProps) => {
+  const { data, loading, fetchAllData, clearData } = useCentralizedDataManager(selectedEmiMonth);
+
+  // Extract application IDs
+  const applicationIds = applications.map(app => app.applicant_id);
+
+  useEffect(() => {
+    clearData();
+    if (applicationIds.length > 0) {
+      fetchAllData(applicationIds, { selectedEmiMonth });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [applicationIds.join(","), selectedEmiMonth]);
 
   return (
     <div className="rounded-lg border border-gray-200 overflow-hidden shadow-sm">
@@ -24,50 +40,17 @@ const SimpleApplicationsTable = memo(({
           <TableHeader />
           <TableBody>
             {applications.map((application) => (
-              <TableRow
+              <ApplicationRow
                 key={application.id}
-                className={`hover:bg-gray-50 cursor-pointer transition-colors ${
-                  selectedApplicationId === application.id ? 'bg-blue-50' : ''
-                }`}
-                onClick={() => onRowClick(application)}
-              >
-                <TableCell className="font-medium text-sm">
-                  {application.applicant_name}
-                </TableCell>
-                <TableCell className="text-sm text-gray-600">
-                  {application.applicant_id}
-                </TableCell>
-                <TableCell className="text-sm">
-                  {application.branch_name}
-                </TableCell>
-                <TableCell className="text-sm">
-                  {application.team_lead}
-                </TableCell>
-                <TableCell className="text-sm">
-                  {application.rm_name}
-                </TableCell>
-                <TableCell className="text-sm">
-                  {application.dealer_name}
-                </TableCell>
-                <TableCell className="text-sm">
-                  {application.lender_name}
-                </TableCell>
-                <TableCell>
-                  <StatusBadge status={application.lms_status} />
-                </TableCell>
-                <TableCell className="text-sm font-medium">
-                  ₹{application.emi_amount?.toLocaleString() || '0'}
-                </TableCell>
-                <TableCell className="text-sm">
-                  ₹{application.principle_due?.toLocaleString() || '0'}
-                </TableCell>
-                <TableCell className="text-sm">
-                  ₹{application.interest_due?.toLocaleString() || '0'}
-                </TableCell>
-                <TableCell className="text-sm">
-                  {application.demand_date ? new Date(application.demand_date).toLocaleDateString() : '-'}
-                </TableCell>
-              </TableRow>
+                application={application}
+                selectedApplicationId={selectedApplicationId}
+                onRowClick={onRowClick}
+                batchedStatus={data.statuses[application.applicant_id] || 'Unpaid'}
+                batchedPtpDate={data.ptpDates[application.applicant_id] || null}
+                batchedContactStatus={data.contactStatuses[application.applicant_id]}
+                batchedComments={data.comments[application.applicant_id] || []}
+                isLoading={loading}
+              />
             ))}
           </TableBody>
         </Table>

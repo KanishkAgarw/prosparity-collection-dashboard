@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { FilterState, CascadingFilterOptions } from '@/types/filters';
+import { FilterState } from '@/types/filters';
 import { useQueryCache } from './useQueryCache';
 import { normalizeEmiMonth, groupDatesByMonth } from '@/utils/dateUtils';
-import { VEHICLE_STATUS_OPTIONS } from '@/constants/options';
+import { VEHICLE_STATUS_OPTIONS, STATUS_FILTER_OPTIONS } from '@/constants/options';
 
 interface CascadingFilterOptions {
   branches: string[];
@@ -229,10 +229,9 @@ export const useOptimizedCascadingFilters = () => {
       // Combine LMS status and field status values with error handling
       const lmsStatuses = [...new Set(combinedData.map(item => item.lms_status).filter(Boolean))];
       const fieldStatuses = [...new Set(fieldStatusData.map(s => s.status).filter(Boolean))];
-      const allStatuses = [...new Set([...lmsStatuses, ...fieldStatuses])].sort();
-      
-      options.statuses = allStatuses;
-      console.log('Available status options:', options.statuses);
+      // Always show canonical status options in the filter dropdown
+      options.statuses = STATUS_FILTER_OPTIONS;
+      console.log('Available status options (canonical):', options.statuses);
 
       // Cache for 8 minutes
       setCachedData(cacheKey, options, 8 * 60 * 1000);
