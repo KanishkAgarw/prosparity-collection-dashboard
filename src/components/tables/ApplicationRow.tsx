@@ -75,7 +75,7 @@ const ApplicationRow = memo(({
 
       {/* PTP Date */}
       <TableCell className="py-4 align-top w-[12%]">
-        <span className={batchedPtpDate ? "text-blue-600 font-medium underline" : "text-gray-400"}>
+        <span className={batchedPtpDate && formatPtpDate(batchedPtpDate) !== "Not Set" ? "text-blue-600 font-medium underline" : "text-gray-400"}>
           {batchedPtpDate ? formatPtpDate(batchedPtpDate) : "Not Set"}
         </span>
       </TableCell>

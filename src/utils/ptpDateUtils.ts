@@ -5,6 +5,11 @@ export type PtpDateCategory = 'overdue' | 'today' | 'tomorrow' | 'future' | 'no_
 export const categorizePtpDate = (ptpDateStr?: string | null): PtpDateCategory => {
   if (!ptpDateStr) return 'no_date';
   
+  // Handle special status values
+  if (typeof ptpDateStr === 'string' && (ptpDateStr.toLowerCase() === 'cleared' || ptpDateStr === 'Cleared')) {
+    return 'no_date';
+  }
+  
   try {
     const ptpDate = new Date(ptpDateStr);
     
@@ -55,16 +60,21 @@ export const getAllPtpDateCategories = (): PtpDateCategory[] => {
 export const formatPtpDateForDisplay = (ptpDateStr?: string | null): string => {
   if (!ptpDateStr) return 'Not Set';
   
+  // Handle special status values
+  if (typeof ptpDateStr === 'string' && (ptpDateStr.toLowerCase() === 'cleared' || ptpDateStr === 'Cleared')) {
+    return 'Not Set';
+  }
+  
   try {
     const ptpDate = new Date(ptpDateStr);
     if (isNaN(ptpDate.getTime())) {
-      return 'Invalid Date';
+      return 'Not Set';
     }
     
     return format(ptpDate, 'MMM dd, yyyy');
   } catch (error) {
     console.error('Error formatting PTP date:', error);
-    return 'Invalid Date';
+    return 'Not Set';
   }
 };
 

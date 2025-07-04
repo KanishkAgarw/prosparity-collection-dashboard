@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronDown, ChevronUp, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -37,6 +37,14 @@ interface MobileFilterBarProps {
 
 const MobileFilterBar = ({ filters, onFilterChange, availableOptions, emiMonthOptions }: MobileFilterBarProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  
+  // Temporary filters - what user is currently selecting
+  const [tempFilters, setTempFilters] = useState(filters);
+
+  // Update temp filters when applied filters change
+  useEffect(() => {
+    setTempFilters(filters);
+  }, [filters]);
 
   // Ensure all filter options have default empty arrays
   const safeFilterOptions = {
@@ -57,24 +65,46 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions, emiMonthOp
 
   // Ensure all filters have default empty arrays
   const safeFilters = {
-    branch: filters?.branch || [],
-    teamLead: filters?.teamLead || [],
-    rm: filters?.rm || [],
-    dealer: filters?.dealer || [],
-    lender: filters?.lender || [],
-    status: filters?.status || [],
-    emiMonth: filters?.emiMonth || [],
-    repayment: filters?.repayment || [],
-    lastMonthBounce: filters?.lastMonthBounce || [],
-    ptpDate: filters?.ptpDate || [],
-    collectionRm: filters?.collectionRm || [],
+    branch: tempFilters?.branch || [],
+    teamLead: tempFilters?.teamLead || [],
+    rm: tempFilters?.rm || [],
+    dealer: tempFilters?.dealer || [],
+    lender: tempFilters?.lender || [],
+    status: tempFilters?.status || [],
+    emiMonth: tempFilters?.emiMonth || [],
+    repayment: tempFilters?.repayment || [],
+    lastMonthBounce: tempFilters?.lastMonthBounce || [],
+    ptpDate: tempFilters?.ptpDate || [],
+    collectionRm: tempFilters?.collectionRm || [],
   };
 
-  // Count active filters
-  const activeFilterCount = Object.values(safeFilters).reduce(
+  // Count active filters (use applied filters for badge)
+  const activeFilterCount = Object.values(filters).reduce(
     (count, filterArray) => count + (filterArray?.length || 0), 
     0
   );
+
+  // Handle temporary filter changes (doesn't trigger API calls)
+  const handleTempFilterChange = (key: string, values: string[]) => {
+    setTempFilters(prev => ({
+      ...prev,
+      [key]: values
+    }));
+  };
+
+  // Apply temporary filters when Done is clicked
+  const handleApplyFilters = () => {
+    Object.keys(tempFilters).forEach(key => {
+      onFilterChange(key, tempFilters[key] || []);
+    });
+    setIsOpen(false);
+  };
+
+  // Cancel changes and reset to applied filters
+  const handleCancel = () => {
+    setTempFilters(filters);
+    setIsOpen(false);
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-sm border">
@@ -108,7 +138,7 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions, emiMonthOp
                   label="PTP Date"
                   options={safeFilterOptions.ptpDateOptions}
                   selected={safeFilters.ptpDate}
-                  onSelectionChange={(values) => onFilterChange('ptpDate', values)}
+                  onSelectionChange={(values) => handleTempFilterChange('ptpDate', values)}
                 />
               </div>
 
@@ -118,7 +148,7 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions, emiMonthOp
                   label="EMI Months"
                   options={safeEmiMonthOptions}
                   selected={safeFilters.emiMonth}
-                  onSelectionChange={(values) => onFilterChange('emiMonth', values)}
+                  onSelectionChange={(values) => handleTempFilterChange('emiMonth', values)}
                 />
               </div>
 
@@ -128,7 +158,7 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions, emiMonthOp
                   label="Branches"
                   options={safeFilterOptions.branches}
                   selected={safeFilters.branch}
-                  onSelectionChange={(values) => onFilterChange('branch', values)}
+                  onSelectionChange={(values) => handleTempFilterChange('branch', values)}
                 />
               </div>
 
@@ -138,7 +168,7 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions, emiMonthOp
                   label="Team Leads"
                   options={safeFilterOptions.teamLeads}
                   selected={safeFilters.teamLead}
-                  onSelectionChange={(values) => onFilterChange('teamLead', values)}
+                  onSelectionChange={(values) => handleTempFilterChange('teamLead', values)}
                 />
               </div>
 
@@ -148,7 +178,7 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions, emiMonthOp
                   label="RMs"
                   options={safeFilterOptions.rms}
                   selected={safeFilters.rm}
-                  onSelectionChange={(values) => onFilterChange('rm', values)}
+                  onSelectionChange={(values) => handleTempFilterChange('rm', values)}
                 />
               </div>
 
@@ -158,7 +188,7 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions, emiMonthOp
                   label="Collection RMs"
                   options={safeFilterOptions.collectionRms}
                   selected={safeFilters.collectionRm}
-                  onSelectionChange={(values) => onFilterChange('collectionRm', values)}
+                  onSelectionChange={(values) => handleTempFilterChange('collectionRm', values)}
                 />
               </div>
 
@@ -168,7 +198,7 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions, emiMonthOp
                   label="Dealers"
                   options={safeFilterOptions.dealers}
                   selected={safeFilters.dealer}
-                  onSelectionChange={(values) => onFilterChange('dealer', values)}
+                  onSelectionChange={(values) => handleTempFilterChange('dealer', values)}
                 />
               </div>
 
@@ -178,7 +208,7 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions, emiMonthOp
                   label="Lenders"
                   options={safeFilterOptions.lenders}
                   selected={safeFilters.lender}
-                  onSelectionChange={(values) => onFilterChange('lender', values)}
+                  onSelectionChange={(values) => handleTempFilterChange('lender', values)}
                 />
               </div>
 
@@ -188,7 +218,7 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions, emiMonthOp
                   label="Status"
                   options={safeFilterOptions.statuses}
                   selected={safeFilters.status}
-                  onSelectionChange={(values) => onFilterChange('status', values)}
+                  onSelectionChange={(values) => handleTempFilterChange('status', values)}
                 />
               </div>
 
@@ -198,7 +228,7 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions, emiMonthOp
                   label="Repayment"
                   options={safeFilterOptions.repayments}
                   selected={safeFilters.repayment}
-                  onSelectionChange={(values) => onFilterChange('repayment', values)}
+                  onSelectionChange={(values) => handleTempFilterChange('repayment', values)}
                 />
               </div>
 
@@ -208,17 +238,25 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions, emiMonthOp
                   label="Last Month Status"
                   options={safeFilterOptions.lastMonthBounce}
                   selected={safeFilters.lastMonthBounce}
-                  onSelectionChange={(values) => onFilterChange('lastMonthBounce', values)}
+                  onSelectionChange={(values) => handleTempFilterChange('lastMonthBounce', values)}
                 />
               </div>
             </div>
 
-            <div className="mt-6 flex justify-end">
-              <div className="border border-blue-500 rounded-lg p-2 bg-blue-50 w-full">
+            {/* Action Buttons */}
+            <div className="mt-6 flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1 px-6 py-2"
+                onClick={handleCancel}
+              >
+                Cancel
+              </Button>
+              <div className="border border-blue-500 rounded-lg p-2 bg-blue-50 flex-1">
                 <Button
                   variant="default"
                   className="w-full px-8 py-2 text-base font-semibold"
-                  onClick={() => setIsOpen(false)}
+                  onClick={handleApplyFilters}
                 >
                   Done
                 </Button>

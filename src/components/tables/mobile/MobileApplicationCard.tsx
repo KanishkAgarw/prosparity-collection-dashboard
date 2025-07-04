@@ -157,16 +157,14 @@ const MobileApplicationCard = memo(({
         </div>
 
         {/* PTP Date */}
-        <div className={`${ptpDate ? 'mb-3 p-3 bg-yellow-50 rounded-lg border-l-4 border-yellow-400' : ''}`}>
-          {ptpDate && (
-            <>
-              <span className="text-xs text-yellow-700 font-medium">PTP Date:</span>
-              <p className="text-sm font-bold text-yellow-800">
-                {formatPtpDate(ptpDate)}
-              </p>
-            </>
-          )}
-        </div>
+        {ptpDate && formatPtpDate(ptpDate) !== "Not Set" && (
+          <div className="mb-3 p-3 bg-yellow-50 rounded-lg border-l-4 border-yellow-400">
+            <span className="text-xs text-yellow-700 font-medium">PTP Date:</span>
+            <p className="text-sm font-bold text-yellow-800">
+              {formatPtpDate(ptpDate)}
+            </p>
+          </div>
+        )}
 
         {/* Recent Comments */}
         {comments && comments.length > 0 && (

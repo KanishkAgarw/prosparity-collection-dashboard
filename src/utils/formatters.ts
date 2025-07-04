@@ -56,6 +56,11 @@ export const formatCurrency = (amount: number) => {
 export const formatPtpDate = (dateStr?: string | null): string => {
   if (!dateStr) return 'Not Set';
   
+  // Handle special status values
+  if (typeof dateStr === 'string' && (dateStr.toLowerCase() === 'cleared' || dateStr === 'Cleared')) {
+    return 'Not Set';
+  }
+  
   try {
     let date: Date;
     
@@ -83,14 +88,14 @@ export const formatPtpDate = (dateStr?: string | null): string => {
     
     if (isNaN(date.getTime())) {
       console.warn('Invalid date format:', dateStr);
-      return dateStr?.toString() || 'Invalid Date';
+      return 'Not Set';
     }
     
     // Consistent format: DD-MMM-YYYY (e.g., 04-Jun-2025)
     return format(date, 'dd-MMM-yyyy');
   } catch (error) {
     console.error('Error formatting PTP date:', error);
-    return dateStr?.toString() || 'Invalid Date';
+    return 'Not Set';
   }
 };
 

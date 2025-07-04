@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import FilterHeader from "@/components/filters/FilterHeader";
 import FilterContent from "@/components/filters/FilterContent";
@@ -23,14 +22,51 @@ const FilterBar = ({
   emiMonthOptions = []
 }: FilterBarProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  
+  // Temporary filters - what user is currently selecting
+  const [tempFilters, setTempFilters] = useState(filters);
 
-  // Calculate total active filters with proper typing
+  // Update temp filters when applied filters change
+  useEffect(() => {
+    setTempFilters(filters);
+  }, [filters]);
+
+  // Calculate total active filters with proper typing (use applied filters for badge)
   const activeFilterCount = calculateActiveFilterCount(filters);
 
+  // Handle temporary filter changes (doesn't trigger API calls)
+  const handleTempFilterChange = (key: string, values: string[]) => {
+    setTempFilters(prev => ({
+      ...prev,
+      [key]: values
+    }));
+  };
+
+  // Apply temporary filters when Done is clicked
+  const handleApplyFilters = () => {
+    Object.keys(tempFilters).forEach(key => {
+      onFilterChange(key, tempFilters[key] || []);
+    });
+    setIsOpen(false);
+  };
+
+  // Clear all filters (both temp and applied)
   const clearAllFilters = () => {
-    Object.keys(filters).forEach(key => {
+    const emptyFilters = Object.keys(filters).reduce((acc, key) => {
+      acc[key] = [];
+      return acc;
+    }, {} as any);
+    
+    setTempFilters(emptyFilters);
+    Object.keys(emptyFilters).forEach(key => {
       onFilterChange(key, []);
     });
+  };
+
+  // Reset temporary filters to match applied filters (cancel changes)
+  const handleCancel = () => {
+    setTempFilters(filters);
+    setIsOpen(false);
   };
 
   console.log('FilterBar render - available options:', {
@@ -52,9 +88,11 @@ const FilterBar = ({
 
       <CollapsibleContent>
         <FilterContent
-          filters={filters}
+          filters={tempFilters}
           availableOptions={availableOptions}
-          onFilterChange={onFilterChange}
+          onFilterChange={handleTempFilterChange}
+          onClose={handleApplyFilters}
+          onCancel={handleCancel}
         />
       </CollapsibleContent>
     </Collapsible>

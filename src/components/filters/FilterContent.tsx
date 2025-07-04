@@ -1,4 +1,4 @@
-
+import { Button } from "@/components/ui/button";
 import CustomMultiSelectFilter from "@/components/CustomMultiSelectFilter";
 import PtpDateFilter from "@/components/filters/PtpDateFilter";
 
@@ -6,9 +6,11 @@ interface FilterContentProps {
   filters: any;
   availableOptions: any;
   onFilterChange: (key: string, values: string[]) => void;
+  onClose?: () => void;
+  onCancel?: () => void;
 }
 
-const FilterContent = ({ filters, availableOptions, onFilterChange }: FilterContentProps) => {
+const FilterContent = ({ filters, availableOptions, onFilterChange, onClose, onCancel }: FilterContentProps) => {
   return (
     <div className="p-4 bg-gray-50 border-b">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -109,6 +111,32 @@ const FilterContent = ({ filters, availableOptions, onFilterChange }: FilterCont
           placeholder="Select vehicle status"
         />
       </div>
+
+      {/* Action Buttons */}
+      {(onClose || onCancel) && (
+        <div className="mt-6 flex justify-end gap-3">
+          {onCancel && (
+            <Button
+              variant="outline"
+              className="px-6 py-2"
+              onClick={onCancel}
+            >
+              Cancel
+            </Button>
+          )}
+          {onClose && (
+            <div className="border border-blue-500 rounded-lg p-2 bg-blue-50">
+              <Button
+                variant="default"
+                className="px-8 py-2 text-base font-semibold"
+                onClick={onClose}
+              >
+                Done
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
