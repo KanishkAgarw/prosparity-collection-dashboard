@@ -86,7 +86,11 @@ export const useSimpleApplications = ({
         query = query.in('applications.lender_name', filters.lender);
       }
       if (filters.lastMonthBounce?.length > 0) {
-        query = query.in('last_month_bounce', filters.lastMonthBounce);
+        // Convert string values to numbers for the numeric database field
+        const numericValues = filters.lastMonthBounce.map(Number).filter(num => !isNaN(num));
+        if (numericValues.length > 0) {
+          query = query.in('last_month_bounce', numericValues);
+        }
       }
       if (filters.vehicleStatus?.length > 0) {
         query = query.in('applications.vehicle_status', filters.vehicleStatus);
