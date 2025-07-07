@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { useEnhancedStatusManager } from '@/hooks/useEnhancedStatusManager';
+import { useFieldStatusManager } from '@/hooks/useFieldStatusManager';
 import { useBatchComments } from '@/hooks/useBatchComments';
 import { useBatchPtpDates } from '@/hooks/useBatchPtpDates';
 import { useBatchContactCallingStatus } from '@/hooks/useBatchContactCallingStatus';
@@ -17,7 +17,7 @@ interface DataManagerOptions {
 }
 
 export const useCentralizedDataManager = (selectedEmiMonth?: string | null) => {
-  const { fetchEnhancedStatus, loading: statusLoading } = useEnhancedStatusManager();
+  const { fetchFieldStatus, loading: statusLoading } = useFieldStatusManager();
   const { fetchBatchComments, comments, loading: commentsLoading } = useBatchComments(selectedEmiMonth);
   const { fetchBatchPtpDates, fetchBatchPtpDatesFromAuditLog, loading: ptpLoading } = useBatchPtpDates();
   const { fetchBatchContactStatus, loading: contactLoading } = useBatchContactCallingStatus();
@@ -68,7 +68,7 @@ export const useCentralizedDataManager = (selectedEmiMonth?: string | null) => {
     setError(null);
 
     try {
-      console.log('=== CENTRALIZED DATA MANAGER (ENHANCED) ===');
+      console.log('=== CENTRALIZED DATA MANAGER ===');
       console.log('Application IDs:', applicationIds.length);
       console.log('Selected EMI Month:', options.selectedEmiMonth);
       console.log('Priority:', options.priority || 'medium');
@@ -80,9 +80,9 @@ export const useCentralizedDataManager = (selectedEmiMonth?: string | null) => {
 
       if (shouldParallelize) {
         // Fetch all data in parallel for better performance
-        console.log('📊 Fetching all enhanced data in parallel...');
+        console.log('📊 Fetching all data in parallel...');
         const [statusData, ptpData, contactData] = await Promise.allSettled([
-          fetchEnhancedStatus(applicationIds, { selectedMonth: options.selectedEmiMonth }),
+          fetchFieldStatus(applicationIds, options.selectedEmiMonth),
           fetchBatchPtpDatesFromAuditLog(applicationIds, options.selectedEmiMonth),
           fetchBatchContactStatus(applicationIds, options.selectedEmiMonth)
         ]);
@@ -100,15 +100,15 @@ export const useCentralizedDataManager = (selectedEmiMonth?: string | null) => {
         // Log any failures
         [statusData, ptpData, contactData].forEach((result, index) => {
           if (result.status === 'rejected') {
-            const dataType = ['enhanced statuses', 'ptp dates', 'contact statuses'][index];
+            const dataType = ['statuses', 'ptp dates', 'contact statuses'][index];
             console.warn(`⚠️ Failed to fetch ${dataType}:`, result.reason);
           }
         });
       } else {
         // Sequential loading for large datasets or low priority
-        console.log('📊 Fetching enhanced data sequentially...');
+        console.log('📊 Fetching data sequentially...');
         
-        const statusData = await fetchEnhancedStatus(applicationIds, { selectedMonth: options.selectedEmiMonth });
+        const statusData = await fetchFieldStatus(applicationIds, options.selectedEmiMonth);
         
         if (abortControllerRef.current?.signal.aborted) return data;
         
@@ -135,12 +135,11 @@ export const useCentralizedDataManager = (selectedEmiMonth?: string | null) => {
         return data;
       }
 
-      console.log('✅ Enhanced centralized data fetch complete:', {
+      console.log('✅ Centralized data fetch complete:', {
         statuses: Object.keys(newData.statuses).length,
         ptpDates: Object.keys(newData.ptpDates).length,
         contactStatuses: Object.keys(newData.contactStatuses).length,
-        comments: Object.keys(newData.comments).length,
-        paidStatuses: Object.values(newData.statuses).filter(s => s === 'Paid').length
+        comments: Object.keys(newData.comments).length
       });
 
       setData(newData);
@@ -148,11 +147,11 @@ export const useCentralizedDataManager = (selectedEmiMonth?: string | null) => {
 
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        console.log('🛑 Enhanced centralized data fetch was cancelled');
+        console.log('🛑 Centralized data fetch was cancelled');
         return data;
       }
 
-      console.error('❌ Error in enhanced centralized data fetch:', error);
+      console.error('❌ Error in centralized data fetch:', error);
       setError(error instanceof Error ? error : new Error('Unknown error'));
       
       // Return partial data instead of throwing
@@ -160,7 +159,7 @@ export const useCentralizedDataManager = (selectedEmiMonth?: string | null) => {
     } finally {
       setLoading(false);
     }
-  }, [fetchEnhancedStatus, fetchBatchComments, fetchBatchPtpDates, fetchBatchPtpDatesFromAuditLog, fetchBatchContactStatus, comments, data]);
+  }, [fetchFieldStatus, fetchBatchComments, fetchBatchPtpDates, fetchBatchPtpDatesFromAuditLog, fetchBatchContactStatus, comments, data]);
 
   const clearData = useCallback(() => {
     setData({
