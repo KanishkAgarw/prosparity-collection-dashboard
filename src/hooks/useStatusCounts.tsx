@@ -55,15 +55,51 @@ export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: 
     setLoading(true);
     try {
       const { start, end } = getMonthDateRange(selectedEmiMonth!);
-      // 1. Get all application_ids for the month from collection
-      const { data: collectionData, error: collectionError } = await supabase
+      
+      // Build query with same filters as useSimpleApplications
+      let query = supabase
         .from('collection')
-        .select('application_id')
+        .select(`
+          *,
+          applications!inner(*)
+        `)
         .gte('demand_date', start)
         .lte('demand_date', end);
 
-      if (collectionError) {
-        console.error('Error fetching collection for status counts:', collectionError);
+      // Apply same server-side filters as useSimpleApplications
+      if (filters.teamLead?.length > 0) {
+        query = query.in('team_lead', filters.teamLead);
+      }
+      if (filters.rm?.length > 0) {
+        query = query.in('rm_name', filters.rm);
+      }
+      if (filters.repayment?.length > 0) {
+        query = query.in('repayment', filters.repayment);
+      }
+      if (filters.branch?.length > 0) {
+        query = query.in('applications.branch_name', filters.branch);
+      }
+      if (filters.collectionRm?.length > 0) {
+        query = query.in('collection_rm', filters.collectionRm);
+      }
+      if (filters.dealer?.length > 0) {
+        query = query.in('applications.dealer_name', filters.dealer);
+      }
+      if (filters.lender?.length > 0) {
+        query = query.in('applications.lender_name', filters.lender);
+      }
+      if (filters.lastMonthBounce?.length > 0) {
+        const numericValues = filters.lastMonthBounce.map(val => typeof val === 'string' ? parseInt(val, 10) : val);
+        query = query.in('last_month_bounce', numericValues);
+      }
+      if (filters.vehicleStatus?.length > 0) {
+        query = query.in('applications.vehicle_status', filters.vehicleStatus);
+      }
+
+      const { data, error: queryError } = await query;
+
+      if (queryError) {
+        console.error('Error fetching filtered data for status counts:', queryError);
         setStatusCounts({
           total: 0,
           statusUnpaid: 0,
@@ -76,8 +112,7 @@ export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: 
         return;
       }
 
-      const applicationIds = (collectionData || []).map(row => row.application_id);
-      if (applicationIds.length === 0) {
+      if (!data || data.length === 0) {
         setStatusCounts({
           total: 0,
           statusUnpaid: 0,
@@ -90,12 +125,49 @@ export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: 
         return;
       }
 
-      // 2. Use useFieldStatusManager to get latest status for all applicationIds for the selected month
-      const statusMap = await fetchFieldStatus(applicationIds, selectedEmiMonth);
+      let filteredApplicationIds = data.map(row => row.application_id);
 
-      // 3. Count statuses
+      // Apply search term filtering if provided
+      if (searchTerm?.trim()) {
+        const searchLower = searchTerm.toLowerCase().trim();
+        filteredApplicationIds = data
+          .filter(row => {
+            const app = row.applications;
+            const searchableFields = [
+              app?.applicant_name?.toLowerCase() || '',
+              row.application_id?.toLowerCase() || '',
+              app?.applicant_mobile?.toLowerCase() || '',
+              app?.dealer_name?.toLowerCase() || '',
+              app?.lender_name?.toLowerCase() || '',
+              app?.branch_name?.toLowerCase() || '',
+              app?.rm_name?.toLowerCase() || '',
+              app?.team_lead?.toLowerCase() || '',
+              row.collection_rm?.toLowerCase() || ''
+            ];
+            return searchableFields.some(field => field.includes(searchLower));
+          })
+          .map(row => row.application_id);
+      }
+
+      if (filteredApplicationIds.length === 0) {
+        setStatusCounts({
+          total: 0,
+          statusUnpaid: 0,
+          statusPartiallyPaid: 0,
+          statusCashCollected: 0,
+          statusCustomerDeposited: 0,
+          statusPaid: 0,
+          statusPendingApproval: 0
+        });
+        return;
+      }
+
+      // Get latest status for filtered applications
+      const statusMap = await fetchFieldStatus(filteredApplicationIds, selectedEmiMonth);
+
+      // Count statuses
       const counts = {
-        total: applicationIds.length,
+        total: filteredApplicationIds.length,
         statusUnpaid: 0,
         statusPartiallyPaid: 0,
         statusCashCollected: 0,
@@ -104,7 +176,7 @@ export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: 
         statusPendingApproval: 0
       };
 
-      applicationIds.forEach(appId => {
+      filteredApplicationIds.forEach(appId => {
         const status = statusMap[appId] || 'Unpaid';
         switch (status) {
           case 'Unpaid':
@@ -143,7 +215,7 @@ export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: 
     } finally {
       setLoading(false);
     }
-  }, [selectedEmiMonth, validateInputs, fetchFieldStatus]);
+  }, [selectedEmiMonth, filters, searchTerm, validateInputs, fetchFieldStatus]);
 
   // Effect with proper cleanup
   useEffect(() => {
