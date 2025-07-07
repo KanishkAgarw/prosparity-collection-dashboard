@@ -324,6 +324,8 @@ const ApplicationDetailsPanel = ({
   // Enhanced PTP date change handler with update tracking
   const handlePtpDateChangeWithTracking = useCallback(async (newDate: string) => {
     isUpdatingStatusRef.current = true;
+    // Mark that user has selected a month to prevent reinitialization
+    userSelectedMonthRef.current = true;
     try {
       await handlePtpDateChange(newDate);
     } finally {
