@@ -44,15 +44,13 @@ export const useFieldStatus = () => {
       console.log(`✅ Fetched field status for ${Object.keys(statusMap).length} applications (month: ${selectedMonth})`);
       return statusMap;
     } else {
-      // For analytics - get latest status per application across all months
-      // We need to get the latest status for the most recent demand_date for each application
-      console.log('Fetching latest field status for all applications (no month filter)');
+      // For analytics - get the truly latest status per application based on created_at only
+      console.log('Fetching latest field status for all applications (analytics mode)');
       
       const { data, error } = await supabase
         .from('field_status')
         .select('*')
         .in('application_id', applicationIds)
-        .order('demand_date', { ascending: false })
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -60,26 +58,18 @@ export const useFieldStatus = () => {
         return {};
       }
 
-      // Create a map of application_id -> latest status per application
-      // For each application, get the latest status for their most recent demand_date
+      // Create a map of application_id -> latest status (based on created_at only)
       const statusMap: Record<string, string> = {};
-      const processedApps = new Map<string, string>(); // app_id -> latest_demand_date
+      const processedApps = new Set<string>();
       
       data?.forEach(status => {
-        const appId = status.application_id;
-        const demandDate = status.demand_date;
-        
-        if (!processedApps.has(appId) || processedApps.get(appId) === demandDate) {
-          // First record for this app, or same demand_date as the latest we've seen
-          if (!processedApps.has(appId)) {
-            processedApps.set(appId, demandDate);
-          }
-          // Update status (will keep the latest created_at for the same demand_date)
-          statusMap[appId] = status.status;
+        if (!processedApps.has(status.application_id)) {
+          statusMap[status.application_id] = status.status;
+          processedApps.add(status.application_id);
         }
       });
 
-      console.log(`✅ Fetched latest field status for ${Object.keys(statusMap).length} applications (all months)`);
+      console.log(`✅ Fetched latest field status for ${Object.keys(statusMap).length} applications (analytics mode)`);
       return statusMap;
     }
   }, []);
