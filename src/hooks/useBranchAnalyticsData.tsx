@@ -7,11 +7,15 @@ export * from './useBranchPaymentData';
 export * from './useBranchPTPData';
 
 export const useBranchAnalyticsData = (applications: Application[], selectedEmiMonth?: string) => {
-  const branchPaymentStatusData = useBranchPaymentData(applications, selectedEmiMonth);
-  const branchPtpStatusData = useBranchPTPData(applications, selectedEmiMonth);
+  const branchPaymentStatus = useBranchPaymentData(applications, selectedEmiMonth);
+  const branchPtpStatus = useBranchPTPData(applications, selectedEmiMonth);
 
   return {
-    branchPaymentStatusData,
-    branchPtpStatusData,
+    branchPaymentStatusData: branchPaymentStatus.data,
+    branchPaymentStatusLoading: branchPaymentStatus.loading,
+    branchPaymentStatusError: branchPaymentStatus.error,
+    branchPtpStatusData: branchPtpStatus.data,
+    branchPtpStatusLoading: branchPtpStatus.loading,
+    branchPtpStatusError: branchPtpStatus.error,
   };
 };

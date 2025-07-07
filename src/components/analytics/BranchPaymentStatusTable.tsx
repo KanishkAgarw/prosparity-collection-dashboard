@@ -1,59 +1,27 @@
 
-import { Application } from '@/types/application';
-import { useBranchPaymentData, BranchPaymentStatus } from '@/hooks/useBranchAnalyticsData';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useState, useEffect } from 'react';
-import { DrillDownFilter } from '@/pages/Analytics';
-import { useTableSorting } from '@/hooks/useTableSorting';
-import SortableTableHeader from './shared/SortableTableHeader';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import { Application } from '@/types/application';
+import { useBranchPaymentData, type BranchPaymentStatus } from '@/hooks/useBranchPaymentData';
 import ClickableTableCell from './shared/ClickableTableCell';
-import ExpandableRow from './shared/ExpandableRow';
-import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
-import { formatEmiMonth } from '@/utils/formatters';
+import { DrillDownFilter } from '@/pages/Analytics';
 
 interface BranchPaymentStatusTableProps {
   applications: Application[];
   onDrillDown: (filter: DrillDownFilter) => void;
 }
 
-type SortField = 'branch_name' | 'rm_name' | 'total' | 'unpaid' | 'partially_paid' | 'paid_pending_approval' | 'paid' | 'others';
-
 const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentStatusTableProps) => {
-  const [selectedEmiMonth, setSelectedEmiMonth] = useState<string>('all');
-  const [branchPaymentStatusData, setBranchPaymentStatusData] = useState<BranchPaymentStatus[]>([]);
-  const [loading, setLoading] = useState(true);
-  
-  // Get unique EMI months from applications
-  const emiMonths = Array.from(
-    new Set(applications.map(app => formatEmiMonth(app.demand_date)).filter(month => month && month !== 'NA'))
-  ).sort();
-
-  const branchPaymentDataPromise = useBranchPaymentData(applications, selectedEmiMonth === 'all' ? undefined : selectedEmiMonth);
+  const [selectedEmiMonth, setSelectedEmiMonth] = useState<string>('');
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
   
-  const branchSorting = useTableSorting<SortField>('branch_name');
-  const rmSorting = useTableSorting<SortField>('rm_name');
+  const { data: branchPaymentData, loading, error } = useBranchPaymentData(applications, selectedEmiMonth || undefined);
 
-  // Handle async data loading
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        const data = await branchPaymentDataPromise;
-        setBranchPaymentStatusData(data);
-      } catch (error) {
-        console.error('Error loading payment data:', error);
-        setBranchPaymentStatusData([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, [branchPaymentDataPromise]);
-
-  const toggleBranch = (branchName: string) => {
+  const toggleBranchExpansion = (branchName: string) => {
     const newExpanded = new Set(expandedBranches);
     if (newExpanded.has(branchName)) {
       newExpanded.delete(branchName);
@@ -63,6 +31,8 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
     setExpandedBranches(newExpanded);
   };
 
+  const availableMonths = ['All', 'Jun-25', 'Jul-25'];
+
   const handleCellClick = (branchName: string, rmName: string | undefined, statusType: string) => {
     onDrillDown({
       branch_name: branchName,
@@ -71,78 +41,50 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
     });
   };
 
-  const getBranchValue = (branch: any, field: SortField) => {
-    switch (field) {
-      case 'branch_name': return branch.branch_name;
-      case 'total': return branch.total_stats.total;
-      case 'unpaid': return branch.total_stats.unpaid;
-      case 'partially_paid': return branch.total_stats.partially_paid;
-      case 'paid_pending_approval': return branch.total_stats.paid_pending_approval;
-      case 'paid': return branch.total_stats.paid;
-      case 'others': return branch.total_stats.others;
-      default: return 0;
-    }
-  };
-
-  const getRmValue = (rm: any, field: SortField) => {
-    switch (field) {
-      case 'rm_name': return rm.rm_name;
-      case 'total': return rm.total;
-      case 'unpaid': return rm.unpaid;
-      case 'partially_paid': return rm.partially_paid;
-      case 'paid_pending_approval': return rm.paid_pending_approval;
-      case 'paid': return rm.paid;
-      case 'others': return rm.others;
-      default: return 0;
-    }
-  };
-
-  const sortedBranchData = branchSorting.getSortedData(branchPaymentStatusData, getBranchValue);
-  const getSortedRms = (rms: any[]) => rmSorting.getSortedData(rms, getRmValue);
-
-  const totals = branchPaymentStatusData.reduce(
+  const totals = branchPaymentData.reduce(
     (acc, branch) => ({
-      total: acc.total + branch.total_stats.total,
       unpaid: acc.unpaid + branch.total_stats.unpaid,
       partially_paid: acc.partially_paid + branch.total_stats.partially_paid,
       paid_pending_approval: acc.paid_pending_approval + branch.total_stats.paid_pending_approval,
       paid: acc.paid + branch.total_stats.paid,
       others: acc.others + branch.total_stats.others,
+      total: acc.total + branch.total_stats.total,
     }),
-    { total: 0, unpaid: 0, partially_paid: 0, paid_pending_approval: 0, paid: 0, others: 0 }
+    { unpaid: 0, partially_paid: 0, paid_pending_approval: 0, paid: 0, others: 0, total: 0 }
   );
 
   if (loading) {
     return (
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-start">
-            <div>
-              <CardTitle className="text-lg">Payment Status by Branch</CardTitle>
-              <CardDescription className="text-xs">
-                Payment collection status across branches and RMs
-              </CardDescription>
-            </div>
-            <div className="w-48">
-              <label className="block text-xs font-medium text-gray-700 mb-1">EMI Month</label>
-              <Select value={selectedEmiMonth} onValueChange={setSelectedEmiMonth}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="All" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  {emiMonths.map(month => (
-                    <SelectItem key={month} value={month}>{month}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          <CardTitle>Branch Payment Status Analysis</CardTitle>
+          <CardDescription>
+            Payment status breakdown by branch and collection RM
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8 text-muted-foreground">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-            <p className="text-sm">Loading payment data...</p>
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-2">Loading payment data...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Branch Payment Status Analysis</CardTitle>
+          <CardDescription>
+            Payment status breakdown by branch and collection RM
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-red-600">
+            <p className="text-lg font-medium">Error loading payment data</p>
+            <p className="text-sm">{error.message}</p>
           </div>
         </CardContent>
       </Card>
@@ -152,180 +94,135 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
   return (
     <Card>
       <CardHeader>
-        <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="text-lg">Payment Status by Branch</CardTitle>
-            <CardDescription className="text-xs">
-              Payment collection status across branches and RMs
-            </CardDescription>
-          </div>
-          <div className="w-48">
-            <label className="block text-xs font-medium text-gray-700 mb-1">EMI Month</label>
-            <Select value={selectedEmiMonth} onValueChange={setSelectedEmiMonth}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                {emiMonths.map(month => (
-                  <SelectItem key={month} value={month}>{month}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <CardTitle>Branch Payment Status Analysis</CardTitle>
+        <CardDescription>
+          Payment status breakdown by branch and collection RM for {selectedEmiMonth || 'all months'}
+        </CardDescription>
+        <div className="flex gap-4 items-center">
+          <Select value={selectedEmiMonth} onValueChange={setSelectedEmiMonth}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Select EMI Month" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableMonths.map(month => (
+                <SelectItem key={month} value={month === 'All' ? '' : month}>
+                  {month}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <SortableTableHeader 
-                  label="Branch/RM" 
-                  field="branch_name" 
-                  onSort={branchSorting.handleSort}
-                  className="w-48"
-                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
-                />
-                <SortableTableHeader 
-                  label="Total" 
-                  field="total" 
-                  onSort={branchSorting.handleSort}
-                  className="text-center w-24"
-                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
-                />
-                <SortableTableHeader 
-                  label="Unpaid" 
-                  field="unpaid" 
-                  onSort={branchSorting.handleSort}
-                  className="text-center w-24"
-                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
-                />
-                <SortableTableHeader 
-                  label="Partially Paid" 
-                  field="partially_paid" 
-                  onSort={branchSorting.handleSort}
-                  className="text-center w-32"
-                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
-                />
-                <SortableTableHeader 
-                  label="Paid (Pending)" 
-                  field="paid_pending_approval" 
-                  onSort={branchSorting.handleSort}
-                  className="text-center w-32"
-                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
-                />
-                <SortableTableHeader 
-                  label="Paid" 
-                  field="paid" 
-                  onSort={branchSorting.handleSort}
-                  className="text-center w-24"
-                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
-                />
-                <SortableTableHeader 
-                  label="Others" 
-                  field="others" 
-                  onSort={branchSorting.handleSort}
-                  className="text-center w-24"
-                  currentSort={{ field: branchSorting.sortField, direction: branchSorting.sortDirection }}
-                />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedBranchData.map((branch) => (
-                <>
-                  <TableRow key={branch.branch_name} className="hover:bg-muted/50">
-                    <TableCell className="font-medium text-sm">
-                      <ExpandableRow
-                        isExpanded={expandedBranches.has(branch.branch_name)}
-                        onToggle={() => toggleBranch(branch.branch_name)}
-                        label={branch.branch_name}
-                      />
-                    </TableCell>
-                    <ClickableTableCell
-                      value={branch.total_stats.total}
-                      onClick={() => handleCellClick(branch.branch_name, undefined, 'total')}
-                    />
-                    <ClickableTableCell
-                      value={branch.total_stats.unpaid}
-                      onClick={() => handleCellClick(branch.branch_name, undefined, 'unpaid')}
-                      colorClass="text-red-600"
-                    />
-                    <ClickableTableCell
-                      value={branch.total_stats.partially_paid}
-                      onClick={() => handleCellClick(branch.branch_name, undefined, 'partially_paid')}
-                      colorClass="text-orange-600"
-                    />
-                    <ClickableTableCell
-                      value={branch.total_stats.paid_pending_approval}
-                      onClick={() => handleCellClick(branch.branch_name, undefined, 'paid_pending_approval')}
-                      colorClass="text-yellow-600"
-                    />
-                    <ClickableTableCell
-                      value={branch.total_stats.paid}
-                      onClick={() => handleCellClick(branch.branch_name, undefined, 'paid')}
-                      colorClass="text-green-600"
-                    />
-                    <ClickableTableCell
-                      value={branch.total_stats.others}
-                      onClick={() => handleCellClick(branch.branch_name, undefined, 'others')}
-                    />
-                  </TableRow>
-                  
-                  {expandedBranches.has(branch.branch_name) && getSortedRms(branch.rm_stats).map((rm) => (
-                    <TableRow key={`${branch.branch_name}-${rm.rm_name}`} className="bg-muted/25 hover:bg-muted/40">
-                      <TableCell className="text-sm pl-8">{rm.rm_name}</TableCell>
+        {branchPaymentData.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            No payment data available for the selected month
+          </div>
+        ) : (
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="font-medium w-8"></TableHead>
+                  <TableHead className="font-medium">Branch / RM</TableHead>
+                  <TableHead className="font-medium text-center">Unpaid</TableHead>
+                  <TableHead className="font-medium text-center">Partially Paid</TableHead>
+                  <TableHead className="font-medium text-center">Paid (Pending Approval)</TableHead>
+                  <TableHead className="font-medium text-center">Paid</TableHead>
+                  <TableHead className="font-medium text-center">Others</TableHead>
+                  <TableHead className="font-medium text-center">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {branchPaymentData.map((branch) => (
+                  <React.Fragment key={branch.branch_name}>
+                    <TableRow className="bg-muted/30 font-medium">
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleBranchExpansion(branch.branch_name)}
+                          className="h-6 w-6 p-0"
+                        >
+                          {expandedBranches.has(branch.branch_name) ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </TableCell>
+                      <TableCell className="font-bold">{branch.branch_name}</TableCell>
                       <ClickableTableCell
-                        value={rm.total}
-                        onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'total')}
+                        value={branch.total_stats.unpaid}
+                        onClick={() => handleCellClick(branch.branch_name, undefined, 'unpaid')}
                       />
                       <ClickableTableCell
-                        value={rm.unpaid}
-                        onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'unpaid')}
-                        colorClass="text-red-600"
+                        value={branch.total_stats.partially_paid}
+                        onClick={() => handleCellClick(branch.branch_name, undefined, 'partially_paid')}
                       />
                       <ClickableTableCell
-                        value={rm.partially_paid}
-                        onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'partially_paid')}
-                        colorClass="text-orange-600"
+                        value={branch.total_stats.paid_pending_approval}
+                        onClick={() => handleCellClick(branch.branch_name, undefined, 'paid_pending_approval')}
                       />
                       <ClickableTableCell
-                        value={rm.paid_pending_approval}
-                        onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'paid_pending_approval')}
-                        colorClass="text-yellow-600"
+                        value={branch.total_stats.paid}
+                        onClick={() => handleCellClick(branch.branch_name, undefined, 'paid')}
                       />
                       <ClickableTableCell
-                        value={rm.paid}
-                        onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'paid')}
-                        colorClass="text-green-600"
+                        value={branch.total_stats.others}
+                        onClick={() => handleCellClick(branch.branch_name, undefined, 'others')}
                       />
                       <ClickableTableCell
-                        value={rm.others}
-                        onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'others')}
+                        value={branch.total_stats.total}
+                        onClick={() => handleCellClick(branch.branch_name, undefined, 'total')}
                       />
                     </TableRow>
-                  ))}
-                </>
-              ))}
-              
-              {branchPaymentStatusData.length > 0 && (
-                <TableRow className="bg-muted/50 font-medium">
-                  <TableCell colSpan={1} className="font-bold text-sm">Total</TableCell>
-                  <TableCell className="text-center font-bold text-sm">{totals.total}</TableCell>
-                  <TableCell className="text-center font-bold text-sm text-red-600">{totals.unpaid}</TableCell>
-                  <TableCell className="text-center font-bold text-sm text-orange-600">{totals.partially_paid}</TableCell>
-                  <TableCell className="text-center font-bold text-sm text-yellow-600">{totals.paid_pending_approval}</TableCell>
-                  <TableCell className="text-center font-bold text-sm text-green-600">{totals.paid}</TableCell>
-                  <TableCell className="text-center font-bold text-sm">{totals.others}</TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-        
-        {branchPaymentStatusData.length === 0 && (
-          <div className="text-center py-8 text-muted-foreground">
-            <p className="text-sm">No data available for payment status analysis</p>
+                    {expandedBranches.has(branch.branch_name) && branch.rm_stats.map((rm) => (
+                      <TableRow key={`${branch.branch_name}-${rm.rm_name}`} className="pl-8">
+                        <TableCell></TableCell>
+                        <TableCell className="pl-8 text-muted-foreground">└ {rm.rm_name}</TableCell>
+                        <ClickableTableCell
+                          value={rm.unpaid}
+                          onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'unpaid')}
+                        />
+                        <ClickableTableCell
+                          value={rm.partially_paid}
+                          onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'partially_paid')}
+                        />
+                        <ClickableTableCell
+                          value={rm.paid_pending_approval}
+                          onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'paid_pending_approval')}
+                        />
+                        <ClickableTableCell
+                          value={rm.paid}
+                          onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'paid')}
+                        />
+                        <ClickableTableCell
+                          value={rm.others}
+                          onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'others')}
+                        />
+                        <ClickableTableCell
+                          value={rm.total}
+                          onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'total')}
+                        />
+                      </TableRow>
+                    ))}
+                  </React.Fragment>
+                ))}
+                {branchPaymentData.length > 0 && (
+                  <TableRow className="bg-primary/10 font-bold">
+                    <TableCell></TableCell>
+                    <TableCell className="font-bold">Grand Total</TableCell>
+                    <TableCell className="text-center font-bold">{totals.unpaid}</TableCell>
+                    <TableCell className="text-center font-bold">{totals.partially_paid}</TableCell>
+                    <TableCell className="text-center font-bold">{totals.paid_pending_approval}</TableCell>
+                    <TableCell className="text-center font-bold">{totals.paid}</TableCell>
+                    <TableCell className="text-center font-bold">{totals.others}</TableCell>
+                    <TableCell className="text-center font-bold">{totals.total}</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           </div>
         )}
       </CardContent>
