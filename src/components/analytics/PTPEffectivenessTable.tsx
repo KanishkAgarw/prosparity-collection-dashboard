@@ -122,12 +122,12 @@ const PTPEffectivenessTable = ({ applications, onDrillDown }: PTPEffectivenessTa
                   <ClickableTableCell
                     value={dateEntry.paid_on_ptp}
                     onClick={() => handleCellClick(dateEntry.ptp_date, 'paid')}
-                    colorClass="text-green-600"
+                    className="text-green-600"
                   />
                   <ClickableTableCell
                     value={dateEntry.paid_after_ptp}
                     onClick={() => handleCellClick(dateEntry.ptp_date, 'overdue')}
-                    colorClass="text-red-600"
+                    className="text-red-600"
                   />
                   <TableCell className="text-center text-sm font-medium">
                     {dateEntry.unpaid_others}
