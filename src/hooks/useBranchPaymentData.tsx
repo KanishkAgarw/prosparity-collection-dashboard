@@ -26,23 +26,35 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
   const { fetchFieldStatus } = useFieldStatus();
 
   return useMemo(async () => {
-    if (!selectedEmiMonth) {
-      console.log('❌ No selected EMI month for branch payment data');
-      return [];
-    }
+    let collectionData, error;
 
-    // First, get applications that have collection records for the selected month
-    // This matches the logic used in useStatusCounts
-    const { start, end } = getMonthDateRange(selectedEmiMonth);
-    
-    const { data: collectionData, error } = await supabase
-      .from('collection')
-      .select(`
-        application_id,
-        applications!inner(*)
-      `)
-      .gte('demand_date', start)
-      .lte('demand_date', end);
+    if (!selectedEmiMonth) {
+      // For "All" option, get all collection records
+      console.log('📊 Fetching all collection records for branch payment data');
+      const { data, error: allError } = await supabase
+        .from('collection')
+        .select(`
+          application_id,
+          applications!inner(*)
+        `);
+      collectionData = data;
+      error = allError;
+    } else {
+      // For specific month, filter by demand_date range
+      console.log('📊 Fetching collection records for month:', selectedEmiMonth);
+      const { start, end } = getMonthDateRange(selectedEmiMonth);
+      
+      const { data, error: monthError } = await supabase
+        .from('collection')
+        .select(`
+          application_id,
+          applications!inner(*)
+        `)
+        .gte('demand_date', start)
+        .lte('demand_date', end);
+      collectionData = data;
+      error = monthError;
+    }
 
     if (error) {
       console.error('Error fetching collection data for branch payment analysis:', error);
