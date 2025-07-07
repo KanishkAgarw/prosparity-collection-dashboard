@@ -165,9 +165,18 @@ export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: 
       // Get latest status for filtered applications
       const statusMap = await fetchFieldStatus(filteredApplicationIds, selectedEmiMonth);
 
-      // Count statuses
+      // Apply status filter if specified
+      let finalApplicationIds = filteredApplicationIds;
+      if (filters.status?.length > 0) {
+        finalApplicationIds = filteredApplicationIds.filter(appId => {
+          const status = statusMap[appId] || 'Unpaid';
+          return filters.status!.includes(status);
+        });
+      }
+
+      // Count statuses for the final filtered set
       const counts = {
-        total: filteredApplicationIds.length,
+        total: finalApplicationIds.length,
         statusUnpaid: 0,
         statusPartiallyPaid: 0,
         statusCashCollected: 0,
@@ -176,7 +185,7 @@ export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: 
         statusPendingApproval: 0
       };
 
-      filteredApplicationIds.forEach(appId => {
+      finalApplicationIds.forEach(appId => {
         const status = statusMap[appId] || 'Unpaid';
         switch (status) {
           case 'Unpaid':
