@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
@@ -72,6 +71,7 @@ const Analytics = () => {
     try {
       let relevantApplications: Application[] = [];
       let statusMap: Record<string, string> = {};
+      let ptpDatesMap: Record<string, string | null> = {};
 
       if (filter.selectedEmiMonth && filter.selectedEmiMonth !== 'All') {
         // For specific month, get applications with collection records for that month
@@ -104,25 +104,43 @@ const Analytics = () => {
           .map(record => record.applications)
           .filter(app => app != null) as Application[];
 
-        // Get month-specific field status for these applications
+        // Get month-specific field status and PTP dates for these applications
         const applicationIds = collectionData.map(record => record.application_id);
         statusMap = await fetchFieldStatus(applicationIds, dbFormatMonth, false);
         
+        // Import usePtpDates hook for fetching PTP dates
+        const { fetchPtpDates } = await import('@/hooks/usePtpDates');
+        const ptpHook = { fetchPtpDates };
+        ptpDatesMap = await ptpHook.fetchPtpDates(applicationIds, dbFormatMonth);
+        
         console.log('Month-specific filtering - Applications with collection records:', relevantApplications.length);
         console.log('Status map loaded:', Object.keys(statusMap).length);
+        console.log('PTP dates map loaded:', Object.keys(ptpDatesMap).length);
       } else {
         // For "All" months, use all applications
         relevantApplications = allApplications;
         
-        // Get latest field status for all applications
+        // Get latest field status and PTP dates for all applications
         const applicationIds = allApplications.map(app => app.applicant_id);
         statusMap = await fetchFieldStatus(applicationIds, undefined, true);
+        
+        // Import usePtpDates hook for fetching PTP dates
+        const { fetchPtpDates } = await import('@/hooks/usePtpDates');
+        const ptpHook = { fetchPtpDates };
+        ptpDatesMap = await ptpHook.fetchPtpDates(applicationIds);
         
         console.log('All months filtering - Total applications:', relevantApplications.length);
       }
 
-      // Now filter based on the criteria
-      const filtered = relevantApplications.filter(app => {
+      // Enrich applications with fetched data to match the hook's expectations
+      const enrichedApplications = relevantApplications.map(app => ({
+        ...app,
+        ptp_date: ptpDatesMap[app.applicant_id] || app.ptp_date || null,
+        field_status: statusMap[app.applicant_id] || app.lms_status || 'Unpaid'
+      }));
+
+      // Now filter based on the criteria using the same logic as the hook
+      const filtered = enrichedApplications.filter(app => {
         // Handle PTP date-specific filtering
         if (filter.ptp_criteria === 'date_specific' && filter.ptp_date) {
           if (!app.ptp_date) return false;
@@ -158,11 +176,8 @@ const Analytics = () => {
           }
         }
 
-        // Get the appropriate status for this application
-        let fieldStatus = statusMap[app.applicant_id];
-        if (!fieldStatus) {
-          fieldStatus = app.lms_status || 'Unpaid';
-        }
+        // Get the field status for this application
+        const fieldStatus = app.field_status;
 
         // Handle PTP criteria-based filtering - ALWAYS exclude "Paid" status for ALL PTP criteria
         if (filter.ptp_criteria) {
@@ -241,7 +256,7 @@ const Analytics = () => {
       console.log('Sample filtered applications:', filtered.slice(0, 3).map(app => ({
         applicant_id: app.applicant_id,
         ptp_date: app.ptp_date,
-        field_status: statusMap[app.applicant_id] || app.lms_status,
+        field_status: app.field_status,
         branch_name: app.branch_name
       })));
       
