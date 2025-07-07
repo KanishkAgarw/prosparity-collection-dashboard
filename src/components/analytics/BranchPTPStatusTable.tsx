@@ -1,8 +1,9 @@
+
 import { Application } from '@/types/application';
-import { useBranchAnalyticsData } from '@/hooks/useBranchAnalyticsData';
+import { useBranchPTPData, BranchPTPStatus } from '@/hooks/useBranchAnalyticsData';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DrillDownFilter } from '@/pages/Analytics';
 import { useTableSorting } from '@/hooks/useTableSorting';
 import SortableTableHeader from './shared/SortableTableHeader';
@@ -20,6 +21,9 @@ type SortField = 'branch_name' | 'rm_name' | 'total' | 'overdue' | 'today' | 'to
 
 const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTableProps) => {
   const [selectedEmiMonth, setSelectedEmiMonth] = useState<string>('all');
+  const [branchPtpStatusData, setBranchPtpStatusData] = useState<BranchPTPStatus[]>([]);
+  const [loading, setLoading] = useState(true);
+  
   // Get unique EMI months from applications
   const emiMonths = Array.from(
     new Set(applications.map(app => formatEmiMonth(app.demand_date)).filter(month => month && month !== 'NA'))
@@ -30,11 +34,29 @@ const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTabl
     ? applications.filter(app => formatEmiMonth(app.demand_date) === selectedEmiMonth)
     : applications;
 
-  const { branchPtpStatusData } = useBranchAnalyticsData(filteredApplications);
+  const branchPtpDataPromise = useBranchPTPData(applications, selectedEmiMonth === 'all' ? undefined : selectedEmiMonth);
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
   
   const branchSorting = useTableSorting<SortField>('branch_name');
   const rmSorting = useTableSorting<SortField>('rm_name');
+
+  // Handle async data loading
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const data = await branchPtpDataPromise;
+        setBranchPtpStatusData(data);
+      } catch (error) {
+        console.error('Error loading PTP data:', error);
+        setBranchPtpStatusData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [branchPtpDataPromise]);
 
   const toggleBranch = (branchName: string) => {
     const newExpanded = new Set(expandedBranches);
@@ -95,6 +117,43 @@ const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTabl
     }),
     { total: 0, overdue: 0, today: 0, tomorrow: 0, future: 0, no_ptp_set: 0 }
   );
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle className="text-lg">PTP Status by Branch</CardTitle>
+              <CardDescription className="text-xs">
+                Promise to Pay scheduling status across branches and RMs
+              </CardDescription>
+            </div>
+            <div className="w-48">
+              <label className="block text-xs font-medium text-gray-700 mb-1">EMI Month</label>
+              <Select value={selectedEmiMonth} onValueChange={setSelectedEmiMonth}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  {emiMonths.map(month => (
+                    <SelectItem key={month} value={month}>{month}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-muted-foreground">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+            <p className="text-sm">Loading PTP data...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
