@@ -230,7 +230,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
             approval_status: "pending",
             requested_by_user_id: user?.id,
             requested_by_email: user?.email,
-            requested_by_name: user?.full_name,
+            requested_by_name: user?.email,
             demand_date: selectedMonth,
             request_timestamp: new Date().toISOString()
           });
