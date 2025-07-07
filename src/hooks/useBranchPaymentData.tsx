@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { Application } from '@/types/application';
-import { useFieldStatus } from '@/hooks/useFieldStatus';
+import { useFieldStatusManager } from '@/hooks/useFieldStatusManager';
 import { supabase } from '@/integrations/supabase/client';
 import { getMonthDateRange, convertEmiMonthToDatabase } from '@/utils/dateUtils';
 
@@ -23,7 +23,7 @@ export interface BranchPaymentStatus {
 }
 
 export const useBranchPaymentData = (applications: Application[], selectedEmiMonth?: string) => {
-  const { fetchFieldStatus } = useFieldStatus();
+  const { fetchFieldStatus } = useFieldStatusManager();
   const [data, setData] = useState<BranchPaymentStatus[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -98,8 +98,16 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
           return;
         }
         
-        // Fetch month-specific field status for only these applications
-        const statusMap = await fetchFieldStatus(monthApplicationIds, selectedEmiMonth);
+        // Convert selectedEmiMonth to database format for field status query
+        const dbFormatMonth = selectedEmiMonth ? convertEmiMonthToDatabase(selectedEmiMonth) : undefined;
+        
+        // Fetch month-specific field status using the robust manager
+        const statusMap = await fetchFieldStatus(
+          monthApplicationIds, 
+          dbFormatMonth,
+          false // includeAllMonths = false for month-specific filtering
+        );
+        
         console.log('🔍 Field status map loaded:', Object.keys(statusMap).length, 'applications');
         console.log('🔍 Status map sample entries:', Object.entries(statusMap).slice(0, 5));
         console.log('🔍 Status distribution in map:', 
@@ -122,7 +130,7 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
           const branchName = app?.branch_name || 'Unknown Branch';
           const rmName = app?.collection_rm || app?.rm_name || 'Unknown RM';
           
-          // Get month-specific status from field_status table, fallback to lms_status from applications
+          // Get month-specific status from field_status table via manager, fallback to lms_status from applications
           let fieldStatus = statusMap[record.application_id];
           if (!fieldStatus) {
             // Use the application's lms_status as fallback instead of defaulting to 'Unpaid'

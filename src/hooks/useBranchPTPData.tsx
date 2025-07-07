@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Application } from '@/types/application';
 import { isToday, isTomorrow, isBefore, isAfter, startOfDay } from 'date-fns';
-import { useFieldStatus } from '@/hooks/useFieldStatus';
+import { useFieldStatusManager } from '@/hooks/useFieldStatusManager';
 import { usePtpDates } from '@/hooks/usePtpDates';
 import { supabase } from '@/integrations/supabase/client';
 import { getMonthDateRange, convertEmiMonthToDatabase } from '@/utils/dateUtils';
@@ -25,7 +25,7 @@ export interface BranchPTPStatus {
 }
 
 export const useBranchPTPData = (applications: Application[], selectedEmiMonth?: string) => {
-  const { fetchFieldStatus } = useFieldStatus();
+  const { fetchFieldStatus } = useFieldStatusManager();
   const { fetchPtpDates } = usePtpDates();
   const [data, setData] = useState<BranchPTPStatus[]>([]);
   const [loading, setLoading] = useState(false);
@@ -101,8 +101,16 @@ export const useBranchPTPData = (applications: Application[], selectedEmiMonth?:
           return;
         }
         
-        // Fetch month-specific field status for only these applications
-        const statusMap = await fetchFieldStatus(monthApplicationIds, selectedEmiMonth);
+        // Convert selectedEmiMonth to database format for field status query
+        const dbFormatMonth = selectedEmiMonth ? convertEmiMonthToDatabase(selectedEmiMonth) : undefined;
+        
+        // Fetch month-specific field status using the robust manager
+        const statusMap = await fetchFieldStatus(
+          monthApplicationIds, 
+          dbFormatMonth,
+          false // includeAllMonths = false for month-specific filtering
+        );
+        
         console.log('🔍 Field status map loaded for PTP:', Object.keys(statusMap).length, 'applications');
         
         // Fetch PTP dates for these applications
