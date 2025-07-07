@@ -12,6 +12,7 @@ const StatusBadge = memo(({ status }: StatusBadgeProps) => {
     'Partially Paid': 'bg-yellow-100 text-yellow-800 border-yellow-200',
     'Cash Collected from Customer': 'bg-orange-100 text-orange-800 border-orange-200',
     'Customer Deposited to Bank': 'bg-indigo-100 text-indigo-800 border-indigo-200',
+    'Paid (Pending Approval)': 'bg-blue-100 text-blue-800 border-blue-200',
     'Paid': 'bg-green-100 text-green-800 border-green-200'
   };
   
