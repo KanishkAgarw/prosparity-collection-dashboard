@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { Application } from '@/types/application';
-import { useFieldStatusManager } from '@/hooks/useFieldStatusManager';
+import { useEnhancedStatusManager } from '@/hooks/useEnhancedStatusManager';
 import { supabase } from '@/integrations/supabase/client';
 import { getMonthDateRange, convertEmiMonthToDatabase } from '@/utils/dateUtils';
 
@@ -23,7 +23,7 @@ export interface BranchPaymentStatus {
 }
 
 export const useBranchPaymentData = (applications: Application[], selectedEmiMonth?: string) => {
-  const { fetchFieldStatus } = useFieldStatusManager();
+  const { fetchEnhancedStatus } = useEnhancedStatusManager();
   const [data, setData] = useState<BranchPaymentStatus[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -34,13 +34,13 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
       setError(null);
       
       try {
-        console.log('📊 Fetching payment data for month:', selectedEmiMonth);
+        console.log('📊 BRANCH PAYMENT DATA - Fetching payment data for month:', selectedEmiMonth);
         
         let collectionData, error;
 
         if (!selectedEmiMonth) {
           // For "All" option, get all collection records
-          console.log('📊 Fetching all collection records for branch payment data');
+          console.log('📊 BRANCH PAYMENT DATA - Fetching all collection records');
           const { data, error: allError } = await supabase
             .from('collection')
             .select(`
@@ -52,18 +52,18 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
         } else {
           // Convert EMI month format from display (Jul-25) to database (2025-07)
           const dbFormatMonth = convertEmiMonthToDatabase(selectedEmiMonth);
-          console.log('📊 Converting EMI month format:', selectedEmiMonth, '->', dbFormatMonth);
+          console.log('📊 BRANCH PAYMENT DATA - Converting EMI month format:', selectedEmiMonth, '->', dbFormatMonth);
           
           // Validate the converted month format
           if (!dbFormatMonth || !dbFormatMonth.match(/^\d{4}-\d{2}$/)) {
-            console.error('Invalid month format after conversion:', dbFormatMonth);
+            console.error('❌ BRANCH PAYMENT DATA - Invalid month format after conversion:', dbFormatMonth);
             throw new Error(`Invalid month format: ${selectedEmiMonth}`);
           }
           
           // For specific month, filter by demand_date range
-          console.log('📊 Fetching collection records for month:', dbFormatMonth);
+          console.log('📊 BRANCH PAYMENT DATA - Fetching collection records for month:', dbFormatMonth);
           const { start, end } = getMonthDateRange(dbFormatMonth);
-          console.log('📊 Date range for payment data:', { start, end });
+          console.log('📊 BRANCH PAYMENT DATA - Date range:', { start, end });
           
           const { data, error: monthError } = await supabase
             .from('collection')
@@ -78,51 +78,56 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
         }
 
         if (error) {
-          console.error('Error fetching collection data for branch payment analysis:', error);
+          console.error('❌ BRANCH PAYMENT DATA - Error fetching collection data:', error);
           throw new Error(`Failed to fetch collection data: ${error.message}`);
         }
 
         if (!collectionData || collectionData.length === 0) {
-          console.log('No collection data found for month:', selectedEmiMonth);
+          console.log('⚪ BRANCH PAYMENT DATA - No collection data found for month:', selectedEmiMonth);
           setData([]);
           return;
         }
 
         // Get application IDs that have collection records for this month
         const monthApplicationIds = collectionData.map(record => record.application_id);
-        console.log(`Found ${monthApplicationIds.length} applications with collection records for ${selectedEmiMonth}`);
+        console.log(`📋 BRANCH PAYMENT DATA - Found ${monthApplicationIds.length} applications with collection records for ${selectedEmiMonth}`);
         
         if (monthApplicationIds.length === 0) {
-          console.log('No valid application IDs found');
+          console.log('⚪ BRANCH PAYMENT DATA - No valid application IDs found');
           setData([]);
           return;
         }
         
-        // Convert selectedEmiMonth to database format for field status query
+        // Convert selectedEmiMonth to database format for enhanced status query
         const dbFormatMonth = selectedEmiMonth ? convertEmiMonthToDatabase(selectedEmiMonth) : undefined;
         
-        // Fetch month-specific field status using the robust manager
-        const statusMap = await fetchFieldStatus(
+        // ✅ USE ENHANCED STATUS MANAGER for correct "Paid" status prioritization
+        console.log('🔧 BRANCH PAYMENT DATA - Using ENHANCED STATUS MANAGER for status fetching');
+        const statusMap = await fetchEnhancedStatus(
           monthApplicationIds, 
-          dbFormatMonth,
-          false // includeAllMonths = false for month-specific filtering
+          { 
+            selectedMonth: dbFormatMonth,
+            includeAllMonths: false 
+          }
         );
         
-        console.log('🔍 Field status map loaded:', Object.keys(statusMap).length, 'applications');
-        console.log('🔍 Status map sample entries:', Object.entries(statusMap).slice(0, 5));
-        console.log('🔍 Status distribution in map:', 
-          Object.values(statusMap).reduce((acc, status) => {
-            acc[status] = (acc[status] || 0) + 1;
-            return acc;
-          }, {} as Record<string, number>)
-        );
+        console.log('🔍 BRANCH PAYMENT DATA - Enhanced status map loaded:', Object.keys(statusMap).length, 'applications');
+        console.log('🔍 BRANCH PAYMENT DATA - Status map sample entries:', Object.entries(statusMap).slice(0, 5));
+        
+        // Log status distribution from enhanced manager
+        const statusDistribution = Object.values(statusMap).reduce((acc, status) => {
+          acc[status] = (acc[status] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+        console.log('📊 BRANCH PAYMENT DATA - Enhanced status distribution:', statusDistribution);
+        console.log('💰 BRANCH PAYMENT DATA - PAID COUNT from enhanced manager:', statusDistribution['Paid'] || 0);
 
         const branchMap = new Map<string, BranchPaymentStatus>();
         
-        // Process only applications that have collection records for this month
+        // Process applications using enhanced status data
         collectionData.forEach(record => {
           if (!record.applications) {
-            console.warn('Missing application data for record:', record.application_id);
+            console.warn('⚠️ BRANCH PAYMENT DATA - Missing application data for record:', record.application_id);
             return;
           }
           
@@ -130,12 +135,14 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
           const branchName = app?.branch_name || 'Unknown Branch';
           const rmName = app?.collection_rm || app?.rm_name || 'Unknown RM';
           
-          // Get month-specific status from field_status table via manager, fallback to lms_status from applications
-          let fieldStatus = statusMap[record.application_id];
-          if (!fieldStatus) {
-            // Use the application's lms_status as fallback instead of defaulting to 'Unpaid'
-            fieldStatus = app.lms_status || 'Unpaid';
-            console.log(`🔄 Using fallback status for ${record.application_id}: ${fieldStatus}`);
+          // ✅ Get enhanced status (prioritizes collection.lms_status = 'Paid')
+          let enhancedStatus = statusMap[record.application_id];
+          if (!enhancedStatus) {
+            // Use the application's lms_status as fallback
+            enhancedStatus = app.lms_status || 'Unpaid';
+            console.log(`🔄 BRANCH PAYMENT DATA - Using fallback status for ${record.application_id}:`, enhancedStatus);
+          } else {
+            console.log(`✅ BRANCH PAYMENT DATA - Using enhanced status for ${record.application_id}:`, enhancedStatus);
           }
           
           if (!branchMap.has(branchName)) {
@@ -175,7 +182,8 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
           rmStats.total++;
           branch.total_stats.total++;
           
-          switch (fieldStatus) {
+          // Categorize using enhanced status
+          switch (enhancedStatus) {
             case 'Unpaid':
               rmStats.unpaid++;
               branch.total_stats.unpaid++;
@@ -191,6 +199,7 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
             case 'Paid':
               rmStats.paid++;
               branch.total_stats.paid++;
+              console.log(`💰 BRANCH PAYMENT DATA - Adding PAID status for ${record.application_id} in branch ${branchName}`);
               break;
             case 'Cash Collected from Customer':
             case 'Customer Deposited to Bank':
@@ -208,7 +217,8 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
           }))
           .sort((a, b) => b.total_stats.total - a.total_stats.total);
           
-        console.log('📈 Payment data processing complete. Final status distribution:');
+        console.log('🎯 BRANCH PAYMENT DATA - Final enhanced status distribution:');
+        let totalPaidFromBranches = 0;
         result.forEach(branch => {
           console.log(`Branch ${branch.branch_name}:`, {
             unpaid: branch.total_stats.unpaid,
@@ -218,11 +228,13 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
             others: branch.total_stats.others,
             total: branch.total_stats.total
           });
+          totalPaidFromBranches += branch.total_stats.paid;
         });
+        console.log('💰 BRANCH PAYMENT DATA - TOTAL PAID COUNT across all branches:', totalPaidFromBranches);
         
         setData(result);
       } catch (err) {
-        console.error('Error in fetchPaymentData:', err);
+        console.error('❌ BRANCH PAYMENT DATA - Error in fetchPaymentData:', err);
         setError(err as Error);
         setData([]);
       } finally {
@@ -233,10 +245,10 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
     if (applications && applications.length > 0) {
       fetchPaymentData();
     } else {
-      console.log('No applications provided to useBranchPaymentData');
+      console.log('⚪ BRANCH PAYMENT DATA - No applications provided');
       setData([]);
     }
-  }, [selectedEmiMonth, fetchFieldStatus, applications]);
+  }, [selectedEmiMonth, fetchEnhancedStatus, applications]);
 
   return { data, loading, error };
 };
