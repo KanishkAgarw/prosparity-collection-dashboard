@@ -132,7 +132,7 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
               <TableHeader>
                 <TableRow>
                   <TableHead className="font-medium w-8"></TableHead>
-                  <TableHead className="font-medium">Branch / RM</TableHead>
+                  <TableHead className="font-medium w-48">Branch / RM</TableHead>
                   <TableHead className="font-medium text-center w-20">Unpaid</TableHead>
                   <TableHead className="font-medium text-center w-24">Partially Paid</TableHead>
                   <TableHead className="font-medium text-center w-20">Paid (Pending)</TableHead>
@@ -159,42 +159,47 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
                           )}
                         </Button>
                       </TableCell>
-                      <TableCell className="font-bold">{branch.branch_name}</TableCell>
+                      <TableCell className="font-bold text-sm">{branch.branch_name}</TableCell>
                       <ClickableTableCell
                         value={branch.total_stats.unpaid}
                         onClick={() => handleCellClick(branch.branch_name, undefined, 'unpaid')}
-                        className="text-red-600"
+                        className="text-red-600 font-medium"
                       />
                       <ClickableTableCell
                         value={branch.total_stats.partially_paid}
                         onClick={() => handleCellClick(branch.branch_name, undefined, 'partially_paid')}
-                        className="text-orange-600"
+                        className="text-orange-600 font-medium"
                       />
                       <ClickableTableCell
                         value={branch.total_stats.paid_pending_approval}
                         onClick={() => handleCellClick(branch.branch_name, undefined, 'paid_pending_approval')}
-                        className="text-yellow-600"
+                        className="text-yellow-600 font-medium"
                       />
                       <ClickableTableCell
                         value={branch.total_stats.paid}
                         onClick={() => handleCellClick(branch.branch_name, undefined, 'paid')}
-                        className="text-green-600"
+                        className="text-green-600 font-medium"
                       />
                       <ClickableTableCell
                         value={branch.total_stats.others}
                         onClick={() => handleCellClick(branch.branch_name, undefined, 'others')}
-                        className="text-gray-600"
+                        className="text-gray-600 font-medium"
                       />
                       <ClickableTableCell
                         value={branch.total_stats.total}
                         onClick={() => handleCellClick(branch.branch_name, undefined, 'total')}
-                        className="text-blue-600 font-medium"
+                        className="text-blue-600 font-bold"
                       />
                     </TableRow>
                     {expandedBranches.has(branch.branch_name) && branch.rm_stats.map((rm) => (
-                      <TableRow key={`${branch.branch_name}-${rm.rm_name}`} className="pl-8">
+                      <TableRow key={`${branch.branch_name}-${rm.rm_name}`}>
                         <TableCell></TableCell>
-                        <TableCell className="pl-8 text-muted-foreground">└ {rm.rm_name}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          <div className="flex items-center pl-4">
+                            <span className="mr-2 text-gray-400">├─</span>
+                            <span className="font-medium">{rm.rm_name}</span>
+                          </div>
+                        </TableCell>
                         <ClickableTableCell
                           value={rm.unpaid}
                           onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'unpaid')}
@@ -232,7 +237,7 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
                 {branchPaymentData.length > 0 && (
                   <TableRow className="bg-primary/10 font-bold">
                     <TableCell></TableCell>
-                    <TableCell className="font-bold">Grand Total</TableCell>
+                    <TableCell className="font-bold text-sm">Grand Total</TableCell>
                     <ClickableTableCell
                       value={totals.unpaid}
                       onClick={() => handleCellClick('', undefined, 'unpaid')}
