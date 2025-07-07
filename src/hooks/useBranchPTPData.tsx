@@ -5,7 +5,7 @@ import { isToday, isTomorrow, isBefore, isAfter, startOfDay } from 'date-fns';
 import { useFieldStatus } from '@/hooks/useFieldStatus';
 import { usePtpDates } from '@/hooks/usePtpDates';
 import { supabase } from '@/integrations/supabase/client';
-import { getMonthDateRange } from '@/utils/dateUtils';
+import { getMonthDateRange, convertEmiMonthToYearMonth } from '@/utils/dateUtils';
 
 export interface PTPStatusRow {
   rm_name: string;
@@ -45,7 +45,8 @@ export const useBranchPTPData = (applications: Application[], selectedEmiMonth?:
     } else {
       // For specific month, filter by demand_date range
       console.log('📊 Fetching collection records for month:', selectedEmiMonth);
-      const { start, end } = getMonthDateRange(selectedEmiMonth);
+      const convertedMonth = convertEmiMonthToYearMonth(selectedEmiMonth);
+      const { start, end } = getMonthDateRange(convertedMonth);
       
       const { data, error: monthError } = await supabase
         .from('collection')

@@ -1,5 +1,41 @@
 
+
 // Simplified utility functions for handling standardized DATE columns
+
+// Convert EMI month format (Jun-25) to YYYY-MM format (2025-06)
+export const convertEmiMonthToYearMonth = (emiMonth: string): string => {
+  if (!emiMonth || emiMonth === 'all') return emiMonth;
+  
+  try {
+    // Handle "Jun-25" format
+    if (emiMonth.match(/^[A-Za-z]{3}-\d{2}$/)) {
+      const [monthAbbr, yearShort] = emiMonth.split('-');
+      const year = `20${yearShort}`; // Convert 25 to 2025
+      
+      // Convert month abbreviation to number
+      const monthMap: { [key: string]: string } = {
+        'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
+        'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
+        'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
+      };
+      
+      const month = monthMap[monthAbbr];
+      if (month) {
+        return `${year}-${month}`;
+      }
+    }
+    
+    // If already in YYYY-MM format, return as is
+    if (emiMonth.match(/^\d{4}-\d{2}$/)) {
+      return emiMonth;
+    }
+    
+    return emiMonth;
+  } catch (error) {
+    console.error('Error converting EMI month format:', error);
+    return emiMonth;
+  }
+};
 
 export const normalizeEmiMonth = (emiMonth: string | Date): string => {
   if (!emiMonth) return '';
