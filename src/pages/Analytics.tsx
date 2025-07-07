@@ -12,6 +12,7 @@ import ApplicationDetailsModal from '@/components/analytics/ApplicationDetailsMo
 import { Application } from '@/types/application';
 import { format, isToday, isTomorrow, isBefore, isAfter, startOfDay } from 'date-fns';
 import { useFieldStatusManager } from '@/hooks/useFieldStatusManager';
+import { usePtpDates } from '@/hooks/usePtpDates';
 import { supabase } from '@/integrations/supabase/client';
 import { getMonthDateRange, convertEmiMonthToDatabase } from '@/utils/dateUtils';
 
@@ -28,6 +29,7 @@ const Analytics = () => {
   const navigate = useNavigate();
   const { allApplications, loading } = useApplications();
   const { fetchFieldStatus } = useFieldStatusManager();
+  const { fetchPtpDates } = usePtpDates();
   const [selectedFilter, setSelectedFilter] = useState<DrillDownFilter | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [filteredApplications, setFilteredApplications] = useState<Application[]>([]);
@@ -108,10 +110,8 @@ const Analytics = () => {
         const applicationIds = collectionData.map(record => record.application_id);
         statusMap = await fetchFieldStatus(applicationIds, dbFormatMonth, false);
         
-        // Import usePtpDates hook for fetching PTP dates
-        const { fetchPtpDates } = await import('@/hooks/usePtpDates');
-        const ptpHook = { fetchPtpDates };
-        ptpDatesMap = await ptpHook.fetchPtpDates(applicationIds, dbFormatMonth);
+        // Use the hook's fetchPtpDates function
+        ptpDatesMap = await fetchPtpDates(applicationIds, dbFormatMonth);
         
         console.log('Month-specific filtering - Applications with collection records:', relevantApplications.length);
         console.log('Status map loaded:', Object.keys(statusMap).length);
@@ -124,10 +124,8 @@ const Analytics = () => {
         const applicationIds = allApplications.map(app => app.applicant_id);
         statusMap = await fetchFieldStatus(applicationIds, undefined, true);
         
-        // Import usePtpDates hook for fetching PTP dates
-        const { fetchPtpDates } = await import('@/hooks/usePtpDates');
-        const ptpHook = { fetchPtpDates };
-        ptpDatesMap = await ptpHook.fetchPtpDates(applicationIds);
+        // Use the hook's fetchPtpDates function
+        ptpDatesMap = await fetchPtpDates(applicationIds);
         
         console.log('All months filtering - Total applications:', relevantApplications.length);
       }
