@@ -10,19 +10,24 @@ export const useFieldStatus = () => {
   const [loading, setLoading] = useState(false);
 
   const fetchFieldStatus = useCallback(async (applicationIds: string[], selectedMonth?: string) => {
-    if (applicationIds.length === 0 || !selectedMonth) return {};
+    if (applicationIds.length === 0) return {};
 
-    // Use date range for the selected month
-    const { start, end } = getMonthDateRange(selectedMonth);
-    console.log('Fetching field status for month range:', start, 'to', end);
-
-    const { data, error } = await supabase
+    let query = supabase
       .from('field_status')
       .select('*')
       .in('application_id', applicationIds)
-      .gte('demand_date', start)
-      .lte('demand_date', end)
       .order('created_at', { ascending: false });
+
+    // If selectedMonth is provided, filter by date range
+    if (selectedMonth) {
+      const { start, end } = getMonthDateRange(selectedMonth);
+      console.log('Fetching field status for month range:', start, 'to', end);
+      query = query.gte('demand_date', start).lte('demand_date', end);
+    } else {
+      console.log('Fetching latest field status for all applications (no month filter)');
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching field status:', error);
@@ -40,6 +45,7 @@ export const useFieldStatus = () => {
       }
     });
 
+    console.log(`✅ Fetched field status for ${Object.keys(statusMap).length} applications${selectedMonth ? ` (month: ${selectedMonth})` : ' (all months)'}`);
     return statusMap;
   }, []);
 
