@@ -16,12 +16,12 @@ interface BranchPTPStatusTableProps {
 }
 
 const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTableProps) => {
-  const [selectedEmiMonth, setSelectedEmiMonth] = useState<string>('All');
+  const [selectedEmiMonth, setSelectedEmiMonth] = useState<string>('Jul-25');
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
   
   const { data: branchPtpData, loading, error } = useBranchPTPData(
     applications, 
-    selectedEmiMonth === 'All' ? undefined : selectedEmiMonth
+    selectedEmiMonth
   );
 
   const toggleBranchExpansion = (branchName: string) => {
@@ -34,7 +34,7 @@ const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTabl
     setExpandedBranches(newExpanded);
   };
 
-  const availableMonths = ['All', 'Jun-25', 'Jul-25'];
+  const availableMonths = ['Jun-25', 'Jul-25'];
 
   const handleCellClick = (branchName: string, rmName: string | undefined, ptpCriteria: string) => {
     onDrillDown({
@@ -42,7 +42,7 @@ const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTabl
       rm_name: rmName,
       status_type: 'total', // For PTP we use total as base
       ptp_criteria: ptpCriteria,
-      selectedEmiMonth: selectedEmiMonth // Pass the selected month
+      selectedEmiMonth: selectedEmiMonth
     });
   };
 
@@ -99,23 +99,27 @@ const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTabl
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Branch PTP Status Analysis</CardTitle>
-        <CardDescription>
-          PTP status breakdown by branch and collection RM for {selectedEmiMonth === 'All' ? 'all months' : selectedEmiMonth} (excludes Paid applications)
-        </CardDescription>
-        <div className="flex gap-4 items-center">
-          <Select value={selectedEmiMonth} onValueChange={setSelectedEmiMonth}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select EMI Month" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableMonths.map(month => (
-                <SelectItem key={month} value={month}>
-                  {month}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex justify-between items-start">
+          <div className="flex-1">
+            <CardTitle>Branch PTP Status Analysis</CardTitle>
+            <CardDescription>
+              PTP status breakdown by branch and collection RM for {selectedEmiMonth} (excludes Paid applications)
+            </CardDescription>
+          </div>
+          <div className="flex gap-4 items-center">
+            <Select value={selectedEmiMonth} onValueChange={setSelectedEmiMonth}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Select EMI Month" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableMonths.map(month => (
+                  <SelectItem key={month} value={month}>
+                    {month}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -130,12 +134,12 @@ const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTabl
                 <TableRow>
                   <TableHead className="font-medium w-8"></TableHead>
                   <TableHead className="font-medium">Branch / RM</TableHead>
-                  <TableHead className="font-medium text-center">Overdue</TableHead>
-                  <TableHead className="font-medium text-center">Today</TableHead>
-                  <TableHead className="font-medium text-center">Tomorrow</TableHead>
-                  <TableHead className="font-medium text-center">Future</TableHead>
-                  <TableHead className="font-medium text-center">No PTP Set</TableHead>
-                  <TableHead className="font-medium text-center">Total</TableHead>
+                  <TableHead className="font-medium text-center w-20">Overdue</TableHead>
+                  <TableHead className="font-medium text-center w-16">Today</TableHead>
+                  <TableHead className="font-medium text-center w-20">Tomorrow</TableHead>
+                  <TableHead className="font-medium text-center w-16">Future</TableHead>
+                  <TableHead className="font-medium text-center w-24">No PTP Set</TableHead>
+                  <TableHead className="font-medium text-center w-16">Total</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -160,26 +164,32 @@ const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTabl
                       <ClickableTableCell
                         value={branch.total_stats.overdue}
                         onClick={() => handleCellClick(branch.branch_name, undefined, 'overdue')}
+                        className="text-red-600"
                       />
                       <ClickableTableCell
                         value={branch.total_stats.today}
                         onClick={() => handleCellClick(branch.branch_name, undefined, 'today')}
+                        className="text-blue-600"
                       />
                       <ClickableTableCell
                         value={branch.total_stats.tomorrow}
                         onClick={() => handleCellClick(branch.branch_name, undefined, 'tomorrow')}
+                        className="text-orange-600"
                       />
                       <ClickableTableCell
                         value={branch.total_stats.future}
                         onClick={() => handleCellClick(branch.branch_name, undefined, 'future')}
+                        className="text-green-600"
                       />
                       <ClickableTableCell
                         value={branch.total_stats.no_ptp_set}
                         onClick={() => handleCellClick(branch.branch_name, undefined, 'no_ptp_set')}
+                        className="text-gray-600"
                       />
                       <ClickableTableCell
                         value={branch.total_stats.total}
                         onClick={() => handleCellClick(branch.branch_name, undefined, 'total')}
+                        className="text-purple-600 font-medium"
                       />
                     </TableRow>
                     {expandedBranches.has(branch.branch_name) && branch.rm_stats.map((rm) => (
@@ -189,26 +199,32 @@ const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTabl
                         <ClickableTableCell
                           value={rm.overdue}
                           onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'overdue')}
+                          className="text-red-600"
                         />
                         <ClickableTableCell
                           value={rm.today}
                           onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'today')}
+                          className="text-blue-600"
                         />
                         <ClickableTableCell
                           value={rm.tomorrow}
                           onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'tomorrow')}
+                          className="text-orange-600"
                         />
                         <ClickableTableCell
                           value={rm.future}
                           onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'future')}
+                          className="text-green-600"
                         />
                         <ClickableTableCell
                           value={rm.no_ptp_set}
                           onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'no_ptp_set')}
+                          className="text-gray-600"
                         />
                         <ClickableTableCell
                           value={rm.total}
                           onClick={() => handleCellClick(branch.branch_name, rm.rm_name, 'total')}
+                          className="text-purple-600 font-medium"
                         />
                       </TableRow>
                     ))}
@@ -218,12 +234,36 @@ const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTabl
                   <TableRow className="bg-primary/10 font-bold">
                     <TableCell></TableCell>
                     <TableCell className="font-bold">Grand Total</TableCell>
-                    <TableCell className="text-center font-bold">{totals.overdue}</TableCell>
-                    <TableCell className="text-center font-bold">{totals.today}</TableCell>
-                    <TableCell className="text-center font-bold">{totals.tomorrow}</TableCell>
-                    <TableCell className="text-center font-bold">{totals.future}</TableCell>
-                    <TableCell className="text-center font-bold">{totals.no_ptp_set}</TableCell>
-                    <TableCell className="text-center font-bold">{totals.total}</TableCell>
+                    <ClickableTableCell
+                      value={totals.overdue}
+                      onClick={() => handleCellClick('', undefined, 'overdue')}
+                      className="text-red-600 font-bold"
+                    />
+                    <ClickableTableCell
+                      value={totals.today}
+                      onClick={() => handleCellClick('', undefined, 'today')}
+                      className="text-blue-600 font-bold"
+                    />
+                    <ClickableTableCell
+                      value={totals.tomorrow}
+                      onClick={() => handleCellClick('', undefined, 'tomorrow')}
+                      className="text-orange-600 font-bold"
+                    />
+                    <ClickableTableCell
+                      value={totals.future}
+                      onClick={() => handleCellClick('', undefined, 'future')}
+                      className="text-green-600 font-bold"
+                    />
+                    <ClickableTableCell
+                      value={totals.no_ptp_set}
+                      onClick={() => handleCellClick('', undefined, 'no_ptp_set')}
+                      className="text-gray-600 font-bold"
+                    />
+                    <ClickableTableCell
+                      value={totals.total}
+                      onClick={() => handleCellClick('', undefined, 'total')}
+                      className="text-purple-600 font-bold"
+                    />
                   </TableRow>
                 )}
               </TableBody>
