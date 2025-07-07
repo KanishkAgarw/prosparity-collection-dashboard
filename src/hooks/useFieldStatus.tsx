@@ -12,10 +12,16 @@ export const useFieldStatus = () => {
   const fetchFieldStatus = useCallback(async (applicationIds: string[], selectedMonth?: string) => {
     if (applicationIds.length === 0) return {};
 
+    console.log('🔍 fetchFieldStatus called with:', { 
+      applicationIdsCount: applicationIds.length, 
+      selectedMonth,
+      sampleIds: applicationIds.slice(0, 3)
+    });
+
     if (selectedMonth) {
       // If selectedMonth is provided, filter by date range
       const { start, end } = getMonthDateRange(selectedMonth);
-      console.log('Fetching field status for month range:', start, 'to', end);
+      console.log('🔍 Fetching field status for month range:', start, 'to', end);
       
       const { data, error } = await supabase
         .from('field_status')
@@ -26,9 +32,12 @@ export const useFieldStatus = () => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching field status:', error);
+        console.error('❌ Error fetching field status:', error);
         return {};
       }
+
+      console.log('📋 Raw field status data:', data?.length || 0, 'records');
+      console.log('📋 Sample field status records:', data?.slice(0, 3));
 
       // Create a map of application_id -> status (latest record per application for the month)
       const statusMap: Record<string, string> = {};
@@ -42,10 +51,17 @@ export const useFieldStatus = () => {
       });
 
       console.log(`✅ Fetched field status for ${Object.keys(statusMap).length} applications (month: ${selectedMonth})`);
+      console.log('📊 Status distribution from field_status table:', 
+        Object.values(statusMap).reduce((acc, status) => {
+          acc[status] = (acc[status] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>)
+      );
+      
       return statusMap;
     } else {
       // For analytics - get the truly latest status per application based on created_at only
-      console.log('Fetching latest field status for all applications (analytics mode)');
+      console.log('🔍 Fetching latest field status for all applications (analytics mode)');
       
       const { data, error } = await supabase
         .from('field_status')
@@ -54,9 +70,11 @@ export const useFieldStatus = () => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching field status:', error);
+        console.error('❌ Error fetching field status:', error);
         return {};
       }
+
+      console.log('📋 Raw field status data (analytics mode):', data?.length || 0, 'records');
 
       // Create a map of application_id -> latest status (based on created_at only)
       const statusMap: Record<string, string> = {};
@@ -70,6 +88,13 @@ export const useFieldStatus = () => {
       });
 
       console.log(`✅ Fetched latest field status for ${Object.keys(statusMap).length} applications (analytics mode)`);
+      console.log('📊 Status distribution from field_status table (analytics):', 
+        Object.values(statusMap).reduce((acc, status) => {
+          acc[status] = (acc[status] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>)
+      );
+      
       return statusMap;
     }
   }, []);

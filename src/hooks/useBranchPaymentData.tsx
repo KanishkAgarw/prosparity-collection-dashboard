@@ -100,7 +100,14 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
         
         // Fetch month-specific field status for only these applications
         const statusMap = await fetchFieldStatus(monthApplicationIds, selectedEmiMonth);
-        console.log('Field status map loaded:', Object.keys(statusMap).length, 'applications');
+        console.log('🔍 Field status map loaded:', Object.keys(statusMap).length, 'applications');
+        console.log('🔍 Status map sample entries:', Object.entries(statusMap).slice(0, 5));
+        console.log('🔍 Status distribution in map:', 
+          Object.values(statusMap).reduce((acc, status) => {
+            acc[status] = (acc[status] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>)
+        );
 
         const branchMap = new Map<string, BranchPaymentStatus>();
         
@@ -115,8 +122,13 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
           const branchName = app?.branch_name || 'Unknown Branch';
           const rmName = app?.collection_rm || app?.rm_name || 'Unknown RM';
           
-          // Get month-specific status or default to 'Unpaid'
-          const fieldStatus = statusMap[record.application_id] || 'Unpaid';
+          // Get month-specific status from field_status table, fallback to lms_status from applications
+          let fieldStatus = statusMap[record.application_id];
+          if (!fieldStatus) {
+            // Use the application's lms_status as fallback instead of defaulting to 'Unpaid'
+            fieldStatus = app.lms_status || 'Unpaid';
+            console.log(`🔄 Using fallback status for ${record.application_id}: ${fieldStatus}`);
+          }
           
           if (!branchMap.has(branchName)) {
             branchMap.set(branchName, {
@@ -188,7 +200,18 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
           }))
           .sort((a, b) => b.total_stats.total - a.total_stats.total);
           
-        console.log('Payment data processing complete. Branches:', result.length);
+        console.log('📈 Payment data processing complete. Final status distribution:');
+        result.forEach(branch => {
+          console.log(`Branch ${branch.branch_name}:`, {
+            unpaid: branch.total_stats.unpaid,
+            partially_paid: branch.total_stats.partially_paid,
+            paid_pending_approval: branch.total_stats.paid_pending_approval,
+            paid: branch.total_stats.paid,
+            others: branch.total_stats.others,
+            total: branch.total_stats.total
+          });
+        });
+        
         setData(result);
       } catch (err) {
         console.error('Error in fetchPaymentData:', err);

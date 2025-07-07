@@ -103,20 +103,24 @@ export const useBranchPTPData = (applications: Application[], selectedEmiMonth?:
         
         // Fetch month-specific field status for only these applications
         const statusMap = await fetchFieldStatus(monthApplicationIds, selectedEmiMonth);
-        console.log('Field status map loaded:', Object.keys(statusMap).length, 'applications');
+        console.log('🔍 Field status map loaded for PTP:', Object.keys(statusMap).length, 'applications');
         
         // Fetch PTP dates for these applications
         const ptpDatesMap = await fetchPtpDates(monthApplicationIds);
-        console.log('PTP dates map loaded:', Object.keys(ptpDatesMap).length, 'applications');
+        console.log('📅 PTP dates map loaded:', Object.keys(ptpDatesMap).length, 'applications');
 
         // Filter applications that are not "Paid" for the selected month
         const unpaidApplications = collectionData.filter(record => {
-          const fieldStatus = statusMap[record.application_id] || 'Unpaid';
+          // Get field status from statusMap, fallback to lms_status from applications
+          let fieldStatus = statusMap[record.application_id];
+          if (!fieldStatus && record.applications) {
+            fieldStatus = record.applications.lms_status || 'Unpaid';
+          }
           return fieldStatus !== 'Paid';
         });
         
-        console.log('PTP Data - Applications with collection records:', collectionData.length);
-        console.log('PTP Data - Unpaid applications (excluding Paid for selected month):', unpaidApplications.length);
+        console.log('📊 PTP Data - Applications with collection records:', collectionData.length);
+        console.log('📊 PTP Data - Unpaid applications (excluding Paid for selected month):', unpaidApplications.length);
         
         const branchMap = new Map<string, BranchPTPStatus>();
         const today = startOfDay(new Date());
@@ -207,7 +211,7 @@ export const useBranchPTPData = (applications: Application[], selectedEmiMonth?:
           }))
           .sort((a, b) => b.total_stats.total - a.total_stats.total);
           
-        console.log('PTP data processing complete. Branches:', result.length);
+        console.log('📈 PTP data processing complete. Branches:', result.length);
         setData(result);
       } catch (err) {
         console.error('Error in fetchPTPData:', err);
