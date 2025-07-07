@@ -22,6 +22,39 @@ export const normalizeEmiMonth = (emiMonth: string | Date): string => {
   return emiMonth.toString();
 };
 
+// Convert EMI month display format (Jul-25) to database format (2025-07)
+export const convertEmiMonthToDatabase = (emiMonth: string): string => {
+  if (!emiMonth) return '';
+  
+  // If already in YYYY-MM format, return as is
+  if (emiMonth.match(/^\d{4}-\d{2}$/)) {
+    return emiMonth;
+  }
+  
+  // Handle MMM-yy format (Jul-25)
+  if (emiMonth.match(/^[A-Za-z]{3}-\d{2}$/)) {
+    const [monthStr, yearStr] = emiMonth.split('-');
+    
+    // Convert short year to full year (25 -> 2025)
+    const fullYear = parseInt(yearStr) < 50 ? `20${yearStr}` : `19${yearStr}`;
+    
+    // Convert month name to number
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthIndex = monthNames.findIndex(m => m.toLowerCase() === monthStr.toLowerCase());
+    
+    if (monthIndex === -1) {
+      console.warn('Invalid month name:', monthStr);
+      return emiMonth;
+    }
+    
+    const monthNumber = (monthIndex + 1).toString().padStart(2, '0');
+    return `${fullYear}-${monthNumber}`;
+  }
+  
+  return emiMonth;
+};
+
 // Convert YYYY-MM to the 5th day of that month (EMI date)
 export const monthToEmiDate = (yearMonth: string): string => {
   if (!yearMonth || !yearMonth.match(/^\d{4}-\d{2}$/)) {

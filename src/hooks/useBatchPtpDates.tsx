@@ -1,7 +1,8 @@
+
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { getMonthDateRange } from '@/utils/dateUtils';
+import { getMonthDateRange, convertEmiMonthToDatabase } from '@/utils/dateUtils';
 
 export const useBatchPtpDates = () => {
   const { user } = useAuth();
@@ -30,7 +31,9 @@ export const useBatchPtpDates = () => {
 
       // Add month filter if provided - filter by demand_date using proper date range
       if (selectedMonth) {
-        const { start, end } = getMonthDateRange(selectedMonth);
+        // Convert EMI month format from display (Jul-25) to database (2025-07)
+        const dbFormatMonth = convertEmiMonthToDatabase(selectedMonth);
+        const { start, end } = getMonthDateRange(dbFormatMonth);
         console.log('Date range for PTP dates:', { start, end });
         
         query = query
@@ -94,7 +97,9 @@ export const useBatchPtpDates = () => {
 
       // Add month filter if provided - filter by demand_date using proper date range
       if (selectedMonth) {
-        const { start, end } = getMonthDateRange(selectedMonth);
+        // Convert EMI month format from display (Jul-25) to database (2025-07)
+        const dbFormatMonth = convertEmiMonthToDatabase(selectedMonth);
+        const { start, end } = getMonthDateRange(dbFormatMonth);
         query = query
           .gte('demand_date', start)
           .lte('demand_date', end);

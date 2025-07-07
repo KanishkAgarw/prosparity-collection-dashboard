@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { Application } from '@/types/application';
 import { useFieldStatus } from '@/hooks/useFieldStatus';
 import { supabase } from '@/integrations/supabase/client';
-import { getMonthDateRange } from '@/utils/dateUtils';
+import { getMonthDateRange, convertEmiMonthToDatabase } from '@/utils/dateUtils';
 
 export interface PaymentStatusRow {
   rm_name: string;
@@ -40,9 +40,14 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
       collectionData = data;
       error = allError;
     } else {
+      // Convert EMI month format from display (Jul-25) to database (2025-07)
+      const dbFormatMonth = convertEmiMonthToDatabase(selectedEmiMonth);
+      console.log('📊 Converting EMI month format:', selectedEmiMonth, '->', dbFormatMonth);
+      
       // For specific month, filter by demand_date range
-      console.log('📊 Fetching collection records for month:', selectedEmiMonth);
-      const { start, end } = getMonthDateRange(selectedEmiMonth);
+      console.log('📊 Fetching collection records for month:', dbFormatMonth);
+      const { start, end } = getMonthDateRange(dbFormatMonth);
+      console.log('📊 Date range for payment data:', { start, end });
       
       const { data, error: monthError } = await supabase
         .from('collection')
