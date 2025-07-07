@@ -123,10 +123,10 @@ const ApplicationDetailsPanel = ({
     });
     
     // Don't reinitialize if:
-    // 1. Already initialized and user has made a selection
+    // 1. Already initialized and user has made a selection OR already has a selected month
     // 2. Currently updating status (prevents interference)
     // 3. No available months or application
-    if ((initializedRef.current && userSelectedMonthRef.current) || 
+    if ((initializedRef.current && (userSelectedMonthRef.current || selectedMonth)) || 
         isUpdatingStatusRef.current || 
         availableMonths.length === 0 || 
         !currentApplication?.applicant_id) {
@@ -137,31 +137,8 @@ const ApplicationDetailsPanel = ({
     if (!selectedMonth) {
       let initialMonth = '';
       
-      // Priority 1: Try to match the application's own demand_date first
-      if (currentApplication?.demand_date) {
-        const applicationMonth = availableMonths.find(month => 
-          month === currentApplication.demand_date
-        );
-        
-        if (applicationMonth) {
-          initialMonth = applicationMonth;
-          console.log('ApplicationDetailsPanel: Found matching month for application demand_date', currentApplication.demand_date, '->', initialMonth);
-        } else {
-          // If exact match not found, try formatted match
-          const applicationMonthFormatted = formatEmiMonth(currentApplication.demand_date);
-          const formattedMatch = availableMonths.find(month => 
-            formatEmiMonth(month) === applicationMonthFormatted
-          );
-          
-          if (formattedMatch) {
-            initialMonth = formattedMatch;
-            console.log('ApplicationDetailsPanel: Found formatted match for application demand_date', applicationMonthFormatted, '->', initialMonth);
-          }
-        }
-      }
-      
-      // Priority 2: If no application month match, try selectedEmiMonth from filters
-      if (!initialMonth && selectedEmiMonth) {
+      // Priority 1: Try selectedEmiMonth from filters first (user's current context)
+      if (selectedEmiMonth) {
         const matchingMonth = availableMonths.find(month => 
           formatEmiMonth(month) === selectedEmiMonth
         );
@@ -180,6 +157,29 @@ const ApplicationDetailsPanel = ({
           if (closeMatch) {
             initialMonth = closeMatch;
             console.log('ApplicationDetailsPanel: Found close match for selectedEmiMonth', selectedEmiMonth, '->', initialMonth);
+          }
+        }
+      }
+      
+      // Priority 2: Try to match the application's own demand_date
+      if (!initialMonth && currentApplication?.demand_date) {
+        const applicationMonth = availableMonths.find(month => 
+          month === currentApplication.demand_date
+        );
+        
+        if (applicationMonth) {
+          initialMonth = applicationMonth;
+          console.log('ApplicationDetailsPanel: Found matching month for application demand_date', currentApplication.demand_date, '->', initialMonth);
+        } else {
+          // If exact match not found, try formatted match
+          const applicationMonthFormatted = formatEmiMonth(currentApplication.demand_date);
+          const formattedMatch = availableMonths.find(month => 
+            formatEmiMonth(month) === applicationMonthFormatted
+          );
+          
+          if (formattedMatch) {
+            initialMonth = formattedMatch;
+            console.log('ApplicationDetailsPanel: Found formatted match for application demand_date', applicationMonthFormatted, '->', initialMonth);
           }
         }
       }
