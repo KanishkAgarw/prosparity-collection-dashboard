@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { FilterState } from '@/types/filters';
 import { getMonthDateRange, monthToEmiDate } from '@/utils/dateUtils';
-import { useFieldStatusManager } from '@/hooks/useFieldStatusManager';
+import { useEnhancedStatusManager } from '@/hooks/useEnhancedStatusManager';
 
 interface StatusCounts {
   total: number;
@@ -23,7 +23,7 @@ interface UseStatusCountsProps {
 
 export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: UseStatusCountsProps) => {
   const { user } = useAuth();
-  const { fetchFieldStatus } = useFieldStatusManager();
+  const { fetchEnhancedStatus } = useEnhancedStatusManager();
   const [statusCounts, setStatusCounts] = useState<StatusCounts>({
     total: 0,
     statusUnpaid: 0,
@@ -162,8 +162,8 @@ export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: 
         return;
       }
 
-      // Get latest status for filtered applications
-      const statusMap = await fetchFieldStatus(filteredApplicationIds, selectedEmiMonth);
+      // Get enhanced status for filtered applications (this will prioritize collection.lms_status = 'Paid')
+      const statusMap = await fetchEnhancedStatus(filteredApplicationIds, { selectedMonth: selectedEmiMonth });
 
       // Apply status filter if specified
       let finalApplicationIds = filteredApplicationIds;
@@ -174,7 +174,7 @@ export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: 
         });
       }
 
-      // Count statuses for the final filtered set
+      // Count statuses for the final filtered set using enhanced status
       const counts = {
         total: finalApplicationIds.length,
         statusUnpaid: 0,
@@ -224,7 +224,7 @@ export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: 
     } finally {
       setLoading(false);
     }
-  }, [selectedEmiMonth, filters, searchTerm, validateInputs, fetchFieldStatus]);
+  }, [selectedEmiMonth, filters, searchTerm, validateInputs, fetchEnhancedStatus]);
 
   // Effect with proper cleanup
   useEffect(() => {

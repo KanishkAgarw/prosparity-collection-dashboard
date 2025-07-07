@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import LogDialog from "./LogDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useFieldStatus } from "@/hooks/useFieldStatus";
+import { useEnhancedStatusManager } from "@/hooks/useEnhancedStatusManager";
 import { CALLING_STATUS_OPTIONS } from '@/constants/options';
 import { monthToEmiDate } from '@/utils/dateUtils';
 
@@ -35,7 +35,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
   const { user } = useAuth();
   const [amountCollected, setAmountCollected] = useState<number | ''>(application.amount_collected ?? '');
   const [isUpdatingAmount, setIsUpdatingAmount] = useState(false);
-  const { fetchFieldStatus, updateFieldStatus } = useFieldStatus();
+  const { fetchEnhancedStatus } = useEnhancedStatusManager();
   const [currentStatus, setCurrentStatus] = useState<string>('Unpaid');
   const [statusLoading, setStatusLoading] = useState(false);
   const [currentCallingStatus, setCurrentCallingStatus] = useState<string>('');
@@ -93,23 +93,23 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
   // Use the hook directly without wrapping in useMemo
   const statusAndPtpLogs = useFilteredAuditLogs(auditLogs);
 
-  // Fetch per-month status on mount or when application/selectedMonth changes
+  // Fetch enhanced status on mount or when application/selectedMonth changes
   useEffect(() => {
     const fetchStatus = async () => {
       if (!application?.applicant_id || !selectedMonth) return;
       setStatusLoading(true);
       try {
-        const statusMap = await fetchFieldStatus([application.applicant_id], selectedMonth);
+        const statusMap = await fetchEnhancedStatus([application.applicant_id], { selectedMonth });
         setCurrentStatus(statusMap[application.applicant_id] || 'Unpaid');
       } catch (error) {
-        console.error('Error fetching field status:', error);
+        console.error('Error fetching enhanced status:', error);
         toast.error('Failed to fetch status');
       } finally {
         setStatusLoading(false);
       }
     };
     fetchStatus();
-  }, [application?.applicant_id, selectedMonth, fetchFieldStatus]);
+  }, [application?.applicant_id, selectedMonth, fetchEnhancedStatus]);
 
   // Fetch calling status for the selected month
   useEffect(() => {
@@ -193,7 +193,7 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
     }
   };
 
-  // Update status handler to use per-month update
+  // Update status handler to use enhanced status logic
   const handleStatusChange = async (newStatus: string) => {
     setStatusLoading(true);
     try {
@@ -203,45 +203,74 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
       }
       const emiDate = monthToEmiDate(selectedMonth);
 
-      // Fetch the actual current status from the DB
-      const { data: statusRow, error: statusError } = await supabase
-        .from('field_status')
-        .select('status')
-        .eq('application_id', application.applicant_id)
-        .eq('demand_date', selectedMonth)
-        .order('created_at', { ascending: false })
-        .maybeSingle();
-
-      const prevStatus = statusRow?.status || "Unpaid";
-
-      // Only update and log if the status is actually changing
-      if (statusToSet !== prevStatus) {
-        await updateFieldStatus(application.applicant_id, statusToSet, selectedMonth);
-        setCurrentStatus(statusToSet);
-        await addAuditLog(application.applicant_id, 'Status', prevStatus, statusToSet, emiDate);
-        onStatusChange(statusToSet);
-
-        // Create status_change_requests row for admin approval if needed
-        if (newStatus === "Paid") {
-          await supabase.from('status_change_requests').insert({
+      // For "Paid" status, update collection table instead of field_status
+      if (newStatus === "Paid") {
+        // Update collection.lms_status to "Paid"
+        const { error: collectionError } = await supabase
+          .from('collection')
+          .upsert({
             application_id: application.applicant_id,
-            requested_status: "Paid",
-            current_status: prevStatus,
-            approval_status: "pending",
-            requested_by_user_id: user?.id,
-            requested_by_email: user?.email,
-            requested_by_name: user?.email,
             demand_date: selectedMonth,
-            request_timestamp: new Date().toISOString()
+            lms_status: "Paid",
+            team_lead: application.team_lead,
+            rm_name: application.rm_name,
+            repayment: application.repayment,
+            emi_amount: application.emi_amount,
+            last_month_bounce: application.last_month_bounce,
+            collection_rm: application.collection_rm,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'application_id,demand_date',
+            ignoreDuplicates: false
           });
+
+        if (collectionError) {
+          throw collectionError;
         }
-        if (refetchStatusCounts) {
-          refetchStatusCounts();
-        }
-        toast.success('Status updated successfully');
+
+        // Also create status change request for admin approval
+        await supabase.from('status_change_requests').insert({
+          application_id: application.applicant_id,
+          requested_status: "Paid",
+          current_status: currentStatus,
+          approval_status: "pending",
+          requested_by_user_id: user?.id,
+          requested_by_email: user?.email,
+          requested_by_name: user?.email,
+          demand_date: selectedMonth,
+          request_timestamp: new Date().toISOString()
+        });
+
+        statusToSet = "Paid (Pending Approval)";
       } else {
-        toast.info('No status change detected.');
+        // For other statuses, update field_status table
+        const { error } = await supabase
+          .from('field_status')
+          .upsert({
+            application_id: application.applicant_id,
+            status: statusToSet,
+            demand_date: emiDate,
+            user_id: user?.id,
+            user_email: user?.email,
+            updated_at: new Date().toISOString(),
+          }, {
+            onConflict: 'application_id,demand_date',
+            ignoreDuplicates: false
+          });
+
+        if (error) {
+          throw error;
+        }
       }
+
+      setCurrentStatus(statusToSet);
+      await addAuditLog(application.applicant_id, 'Status', currentStatus, statusToSet, emiDate);
+      onStatusChange(statusToSet);
+
+      if (refetchStatusCounts) {
+        refetchStatusCounts();
+      }
+      toast.success('Status updated successfully');
     } catch (error) {
       console.error('❌ Failed to update status:', error);
       toast.error(`Failed to update status: ${error.message || 'Unknown error'}`);
