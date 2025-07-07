@@ -24,7 +24,10 @@ export const normalizeEmiMonth = (emiMonth: string | Date): string => {
 
 // Convert EMI month display format (Jul-25) to database format (2025-07)
 export const convertEmiMonthToDatabase = (emiMonth: string): string => {
-  if (!emiMonth) return '';
+  if (!emiMonth) {
+    console.warn('Empty emiMonth provided to convertEmiMonthToDatabase');
+    return '';
+  }
   
   // If already in YYYY-MM format, return as is
   if (emiMonth.match(/^\d{4}-\d{2}$/)) {
@@ -35,8 +38,19 @@ export const convertEmiMonthToDatabase = (emiMonth: string): string => {
   if (emiMonth.match(/^[A-Za-z]{3}-\d{2}$/)) {
     const [monthStr, yearStr] = emiMonth.split('-');
     
+    if (!monthStr || !yearStr) {
+      console.warn('Invalid emiMonth format:', emiMonth);
+      return emiMonth;
+    }
+    
     // Convert short year to full year (25 -> 2025)
-    const fullYear = parseInt(yearStr) < 50 ? `20${yearStr}` : `19${yearStr}`;
+    const yearNum = parseInt(yearStr);
+    if (isNaN(yearNum)) {
+      console.warn('Invalid year in emiMonth:', yearStr);
+      return emiMonth;
+    }
+    
+    const fullYear = yearNum < 50 ? `20${yearStr}` : `19${yearStr}`;
     
     // Convert month name to number
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
@@ -49,9 +63,12 @@ export const convertEmiMonthToDatabase = (emiMonth: string): string => {
     }
     
     const monthNumber = (monthIndex + 1).toString().padStart(2, '0');
-    return `${fullYear}-${monthNumber}`;
+    const result = `${fullYear}-${monthNumber}`;
+    console.log('Converted EMI month:', emiMonth, '->', result);
+    return result;
   }
   
+  console.warn('Unrecognized emiMonth format:', emiMonth);
   return emiMonth;
 };
 
@@ -66,17 +83,24 @@ export const monthToEmiDate = (yearMonth: string): string => {
 // Get the first and last day of a month for date range queries
 export const getMonthDateRange = (yearMonth: string): { start: string; end: string } => {
   if (!yearMonth || !yearMonth.match(/^\d{4}-\d{2}$/)) {
+    console.warn('Invalid yearMonth format for getMonthDateRange:', yearMonth);
     return { start: yearMonth, end: yearMonth };
   }
   
-  const [year, month] = yearMonth.split('-').map(Number);
-  const startDate = new Date(year, month - 1, 1);
-  const endDate = new Date(year, month, 0); // Last day of the month
-  
-  return {
-    start: startDate.toISOString().split('T')[0],
-    end: endDate.toISOString().split('T')[0]
-  };
+  try {
+    const [year, month] = yearMonth.split('-').map(Number);
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0); // Last day of the month
+    
+    const start = startDate.toISOString().split('T')[0];
+    const end = endDate.toISOString().split('T')[0];
+    
+    console.log('Month date range for', yearMonth, ':', { start, end });
+    return { start, end };
+  } catch (error) {
+    console.error('Error calculating month date range for:', yearMonth, error);
+    return { start: yearMonth, end: yearMonth };
+  }
 };
 
 // Group database dates by normalized month

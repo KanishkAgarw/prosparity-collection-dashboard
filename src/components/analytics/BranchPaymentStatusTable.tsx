@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -15,10 +16,13 @@ interface BranchPaymentStatusTableProps {
 }
 
 const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentStatusTableProps) => {
-  const [selectedEmiMonth, setSelectedEmiMonth] = useState<string>('');
+  const [selectedEmiMonth, setSelectedEmiMonth] = useState<string>('All');
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
   
-  const { data: branchPaymentData, loading, error } = useBranchPaymentData(applications, selectedEmiMonth || undefined);
+  const { data: branchPaymentData, loading, error } = useBranchPaymentData(
+    applications, 
+    selectedEmiMonth === 'All' ? undefined : selectedEmiMonth
+  );
 
   const toggleBranchExpansion = (branchName: string) => {
     const newExpanded = new Set(expandedBranches);
@@ -95,7 +99,7 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
       <CardHeader>
         <CardTitle>Branch Payment Status Analysis</CardTitle>
         <CardDescription>
-          Payment status breakdown by branch and collection RM for {selectedEmiMonth || 'all months'}
+          Payment status breakdown by branch and collection RM for {selectedEmiMonth === 'All' ? 'all months' : selectedEmiMonth}
         </CardDescription>
         <div className="flex gap-4 items-center">
           <Select value={selectedEmiMonth} onValueChange={setSelectedEmiMonth}>
@@ -104,7 +108,7 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
             </SelectTrigger>
             <SelectContent>
               {availableMonths.map(month => (
-                <SelectItem key={month} value={month === 'All' ? '' : month}>
+                <SelectItem key={month} value={month}>
                   {month}
                 </SelectItem>
               ))}

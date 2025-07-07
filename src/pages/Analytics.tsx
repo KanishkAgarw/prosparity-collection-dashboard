@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
@@ -30,6 +31,7 @@ const Analytics = () => {
   console.log('Analytics - Loading state:', loading);
 
   const handleDrillDown = (filter: DrillDownFilter) => {
+    console.log('Analytics - Drill down filter:', filter);
     setSelectedFilter(filter);
     setShowModal(true);
   };
@@ -40,129 +42,137 @@ const Analytics = () => {
   };
 
   const getFilteredApplications = (): Application[] => {
-    if (!selectedFilter) return [];
+    if (!selectedFilter || !allApplications) {
+      console.log('No filter or applications available');
+      return [];
+    }
 
     console.log('Filtering applications with filter:', selectedFilter);
     console.log('Total applications:', allApplications.length);
 
-    const filtered = allApplications.filter(app => {
-      // Handle PTP date-specific filtering
-      if (selectedFilter.ptp_criteria === 'date_specific' && selectedFilter.ptp_date) {
-        if (!app.ptp_date) return false;
-        
-        try {
-          const appPtpDate = format(new Date(app.ptp_date), 'yyyy-MM-dd');
-          if (appPtpDate !== selectedFilter.ptp_date) return false;
-        } catch {
-          return false;
+    try {
+      const filtered = allApplications.filter(app => {
+        // Handle PTP date-specific filtering
+        if (selectedFilter.ptp_criteria === 'date_specific' && selectedFilter.ptp_date) {
+          if (!app.ptp_date) return false;
+          
+          try {
+            const appPtpDate = format(new Date(app.ptp_date), 'yyyy-MM-dd');
+            if (appPtpDate !== selectedFilter.ptp_date) return false;
+          } catch {
+            return false;
+          }
+          
+          // Apply status filter for the specific date
+          switch (selectedFilter.status_type) {
+            case 'paid':
+              return app.field_status === 'Paid';
+            case 'overdue':
+              return app.ptp_date && new Date(app.ptp_date) < new Date() && app.field_status !== 'Paid';
+            case 'total':
+              return true;
+            default:
+              return false;
+          }
         }
-        
-        // Apply status filter for the specific date
+
+        // Filter by branch (skip for PTP date-based filtering without branch)
+        if (selectedFilter.branch_name && app.branch_name !== selectedFilter.branch_name) return false;
+
+        // Filter by RM if specified (prioritize collection_rm)
+        if (selectedFilter.rm_name) {
+          const actualRM = app.collection_rm || app.rm_name || 'Unknown RM';
+          if (actualRM !== selectedFilter.rm_name) {
+            return false;
+          }
+        }
+
+        // Handle PTP criteria-based filtering - ALWAYS exclude "Paid" status for ALL PTP criteria
+        if (selectedFilter.ptp_criteria) {
+          // Exclude "Paid" status for ALL PTP criteria (including 'total')
+          if (app.field_status === 'Paid') {
+            return false;
+          }
+
+          const today = startOfDay(new Date());
+          
+          switch (selectedFilter.ptp_criteria) {
+            case 'overdue':
+              if (!app.ptp_date) return false;
+              try {
+                const ptpDate = new Date(app.ptp_date);
+                return isBefore(ptpDate, today);
+              } catch {
+                return false;
+              }
+            case 'today':
+              if (!app.ptp_date) return false;
+              try {
+                const ptpDate = new Date(app.ptp_date);
+                return isToday(ptpDate);
+              } catch {
+                return false;
+              }
+            case 'tomorrow':
+              if (!app.ptp_date) return false;
+              try {
+                const ptpDate = new Date(app.ptp_date);
+                return isTomorrow(ptpDate);
+              } catch {
+                return false;
+              }
+            case 'future':
+              if (!app.ptp_date) return false;
+              try {
+                const ptpDate = new Date(app.ptp_date);
+                return isAfter(ptpDate, today) && !isTomorrow(ptpDate);
+              } catch {
+                return false;
+              }
+            case 'no_ptp_set':
+              return !app.ptp_date;
+            case 'total':
+              // For total, return all unpaid applications (already filtered above)
+              return true;
+            default:
+              break;
+          }
+        }
+
+        // Filter by status type
         switch (selectedFilter.status_type) {
+          case 'unpaid':
+            return app.field_status === 'Unpaid';
+          case 'partially_paid':
+            return app.field_status === 'Partially Paid';
+          case 'paid_pending_approval':
+            return app.field_status === 'Paid (Pending Approval)';
           case 'paid':
             return app.field_status === 'Paid';
-          case 'overdue':
-            return app.ptp_date && new Date(app.ptp_date) < new Date() && app.field_status !== 'Paid';
+          case 'others':
+            return ['Cash Collected from Customer', 'Customer Deposited to Bank'].includes(app.field_status || '') ||
+                   !['Unpaid', 'Partially Paid', 'Paid (Pending Approval)', 'Paid'].includes(app.field_status || '');
           case 'total':
+            // For total, return all applications in that branch/RM (already filtered above)
             return true;
           default:
             return false;
         }
-      }
+      });
 
-      // Filter by branch (skip for PTP date-based filtering without branch)
-      if (selectedFilter.branch_name && app.branch_name !== selectedFilter.branch_name) return false;
-
-      // Filter by RM if specified (prioritize collection_rm)
-      if (selectedFilter.rm_name) {
-        const actualRM = app.collection_rm || app.rm_name || 'Unknown RM';
-        if (actualRM !== selectedFilter.rm_name) {
-          return false;
-        }
-      }
-
-      // Handle PTP criteria-based filtering - ALWAYS exclude "Paid" status for ALL PTP criteria
-      if (selectedFilter.ptp_criteria) {
-        // Exclude "Paid" status for ALL PTP criteria (including 'total')
-        if (app.field_status === 'Paid') {
-          return false;
-        }
-
-        const today = startOfDay(new Date());
-        
-        switch (selectedFilter.ptp_criteria) {
-          case 'overdue':
-            if (!app.ptp_date) return false;
-            try {
-              const ptpDate = new Date(app.ptp_date);
-              return isBefore(ptpDate, today);
-            } catch {
-              return false;
-            }
-          case 'today':
-            if (!app.ptp_date) return false;
-            try {
-              const ptpDate = new Date(app.ptp_date);
-              return isToday(ptpDate);
-            } catch {
-              return false;
-            }
-          case 'tomorrow':
-            if (!app.ptp_date) return false;
-            try {
-              const ptpDate = new Date(app.ptp_date);
-              return isTomorrow(ptpDate);
-            } catch {
-              return false;
-            }
-          case 'future':
-            if (!app.ptp_date) return false;
-            try {
-              const ptpDate = new Date(app.ptp_date);
-              return isAfter(ptpDate, today) && !isTomorrow(ptpDate);
-            } catch {
-              return false;
-            }
-          case 'no_ptp_set':
-            return !app.ptp_date;
-          case 'total':
-            // For total, return all unpaid applications (already filtered above)
-            return true;
-          default:
-            break;
-        }
-      }
-
-      // Filter by status type
-      switch (selectedFilter.status_type) {
-        case 'unpaid':
-          return app.field_status === 'Unpaid';
-        case 'partially_paid':
-          return app.field_status === 'Partially Paid';
-        case 'paid_pending_approval':
-          return app.field_status === 'Paid (Pending Approval)';
-        case 'paid':
-          return app.field_status === 'Paid';
-        case 'others':
-          return ['Cash Collected from Customer', 'Customer Deposited to Bank'].includes(app.field_status || '') ||
-                 !['Unpaid', 'Partially Paid', 'Paid (Pending Approval)', 'Paid'].includes(app.field_status || '');
-        case 'total':
-          // For total, return all applications in that branch/RM (already filtered above)
-          return true;
-        default:
-          return false;
-      }
-    });
-
-    console.log('Filtered applications count:', filtered.length);
-    console.log('Sample filtered applications:', filtered.slice(0, 3).map(app => ({
-      applicant_id: app.applicant_id,
-      ptp_date: app.ptp_date,
-      field_status: app.field_status,
-      branch_name: app.branch_name
-    })));
-    
-    return filtered;
+      console.log('Filtered applications count:', filtered.length);
+      console.log('Sample filtered applications:', filtered.slice(0, 3).map(app => ({
+        applicant_id: app.applicant_id,
+        ptp_date: app.ptp_date,
+        field_status: app.field_status,
+        branch_name: app.branch_name
+      })));
+      
+      return filtered;
+    } catch (error) {
+      console.error('Error filtering applications:', error);
+      return [];
+    }
   };
 
   if (loading) {

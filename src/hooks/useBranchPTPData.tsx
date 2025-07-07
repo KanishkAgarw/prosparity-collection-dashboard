@@ -37,6 +37,8 @@ export const useBranchPTPData = (applications: Application[], selectedEmiMonth?:
       setError(null);
       
       try {
+        console.log('📊 Fetching PTP data for month:', selectedEmiMonth);
+        
         let collectionData, error;
 
         if (!selectedEmiMonth) {
@@ -54,6 +56,12 @@ export const useBranchPTPData = (applications: Application[], selectedEmiMonth?:
           // Convert EMI month format from display (Jul-25) to database (2025-07)
           const dbFormatMonth = convertEmiMonthToDatabase(selectedEmiMonth);
           console.log('📊 Converting EMI month format for PTP:', selectedEmiMonth, '->', dbFormatMonth);
+          
+          // Validate the converted month format
+          if (!dbFormatMonth || !dbFormatMonth.match(/^\d{4}-\d{2}$/)) {
+            console.error('Invalid month format after conversion:', dbFormatMonth);
+            throw new Error(`Invalid month format: ${selectedEmiMonth}`);
+          }
           
           // For specific month, filter by demand_date range
           console.log('📊 Fetching collection records for month:', dbFormatMonth);
@@ -74,9 +82,7 @@ export const useBranchPTPData = (applications: Application[], selectedEmiMonth?:
 
         if (error) {
           console.error('Error fetching collection data for branch PTP analysis:', error);
-          setError(error);
-          setData([]);
-          return;
+          throw new Error(`Failed to fetch collection data: ${error.message}`);
         }
 
         if (!collectionData || collectionData.length === 0) {
@@ -89,11 +95,19 @@ export const useBranchPTPData = (applications: Application[], selectedEmiMonth?:
         const monthApplicationIds = collectionData.map(record => record.application_id);
         console.log(`Found ${monthApplicationIds.length} applications with collection records for ${selectedEmiMonth}`);
         
+        if (monthApplicationIds.length === 0) {
+          console.log('No valid application IDs found');
+          setData([]);
+          return;
+        }
+        
         // Fetch month-specific field status for only these applications
         const statusMap = await fetchFieldStatus(monthApplicationIds, selectedEmiMonth);
+        console.log('Field status map loaded:', Object.keys(statusMap).length, 'applications');
         
         // Fetch PTP dates for these applications
         const ptpDatesMap = await fetchPtpDates(monthApplicationIds);
+        console.log('PTP dates map loaded:', Object.keys(ptpDatesMap).length, 'applications');
 
         // Filter applications that are not "Paid" for the selected month
         const unpaidApplications = collectionData.filter(record => {
@@ -108,6 +122,11 @@ export const useBranchPTPData = (applications: Application[], selectedEmiMonth?:
         const today = startOfDay(new Date());
         
         unpaidApplications.forEach(record => {
+          if (!record.applications) {
+            console.warn('Missing application data for record:', record.application_id);
+            return;
+          }
+          
           const app = record.applications;
           const branchName = app?.branch_name || 'Unknown Branch';
           const rmName = app?.collection_rm || app?.rm_name || 'Unknown RM';
@@ -149,12 +168,13 @@ export const useBranchPTPData = (applications: Application[], selectedEmiMonth?:
           rmStats.total++;
           branch.total_stats.total++;
           
-          if (!ptpDatesMap[record.application_id]) {
+          const ptpDateStr = ptpDatesMap[record.application_id];
+          if (!ptpDateStr) {
             rmStats.no_ptp_set++;
             branch.total_stats.no_ptp_set++;
           } else {
             try {
-              const ptpDate = new Date(ptpDatesMap[record.application_id]);
+              const ptpDate = new Date(ptpDateStr);
               
               if (isToday(ptpDate)) {
                 rmStats.today++;
@@ -172,7 +192,8 @@ export const useBranchPTPData = (applications: Application[], selectedEmiMonth?:
                 rmStats.no_ptp_set++;
                 branch.total_stats.no_ptp_set++;
               }
-            } catch {
+            } catch (dateError) {
+              console.warn('Invalid PTP date format:', ptpDateStr, 'for application:', record.application_id);
               rmStats.no_ptp_set++;
               branch.total_stats.no_ptp_set++;
             }
@@ -186,7 +207,7 @@ export const useBranchPTPData = (applications: Application[], selectedEmiMonth?:
           }))
           .sort((a, b) => b.total_stats.total - a.total_stats.total);
           
-        console.log('PTP Analytics Result:', result);
+        console.log('PTP data processing complete. Branches:', result.length);
         setData(result);
       } catch (err) {
         console.error('Error in fetchPTPData:', err);
@@ -197,7 +218,12 @@ export const useBranchPTPData = (applications: Application[], selectedEmiMonth?:
       }
     };
 
-    fetchPTPData();
+    if (applications && applications.length > 0) {
+      fetchPTPData();
+    } else {
+      console.log('No applications provided to useBranchPTPData');
+      setData([]);
+    }
   }, [applications, selectedEmiMonth, fetchFieldStatus, fetchPtpDates]);
 
   return { data, loading, error };

@@ -34,6 +34,8 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
       setError(null);
       
       try {
+        console.log('📊 Fetching payment data for month:', selectedEmiMonth);
+        
         let collectionData, error;
 
         if (!selectedEmiMonth) {
@@ -51,6 +53,12 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
           // Convert EMI month format from display (Jul-25) to database (2025-07)
           const dbFormatMonth = convertEmiMonthToDatabase(selectedEmiMonth);
           console.log('📊 Converting EMI month format:', selectedEmiMonth, '->', dbFormatMonth);
+          
+          // Validate the converted month format
+          if (!dbFormatMonth || !dbFormatMonth.match(/^\d{4}-\d{2}$/)) {
+            console.error('Invalid month format after conversion:', dbFormatMonth);
+            throw new Error(`Invalid month format: ${selectedEmiMonth}`);
+          }
           
           // For specific month, filter by demand_date range
           console.log('📊 Fetching collection records for month:', dbFormatMonth);
@@ -71,9 +79,7 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
 
         if (error) {
           console.error('Error fetching collection data for branch payment analysis:', error);
-          setError(error);
-          setData([]);
-          return;
+          throw new Error(`Failed to fetch collection data: ${error.message}`);
         }
 
         if (!collectionData || collectionData.length === 0) {
@@ -86,13 +92,25 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
         const monthApplicationIds = collectionData.map(record => record.application_id);
         console.log(`Found ${monthApplicationIds.length} applications with collection records for ${selectedEmiMonth}`);
         
+        if (monthApplicationIds.length === 0) {
+          console.log('No valid application IDs found');
+          setData([]);
+          return;
+        }
+        
         // Fetch month-specific field status for only these applications
         const statusMap = await fetchFieldStatus(monthApplicationIds, selectedEmiMonth);
+        console.log('Field status map loaded:', Object.keys(statusMap).length, 'applications');
 
         const branchMap = new Map<string, BranchPaymentStatus>();
         
         // Process only applications that have collection records for this month
         collectionData.forEach(record => {
+          if (!record.applications) {
+            console.warn('Missing application data for record:', record.application_id);
+            return;
+          }
+          
           const app = record.applications;
           const branchName = app?.branch_name || 'Unknown Branch';
           const rmName = app?.collection_rm || app?.rm_name || 'Unknown RM';
@@ -170,6 +188,7 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
           }))
           .sort((a, b) => b.total_stats.total - a.total_stats.total);
           
+        console.log('Payment data processing complete. Branches:', result.length);
         setData(result);
       } catch (err) {
         console.error('Error in fetchPaymentData:', err);
@@ -180,8 +199,13 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
       }
     };
 
-    fetchPaymentData();
-  }, [selectedEmiMonth, fetchFieldStatus]);
+    if (applications && applications.length > 0) {
+      fetchPaymentData();
+    } else {
+      console.log('No applications provided to useBranchPaymentData');
+      setData([]);
+    }
+  }, [selectedEmiMonth, fetchFieldStatus, applications]);
 
   return { data, loading, error };
 };

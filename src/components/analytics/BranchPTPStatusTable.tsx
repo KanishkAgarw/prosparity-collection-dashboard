@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -15,10 +16,13 @@ interface BranchPTPStatusTableProps {
 }
 
 const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTableProps) => {
-  const [selectedEmiMonth, setSelectedEmiMonth] = useState<string>('');
+  const [selectedEmiMonth, setSelectedEmiMonth] = useState<string>('All');
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
   
-  const { data: branchPtpData, loading, error } = useBranchPTPData(applications, selectedEmiMonth || undefined);
+  const { data: branchPtpData, loading, error } = useBranchPTPData(
+    applications, 
+    selectedEmiMonth === 'All' ? undefined : selectedEmiMonth
+  );
 
   const toggleBranchExpansion = (branchName: string) => {
     const newExpanded = new Set(expandedBranches);
@@ -96,7 +100,7 @@ const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTabl
       <CardHeader>
         <CardTitle>Branch PTP Status Analysis</CardTitle>
         <CardDescription>
-          PTP status breakdown by branch and collection RM for {selectedEmiMonth || 'all months'} (excludes Paid applications)
+          PTP status breakdown by branch and collection RM for {selectedEmiMonth === 'All' ? 'all months' : selectedEmiMonth} (excludes Paid applications)
         </CardDescription>
         <div className="flex gap-4 items-center">
           <Select value={selectedEmiMonth} onValueChange={setSelectedEmiMonth}>
@@ -105,7 +109,7 @@ const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTabl
             </SelectTrigger>
             <SelectContent>
               {availableMonths.map(month => (
-                <SelectItem key={month} value={month === 'All' ? '' : month}>
+                <SelectItem key={month} value={month}>
                   {month}
                 </SelectItem>
               ))}
