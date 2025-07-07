@@ -2,6 +2,8 @@
 import { useMemo } from 'react';
 import { Application } from '@/types/application';
 import { useFieldStatus } from '@/hooks/useFieldStatus';
+import { supabase } from '@/integrations/supabase/client';
+import { getMonthDateRange } from '@/utils/dateUtils';
 
 export interface PaymentStatusRow {
   rm_name: string;
@@ -24,22 +26,51 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
   const { fetchFieldStatus } = useFieldStatus();
 
   return useMemo(async () => {
-    // Get all application IDs
-    const applicationIds = applications.map(app => app.applicant_id);
+    if (!selectedEmiMonth) {
+      console.log('❌ No selected EMI month for branch payment data');
+      return [];
+    }
+
+    // First, get applications that have collection records for the selected month
+    // This matches the logic used in useStatusCounts
+    const { start, end } = getMonthDateRange(selectedEmiMonth);
     
-    // Fetch month-specific field status for all applications
-    const statusMap = selectedEmiMonth 
-      ? await fetchFieldStatus(applicationIds, selectedEmiMonth)
-      : {};
+    const { data: collectionData, error } = await supabase
+      .from('collection')
+      .select(`
+        application_id,
+        applications!inner(*)
+      `)
+      .gte('demand_date', start)
+      .lte('demand_date', end);
+
+    if (error) {
+      console.error('Error fetching collection data for branch payment analysis:', error);
+      return [];
+    }
+
+    if (!collectionData || collectionData.length === 0) {
+      console.log('No collection data found for month:', selectedEmiMonth);
+      return [];
+    }
+
+    // Get application IDs that have collection records for this month
+    const monthApplicationIds = collectionData.map(record => record.application_id);
+    console.log(`Found ${monthApplicationIds.length} applications with collection records for ${selectedEmiMonth}`);
+    
+    // Fetch month-specific field status for only these applications
+    const statusMap = await fetchFieldStatus(monthApplicationIds, selectedEmiMonth);
 
     const branchMap = new Map<string, BranchPaymentStatus>();
     
-    applications.forEach(app => {
-      const branchName = app.branch_name;
-      const rmName = app.collection_rm || app.rm_name || 'Unknown RM';
+    // Process only applications that have collection records for this month
+    collectionData.forEach(record => {
+      const app = record.applications;
+      const branchName = app?.branch_name || 'Unknown Branch';
+      const rmName = app?.collection_rm || app?.rm_name || 'Unknown RM';
       
       // Get month-specific status or default to 'Unpaid'
-      const fieldStatus = statusMap[app.applicant_id] || 'Unpaid';
+      const fieldStatus = statusMap[record.application_id] || 'Unpaid';
       
       if (!branchMap.has(branchName)) {
         branchMap.set(branchName, {
@@ -110,5 +141,5 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
         rm_stats: branch.rm_stats.sort((a, b) => b.total - a.total)
       }))
       .sort((a, b) => b.total_stats.total - a.total_stats.total);
-  }, [applications, selectedEmiMonth, fetchFieldStatus]);
+  }, [selectedEmiMonth, fetchFieldStatus]);
 };

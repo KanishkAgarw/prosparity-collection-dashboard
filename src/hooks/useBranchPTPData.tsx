@@ -3,6 +3,9 @@ import { useMemo } from 'react';
 import { Application } from '@/types/application';
 import { isToday, isTomorrow, isBefore, isAfter, startOfDay } from 'date-fns';
 import { useFieldStatus } from '@/hooks/useFieldStatus';
+import { usePtpDates } from '@/hooks/usePtpDates';
+import { supabase } from '@/integrations/supabase/client';
+import { getMonthDateRange } from '@/utils/dateUtils';
 
 export interface PTPStatusRow {
   rm_name: string;
@@ -23,31 +26,63 @@ export interface BranchPTPStatus {
 
 export const useBranchPTPData = (applications: Application[], selectedEmiMonth?: string) => {
   const { fetchFieldStatus } = useFieldStatus();
+  const { fetchPtpDates } = usePtpDates();
 
   return useMemo(async () => {
-    // Get all application IDs
-    const applicationIds = applications.map(app => app.applicant_id);
+    if (!selectedEmiMonth) {
+      console.log('❌ No selected EMI month for branch PTP data');
+      return [];
+    }
+
+    // First, get applications that have collection records for the selected month
+    // This matches the logic used in useStatusCounts
+    const { start, end } = getMonthDateRange(selectedEmiMonth);
     
-    // Fetch month-specific field status for all applications
-    const statusMap = selectedEmiMonth 
-      ? await fetchFieldStatus(applicationIds, selectedEmiMonth)
-      : {};
+    const { data: collectionData, error } = await supabase
+      .from('collection')
+      .select(`
+        application_id,
+        applications!inner(*)
+      `)
+      .gte('demand_date', start)
+      .lte('demand_date', end);
+
+    if (error) {
+      console.error('Error fetching collection data for branch PTP analysis:', error);
+      return [];
+    }
+
+    if (!collectionData || collectionData.length === 0) {
+      console.log('No collection data found for month:', selectedEmiMonth);
+      return [];
+    }
+
+    // Get application IDs that have collection records for this month
+    const monthApplicationIds = collectionData.map(record => record.application_id);
+    console.log(`Found ${monthApplicationIds.length} applications with collection records for ${selectedEmiMonth}`);
+    
+    // Fetch month-specific field status for only these applications
+    const statusMap = await fetchFieldStatus(monthApplicationIds, selectedEmiMonth);
+    
+    // Fetch PTP dates for these applications
+    const ptpDatesMap = await fetchPtpDates(monthApplicationIds);
 
     // Filter applications that are not "Paid" for the selected month
-    const unpaidApplications = applications.filter(app => {
-      const fieldStatus = statusMap[app.applicant_id] || 'Unpaid';
+    const unpaidApplications = collectionData.filter(record => {
+      const fieldStatus = statusMap[record.application_id] || 'Unpaid';
       return fieldStatus !== 'Paid';
     });
     
-    console.log('PTP Data - Total applications:', applications.length);
+    console.log('PTP Data - Applications with collection records:', collectionData.length);
     console.log('PTP Data - Unpaid applications (excluding Paid for selected month):', unpaidApplications.length);
     
     const branchMap = new Map<string, BranchPTPStatus>();
     const today = startOfDay(new Date());
     
-    unpaidApplications.forEach(app => {
-      const branchName = app.branch_name;
-      const rmName = app.collection_rm || app.rm_name || 'Unknown RM';
+    unpaidApplications.forEach(record => {
+      const app = record.applications;
+      const branchName = app?.branch_name || 'Unknown Branch';
+      const rmName = app?.collection_rm || app?.rm_name || 'Unknown RM';
       
       if (!branchMap.has(branchName)) {
         branchMap.set(branchName, {
@@ -86,12 +121,12 @@ export const useBranchPTPData = (applications: Application[], selectedEmiMonth?:
       rmStats.total++;
       branch.total_stats.total++;
       
-      if (!app.ptp_date) {
+      if (!ptpDatesMap[record.application_id]) {
         rmStats.no_ptp_set++;
         branch.total_stats.no_ptp_set++;
       } else {
         try {
-          const ptpDate = new Date(app.ptp_date);
+          const ptpDate = new Date(ptpDatesMap[record.application_id]);
           
           if (isToday(ptpDate)) {
             rmStats.today++;
@@ -126,5 +161,5 @@ export const useBranchPTPData = (applications: Application[], selectedEmiMonth?:
     console.log('PTP Analytics Result:', result);
     
     return result;
-  }, [applications, selectedEmiMonth, fetchFieldStatus]);
+  }, [applications, selectedEmiMonth, fetchFieldStatus, fetchPtpDates]);
 };
