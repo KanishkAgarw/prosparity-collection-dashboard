@@ -96,13 +96,35 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
   // Fetch enhanced status on mount or when application/selectedMonth changes
   useEffect(() => {
     const fetchStatus = async () => {
-      if (!application?.applicant_id || !selectedMonth) return;
+      if (!application?.applicant_id || !selectedMonth) {
+        console.log('⚠️ StatusTab: Missing application ID or selected month', {
+          applicant_id: application?.applicant_id,
+          selectedMonth
+        });
+        return;
+      }
+      
+      console.log('🔄 StatusTab: Fetching enhanced status', {
+        applicant_id: application.applicant_id,
+        applicant_name: application.applicant_name,
+        selectedMonth
+      });
+      
       setStatusLoading(true);
       try {
         const statusMap = await fetchEnhancedStatus([application.applicant_id], { selectedMonth });
-        setCurrentStatus(statusMap[application.applicant_id] || 'Unpaid');
+        const newStatus = statusMap[application.applicant_id] || 'Unpaid';
+        
+        console.log('✅ StatusTab: Enhanced status fetched', {
+          applicant_id: application.applicant_id,
+          statusMap,
+          newStatus,
+          previousStatus: currentStatus
+        });
+        
+        setCurrentStatus(newStatus);
       } catch (error) {
-        console.error('Error fetching enhanced status:', error);
+        console.error('❌ StatusTab: Error fetching enhanced status:', error);
         toast.error('Failed to fetch status');
       } finally {
         setStatusLoading(false);
@@ -453,6 +475,13 @@ const StatusTab = ({ application, auditLogs, onStatusChange, onPtpDateChange, ad
         </CardHeader>
         <CardContent className="pt-0">
           <div className="space-y-4">
+            {/* Debug info - temporary for debugging */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="p-2 bg-gray-100 text-xs rounded">
+                <strong>Debug:</strong> Status={currentStatus}, Loading={statusLoading}, Month={selectedMonth}
+              </div>
+            )}
+            
             {/* Calling Status dropdown - moved to first position */}
             <div>
               <Label htmlFor="callingStatus">Calling Status</Label>

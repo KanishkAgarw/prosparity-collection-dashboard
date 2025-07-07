@@ -43,20 +43,34 @@ export const useCollectionStatusManager = () => {
     if (applicationIds.length === 0) return {};
 
     try {
-      console.log(`📤 Fetching collection status chunk: ${applicationIds.length} applications`);
+      console.log(`📤 COLLECTION STATUS CHUNK: ${applicationIds.length} applications`);
+      console.log(`📅 Selected month: ${queryParams.selectedMonth}`);
       
       let supabaseQuery = supabase
         .from('collection')
-        .select('application_id, lms_status, demand_date')
+        .select('application_id, lms_status, demand_date, created_at')
         .in('application_id', applicationIds)
         .abortSignal(abortController.signal);
 
-      // Add month filtering if specified
+      // Add month filtering with improved logic
       if (queryParams.selectedMonth) {
-        const [year, month] = queryParams.selectedMonth.split('-').map(Number);
+        // Handle both "2025-07" and "Jul-25" formats
+        let yearMonth: string;
+        if (queryParams.selectedMonth.includes('-') && queryParams.selectedMonth.length === 7) {
+          // Already in YYYY-MM format
+          yearMonth = queryParams.selectedMonth;
+        } else {
+          // Assume it's in a different format, try to parse
+          yearMonth = queryParams.selectedMonth;
+        }
+        
+        const [year, month] = yearMonth.split('-').map(Number);
         const lastDay = new Date(year, month, 0).getDate();
-        const monthStart = `${queryParams.selectedMonth}-01`;
-        const monthEnd = `${queryParams.selectedMonth}-${String(lastDay).padStart(2, '0')}`;
+        const monthStart = `${yearMonth}-01`;
+        const monthEnd = `${yearMonth}-${String(lastDay).padStart(2, '0')}`;
+        
+        console.log(`📅 Filtering collection by date range: ${monthStart} to ${monthEnd}`);
+        
         supabaseQuery = supabaseQuery
           .gte('demand_date', monthStart)
           .lte('demand_date', monthEnd);
@@ -74,6 +88,19 @@ export const useCollectionStatusManager = () => {
         throw new Error(`Collection status query failed: ${error.message}`);
       }
 
+      console.log(`📋 Collection raw data: ${data?.length || 0} records`);
+      
+      // Debug specific application
+      const debugAppId = 'PROSAPP240926000003';
+      const debugRecord = data?.find(r => r.application_id === debugAppId);
+      if (debugRecord) {
+        console.log(`🔍 Collection debug for ${debugAppId}:`, {
+          lms_status: debugRecord.lms_status,
+          demand_date: debugRecord.demand_date,
+          created_at: debugRecord.created_at
+        });
+      }
+
       // Process data - get latest status per application
       const statusMap: Record<string, string> = {};
       const processedApps = new Set<string>();
@@ -85,18 +112,25 @@ export const useCollectionStatusManager = () => {
             if (!processedApps.has(appId)) {
               statusMap[appId] = record.lms_status;
               processedApps.add(appId);
+              
+              // Extra logging for debug app
+              if (appId === debugAppId) {
+                console.log(`🎯 Collection status set for ${debugAppId}: "${record.lms_status}"`);
+              }
             }
           }
         });
       }
 
       console.log(`✅ Collection status chunk processed: ${Object.keys(statusMap).length} statuses loaded`);
+      console.log(`📊 Paid statuses found: ${Object.values(statusMap).filter(s => s === 'Paid').length}`);
+      
       return statusMap;
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         return {};
       }
-      console.error('Collection status chunk fetch error:', error);
+      console.error('❌ Collection status chunk fetch error:', error);
       return {};
     }
   }, []);
@@ -185,6 +219,7 @@ export const useCollectionStatusManager = () => {
         }
 
         console.log(`✅ Collection status loaded: ${Object.keys(combinedStatusMap).length} applications (${successfulChunks}/${chunks.length} chunks successful)`);
+        console.log(`📊 Final paid count from collection: ${Object.values(combinedStatusMap).filter(s => s === 'Paid').length}`);
 
         // Cache the result
         cache[cacheKey] = {
