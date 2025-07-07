@@ -71,10 +71,7 @@ export const useEnhancedStatusManager = () => {
       return enhancedStatuses;
     } catch (error) {
       console.error('❌ Error in enhanced status fetch:', error);
-      // Return field status as fallback
-      if (fieldStatusData.status === 'fulfilled') {
-        return fieldStatusData.value;
-      }
+      // Return empty object on error
       return {};
     } finally {
       setLoading(false);
