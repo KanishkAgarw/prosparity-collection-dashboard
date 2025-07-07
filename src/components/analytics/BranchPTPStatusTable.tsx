@@ -41,7 +41,8 @@ const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTabl
       branch_name: branchName,
       rm_name: rmName,
       status_type: 'total', // For PTP we use total as base
-      ptp_criteria: ptpCriteria
+      ptp_criteria: ptpCriteria,
+      selectedEmiMonth: selectedEmiMonth // Pass the selected month
     });
   };
 

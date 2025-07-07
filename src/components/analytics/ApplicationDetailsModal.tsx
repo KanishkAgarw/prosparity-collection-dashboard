@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import {
   Dialog,
@@ -15,9 +16,10 @@ interface ApplicationDetailsModalProps {
   onClose: () => void;
   applications: Application[];
   filter: DrillDownFilter | null;
+  loading?: boolean;
 }
 
-const ApplicationDetailsModal = ({ isOpen, onClose, applications, filter }: ApplicationDetailsModalProps) => {
+const ApplicationDetailsModal = ({ isOpen, onClose, applications, filter, loading = false }: ApplicationDetailsModalProps) => {
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
 
   const handleApplicationSelect = (app: Application) => {
@@ -50,10 +52,19 @@ const ApplicationDetailsModal = ({ isOpen, onClose, applications, filter }: Appl
           </DialogHeader>
 
           <div className="flex-1 overflow-hidden px-6 pb-6">
-            <ApplicationDetailsContent
-              applications={applications}
-              onApplicationSelect={handleApplicationSelect}
-            />
+            {loading ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center space-y-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="text-lg font-medium text-gray-700">Loading applications...</p>
+                </div>
+              </div>
+            ) : (
+              <ApplicationDetailsContent
+                applications={applications}
+                onApplicationSelect={handleApplicationSelect}
+              />
+            )}
           </div>
         </DialogContent>
       </Dialog>

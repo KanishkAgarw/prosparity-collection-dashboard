@@ -40,7 +40,8 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
     onDrillDown({
       branch_name: branchName,
       rm_name: rmName,
-      status_type: statusType
+      status_type: statusType,
+      selectedEmiMonth: selectedEmiMonth // Pass the selected month
     });
   };
 

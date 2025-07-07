@@ -12,6 +12,9 @@ import PlanVsAchievementTab from '@/components/analytics/PlanVsAchievementTab';
 import ApplicationDetailsModal from '@/components/analytics/ApplicationDetailsModal';
 import { Application } from '@/types/application';
 import { format, isToday, isTomorrow, isBefore, isAfter, startOfDay } from 'date-fns';
+import { useFieldStatusManager } from '@/hooks/useFieldStatusManager';
+import { supabase } from '@/integrations/supabase/client';
+import { getMonthDateRange, convertEmiMonthToDatabase } from '@/utils/dateUtils';
 
 export interface DrillDownFilter {
   branch_name: string;
@@ -19,52 +22,120 @@ export interface DrillDownFilter {
   status_type: string;
   ptp_criteria?: string;
   ptp_date?: string;
+  selectedEmiMonth?: string; // Add month context
 }
 
 const Analytics = () => {
   const navigate = useNavigate();
   const { allApplications, loading } = useApplications();
+  const { fetchFieldStatus } = useFieldStatusManager();
   const [selectedFilter, setSelectedFilter] = useState<DrillDownFilter | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [filteredApplications, setFilteredApplications] = useState<Application[]>([]);
+  const [modalLoading, setModalLoading] = useState(false);
 
   console.log('Analytics - Applications loaded:', allApplications?.length || 0);
   console.log('Analytics - Loading state:', loading);
 
-  const handleDrillDown = (filter: DrillDownFilter) => {
+  const handleDrillDown = async (filter: DrillDownFilter) => {
     console.log('Analytics - Drill down filter:', filter);
     setSelectedFilter(filter);
+    setModalLoading(true);
     setShowModal(true);
+
+    try {
+      const filtered = await getFilteredApplications(filter);
+      setFilteredApplications(filtered);
+    } catch (error) {
+      console.error('Error filtering applications:', error);
+      setFilteredApplications([]);
+    } finally {
+      setModalLoading(false);
+    }
   };
 
   const handleCloseModal = () => {
     setShowModal(false);
     setSelectedFilter(null);
+    setFilteredApplications([]);
   };
 
-  const getFilteredApplications = (): Application[] => {
-    if (!selectedFilter || !allApplications) {
-      console.log('No filter or applications available');
+  const getFilteredApplications = async (filter: DrillDownFilter): Promise<Application[]> => {
+    if (!allApplications) {
+      console.log('No applications available');
       return [];
     }
 
-    console.log('Filtering applications with filter:', selectedFilter);
+    console.log('Filtering applications with filter:', filter);
     console.log('Total applications:', allApplications.length);
 
     try {
-      const filtered = allApplications.filter(app => {
+      let relevantApplications: Application[] = [];
+      let statusMap: Record<string, string> = {};
+
+      if (filter.selectedEmiMonth && filter.selectedEmiMonth !== 'All') {
+        // For specific month, get applications with collection records for that month
+        const dbFormatMonth = convertEmiMonthToDatabase(filter.selectedEmiMonth);
+        const { start, end } = getMonthDateRange(dbFormatMonth);
+        
+        console.log('Fetching collection records for date range:', { start, end });
+        
+        const { data: collectionData, error } = await supabase
+          .from('collection')
+          .select(`
+            application_id,
+            applications!inner(*)
+          `)
+          .gte('demand_date', start)
+          .lte('demand_date', end);
+
+        if (error) {
+          console.error('Error fetching collection data:', error);
+          return [];
+        }
+
+        if (!collectionData || collectionData.length === 0) {
+          console.log('No collection data found for month:', filter.selectedEmiMonth);
+          return [];
+        }
+
+        // Get applications from collection records
+        relevantApplications = collectionData
+          .map(record => record.applications)
+          .filter(app => app != null) as Application[];
+
+        // Get month-specific field status for these applications
+        const applicationIds = collectionData.map(record => record.application_id);
+        statusMap = await fetchFieldStatus(applicationIds, dbFormatMonth, false);
+        
+        console.log('Month-specific filtering - Applications with collection records:', relevantApplications.length);
+        console.log('Status map loaded:', Object.keys(statusMap).length);
+      } else {
+        // For "All" months, use all applications
+        relevantApplications = allApplications;
+        
+        // Get latest field status for all applications
+        const applicationIds = allApplications.map(app => app.applicant_id);
+        statusMap = await fetchFieldStatus(applicationIds, undefined, true);
+        
+        console.log('All months filtering - Total applications:', relevantApplications.length);
+      }
+
+      // Now filter based on the criteria
+      const filtered = relevantApplications.filter(app => {
         // Handle PTP date-specific filtering
-        if (selectedFilter.ptp_criteria === 'date_specific' && selectedFilter.ptp_date) {
+        if (filter.ptp_criteria === 'date_specific' && filter.ptp_date) {
           if (!app.ptp_date) return false;
           
           try {
             const appPtpDate = format(new Date(app.ptp_date), 'yyyy-MM-dd');
-            if (appPtpDate !== selectedFilter.ptp_date) return false;
+            if (appPtpDate !== filter.ptp_date) return false;
           } catch {
             return false;
           }
           
           // Apply status filter for the specific date
-          switch (selectedFilter.status_type) {
+          switch (filter.status_type) {
             case 'paid':
               return app.field_status === 'Paid';
             case 'overdue':
@@ -76,27 +147,33 @@ const Analytics = () => {
           }
         }
 
-        // Filter by branch (skip for PTP date-based filtering without branch)
-        if (selectedFilter.branch_name && app.branch_name !== selectedFilter.branch_name) return false;
+        // Filter by branch
+        if (filter.branch_name && app.branch_name !== filter.branch_name) return false;
 
-        // Filter by RM if specified (prioritize collection_rm)
-        if (selectedFilter.rm_name) {
+        // Filter by RM if specified
+        if (filter.rm_name) {
           const actualRM = app.collection_rm || app.rm_name || 'Unknown RM';
-          if (actualRM !== selectedFilter.rm_name) {
+          if (actualRM !== filter.rm_name) {
             return false;
           }
         }
 
+        // Get the appropriate status for this application
+        let fieldStatus = statusMap[app.applicant_id];
+        if (!fieldStatus) {
+          fieldStatus = app.lms_status || 'Unpaid';
+        }
+
         // Handle PTP criteria-based filtering - ALWAYS exclude "Paid" status for ALL PTP criteria
-        if (selectedFilter.ptp_criteria) {
+        if (filter.ptp_criteria) {
           // Exclude "Paid" status for ALL PTP criteria (including 'total')
-          if (app.field_status === 'Paid') {
+          if (fieldStatus === 'Paid') {
             return false;
           }
 
           const today = startOfDay(new Date());
           
-          switch (selectedFilter.ptp_criteria) {
+          switch (filter.ptp_criteria) {
             case 'overdue':
               if (!app.ptp_date) return false;
               try {
@@ -139,21 +216,21 @@ const Analytics = () => {
           }
         }
 
-        // Filter by status type
-        switch (selectedFilter.status_type) {
+        // Filter by status type using month-specific status
+        switch (filter.status_type) {
           case 'unpaid':
-            return app.field_status === 'Unpaid';
+            return fieldStatus === 'Unpaid';
           case 'partially_paid':
-            return app.field_status === 'Partially Paid';
+            return fieldStatus === 'Partially Paid';
           case 'paid_pending_approval':
-            return app.field_status === 'Paid (Pending Approval)';
+            return fieldStatus === 'Paid (Pending Approval)';
           case 'paid':
-            return app.field_status === 'Paid';
+            return fieldStatus === 'Paid';
           case 'others':
-            return ['Cash Collected from Customer', 'Customer Deposited to Bank'].includes(app.field_status || '') ||
-                   !['Unpaid', 'Partially Paid', 'Paid (Pending Approval)', 'Paid'].includes(app.field_status || '');
+            return ['Cash Collected from Customer', 'Customer Deposited to Bank'].includes(fieldStatus || '') ||
+                   !['Unpaid', 'Partially Paid', 'Paid (Pending Approval)', 'Paid'].includes(fieldStatus || '');
           case 'total':
-            // For total, return all applications in that branch/RM (already filtered above)
+            // For total, return all applications (already filtered above)
             return true;
           default:
             return false;
@@ -164,7 +241,7 @@ const Analytics = () => {
       console.log('Sample filtered applications:', filtered.slice(0, 3).map(app => ({
         applicant_id: app.applicant_id,
         ptp_date: app.ptp_date,
-        field_status: app.field_status,
+        field_status: statusMap[app.applicant_id] || app.lms_status,
         branch_name: app.branch_name
       })));
       
@@ -286,8 +363,9 @@ const Analytics = () => {
         <ApplicationDetailsModal
           isOpen={showModal}
           onClose={handleCloseModal}
-          applications={getFilteredApplications()}
+          applications={filteredApplications}
           filter={selectedFilter}
+          loading={modalLoading}
         />
       </div>
     </div>
