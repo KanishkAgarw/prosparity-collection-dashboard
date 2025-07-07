@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
@@ -26,6 +25,9 @@ const Analytics = () => {
   const { allApplications, loading } = useApplications();
   const [selectedFilter, setSelectedFilter] = useState<DrillDownFilter | null>(null);
   const [showModal, setShowModal] = useState(false);
+
+  console.log('Analytics - Applications loaded:', allApplications?.length || 0);
+  console.log('Analytics - Loading state:', loading);
 
   const handleDrillDown = (filter: DrillDownFilter) => {
     setSelectedFilter(filter);
@@ -174,6 +176,35 @@ const Analytics = () => {
     );
   }
 
+  if (!allApplications || allApplications.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+        <div className="container mx-auto px-4 py-6 max-w-7xl">
+          <div className="flex items-center gap-4 mb-8">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/')}
+              className="flex items-center gap-2 hover:bg-white/80 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Dashboard
+            </Button>
+            <div className="flex-1">
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Analytics Dashboard</h1>
+              <p className="text-gray-600">No applications data available</p>
+            </div>
+          </div>
+          <Card className="bg-white/95 backdrop-blur-sm shadow-xl border-0 p-8">
+            <div className="text-center py-8 text-muted-foreground">
+              <p className="text-lg">No applications data found. Please check your data connection.</p>
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
       {/* Use same container width as main applications table */}
@@ -191,7 +222,7 @@ const Analytics = () => {
           </Button>
           <div className="flex-1">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Analytics Dashboard</h1>
-            <p className="text-gray-600">Comprehensive insights into payment collections and PTP performance for all applications</p>
+            <p className="text-gray-600">Comprehensive insights into payment collections and PTP performance for {allApplications.length} applications</p>
           </div>
         </div>
 
