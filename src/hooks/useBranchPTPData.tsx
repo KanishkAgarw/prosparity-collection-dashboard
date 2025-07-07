@@ -2,6 +2,7 @@
 import { useMemo } from 'react';
 import { Application } from '@/types/application';
 import { isToday, isTomorrow, isBefore, isAfter, startOfDay } from 'date-fns';
+import { useFieldStatus } from '@/hooks/useFieldStatus';
 
 export interface PTPStatusRow {
   rm_name: string;
@@ -20,15 +21,26 @@ export interface BranchPTPStatus {
   rm_stats: PTPStatusRow[];
 }
 
-export const useBranchPTPData = (applications: Application[]) => {
-  return useMemo(() => {
-    // Only exclude "Paid" status for PTP analysis
-    const unpaidApplications = applications.filter(app => 
-      app.field_status !== 'Paid'
-    );
+export const useBranchPTPData = (applications: Application[], selectedEmiMonth?: string) => {
+  const { fetchFieldStatus } = useFieldStatus();
+
+  return useMemo(async () => {
+    // Get all application IDs
+    const applicationIds = applications.map(app => app.applicant_id);
+    
+    // Fetch month-specific field status for all applications
+    const statusMap = selectedEmiMonth 
+      ? await fetchFieldStatus(applicationIds, selectedEmiMonth)
+      : {};
+
+    // Filter applications that are not "Paid" for the selected month
+    const unpaidApplications = applications.filter(app => {
+      const fieldStatus = statusMap[app.applicant_id] || 'Unpaid';
+      return fieldStatus !== 'Paid';
+    });
     
     console.log('PTP Data - Total applications:', applications.length);
-    console.log('PTP Data - Unpaid applications (excluding Paid):', unpaidApplications.length);
+    console.log('PTP Data - Unpaid applications (excluding Paid for selected month):', unpaidApplications.length);
     
     const branchMap = new Map<string, BranchPTPStatus>();
     const today = startOfDay(new Date());
@@ -111,19 +123,8 @@ export const useBranchPTPData = (applications: Application[]) => {
       }))
       .sort((a, b) => b.total_stats.total - a.total_stats.total);
       
-    // Log Bhopal data for debugging
-    const bhopalBranch = result.find(branch => branch.branch_name === 'Bhopal');
-    if (bhopalBranch) {
-      console.log('Bhopal PTP Stats:', {
-        total: bhopalBranch.total_stats.total,
-        overdue: bhopalBranch.total_stats.overdue,
-        today: bhopalBranch.total_stats.today,
-        tomorrow: bhopalBranch.total_stats.tomorrow,
-        future: bhopalBranch.total_stats.future,
-        no_ptp_set: bhopalBranch.total_stats.no_ptp_set
-      });
-    }
+    console.log('PTP Analytics Result:', result);
     
     return result;
-  }, [applications]);
+  }, [applications, selectedEmiMonth, fetchFieldStatus]);
 };

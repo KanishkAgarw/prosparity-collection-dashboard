@@ -1,6 +1,7 @@
 
 import { useMemo } from 'react';
 import { Application } from '@/types/application';
+import { useFieldStatus } from '@/hooks/useFieldStatus';
 
 export interface PaymentStatusRow {
   rm_name: string;
@@ -19,13 +20,26 @@ export interface BranchPaymentStatus {
   rm_stats: PaymentStatusRow[];
 }
 
-export const useBranchPaymentData = (applications: Application[]) => {
-  return useMemo(() => {
+export const useBranchPaymentData = (applications: Application[], selectedEmiMonth?: string) => {
+  const { fetchFieldStatus } = useFieldStatus();
+
+  return useMemo(async () => {
+    // Get all application IDs
+    const applicationIds = applications.map(app => app.applicant_id);
+    
+    // Fetch month-specific field status for all applications
+    const statusMap = selectedEmiMonth 
+      ? await fetchFieldStatus(applicationIds, selectedEmiMonth)
+      : {};
+
     const branchMap = new Map<string, BranchPaymentStatus>();
     
     applications.forEach(app => {
       const branchName = app.branch_name;
       const rmName = app.collection_rm || app.rm_name || 'Unknown RM';
+      
+      // Get month-specific status or default to 'Unpaid'
+      const fieldStatus = statusMap[app.applicant_id] || 'Unpaid';
       
       if (!branchMap.has(branchName)) {
         branchMap.set(branchName, {
@@ -64,7 +78,7 @@ export const useBranchPaymentData = (applications: Application[]) => {
       rmStats.total++;
       branch.total_stats.total++;
       
-      switch (app.field_status) {
+      switch (fieldStatus) {
         case 'Unpaid':
           rmStats.unpaid++;
           branch.total_stats.unpaid++;
@@ -96,5 +110,5 @@ export const useBranchPaymentData = (applications: Application[]) => {
         rm_stats: branch.rm_stats.sort((a, b) => b.total - a.total)
       }))
       .sort((a, b) => b.total_stats.total - a.total_stats.total);
-  }, [applications]);
+  }, [applications, selectedEmiMonth, fetchFieldStatus]);
 };

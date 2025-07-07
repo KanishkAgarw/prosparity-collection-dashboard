@@ -6,9 +6,9 @@ import { Application } from '@/types/application';
 export * from './useBranchPaymentData';
 export * from './useBranchPTPData';
 
-export const useBranchAnalyticsData = (applications: Application[]) => {
-  const branchPaymentStatusData = useBranchPaymentData(applications);
-  const branchPtpStatusData = useBranchPTPData(applications);
+export const useBranchAnalyticsData = (applications: Application[], selectedEmiMonth?: string) => {
+  const branchPaymentStatusData = useBranchPaymentData(applications, selectedEmiMonth);
+  const branchPtpStatusData = useBranchPTPData(applications, selectedEmiMonth);
 
   return {
     branchPaymentStatusData,

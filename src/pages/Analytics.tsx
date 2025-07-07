@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
@@ -190,7 +191,7 @@ const Analytics = () => {
           </Button>
           <div className="flex-1">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Analytics Dashboard</h1>
-            <p className="text-gray-600">Comprehensive insights into payment collections and PTP performance</p>
+            <p className="text-gray-600">Comprehensive insights into payment collections and PTP performance for all applications</p>
           </div>
         </div>
 
