@@ -126,10 +126,12 @@ const ApplicationDetailsPanel = ({
     // 1. Already initialized and user has made a selection OR already has a selected month
     // 2. Currently updating status (prevents interference)
     // 3. No available months or application
+    // 4. User has explicitly selected a month (preserve their choice)
     if ((initializedRef.current && (userSelectedMonthRef.current || selectedMonth)) || 
         isUpdatingStatusRef.current || 
         availableMonths.length === 0 || 
-        !currentApplication?.applicant_id) {
+        !currentApplication?.applicant_id ||
+        (userSelectedMonthRef.current && selectedMonth)) {
       return;
     }
     

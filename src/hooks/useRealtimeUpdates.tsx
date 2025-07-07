@@ -90,12 +90,8 @@ export const useRealtimeUpdates = ({
     const subscriptions = [
       createSubscription('ptp_dates', () => {
         onPtpDateUpdate?.();
-        // Delayed application update to ensure database consistency
-        setTimeout(() => {
-          if (isActiveRef.current) {
-            onApplicationUpdate?.();
-          }
-        }, 800);
+        // Don't trigger additional application updates for PTP changes
+        // as they cause month switching issues
       }),
       
       createSubscription('audit_logs', () => {
