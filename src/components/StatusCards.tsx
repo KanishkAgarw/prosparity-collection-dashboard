@@ -16,42 +16,54 @@ interface StatusCardsProps {
 }
 
 const StatusCards = ({ statusCounts }: StatusCardsProps) => {
+  const calculatePercentage = (value: number, total: number) => {
+    if (total === 0) return "0%";
+    return `${Math.round((value / total) * 100)}%`;
+  };
+
   // Arrangement: Total → Status (user-editable)
   const cards = [
     {
       title: "Total",
       value: statusCounts.total,
+      percentage: null,
       className: "bg-blue-50 border-blue-200"
     },
     // Status Cards (renamed from Field Status)
     {
       title: "Unpaid",
       value: statusCounts.statusUnpaid,
+      percentage: calculatePercentage(statusCounts.statusUnpaid, statusCounts.total),
       className: "bg-red-50 border-red-200"
     },
     {
       title: "Partially Paid",
       value: statusCounts.statusPartiallyPaid,
+      percentage: calculatePercentage(statusCounts.statusPartiallyPaid, statusCounts.total),
       className: "bg-yellow-50 border-yellow-200"
     },
     {
       title: "Cash Collected",
       value: statusCounts.statusCashCollected,
+      percentage: calculatePercentage(statusCounts.statusCashCollected, statusCounts.total),
       className: "bg-orange-50 border-orange-200"
     },
     {
       title: "Customer Deposited",
       value: statusCounts.statusCustomerDeposited,
+      percentage: calculatePercentage(statusCounts.statusCustomerDeposited, statusCounts.total),
       className: "bg-indigo-50 border-indigo-200"
     },
     {
       title: "Paid",
       value: statusCounts.statusPaid,
+      percentage: calculatePercentage(statusCounts.statusPaid, statusCounts.total),
       className: "bg-green-50 border-green-200"
     },
     {
       title: "Paid (Pending Approval)",
       value: statusCounts.statusPendingApproval,
+      percentage: calculatePercentage(statusCounts.statusPendingApproval, statusCounts.total),
       className: "bg-purple-50 border-purple-200"
     }
   ];
@@ -67,6 +79,9 @@ const StatusCards = ({ statusCounts }: StatusCardsProps) => {
           </CardHeader>
           <CardContent className="pt-0 pb-1 px-1 sm:pb-2 sm:px-2">
             <div className="text-sm sm:text-lg md:text-xl font-semibold text-gray-800 text-center">{card.value}</div>
+            {card.percentage && (
+              <div className="text-xs text-gray-500 text-center mt-1">{card.percentage}</div>
+            )}
           </CardContent>
         </Card>
       ))}
