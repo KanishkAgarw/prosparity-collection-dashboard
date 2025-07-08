@@ -61,7 +61,21 @@ const ApplicationDetailsPanel = ({
     userSelectedMonthRef.current = false;
     // Clear selectedMonth when application changes to force proper initialization
     setSelectedMonth('');
-  }, [application]);
+
+    // --- FIX: Always select the correct month record if selectedEmiMonth is provided ---
+    if (application && selectedEmiMonth && availableMonths.length > 0) {
+      // Find the month in availableMonths that matches selectedEmiMonth (formatted)
+      const matchingMonth = availableMonths.find(month => formatEmiMonth(month) === selectedEmiMonth);
+      if (matchingMonth) {
+        setSelectedMonth(matchingMonth);
+        // Set the current application to the correct month record
+        const monthRecord = getApplicationForMonth(matchingMonth);
+        if (monthRecord) {
+          setCurrentApplication({ ...application, ...monthRecord });
+        }
+      }
+    }
+  }, [application, selectedEmiMonth, availableMonths, getApplicationForMonth]);
   
   const { repaymentHistory } = useRepaymentHistory(currentApplication?.applicant_id);
   

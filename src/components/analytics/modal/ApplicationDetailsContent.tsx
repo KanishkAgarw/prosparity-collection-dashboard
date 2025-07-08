@@ -6,9 +6,10 @@ import OptimizedApplicationsTable from '@/components/tables/OptimizedApplication
 interface ApplicationDetailsContentProps {
   applications: Application[];
   onApplicationSelect: (app: Application) => void;
+  selectedEmiMonth?: string | null;
 }
 
-const ApplicationDetailsContent = ({ applications, onApplicationSelect }: ApplicationDetailsContentProps) => {
+const ApplicationDetailsContent = ({ applications, onApplicationSelect, selectedEmiMonth }: ApplicationDetailsContentProps) => {
   if (applications.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-center space-y-4">
@@ -26,6 +27,7 @@ const ApplicationDetailsContent = ({ applications, onApplicationSelect }: Applic
       <OptimizedApplicationsTable
         applications={applications}
         onRowClick={onApplicationSelect}
+        selectedEmiMonth={selectedEmiMonth}
       />
     </div>
   );
