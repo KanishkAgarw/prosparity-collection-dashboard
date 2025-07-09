@@ -143,7 +143,7 @@ export const useSimpleApplications = ({
         .gte('demand_date', start)
         .lte('demand_date', end)
         .range(offset, offset + pageSize - 1)
-        .order('application_id', { ascending: true });
+        .order('applications.applicant_name', { ascending: true });
 
       // Apply the same filters to data query
       if (filters.teamLead?.length > 0) {
