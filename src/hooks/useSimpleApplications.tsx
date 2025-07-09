@@ -77,47 +77,12 @@ export const useSimpleApplications = ({
         baseQuery = baseQuery.in('last_month_bounce', numericValues);
       }
 
-      // First, get the total count with the same filters as data query
-      let countQuery = supabase
+      // First, get the total count
+      const { count: totalRecords, error: countError } = await supabase
         .from('collection')
-        .select(`
-          *,
-          applications!inner(*)
-        `, { count: 'exact', head: true })
+        .select('*', { count: 'exact', head: true })
         .gte('demand_date', start)
         .lte('demand_date', end);
-
-      // Apply all the same filters to count query as data query
-      if (filters.teamLead?.length > 0) {
-        countQuery = countQuery.in('team_lead', filters.teamLead);
-      }
-      if (filters.rm?.length > 0) {
-        countQuery = countQuery.in('rm_name', filters.rm);
-      }
-      if (filters.repayment?.length > 0) {
-        countQuery = countQuery.in('repayment', filters.repayment);
-      }
-      if (filters.branch?.length > 0) {
-        countQuery = countQuery.in('applications.branch_name', filters.branch);
-      }
-      if (filters.collectionRm?.length > 0) {
-        countQuery = countQuery.in('collection_rm', filters.collectionRm);
-      }
-      if (filters.dealer?.length > 0) {
-        countQuery = countQuery.in('applications.dealer_name', filters.dealer);
-      }
-      if (filters.lender?.length > 0) {
-        countQuery = countQuery.in('applications.lender_name', filters.lender);
-      }
-      if (filters.lastMonthBounce?.length > 0) {
-        const numericValues = filters.lastMonthBounce.map(val => typeof val === 'string' ? parseInt(val, 10) : val);
-        countQuery = countQuery.in('last_month_bounce', numericValues);
-      }
-      if (filters.vehicleStatus?.length > 0) {
-        countQuery = countQuery.in('applications.vehicle_status', filters.vehicleStatus);
-      }
-
-      const { count: totalRecords, error: countError } = await countQuery;
 
       if (countError) {
         throw new Error(`Count query failed: ${countError.message}`);
