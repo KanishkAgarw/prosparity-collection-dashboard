@@ -22,7 +22,7 @@ interface ApplicationsResponse {
   refetch: () => Promise<void>;
 }
 
-const MAX_RECORDS = 3000; // Increased limit to allow up to 3000 records
+const MAX_RECORDS = 1000; // Safety limit to prevent URL length issues
 
 export const useSimpleApplications = ({
   filters,
