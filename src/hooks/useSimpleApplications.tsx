@@ -82,7 +82,8 @@ export const useSimpleApplications = ({
         .from('collection')
         .select(`
           *,
-          applications!inner(*)
+          applications!inner(*),
+          field_status!left(status, created_at, demand_date)
         `, { count: 'exact', head: true })
         .gte('demand_date', start)
         .lte('demand_date', end);
@@ -117,6 +118,13 @@ export const useSimpleApplications = ({
         countQuery = countQuery.in('applications.vehicle_status', filters.vehicleStatus);
       }
 
+      // Apply status filtering at database level
+      if (filters.status?.length > 0) {
+        const emiDate = monthToEmiDate(selectedEmiMonth);
+        countQuery = countQuery.or(`field_status.status.in.(${filters.status.join(',')}),field_status.is.null`);
+        countQuery = countQuery.eq('field_status.demand_date', emiDate);
+      }
+
       const { count: totalRecords, error: countError } = await countQuery;
 
       if (countError) {
@@ -129,7 +137,8 @@ export const useSimpleApplications = ({
         .from('collection')
         .select(`
           *,
-          applications!inner(*)
+          applications!inner(*),
+          field_status!left(status, created_at, demand_date)
         `)
         .gte('demand_date', start)
         .lte('demand_date', end)
@@ -164,6 +173,13 @@ export const useSimpleApplications = ({
       }
       if (filters.vehicleStatus?.length > 0) {
         dataQuery = dataQuery.in('applications.vehicle_status', filters.vehicleStatus);
+      }
+
+      // Apply status filtering at database level - same as count query
+      if (filters.status?.length > 0) {
+        const emiDate = monthToEmiDate(selectedEmiMonth);
+        dataQuery = dataQuery.or(`field_status.status.in.(${filters.status.join(',')}),field_status.is.null`);
+        dataQuery = dataQuery.eq('field_status.demand_date', emiDate);
       }
 
       const { data, error: queryError } = await dataQuery;
@@ -320,38 +336,10 @@ export const useSimpleApplications = ({
       });
 
       // Server-side pagination is already applied - no need for client-side pagination
-      // Set total count from the actual filtered data length
+      // Set total count from the database query result
       let finalTotalCount = totalRecords || 0;
 
-      // After transforming applications, fetch latest status for each application for the selected EMI month
-      const emiDate = monthToEmiDate(selectedEmiMonth);
-      if (filters.status?.length > 0 && transformedApplications.length > 0) {
-        const appIds = transformedApplications.map(app => app.applicant_id);
-        // Fetch latest status for each application for the selected EMI month
-        const { data: statusRows, error: statusError } = await supabase
-          .from('field_status')
-          .select('application_id, status, demand_date, created_at')
-          .in('application_id', appIds)
-          .eq('demand_date', emiDate);
-        if (!statusError && statusRows) {
-          const latestStatusMap: Record<string, string> = {};
-          statusRows.forEach(row => {
-            if (!latestStatusMap[row.application_id] || new Date(row.created_at) > new Date(latestStatusMap[row.application_id + '_created_at'] || 0)) {
-              latestStatusMap[row.application_id] = row.status;
-              latestStatusMap[row.application_id + '_created_at'] = row.created_at;
-            }
-          });
-          transformedApplications = transformedApplications.filter(app => {
-            const status = latestStatusMap[app.applicant_id] || 'Unpaid';
-            return filters.status!.includes(status);
-          });
-          // Re-apply pagination after status filter
-          const filteredOffset = (page - 1) * pageSize;
-          setApplications(transformedApplications.slice(filteredOffset, filteredOffset + pageSize));
-          setTotalCount(transformedApplications.length);
-          return;
-        }
-      }
+      // Status filtering is now done at database level, no need for client-side filtering
 
       setApplications(transformedApplications);
       setTotalCount(finalTotalCount);
