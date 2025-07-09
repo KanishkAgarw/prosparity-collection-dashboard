@@ -210,7 +210,8 @@ const Index = () => {
             <StatusCards statusCounts={statusCounts} />
           )}
 
-          <PendingApprovals onUpdate={refetch} />
+          {/* Only show Pending Approvals for Admin users */}
+          {isAdmin && <PendingApprovals onUpdate={refetch} />}
 
           {appsLoading ? (
             <ApplicationTableSkeleton />
