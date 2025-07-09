@@ -22,7 +22,7 @@ interface ApplicationsResponse {
   refetch: () => Promise<void>;
 }
 
-// Removed MAX_RECORDS limit - using true server-side pagination
+const MAX_RECORDS = 1000; // Safety limit to prevent URL length issues
 
 export const useSimpleApplications = ({
   filters,
@@ -52,45 +52,8 @@ export const useSimpleApplications = ({
       const { start, end } = getMonthDateRange(selectedEmiMonth);
       console.log('Fetching applications for month:', selectedEmiMonth);
 
-      // Build base query for filtering
-      let baseQuery = supabase
-        .from('collection')
-        .select('*', { count: 'exact', head: false })
-        .gte('demand_date', start)
-        .lte('demand_date', end);
-
-      // Apply basic server-side filters
-      if (filters.teamLead?.length > 0) {
-        baseQuery = baseQuery.in('team_lead', filters.teamLead);
-      }
-      if (filters.rm?.length > 0) {
-        baseQuery = baseQuery.in('rm_name', filters.rm);
-      }
-      if (filters.repayment?.length > 0) {
-        baseQuery = baseQuery.in('repayment', filters.repayment);
-      }
-      if (filters.collectionRm?.length > 0) {
-        baseQuery = baseQuery.in('collection_rm', filters.collectionRm);
-      }
-      if (filters.lastMonthBounce?.length > 0) {
-        const numericValues = filters.lastMonthBounce.map(val => typeof val === 'string' ? parseInt(val, 10) : val);
-        baseQuery = baseQuery.in('last_month_bounce', numericValues);
-      }
-
-      // First, get the total count
-      const { count: totalRecords, error: countError } = await supabase
-        .from('collection')
-        .select('*', { count: 'exact', head: true })
-        .gte('demand_date', start)
-        .lte('demand_date', end);
-
-      if (countError) {
-        throw new Error(`Count query failed: ${countError.message}`);
-      }
-
-      // Now fetch the actual data with pagination and joins
-      const offset = (page - 1) * pageSize;
-      let dataQuery = supabase
+      // Simple, direct query with basic joins
+      let query = supabase
         .from('collection')
         .select(`
           *,
@@ -98,40 +61,39 @@ export const useSimpleApplications = ({
         `)
         .gte('demand_date', start)
         .lte('demand_date', end)
-        .range(offset, offset + pageSize - 1)
-        .order('application_id', { ascending: true });
+        .limit(MAX_RECORDS);
 
-      // Apply the same filters to data query
+      // Apply basic server-side filters
       if (filters.teamLead?.length > 0) {
-        dataQuery = dataQuery.in('team_lead', filters.teamLead);
+        query = query.in('team_lead', filters.teamLead);
       }
       if (filters.rm?.length > 0) {
-        dataQuery = dataQuery.in('rm_name', filters.rm);
+        query = query.in('rm_name', filters.rm);
       }
       if (filters.repayment?.length > 0) {
-        dataQuery = dataQuery.in('repayment', filters.repayment);
+        query = query.in('repayment', filters.repayment);
       }
       if (filters.branch?.length > 0) {
-        dataQuery = dataQuery.in('applications.branch_name', filters.branch);
+        query = query.in('applications.branch_name', filters.branch);
       }
       if (filters.collectionRm?.length > 0) {
-        dataQuery = dataQuery.in('collection_rm', filters.collectionRm);
+        query = query.in('collection_rm', filters.collectionRm);
       }
       if (filters.dealer?.length > 0) {
-        dataQuery = dataQuery.in('applications.dealer_name', filters.dealer);
+        query = query.in('applications.dealer_name', filters.dealer);
       }
       if (filters.lender?.length > 0) {
-        dataQuery = dataQuery.in('applications.lender_name', filters.lender);
+        query = query.in('applications.lender_name', filters.lender);
       }
       if (filters.lastMonthBounce?.length > 0) {
         const numericValues = filters.lastMonthBounce.map(val => typeof val === 'string' ? parseInt(val, 10) : val);
-        dataQuery = dataQuery.in('last_month_bounce', numericValues);
+        query = query.in('last_month_bounce', numericValues);
       }
       if (filters.vehicleStatus?.length > 0) {
-        dataQuery = dataQuery.in('applications.vehicle_status', filters.vehicleStatus);
+        query = query.in('applications.vehicle_status', filters.vehicleStatus);
       }
 
-      const { data, error: queryError } = await dataQuery;
+      const { data, error: queryError } = await query;
 
       if (queryError) {
         throw new Error(`Query failed: ${queryError.message}`);
@@ -284,9 +246,9 @@ export const useSimpleApplications = ({
         return nameA.localeCompare(nameB);
       });
 
-      // Server-side pagination is already applied - no need for client-side pagination
-      // Set total count from the actual filtered data length
-      let finalTotalCount = totalRecords || 0;
+      // Apply pagination
+      const offset = (page - 1) * pageSize;
+      const paginatedApplications = transformedApplications.slice(offset, offset + pageSize);
 
       // After transforming applications, fetch latest status for each application for the selected EMI month
       const emiDate = monthToEmiDate(selectedEmiMonth);
@@ -311,20 +273,20 @@ export const useSimpleApplications = ({
             return filters.status!.includes(status);
           });
           // Re-apply pagination after status filter
-          const filteredOffset = (page - 1) * pageSize;
-          setApplications(transformedApplications.slice(filteredOffset, filteredOffset + pageSize));
+          const offset = (page - 1) * pageSize;
+          setApplications(transformedApplications.slice(offset, offset + pageSize));
           setTotalCount(transformedApplications.length);
           return;
         }
       }
 
-      setApplications(transformedApplications);
-      setTotalCount(finalTotalCount);
+      setApplications(paginatedApplications);
+      setTotalCount(transformedApplications.length);
 
       console.log('Applications loaded successfully:', {
-        total: finalTotalCount,
+        total: transformedApplications.length,
         page,
-        results: transformedApplications.length
+        results: paginatedApplications.length
       });
 
     } catch (err) {
