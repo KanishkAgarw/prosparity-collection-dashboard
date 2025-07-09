@@ -77,55 +77,12 @@ export const useSimpleApplications = ({
         baseQuery = baseQuery.in('last_month_bounce', numericValues);
       }
 
-      // First, get the total count - use same structure as data query
-      let countQuery = supabase
+      // First, get the total count
+      const { count: totalRecords, error: countError } = await supabase
         .from('collection')
-        .select(`
-          *,
-          applications!inner(*),
-          field_status!left(status, created_at, demand_date)
-        `, { count: 'exact', head: true })
+        .select('*', { count: 'exact', head: true })
         .gte('demand_date', start)
         .lte('demand_date', end);
-
-      // Apply the same filters to count query
-      if (filters.teamLead?.length > 0) {
-        countQuery = countQuery.in('team_lead', filters.teamLead);
-      }
-      if (filters.rm?.length > 0) {
-        countQuery = countQuery.in('rm_name', filters.rm);
-      }
-      if (filters.repayment?.length > 0) {
-        countQuery = countQuery.in('repayment', filters.repayment);
-      }
-      if (filters.branch?.length > 0) {
-        countQuery = countQuery.in('applications.branch_name', filters.branch);
-      }
-      if (filters.collectionRm?.length > 0) {
-        countQuery = countQuery.in('collection_rm', filters.collectionRm);
-      }
-      if (filters.dealer?.length > 0) {
-        countQuery = countQuery.in('applications.dealer_name', filters.dealer);
-      }
-      if (filters.lender?.length > 0) {
-        countQuery = countQuery.in('applications.lender_name', filters.lender);
-      }
-      if (filters.lastMonthBounce?.length > 0) {
-        const numericValues = filters.lastMonthBounce.map(val => typeof val === 'string' ? parseInt(val, 10) : val);
-        countQuery = countQuery.in('last_month_bounce', numericValues);
-      }
-      if (filters.vehicleStatus?.length > 0) {
-        countQuery = countQuery.in('applications.vehicle_status', filters.vehicleStatus);
-      }
-
-      // Apply status filtering at database level for count
-      if (filters.status?.length > 0) {
-        const emiDate = monthToEmiDate(selectedEmiMonth);
-        countQuery = countQuery.or(`field_status.status.in.(${filters.status.join(',')}),field_status.is.null`);
-        countQuery = countQuery.eq('field_status.demand_date', emiDate);
-      }
-
-      const { count: totalRecords, error: countError } = await countQuery;
 
       if (countError) {
         throw new Error(`Count query failed: ${countError.message}`);
@@ -137,13 +94,12 @@ export const useSimpleApplications = ({
         .from('collection')
         .select(`
           *,
-          applications!inner(*),
-          field_status!left(status, created_at, demand_date)
+          applications!inner(*)
         `)
         .gte('demand_date', start)
         .lte('demand_date', end)
         .range(offset, offset + pageSize - 1)
-        .order('applications.applicant_name', { ascending: true });
+        .order('application_id', { ascending: true });
 
       // Apply the same filters to data query
       if (filters.teamLead?.length > 0) {
@@ -173,13 +129,6 @@ export const useSimpleApplications = ({
       }
       if (filters.vehicleStatus?.length > 0) {
         dataQuery = dataQuery.in('applications.vehicle_status', filters.vehicleStatus);
-      }
-
-      // Apply status filtering at database level for data - same as count query
-      if (filters.status?.length > 0) {
-        const emiDate = monthToEmiDate(selectedEmiMonth);
-        dataQuery = dataQuery.or(`field_status.status.in.(${filters.status.join(',')}),field_status.is.null`);
-        dataQuery = dataQuery.eq('field_status.demand_date', emiDate);
       }
 
       const { data, error: queryError } = await dataQuery;
@@ -336,10 +285,38 @@ export const useSimpleApplications = ({
       });
 
       // Server-side pagination is already applied - no need for client-side pagination
-      // Set total count from the database query result
+      // Set total count from the actual filtered data length
       let finalTotalCount = totalRecords || 0;
 
-      // Status filtering is now done at database level, no need for client-side filtering
+      // After transforming applications, fetch latest status for each application for the selected EMI month
+      const emiDate = monthToEmiDate(selectedEmiMonth);
+      if (filters.status?.length > 0 && transformedApplications.length > 0) {
+        const appIds = transformedApplications.map(app => app.applicant_id);
+        // Fetch latest status for each application for the selected EMI month
+        const { data: statusRows, error: statusError } = await supabase
+          .from('field_status')
+          .select('application_id, status, demand_date, created_at')
+          .in('application_id', appIds)
+          .eq('demand_date', emiDate);
+        if (!statusError && statusRows) {
+          const latestStatusMap: Record<string, string> = {};
+          statusRows.forEach(row => {
+            if (!latestStatusMap[row.application_id] || new Date(row.created_at) > new Date(latestStatusMap[row.application_id + '_created_at'] || 0)) {
+              latestStatusMap[row.application_id] = row.status;
+              latestStatusMap[row.application_id + '_created_at'] = row.created_at;
+            }
+          });
+          transformedApplications = transformedApplications.filter(app => {
+            const status = latestStatusMap[app.applicant_id] || 'Unpaid';
+            return filters.status!.includes(status);
+          });
+          // Re-apply pagination after status filter
+          const filteredOffset = (page - 1) * pageSize;
+          setApplications(transformedApplications.slice(filteredOffset, filteredOffset + pageSize));
+          setTotalCount(transformedApplications.length);
+          return;
+        }
+      }
 
       setApplications(transformedApplications);
       setTotalCount(finalTotalCount);
