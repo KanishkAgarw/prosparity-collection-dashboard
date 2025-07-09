@@ -22,7 +22,7 @@ interface ApplicationsResponse {
   refetch: () => Promise<void>;
 }
 
-const MAX_RECORDS = 1000; // Safety limit to prevent URL length issues
+const MAX_RECORDS =2000; // Safety limit to prevent URL length issues
 
 export const useSimpleApplications = ({
   filters,
@@ -254,24 +254,45 @@ export const useSimpleApplications = ({
       const emiDate = monthToEmiDate(selectedEmiMonth);
       if (filters.status?.length > 0 && transformedApplications.length > 0) {
         const appIds = transformedApplications.map(app => app.applicant_id);
-        // Fetch latest status for each application for the selected EMI month
-        const { data: statusRows, error: statusError } = await supabase
-          .from('field_status')
-          .select('application_id, status, demand_date, created_at')
-          .in('application_id', appIds)
-          .eq('demand_date', emiDate);
-        if (!statusError && statusRows) {
+        
+        // Fix: Batch the query if there are too many application IDs to avoid URL length limits
+        const BATCH_SIZE = 100; // Supabase has URL length limits
+        let allStatusRows: any[] = [];
+        
+        for (let i = 0; i < appIds.length; i += BATCH_SIZE) {
+          const batch = appIds.slice(i, i + BATCH_SIZE);
+          
+          const { data: statusRows, error: statusError } = await supabase
+            .from('field_status')
+            .select('application_id, status, demand_date, created_at')
+            .in('application_id', batch)
+            .eq('demand_date', emiDate)
+            .order('created_at', { ascending: false });
+
+          if (statusError) {
+            console.error('Error fetching field status batch:', statusError);
+            break;
+          }
+          
+          if (statusRows) {
+            allStatusRows = allStatusRows.concat(statusRows);
+          }
+        }
+
+        if (allStatusRows.length > 0) {
           const latestStatusMap: Record<string, string> = {};
-          statusRows.forEach(row => {
+          allStatusRows.forEach(row => {
             if (!latestStatusMap[row.application_id] || new Date(row.created_at) > new Date(latestStatusMap[row.application_id + '_created_at'] || 0)) {
               latestStatusMap[row.application_id] = row.status;
               latestStatusMap[row.application_id + '_created_at'] = row.created_at;
             }
           });
+          
           transformedApplications = transformedApplications.filter(app => {
             const status = latestStatusMap[app.applicant_id] || 'Unpaid';
             return filters.status!.includes(status);
           });
+          
           // Re-apply pagination after status filter
           const offset = (page - 1) * pageSize;
           setApplications(transformedApplications.slice(offset, offset + pageSize));
