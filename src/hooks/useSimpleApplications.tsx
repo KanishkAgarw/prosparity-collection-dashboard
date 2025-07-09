@@ -22,7 +22,7 @@ interface ApplicationsResponse {
   refetch: () => Promise<void>;
 }
 
-const MAX_RECORDS = 1000; // Safety limit to prevent URL length issues
+// Removed MAX_RECORDS limit to support all applications
 
 export const useSimpleApplications = ({
   filters,
@@ -52,7 +52,44 @@ export const useSimpleApplications = ({
       const { start, end } = getMonthDateRange(selectedEmiMonth);
       console.log('Fetching applications for month:', selectedEmiMonth);
 
-      // Simple, direct query with basic joins
+      // First, get total count for pagination
+      let countQuery = supabase
+        .from('collection')
+        .select('application_id', { count: 'exact', head: true })
+        .gte('demand_date', start)
+        .lte('demand_date', end);
+
+      // Apply same filters to count query
+      if (filters.teamLead?.length > 0) {
+        countQuery = countQuery.in('team_lead', filters.teamLead);
+      }
+      if (filters.rm?.length > 0) {
+        countQuery = countQuery.in('rm_name', filters.rm);
+      }
+      if (filters.repayment?.length > 0) {
+        countQuery = countQuery.in('repayment', filters.repayment);
+      }
+      if (filters.branch?.length > 0) {
+        countQuery = countQuery.in('applications.branch_name', filters.branch);
+      }
+      if (filters.collectionRm?.length > 0) {
+        countQuery = countQuery.in('collection_rm', filters.collectionRm);
+      }
+      if (filters.dealer?.length > 0) {
+        countQuery = countQuery.in('applications.dealer_name', filters.dealer);
+      }
+      if (filters.lender?.length > 0) {
+        countQuery = countQuery.in('applications.lender_name', filters.lender);
+      }
+      if (filters.lastMonthBounce?.length > 0) {
+        const numericValues = filters.lastMonthBounce.map(val => typeof val === 'string' ? parseInt(val, 10) : val);
+        countQuery = countQuery.in('last_month_bounce', numericValues);
+      }
+      if (filters.vehicleStatus?.length > 0) {
+        countQuery = countQuery.in('applications.vehicle_status', filters.vehicleStatus);
+      }
+
+      // Now create the main data query with same filters
       let query = supabase
         .from('collection')
         .select(`
@@ -60,10 +97,9 @@ export const useSimpleApplications = ({
           applications!inner(*)
         `)
         .gte('demand_date', start)
-        .lte('demand_date', end)
-        .limit(MAX_RECORDS);
+        .lte('demand_date', end);
 
-      // Apply basic server-side filters
+      // Apply same basic server-side filters to main query
       if (filters.teamLead?.length > 0) {
         query = query.in('team_lead', filters.teamLead);
       }
@@ -93,20 +129,41 @@ export const useSimpleApplications = ({
         query = query.in('applications.vehicle_status', filters.vehicleStatus);
       }
 
-      const { data, error: queryError } = await query;
+      // Get the count first to determine filtering strategy
+      const { count: totalFilteredCount, error: countError } = await countQuery;
 
-      if (queryError) {
-        throw new Error(`Query failed: ${queryError.message}`);
+      if (countError) {
+        throw new Error(`Count query failed: ${countError.message}`);
       }
 
-      if (!data) {
+      if (!totalFilteredCount || totalFilteredCount === 0) {
         setApplications([]);
         setTotalCount(0);
         return;
       }
 
-      // Transform data
-      let transformedApplications: Application[] = data.map(record => {
+      console.log('Total filtered applications:', totalFilteredCount);
+
+      // If we have status filter, we need to handle it differently due to database complexity
+      let applicationIds: string[] = [];
+      let finalApplications: Application[] = [];
+
+      if (filters.status?.length > 0) {
+        // For status filtering, get all application IDs first, then filter by status
+        const { data: allData, error: queryError } = await query;
+        
+        if (queryError) {
+          throw new Error(`Query failed: ${queryError.message}`);
+        }
+
+        if (!allData || allData.length === 0) {
+          setApplications([]);
+          setTotalCount(0);
+          return;
+        }
+
+        // Transform all data first
+        let allTransformedApplications: Application[] = allData.map(record => {
         const app = record.applications;
         return {
           id: record.application_id,
@@ -146,14 +203,169 @@ export const useSimpleApplications = ({
           created_at: app?.created_at || new Date().toISOString(),
           updated_at: app?.updated_at || new Date().toISOString(),
           user_id: app?.user_id || user.id
-        } as Application;
-      });
+          } as Application;
+        });
 
-      // Apply PTP date filtering if specified
+        // Get status information for all applications
+        const allAppIds = allTransformedApplications.map(app => app.applicant_id);
+        const emiDate = monthToEmiDate(selectedEmiMonth);
+
+        const { data: statusRows, error: statusError } = await supabase
+          .from('field_status')
+          .select('application_id, status, created_at')
+          .in('application_id', allAppIds)
+          .eq('demand_date', emiDate);
+
+        if (statusError) {
+          console.error('Error fetching status:', statusError);
+          setApplications([]);
+          setTotalCount(0);
+          return;
+        }
+
+        // Build latest status map
+        const latestStatusMap: Record<string, string> = {};
+        statusRows?.forEach(row => {
+          if (!latestStatusMap[row.application_id] || 
+              new Date(row.created_at) > new Date(latestStatusMap[row.application_id + '_created_at'] || 0)) {
+            latestStatusMap[row.application_id] = row.status;
+            latestStatusMap[row.application_id + '_created_at'] = row.created_at;
+          }
+        });
+
+        // Filter by status
+        const statusFilteredApplications = allTransformedApplications.filter(app => {
+          const status = latestStatusMap[app.applicant_id] || 'Unpaid';
+          return filters.status!.includes(status);
+        });
+
+        // Apply search filter to status-filtered results
+        let searchFilteredApplications = statusFilteredApplications;
+        if (searchTerm?.trim()) {
+          const searchLower = searchTerm.toLowerCase().trim();
+          searchFilteredApplications = statusFilteredApplications.filter(app => {
+            const searchableFields = [
+              app.applicant_name?.toLowerCase() || '',
+              app.applicant_id?.toLowerCase() || '',
+              app.applicant_mobile?.toLowerCase() || '',
+              app.dealer_name?.toLowerCase() || '',
+              app.lender_name?.toLowerCase() || '',
+              app.branch_name?.toLowerCase() || '',
+              app.rm_name?.toLowerCase() || '',
+              app.team_lead?.toLowerCase() || '',
+              app.collection_rm?.toLowerCase() || ''
+            ];
+            return searchableFields.some(field => field.includes(searchLower));
+          });
+        }
+
+        // Sort and paginate
+        searchFilteredApplications.sort((a, b) => {
+          const nameA = (a.applicant_name || '').toLowerCase();
+          const nameB = (b.applicant_name || '').toLowerCase();
+          return nameA.localeCompare(nameB);
+        });
+
+        const offset = (page - 1) * pageSize;
+        finalApplications = searchFilteredApplications.slice(offset, offset + pageSize);
+        setTotalCount(searchFilteredApplications.length);
+
+      } else {
+        // No status filter - use server-side pagination
+        const offset = (page - 1) * pageSize;
+        query = query.range(offset, offset + pageSize - 1);
+
+        const { data, error: queryError } = await query;
+        
+        if (queryError) {
+          throw new Error(`Query failed: ${queryError.message}`);
+        }
+
+        if (!data) {
+          setApplications([]);
+          setTotalCount(0);
+          return;
+        }
+
+        // Transform data
+        let transformedApplications: Application[] = data.map(record => {
+          const app = record.applications;
+          return {
+            id: record.application_id,
+            applicant_id: record.application_id,
+            demand_date: record.demand_date,
+            emi_amount: record.emi_amount || 0,
+            amount_collected: record.amount_collected || 0,
+            lms_status: record.lms_status || 'Unpaid',
+            collection_rm: record.collection_rm || 'N/A',
+            team_lead: record.team_lead || '',
+            rm_name: record.rm_name || '',
+            repayment: record.repayment || '',
+            last_month_bounce: record.last_month_bounce || 0,
+            field_status: 'Unpaid',
+            applicant_name: app?.applicant_name || 'Unknown',
+            applicant_mobile: app?.applicant_mobile || '',
+            applicant_address: app?.applicant_address || '',
+            branch_name: app?.branch_name || '',
+            dealer_name: app?.dealer_name || '',
+            lender_name: app?.lender_name || '',
+            principle_due: app?.principle_due || 0,
+            interest_due: app?.interest_due || 0,
+            loan_amount: app?.loan_amount || 0,
+            vehicle_status: app?.vehicle_status,
+            fi_location: app?.fi_location,
+            house_ownership: app?.house_ownership,
+            co_applicant_name: app?.co_applicant_name,
+            co_applicant_mobile: app?.co_applicant_mobile,
+            co_applicant_address: app?.co_applicant_address,
+            guarantor_name: app?.guarantor_name,
+            guarantor_mobile: app?.guarantor_mobile,
+            guarantor_address: app?.guarantor_address,
+            reference_name: app?.reference_name,
+            reference_mobile: app?.reference_mobile,
+            reference_address: app?.reference_address,
+            disbursement_date: app?.disbursement_date,
+            created_at: app?.created_at || new Date().toISOString(),
+            updated_at: app?.updated_at || new Date().toISOString(),
+            user_id: app?.user_id || user.id
+          } as Application;
+        });
+
+        // Apply client-side search filter for non-status queries
+        if (searchTerm?.trim()) {
+          const searchLower = searchTerm.toLowerCase().trim();
+          transformedApplications = transformedApplications.filter(app => {
+            const searchableFields = [
+              app.applicant_name?.toLowerCase() || '',
+              app.applicant_id?.toLowerCase() || '',
+              app.applicant_mobile?.toLowerCase() || '',
+              app.dealer_name?.toLowerCase() || '',
+              app.lender_name?.toLowerCase() || '',
+              app.branch_name?.toLowerCase() || '',
+              app.rm_name?.toLowerCase() || '',
+              app.team_lead?.toLowerCase() || '',
+              app.collection_rm?.toLowerCase() || ''
+            ];
+            return searchableFields.some(field => field.includes(searchLower));
+          });
+        }
+
+        // Sort by applicant name
+        transformedApplications.sort((a, b) => {
+          const nameA = (a.applicant_name || '').toLowerCase();
+          const nameB = (b.applicant_name || '').toLowerCase();
+          return nameA.localeCompare(nameB);
+        });
+
+        finalApplications = transformedApplications;
+        setTotalCount(totalFilteredCount);
+      }
+
+      // Apply PTP date filtering if specified (only to final applications)
       if (filters.ptpDate?.length > 0) {
         console.log('🔍 Applying PTP date filter:', filters.ptpDate);
         
-        const appIds = transformedApplications.map(app => app.applicant_id);
+        const appIds = finalApplications.map(app => app.applicant_id);
         const { startDate, endDate, includeNoDate } = resolvePTPDateFilter(filters.ptpDate);
         
         console.log('PTP filter resolved:', { startDate, endDate, includeNoDate });
@@ -187,106 +399,20 @@ export const useSimpleApplications = ({
             }
           });
 
-          console.log('PTP data fetched:', Object.keys(ptpMap).length, 'applications with PTP dates');
-
-          // Filter applications based on PTP criteria
-          const originalCount = transformedApplications.length;
-          transformedApplications = transformedApplications.filter(app => {
-            const appPtpDate = ptpMap[app.applicant_id];
-            
-            if (includeNoDate && !appPtpDate) {
-              return true; // Include applications with no PTP date
-            }
-            
-            if (appPtpDate) {
-              // Check if the PTP date falls within the specified range
-              if (startDate && endDate) {
-                const ptpDateStr = new Date(appPtpDate).toISOString().split('T')[0];
-                return ptpDateStr >= startDate && ptpDateStr <= endDate;
-              }
-              return true; // If no date range specified, include all with PTP dates
-            }
-            
-            return false; // Exclude applications without PTP dates (unless includeNoDate is true)
-          });
-
-          console.log('PTP filtering result:', originalCount, '->', transformedApplications.length, 'applications');
-
           // Add PTP dates to the applications
-          transformedApplications = transformedApplications.map(app => ({
+          finalApplications = finalApplications.map(app => ({
             ...app,
             ptp_date: ptpMap[app.applicant_id] || undefined
           }));
         }
       }
 
-      // Apply client-side search filter
-      if (searchTerm?.trim()) {
-        const searchLower = searchTerm.toLowerCase().trim();
-        transformedApplications = transformedApplications.filter(app => {
-          const searchableFields = [
-            app.applicant_name?.toLowerCase() || '',
-            app.applicant_id?.toLowerCase() || '',
-            app.applicant_mobile?.toLowerCase() || '',
-            app.dealer_name?.toLowerCase() || '',
-            app.lender_name?.toLowerCase() || '',
-            app.branch_name?.toLowerCase() || '',
-            app.rm_name?.toLowerCase() || '',
-            app.team_lead?.toLowerCase() || '',
-            app.collection_rm?.toLowerCase() || ''
-          ];
-          return searchableFields.some(field => field.includes(searchLower));
-        });
-      }
-
-      // Sort by applicant name
-      transformedApplications.sort((a, b) => {
-        const nameA = (a.applicant_name || '').toLowerCase();
-        const nameB = (b.applicant_name || '').toLowerCase();
-        return nameA.localeCompare(nameB);
-      });
-
-      // Apply pagination
-      const offset = (page - 1) * pageSize;
-      const paginatedApplications = transformedApplications.slice(offset, offset + pageSize);
-
-      // After transforming applications, fetch latest status for each application for the selected EMI month
-      const emiDate = monthToEmiDate(selectedEmiMonth);
-      if (filters.status?.length > 0 && transformedApplications.length > 0) {
-        const appIds = transformedApplications.map(app => app.applicant_id);
-        // Fetch latest status for each application for the selected EMI month
-        const { data: statusRows, error: statusError } = await supabase
-          .from('field_status')
-          .select('application_id, status, demand_date, created_at')
-          .in('application_id', appIds)
-          .eq('demand_date', emiDate);
-        if (!statusError && statusRows) {
-          const latestStatusMap: Record<string, string> = {};
-          statusRows.forEach(row => {
-            if (!latestStatusMap[row.application_id] || new Date(row.created_at) > new Date(latestStatusMap[row.application_id + '_created_at'] || 0)) {
-              latestStatusMap[row.application_id] = row.status;
-              latestStatusMap[row.application_id + '_created_at'] = row.created_at;
-            }
-          });
-          transformedApplications = transformedApplications.filter(app => {
-            const status = latestStatusMap[app.applicant_id] || 'Unpaid';
-            return filters.status!.includes(status);
-          });
-          // Re-apply pagination after status filter
-          const offset = (page - 1) * pageSize;
-          setApplications(transformedApplications.slice(offset, offset + pageSize));
-          setTotalCount(transformedApplications.length);
-          return;
-        }
-      }
-
-      setApplications(paginatedApplications);
-      setTotalCount(transformedApplications.length);
+      setApplications(finalApplications);
 
       console.log('Applications loaded successfully:', {
-        total: transformedApplications.length,
+        total: totalCount,
         page,
-        results: paginatedApplications.length
+        results: finalApplications.length
       });
 
     } catch (err) {
