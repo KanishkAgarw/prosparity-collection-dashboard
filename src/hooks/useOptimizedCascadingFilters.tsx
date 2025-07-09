@@ -85,8 +85,7 @@ export const useOptimizedCascadingFilters = () => {
       const { data: colDates } = await supabase
         .from('collection')
         .select('demand_date')
-        .not('demand_date', 'is', null)
-        .limit(1000);
+        .not('demand_date', 'is', null);
 
       const allDates: string[] = [];
       colDates?.forEach(item => {
