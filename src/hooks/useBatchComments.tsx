@@ -30,26 +30,15 @@ export const useBatchComments = (selectedMonth?: string | null) => {
       console.log('Application IDs:', applicationIds.slice(0, 5), '... and', Math.max(0, applicationIds.length - 5), 'more');
       console.log('Selected Month:', selectedMonth);
 
-      // Build query for batch comment fetching
-      let query = supabase
+      // Build query for batch comment fetching - fetch ALL comments for applications
+      const query = supabase
         .from('comments')
         .select('*')
-        .in('application_id', applicationIds);
-
-      // Add month filtering if selectedMonth is provided - filter by demand_date
-      if (selectedMonth) {
-        const { start, end } = getMonthDateRange(selectedMonth);
-        console.log('Date range for comments:', { start, end });
-        
-        query = query
-          .gte('demand_date', start)
-          .lte('demand_date', end);
-      }
-
-      // Order by most recent and limit per application
-      query = query
+        .in('application_id', applicationIds)
         .order('created_at', { ascending: false })
-        .limit(100); // Reasonable limit for batch operation
+        .limit(200); // Increased limit for better coverage across applications
+
+      console.log('Fetching all comments for applications (no date filtering)');
 
       const { data: commentsData, error: commentsError } = await query;
 
