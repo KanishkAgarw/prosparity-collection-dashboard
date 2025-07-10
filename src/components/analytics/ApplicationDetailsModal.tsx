@@ -63,6 +63,7 @@ const ApplicationDetailsModal = ({ isOpen, onClose, applications, filter, loadin
               <ApplicationDetailsContent
                 applications={applications}
                 onApplicationSelect={handleApplicationSelect}
+                selectedEmiMonth={filter?.selectedEmiMonth || null}
               />
             )}
           </div>
@@ -87,6 +88,7 @@ const ApplicationDetailsModal = ({ isOpen, onClose, applications, filter, loadin
                 // Handle data changes if needed
                 console.log('Application data changed');
               }}
+              selectedEmiMonth={filter?.selectedEmiMonth || null}
             />
           </div>
         </>
