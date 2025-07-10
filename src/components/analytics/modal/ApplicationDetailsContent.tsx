@@ -8,9 +8,10 @@ interface ApplicationDetailsContentProps {
   onApplicationSelect: (app: Application) => void;
   selectedEmiMonth?: string | null;
   statusData?: Record<string, string>;
+  batchData?: any;
 }
 
-const ApplicationDetailsContent = ({ applications, onApplicationSelect, selectedEmiMonth, statusData }: ApplicationDetailsContentProps) => {
+const ApplicationDetailsContent = ({ applications, onApplicationSelect, selectedEmiMonth, statusData, batchData }: ApplicationDetailsContentProps) => {
   if (applications.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-center space-y-4">
@@ -23,6 +24,13 @@ const ApplicationDetailsContent = ({ applications, onApplicationSelect, selected
     );
   }
 
+  console.log('ApplicationDetailsContent - Batch data passed:', !!batchData, batchData ? {
+    statuses: Object.keys(batchData.statuses || {}).length,
+    comments: Object.keys(batchData.comments || {}).length,
+    ptpDates: Object.keys(batchData.ptpDates || {}).length,
+    contactStatuses: Object.keys(batchData.contactStatuses || {}).length
+  } : 'No batch data');
+
   return (
     <div className="h-full overflow-auto">
       <OptimizedApplicationsTable
@@ -30,6 +38,7 @@ const ApplicationDetailsContent = ({ applications, onApplicationSelect, selected
         onRowClick={onApplicationSelect}
         selectedEmiMonth={selectedEmiMonth}
         preloadedStatusData={statusData}
+        preloadedBatchData={batchData}
       />
     </div>
   );

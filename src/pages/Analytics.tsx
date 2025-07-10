@@ -15,6 +15,7 @@ import { useFieldStatusManager } from '@/hooks/useFieldStatusManager';
 import { usePtpDates } from '@/hooks/usePtpDates';
 import { supabase } from '@/integrations/supabase/client';
 import { getMonthDateRange, convertEmiMonthToDatabase } from '@/utils/dateUtils';
+import { useCentralizedDataManager } from '@/hooks/useCentralizedDataManager';
 
 export interface DrillDownFilter {
   branch_name: string;
@@ -30,10 +31,12 @@ const Analytics = () => {
   const { allApplications, loading } = useApplications();
   const { fetchFieldStatus } = useFieldStatusManager();
   const { fetchPtpDates } = usePtpDates();
+  const dataManager = useCentralizedDataManager();
   const [selectedFilter, setSelectedFilter] = useState<DrillDownFilter | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [filteredApplications, setFilteredApplications] = useState<Application[]>([]);
   const [filteredApplicationsStatusData, setFilteredApplicationsStatusData] = useState<Record<string, string>>({});
+  const [batchData, setBatchData] = useState<any>(null);
   const [modalLoading, setModalLoading] = useState(false);
 
   console.log('Analytics - Applications loaded:', allApplications?.length || 0);
@@ -48,9 +51,29 @@ const Analytics = () => {
     try {
       const filtered = await getFilteredApplications(filter);
       setFilteredApplications(filtered);
+      
+      // After getting filtered applications, fetch complete batch data
+      if (filtered.length > 0) {
+        console.log('📊 Fetching complete batch data for', filtered.length, 'applications');
+        const applicationIds = filtered.map(app => app.applicant_id);
+        const enrichedData = await dataManager.fetchAllData(applicationIds, {
+          selectedEmiMonth: filter.selectedEmiMonth,
+          priority: 'high'
+        });
+        setBatchData(enrichedData);
+        console.log('✅ Batch data loaded for modal:', {
+          statuses: Object.keys(enrichedData.statuses).length,
+          comments: Object.keys(enrichedData.comments).length,
+          ptpDates: Object.keys(enrichedData.ptpDates).length,
+          contactStatuses: Object.keys(enrichedData.contactStatuses).length
+        });
+      } else {
+        setBatchData(null);
+      }
     } catch (error) {
       console.error('Error filtering applications:', error);
       setFilteredApplications([]);
+      setBatchData(null);
     } finally {
       setModalLoading(false);
     }
@@ -60,6 +83,7 @@ const Analytics = () => {
     setShowModal(false);
     setSelectedFilter(null);
     setFilteredApplications([]);
+    setBatchData(null);
   };
 
   const getFilteredApplications = async (filter: DrillDownFilter): Promise<Application[]> => {
@@ -388,6 +412,7 @@ const Analytics = () => {
           filter={selectedFilter}
           loading={modalLoading}
           statusData={filteredApplicationsStatusData}
+          batchData={batchData}
         />
       </div>
     </div>

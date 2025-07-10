@@ -18,9 +18,10 @@ interface ApplicationDetailsModalProps {
   filter: DrillDownFilter | null;
   loading?: boolean;
   statusData?: Record<string, string>;
+  batchData?: any;
 }
 
-const ApplicationDetailsModal = ({ isOpen, onClose, applications, filter, loading = false, statusData }: ApplicationDetailsModalProps) => {
+const ApplicationDetailsModal = ({ isOpen, onClose, applications, filter, loading = false, statusData, batchData }: ApplicationDetailsModalProps) => {
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
 
   const handleApplicationSelect = (app: Application) => {
@@ -38,6 +39,12 @@ const ApplicationDetailsModal = ({ isOpen, onClose, applications, filter, loadin
 
   console.log('Modal applications count:', applications.length);
   console.log('Filter:', filter);
+  console.log('Modal batch data available:', !!batchData, batchData ? {
+    statuses: Object.keys(batchData.statuses || {}).length,
+    comments: Object.keys(batchData.comments || {}).length,
+    ptpDates: Object.keys(batchData.ptpDates || {}).length,
+    contactStatuses: Object.keys(batchData.contactStatuses || {}).length
+  } : 'No batch data');
 
   return (
     <>
@@ -66,6 +73,7 @@ const ApplicationDetailsModal = ({ isOpen, onClose, applications, filter, loadin
                 onApplicationSelect={handleApplicationSelect}
                 selectedEmiMonth={filter?.selectedEmiMonth || null}
                 statusData={statusData}
+                batchData={batchData}
               />
             )}
           </div>

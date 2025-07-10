@@ -12,6 +12,7 @@ interface OptimizedApplicationsTableProps {
   selectedApplicationId?: string;
   selectedEmiMonth?: string | null;
   preloadedStatusData?: Record<string, string>;
+  preloadedBatchData?: any;
 }
 
 const OptimizedApplicationsTable = memo(({
@@ -19,7 +20,8 @@ const OptimizedApplicationsTable = memo(({
   onRowClick,
   selectedApplicationId,
   selectedEmiMonth,
-  preloadedStatusData
+  preloadedStatusData,
+  preloadedBatchData
 }: OptimizedApplicationsTableProps) => {
   
   const { data, loading, error, fetchAllData, clearData } = useCentralizedDataManager(selectedEmiMonth);
@@ -31,6 +33,12 @@ const OptimizedApplicationsTable = memo(({
 
   // Load all batch data when applications or selectedEmiMonth changes
   const loadBatchData = useCallback(async () => {
+    // Skip loading if we have preloaded batch data
+    if (preloadedBatchData) {
+      console.log('📊 Using preloaded batch data instead of fetching');
+      return;
+    }
+    
     if (applicationIds.length === 0) {
       clearData();
       return;
@@ -52,10 +60,15 @@ const OptimizedApplicationsTable = memo(({
     } finally {
       setIsInitialLoad(false);
     }
-  }, [applicationIdsString, selectedEmiMonth, fetchAllData, clearData, isInitialLoad]);
+  }, [applicationIdsString, selectedEmiMonth, fetchAllData, clearData, isInitialLoad, preloadedBatchData]);
 
   // Effect to load batch data when dependencies change
   useEffect(() => {
+    // Skip data clearing and loading if we have preloaded data
+    if (preloadedBatchData) {
+      return;
+    }
+    
     // Clear existing data first to ensure fresh load
     clearData();
     
@@ -65,17 +78,22 @@ const OptimizedApplicationsTable = memo(({
     }, 10);
 
     return () => clearTimeout(timeoutId);
-  }, [loadBatchData]);
+  }, [loadBatchData, preloadedBatchData]);
+
+  // Use preloaded data if available, otherwise use data manager data
+  const effectiveData = preloadedBatchData || data;
+  const effectiveLoading = preloadedBatchData ? false : loading;
 
   console.log('=== OPTIMIZED TABLE RENDER ===');
   console.log('Applications count:', applications.length);
-  console.log('Is loading:', loading);
+  console.log('Using preloaded data:', !!preloadedBatchData);
+  console.log('Is loading:', effectiveLoading);
   console.log('Has error:', !!error);
-  console.log('Batch data keys:', {
-    statuses: Object.keys(data.statuses).length,
-    ptpDates: Object.keys(data.ptpDates).length,
-    contactStatuses: Object.keys(data.contactStatuses).length,
-    comments: Object.keys(data.comments).length
+  console.log('Effective batch data keys:', {
+    statuses: Object.keys(effectiveData.statuses || {}).length,
+    ptpDates: Object.keys(effectiveData.ptpDates || {}).length,
+    contactStatuses: Object.keys(effectiveData.contactStatuses || {}).length,
+    comments: Object.keys(effectiveData.comments || {}).length
   });
 
   return (
@@ -92,18 +110,18 @@ const OptimizedApplicationsTable = memo(({
                 onRowClick={onRowClick}
                 selectedEmiMonth={selectedEmiMonth}
                 // Pass batched data as props - use preloaded data if available
-                batchedStatus={preloadedStatusData?.[application.applicant_id] || data.statuses[application.applicant_id] || 'Unpaid'}
-                batchedPtpDate={data.ptpDates[application.applicant_id] || null}
-                batchedContactStatus={data.contactStatuses[application.applicant_id]}
-                batchedComments={data.comments[application.applicant_id] || []}
-                isLoading={loading}
+                batchedStatus={preloadedStatusData?.[application.applicant_id] || effectiveData.statuses?.[application.applicant_id] || 'Unpaid'}
+                batchedPtpDate={effectiveData.ptpDates?.[application.applicant_id] || null}
+                batchedContactStatus={effectiveData.contactStatuses?.[application.applicant_id]}
+                batchedComments={effectiveData.comments?.[application.applicant_id] || []}
+                isLoading={effectiveLoading}
               />
             ))}
           </TableBody>
         </Table>
       </div>
       
-      {error && (
+      {error && !preloadedBatchData && (
         <div className="text-center py-8 text-red-600 bg-red-50">
           <p className="text-lg font-medium">Error loading data</p>
           <p className="text-sm">{error.message}</p>
@@ -116,14 +134,14 @@ const OptimizedApplicationsTable = memo(({
         </div>
       )}
       
-      {applications.length === 0 && !loading && !error && (
+      {applications.length === 0 && !effectiveLoading && !error && (
         <div className="text-center py-12 text-muted-foreground">
           <p className="text-lg font-medium text-gray-500">No applications found</p>
           <p className="text-sm text-gray-400">Try adjusting your filters</p>
         </div>
       )}
 
-      {loading && applications.length === 0 && (
+      {effectiveLoading && applications.length === 0 && (
         <div className="text-center py-12 text-muted-foreground">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-lg font-medium text-gray-500">Loading applications...</p>
