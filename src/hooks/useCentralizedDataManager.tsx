@@ -159,7 +159,7 @@ export const useCentralizedDataManager = (selectedEmiMonth?: string | null) => {
     } finally {
       setLoading(false);
     }
-  }, [fetchFieldStatus, fetchBatchComments, fetchBatchPtpDates, fetchBatchPtpDatesFromAuditLog, fetchBatchContactStatus, comments, data]);
+  }, [fetchFieldStatus, fetchBatchComments, fetchBatchPtpDates, fetchBatchPtpDatesFromAuditLog, fetchBatchContactStatus]);
 
   const clearData = useCallback(() => {
     setData({

@@ -59,15 +59,20 @@ export const useBatchComments = (selectedMonth?: string | null) => {
       const userIds = [...new Set(commentsData.map(comment => comment.user_id))];
       console.log('Fetching profiles for user IDs:', userIds);
 
-      // Fetch user profiles
+      // Fetch user profiles and wait for them to be cached
+      console.log('Fetching profiles for user IDs:', userIds);
       await fetchProfiles(userIds);
-      await new Promise(resolve => setTimeout(resolve, 100));
+      console.log('Profiles fetched, waiting for cache...');
+      // Give more time for profile resolution
+      await new Promise(resolve => setTimeout(resolve, 200));
 
       // Group comments by application_id and limit to 2 most recent per application
       const groupedComments: Record<string, BatchComment[]> = {};
       
-      commentsData.forEach(comment => {
+      console.log('Processing comments for user name resolution...');
+      commentsData.forEach((comment, index) => {
         const userName = getUserName(comment.user_id, comment.user_email);
+        console.log(`Comment ${index + 1}: User ID: ${comment.user_id}, Resolved name: "${userName}", Email: ${comment.user_email}`);
         
         if (!groupedComments[comment.application_id]) {
           groupedComments[comment.application_id] = [];
@@ -82,7 +87,15 @@ export const useBatchComments = (selectedMonth?: string | null) => {
         }
       });
 
-      console.log('Grouped comments by application:', Object.keys(groupedComments).length, 'applications have comments');
+      console.log('=== FINAL COMMENTS SUMMARY ===');
+      console.log('Applications with comments:', Object.keys(groupedComments).length);
+      Object.entries(groupedComments).forEach(([appId, comments]) => {
+        console.log(`${appId}: ${comments.length} comments`);
+        comments.forEach((comment, i) => {
+          console.log(`  Comment ${i + 1}: "${comment.content.substring(0, 50)}..." by ${comment.user_name}`);
+        });
+      });
+      
       setComments(groupedComments);
       return groupedComments;
     } catch (error) {
