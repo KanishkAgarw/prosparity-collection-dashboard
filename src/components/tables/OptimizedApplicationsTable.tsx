@@ -11,13 +11,15 @@ interface OptimizedApplicationsTableProps {
   onApplicationDeleted?: () => void;
   selectedApplicationId?: string;
   selectedEmiMonth?: string | null;
+  preloadedStatusData?: Record<string, string>;
 }
 
 const OptimizedApplicationsTable = memo(({
   applications,
   onRowClick,
   selectedApplicationId,
-  selectedEmiMonth
+  selectedEmiMonth,
+  preloadedStatusData
 }: OptimizedApplicationsTableProps) => {
   
   const { data, loading, error, fetchAllData, clearData } = useCentralizedDataManager(selectedEmiMonth);
@@ -89,8 +91,8 @@ const OptimizedApplicationsTable = memo(({
                 selectedApplicationId={selectedApplicationId}
                 onRowClick={onRowClick}
                 selectedEmiMonth={selectedEmiMonth}
-                // Pass batched data as props
-                batchedStatus={data.statuses[application.applicant_id] || 'Unpaid'}
+                // Pass batched data as props - use preloaded data if available
+                batchedStatus={preloadedStatusData?.[application.applicant_id] || data.statuses[application.applicant_id] || 'Unpaid'}
                 batchedPtpDate={data.ptpDates[application.applicant_id] || null}
                 batchedContactStatus={data.contactStatuses[application.applicant_id]}
                 batchedComments={data.comments[application.applicant_id] || []}

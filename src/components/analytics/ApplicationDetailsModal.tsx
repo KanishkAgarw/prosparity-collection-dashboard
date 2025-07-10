@@ -17,9 +17,10 @@ interface ApplicationDetailsModalProps {
   applications: Application[];
   filter: DrillDownFilter | null;
   loading?: boolean;
+  statusData?: Record<string, string>;
 }
 
-const ApplicationDetailsModal = ({ isOpen, onClose, applications, filter, loading = false }: ApplicationDetailsModalProps) => {
+const ApplicationDetailsModal = ({ isOpen, onClose, applications, filter, loading = false, statusData }: ApplicationDetailsModalProps) => {
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
 
   const handleApplicationSelect = (app: Application) => {
@@ -64,6 +65,7 @@ const ApplicationDetailsModal = ({ isOpen, onClose, applications, filter, loadin
                 applications={applications}
                 onApplicationSelect={handleApplicationSelect}
                 selectedEmiMonth={filter?.selectedEmiMonth || null}
+                statusData={statusData}
               />
             )}
           </div>

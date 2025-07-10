@@ -33,6 +33,7 @@ const Analytics = () => {
   const [selectedFilter, setSelectedFilter] = useState<DrillDownFilter | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [filteredApplications, setFilteredApplications] = useState<Application[]>([]);
+  const [filteredApplicationsStatusData, setFilteredApplicationsStatusData] = useState<Record<string, string>>({});
   const [modalLoading, setModalLoading] = useState(false);
 
   console.log('Analytics - Applications loaded:', allApplications?.length || 0);
@@ -258,6 +259,13 @@ const Analytics = () => {
         branch_name: app.branch_name
       })));
       
+      // Create status mapping for consistent display
+      const statusMapping = filtered.reduce((acc, app) => {
+        acc[app.applicant_id] = app.field_status;
+        return acc;
+      }, {} as Record<string, string>);
+      
+      setFilteredApplicationsStatusData(statusMapping);
       return filtered;
     } catch (error) {
       console.error('Error filtering applications:', error);
@@ -379,6 +387,7 @@ const Analytics = () => {
           applications={filteredApplications}
           filter={selectedFilter}
           loading={modalLoading}
+          statusData={filteredApplicationsStatusData}
         />
       </div>
     </div>
