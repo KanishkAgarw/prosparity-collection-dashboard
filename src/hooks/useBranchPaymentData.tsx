@@ -1,7 +1,6 @@
 
 import { useState, useEffect } from 'react';
 import { Application } from '@/types/application';
-import { useFieldStatusManager } from '@/hooks/useFieldStatusManager';
 import { supabase } from '@/integrations/supabase/client';
 import { getMonthDateRange, convertEmiMonthToDatabase } from '@/utils/dateUtils';
 
@@ -23,7 +22,6 @@ export interface BranchPaymentStatus {
 }
 
 export const useBranchPaymentData = (applications: Application[], selectedEmiMonth?: string) => {
-  const { fetchFieldStatus } = useFieldStatusManager();
   const [data, setData] = useState<BranchPaymentStatus[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -34,109 +32,89 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
       setError(null);
       
       try {
-        console.log('📊 Fetching payment data for month:', selectedEmiMonth);
+        console.log('📊 Fetching optimized payment data for month:', selectedEmiMonth);
         
-        let collectionData, error;
+        // Use a single optimized query to get all the data we need
+        let query = supabase
+          .from('applications')
+          .select(`
+            applicant_id,
+            branch_name,
+            rm_name,
+            collection_rm,
+            lms_status,
+            demand_date
+          `);
 
-        if (!selectedEmiMonth) {
-          // For "All" option, get all collection records
-          console.log('📊 Fetching all collection records for branch payment data');
-          const { data, error: allError } = await supabase
-            .from('collection')
-            .select(`
-              application_id,
-              applications!inner(*)
-            `);
-          collectionData = data;
-          error = allError;
-        } else {
-          // Convert EMI month format from display (Jul-25) to database (2025-07)
+        // Apply month filtering if specified
+        if (selectedEmiMonth && selectedEmiMonth !== 'All') {
           const dbFormatMonth = convertEmiMonthToDatabase(selectedEmiMonth);
-          console.log('📊 Converting EMI month format:', selectedEmiMonth, '->', dbFormatMonth);
-          
-          // Validate the converted month format
           if (!dbFormatMonth || !dbFormatMonth.match(/^\d{4}-\d{2}$/)) {
             console.error('Invalid month format after conversion:', dbFormatMonth);
             throw new Error(`Invalid month format: ${selectedEmiMonth}`);
           }
           
-          // For specific month, filter by demand_date range
-          console.log('📊 Fetching collection records for month:', dbFormatMonth);
           const { start, end } = getMonthDateRange(dbFormatMonth);
           console.log('📊 Date range for payment data:', { start, end });
-          
-          const { data, error: monthError } = await supabase
-            .from('collection')
-            .select(`
-              application_id,
-              applications!inner(*)
-            `)
-            .gte('demand_date', start)
-            .lte('demand_date', end);
-          collectionData = data;
-          error = monthError;
+          query = query.gte('demand_date', start).lte('demand_date', end);
         }
 
-        if (error) {
-          console.error('Error fetching collection data for branch payment analysis:', error);
-          throw new Error(`Failed to fetch collection data: ${error.message}`);
+        const { data: applications, error: appError } = await query;
+
+        if (appError) {
+          console.error('Error fetching applications:', appError);
+          throw new Error(`Failed to fetch applications: ${appError.message}`);
         }
 
-        if (!collectionData || collectionData.length === 0) {
-          console.log('No collection data found for month:', selectedEmiMonth);
+        if (!applications || applications.length === 0) {
+          console.log('No applications found for month:', selectedEmiMonth);
           setData([]);
           return;
         }
 
-        // Get application IDs that have collection records for this month
-        const monthApplicationIds = collectionData.map(record => record.application_id);
-        console.log(`Found ${monthApplicationIds.length} applications with collection records for ${selectedEmiMonth}`);
-        
-        if (monthApplicationIds.length === 0) {
-          console.log('No valid application IDs found');
-          setData([]);
-          return;
-        }
-        
-        // Convert selectedEmiMonth to database format for field status query
-        const dbFormatMonth = selectedEmiMonth ? convertEmiMonthToDatabase(selectedEmiMonth) : undefined;
-        
-        // Fetch month-specific field status using the robust manager
-        const statusMap = await fetchFieldStatus(
-          monthApplicationIds, 
-          dbFormatMonth,
-          false // includeAllMonths = false for month-specific filtering
-        );
-        
-        console.log('🔍 Field status map loaded:', Object.keys(statusMap).length, 'applications');
-        console.log('🔍 Status map sample entries:', Object.entries(statusMap).slice(0, 5));
-        console.log('🔍 Status distribution in map:', 
-          Object.values(statusMap).reduce((acc, status) => {
-            acc[status] = (acc[status] || 0) + 1;
-            return acc;
-          }, {} as Record<string, number>)
-        );
+        console.log(`Found ${applications.length} applications for ${selectedEmiMonth}`);
 
+        // Get field status in a single optimized query
+        const dbFormatMonth = selectedEmiMonth && selectedEmiMonth !== 'All' ? convertEmiMonthToDatabase(selectedEmiMonth) : undefined;
+        let statusQuery = supabase
+          .from('field_status')
+          .select('application_id, status')
+          .in('application_id', applications.map(app => app.applicant_id));
+
+        if (dbFormatMonth) {
+          const { start, end } = getMonthDateRange(dbFormatMonth);
+          statusQuery = statusQuery.gte('created_at', start).lte('created_at', end + 'T23:59:59.999Z');
+        }
+
+        const { data: fieldStatusData, error: statusError } = await statusQuery
+          .order('created_at', { ascending: false });
+
+        if (statusError) {
+          console.error('Error fetching field status:', statusError);
+          // Continue with applications data only, using lms_status
+        }
+
+        // Create status map (latest status per application)
+        const statusMap = new Map<string, string>();
+        if (fieldStatusData) {
+          fieldStatusData.forEach(status => {
+            if (!statusMap.has(status.application_id)) {
+              statusMap.set(status.application_id, status.status);
+            }
+          });
+        }
+
+        console.log('🔍 Field status map loaded:', statusMap.size, 'applications');
+        
         const branchMap = new Map<string, BranchPaymentStatus>();
         
-        // Process only applications that have collection records for this month
-        collectionData.forEach(record => {
-          if (!record.applications) {
-            console.warn('Missing application data for record:', record.application_id);
-            return;
-          }
+        // Process applications directly (much faster than collection join)
+        applications.forEach(app => {
+          const branchName = app.branch_name || 'Unknown Branch';
+          const rmName = app.collection_rm || app.rm_name || 'Unknown RM';
           
-          const app = record.applications;
-          const branchName = app?.branch_name || 'Unknown Branch';
-          const rmName = app?.collection_rm || app?.rm_name || 'Unknown RM';
-          
-          // Get month-specific status from field_status table via manager, fallback to lms_status from applications
-          let fieldStatus = statusMap[record.application_id];
-          if (!fieldStatus) {
-            // Use the application's lms_status as fallback instead of defaulting to 'Unpaid'
-            fieldStatus = app.lms_status || 'Unpaid';
-            console.log(`🔄 Using fallback status for ${record.application_id}: ${fieldStatus}`);
-          }
+          // Get status from field_status map, fallback to lms_status
+          const fieldStatus = statusMap.get(app.applicant_id) || app.lms_status || 'Unpaid';
           
           if (!branchMap.has(branchName)) {
             branchMap.set(branchName, {
@@ -174,6 +152,8 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
           
           rmStats.total++;
           branch.total_stats.total++;
+          
+          // Update counts based on field status
           
           switch (fieldStatus) {
             case 'Unpaid':
@@ -235,8 +215,9 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
     } else {
       console.log('No applications provided to useBranchPaymentData');
       setData([]);
+      setLoading(false);
     }
-  }, [selectedEmiMonth, fetchFieldStatus, applications]);
+  }, [selectedEmiMonth, applications]);
 
   return { data, loading, error };
 };
