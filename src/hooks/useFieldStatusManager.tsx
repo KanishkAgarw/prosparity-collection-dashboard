@@ -17,10 +17,11 @@ interface FieldStatusCache {
   };
 }
 
-const CACHE_TTL = 30 * 1000; // 30 seconds
-const BATCH_SIZE = 50; // Reduced batch size for safety
+const CACHE_TTL = 10 * 1000; // Reduced to 10 seconds to prevent stale data
+const BATCH_SIZE = 25; // Smaller batch size to reduce partial failures
 const cache: FieldStatusCache = {};
 const pendingRequests = new Map<string, Promise<Record<string, string>>>();
+const requestQueue = new Map<string, { resolve: Function; reject: Function }[]>();
 
 export const useFieldStatusManager = () => {
   const { user } = useAuth();
@@ -28,11 +29,10 @@ export const useFieldStatusManager = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const getCacheKey = useCallback((queryParams: FieldStatusQuery): string => {
+    // Simplified cache key generation to reduce complexity
     const sortedIds = [...queryParams.applicationIds].sort();
-    const idsHash = sortedIds.length > 10 ? 
-      `${sortedIds.length}-${sortedIds[0]}-${sortedIds[sortedIds.length-1]}` : 
-      sortedIds.join(',');
-    return `field-status-${queryParams.selectedMonth || 'all'}-${queryParams.includeAllMonths ? 'all-months' : 'filtered'}-${idsHash}`;
+    const idsKey = sortedIds.length <= 5 ? sortedIds.join(',') : `${sortedIds.length}-${sortedIds[0]}-${sortedIds[sortedIds.length-1]}`;
+    return `fs-${queryParams.selectedMonth || 'all'}-${idsKey}`;
   }, []);
 
   const isValidApplicationId = useCallback((id: any): id is string => {
@@ -42,18 +42,18 @@ export const useFieldStatusManager = () => {
   const fetchFieldStatusChunk = useCallback(async (
     applicationIds: string[], 
     queryParams: FieldStatusQuery,
-    abortController: AbortController
+    retryCount = 0
   ): Promise<Record<string, string>> => {
     if (applicationIds.length === 0) return {};
 
+    const maxRetries = 2;
     try {
-      console.log(`📤 Fetching field status chunk: ${applicationIds.length} applications`);
+      console.log(`📤 Fetching field status chunk: ${applicationIds.length} applications (attempt ${retryCount + 1})`);
       
       let supabaseQuery = supabase
         .from('field_status')
         .select('application_id, status, created_at, demand_date')
-        .in('application_id', applicationIds)
-        .abortSignal(abortController.signal);
+        .in('application_id', applicationIds);
 
       // Add month filtering if specified and not including all months
       if (queryParams.selectedMonth && !queryParams.includeAllMonths) {
@@ -72,10 +72,6 @@ export const useFieldStatusManager = () => {
       const { data, error } = await supabaseQuery;
 
       if (error) {
-        if (error.name === 'AbortError') {
-          console.log('🛑 Request was cancelled');
-          return {};
-        }
         throw new Error(`Field status query failed: ${error.message}`);
       }
 
@@ -95,13 +91,25 @@ export const useFieldStatusManager = () => {
         });
       }
 
-      console.log(`✅ Chunk processed: ${Object.keys(statusMap).length} statuses loaded`);
+      // Validate data completeness
+      const receivedCount = Object.keys(statusMap).length;
+      const expectedCount = applicationIds.length;
+      
+      if (receivedCount < expectedCount * 0.8 && retryCount < maxRetries) {
+        console.warn(`⚠️ Low data completeness: ${receivedCount}/${expectedCount}. Retrying...`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+        return fetchFieldStatusChunk(applicationIds, queryParams, retryCount + 1);
+      }
+
+      console.log(`✅ Chunk processed: ${receivedCount}/${expectedCount} statuses loaded`);
       return statusMap;
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        return {};
+      if (retryCount < maxRetries) {
+        console.warn(`⚠️ Chunk fetch failed, retrying (${retryCount + 1}/${maxRetries}):`, error);
+        await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+        return fetchFieldStatusChunk(applicationIds, queryParams, retryCount + 1);
       }
-      console.error('Chunk fetch error:', error);
+      console.error('❌ Chunk fetch error after retries:', error);
       return {};
     }
   }, []);
@@ -115,13 +123,6 @@ export const useFieldStatusManager = () => {
       console.log('❌ No user or empty application IDs');
       return {};
     }
-
-    // Cancel previous request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    abortControllerRef.current = new AbortController();
 
     // Validate and filter application IDs
     const validApplicationIds = applicationIds.filter(isValidApplicationId);
@@ -142,74 +143,98 @@ export const useFieldStatusManager = () => {
 
     const cacheKey = getCacheKey(queryParams);
     
-    // Check cache first
+    // Check cache first - stricter validation
     const cached = cache[cacheKey];
     if (cached && Date.now() < cached.expiresAt) {
-      console.log('✅ Using cached field status data');
-      return cached.data;
+      const cacheDataCount = Object.keys(cached.data).length;
+      const expectedCount = validApplicationIds.length;
+      
+      // Only use cache if it has reasonable data completeness
+      if (cacheDataCount >= expectedCount * 0.8) {
+        console.log(`✅ Using cached field status data (${cacheDataCount}/${expectedCount})`);
+        return cached.data;
+      } else {
+        console.warn(`⚠️ Cache data incomplete (${cacheDataCount}/${expectedCount}), refreshing`);
+        delete cache[cacheKey];
+      }
     }
 
-    // Check for pending request
+    // Implement request deduplication with queue
     if (pendingRequests.has(cacheKey)) {
       console.log('⏳ Waiting for pending field status request');
-      try {
-        return await pendingRequests.get(cacheKey)!;
-      } catch (error) {
-        pendingRequests.delete(cacheKey);
-      }
+      return new Promise((resolve, reject) => {
+        if (!requestQueue.has(cacheKey)) {
+          requestQueue.set(cacheKey, []);
+        }
+        requestQueue.get(cacheKey)!.push({ resolve, reject });
+      });
     }
 
     // Create new request
     const requestPromise = (async (): Promise<Record<string, string>> => {
       try {
         setLoading(true);
+        console.log(`🚀 Starting fresh field status fetch for ${validApplicationIds.length} applications`);
 
-        // Chunk the application IDs to avoid URL length issues
+        // Chunk the application IDs with smaller batches
         const chunks = chunkArray(validApplicationIds, BATCH_SIZE);
         console.log(`📦 Splitting into ${chunks.length} chunks of max ${BATCH_SIZE} IDs each`);
 
-        const chunkPromises = chunks.map(chunk => 
-          fetchFieldStatusChunk(chunk, queryParams, abortControllerRef.current!)
-        );
-
-        const chunkResults = await Promise.allSettled(chunkPromises);
-        
-        // Combine results from all chunks
+        // Process chunks sequentially to reduce load and improve consistency
         const combinedStatusMap: Record<string, string> = {};
         let successfulChunks = 0;
 
-        chunkResults.forEach((result, index) => {
-          if (result.status === 'fulfilled') {
-            Object.assign(combinedStatusMap, result.value);
+        for (let i = 0; i < chunks.length; i++) {
+          try {
+            const chunkResult = await fetchFieldStatusChunk(chunks[i], queryParams);
+            Object.assign(combinedStatusMap, chunkResult);
             successfulChunks++;
-          } else {
-            console.error(`❌ Chunk ${index + 1} failed:`, result.reason);
+            
+            // Small delay between chunks to prevent overwhelming the database
+            if (i < chunks.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, 100));
+            }
+          } catch (error) {
+            console.error(`❌ Chunk ${i + 1} failed:`, error);
           }
-        });
+        }
 
-        // Ensure every applicationId has a status for the selected month; default to 'Unpaid' if missing
+        // Ensure every applicationId has a status; default to 'Unpaid' if missing
         validApplicationIds.forEach(appId => {
           if (!combinedStatusMap[appId]) {
             combinedStatusMap[appId] = 'Unpaid';
           }
         });
 
-        if (successfulChunks === 0) {
-          throw new Error('All chunks failed to load');
+        const resultCount = Object.keys(combinedStatusMap).length;
+        console.log(`✅ Field status loaded: ${resultCount} applications (${successfulChunks}/${chunks.length} chunks successful)`);
+
+        // Only cache if we have reasonable data completeness
+        if (resultCount >= validApplicationIds.length * 0.8) {
+          cache[cacheKey] = {
+            data: combinedStatusMap,
+            timestamp: Date.now(),
+            expiresAt: Date.now() + CACHE_TTL
+          };
+          console.log(`💾 Cached field status data (${resultCount} applications)`);
+        } else {
+          console.warn(`⚠️ Not caching incomplete data (${resultCount}/${validApplicationIds.length})`);
         }
 
-        console.log(`✅ Field status loaded: ${Object.keys(combinedStatusMap).length} applications (${successfulChunks}/${chunks.length} chunks successful)`);
-
-        // Cache the result
-        cache[cacheKey] = {
-          data: combinedStatusMap,
-          timestamp: Date.now(),
-          expiresAt: Date.now() + CACHE_TTL
-        };
+        // Resolve any queued requests
+        const queuedRequests = requestQueue.get(cacheKey) || [];
+        queuedRequests.forEach(({ resolve }) => resolve(combinedStatusMap));
+        requestQueue.delete(cacheKey);
 
         return combinedStatusMap;
       } catch (error) {
         console.error('❌ Error in fetchFieldStatus:', error);
+        
+        // Reject any queued requests
+        const queuedRequests = requestQueue.get(cacheKey) || [];
+        queuedRequests.forEach(({ reject }) => reject(error));
+        requestQueue.delete(cacheKey);
+        
         return {};
       } finally {
         setLoading(false);
@@ -229,7 +254,9 @@ export const useFieldStatusManager = () => {
 
   const clearCache = useCallback(() => {
     Object.keys(cache).forEach(key => delete cache[key]);
-    console.log('🧹 Field status cache cleared');
+    pendingRequests.clear();
+    requestQueue.clear();
+    console.log('🧹 Field status cache, pending requests, and queue cleared');
   }, []);
 
   return {
