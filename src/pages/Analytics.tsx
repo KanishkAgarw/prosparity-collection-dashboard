@@ -394,6 +394,7 @@ const Analytics = () => {
                 <BranchPTPStatusTable 
                   applications={allApplications} 
                   onDrillDown={handleDrillDown}
+                  batchData={batchData}
                 />
               </TabsContent>
 

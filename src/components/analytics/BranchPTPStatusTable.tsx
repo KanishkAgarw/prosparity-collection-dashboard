@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -13,14 +13,20 @@ import { DrillDownFilter } from '@/pages/Analytics';
 interface BranchPTPStatusTableProps {
   applications: Application[];
   onDrillDown: (filter: DrillDownFilter) => void;
+  batchData?: any; // Preloaded batch data from Analytics page
 }
 
-const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTableProps) => {
+const BranchPTPStatusTable = ({ applications, onDrillDown, batchData }: BranchPTPStatusTableProps) => {
   const [selectedEmiMonth, setSelectedEmiMonth] = useState<string>('Jul-25');
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
   
-  const { data: branchPtpData, loading, error } = useBranchPTPData(
-    applications, 
+  // Use preloaded batch data when available, fallback to hook for backwards compatibility
+  const shouldUseBatchData = batchData && Object.keys(batchData).length > 0;
+  
+  console.log('[BranchPTPStatusTable] Using batch data:', shouldUseBatchData, 'Batch data keys:', Object.keys(batchData || {}));
+  
+  const { data: hookBranchPtpData, loading: hookLoading, error: hookError } = useBranchPTPData(
+    shouldUseBatchData ? [] : applications, // Pass empty array when using batch data to skip processing
     selectedEmiMonth
   );
 
@@ -45,6 +51,85 @@ const BranchPTPStatusTable = ({ applications, onDrillDown }: BranchPTPStatusTabl
       selectedEmiMonth: selectedEmiMonth
     });
   };
+
+  // Process batch data into BranchPTPStatus format when available
+  const processedBranchPtpData = useMemo(() => {
+    if (!shouldUseBatchData) {
+      return hookBranchPtpData;
+    }
+
+    console.log('[BranchPTPStatusTable] Processing batch data for PTP analysis');
+    
+    // Enrich applications with batch data
+    const enrichedApplications = applications.map(app => ({
+      ...app,
+      ptp_date: batchData.ptpDates?.[app.applicant_id]?.ptp_date || null,
+      field_status: batchData.fieldStatuses?.[app.applicant_id]?.status || app.lms_status
+    }));
+
+    console.log('[BranchPTPStatusTable] Enriched applications sample:', enrichedApplications.slice(0, 3));
+
+    // Group by branch and process PTP status
+    const branchGroups = enrichedApplications.reduce((acc, app) => {
+      const branch = app.branch_name;
+      const rm = app.collection_rm || app.rm_name;
+      
+      if (!acc[branch]) {
+        acc[branch] = {};
+      }
+      if (!acc[branch][rm]) {
+        acc[branch][rm] = [];
+      }
+      acc[branch][rm].push(app);
+      return acc;
+    }, {} as Record<string, Record<string, Application[]>>);
+
+    const result: BranchPTPStatus[] = Object.entries(branchGroups).map(([branchName, rmGroups]) => {
+      const rmStats = Object.entries(rmGroups).map(([rmName, apps]) => {
+        const nonPaidApps = apps.filter(app => app.field_status !== 'Paid');
+        const today = new Date();
+        const todayStr = today.toDateString();
+        const tomorrowStr = new Date(today.getTime() + 24 * 60 * 60 * 1000).toDateString();
+
+        const stats = {
+          rm_name: rmName,
+          branch_name: branchName,
+          overdue: nonPaidApps.filter(app => app.ptp_date && new Date(app.ptp_date) < today).length,
+          today: nonPaidApps.filter(app => app.ptp_date && new Date(app.ptp_date).toDateString() === todayStr).length,
+          tomorrow: nonPaidApps.filter(app => app.ptp_date && new Date(app.ptp_date).toDateString() === tomorrowStr).length,
+          future: nonPaidApps.filter(app => app.ptp_date && new Date(app.ptp_date) > new Date(today.getTime() + 24 * 60 * 60 * 1000)).length,
+          no_ptp_set: nonPaidApps.filter(app => !app.ptp_date).length,
+          total: nonPaidApps.length
+        };
+
+        return stats;
+      });
+
+      const totalStats = {
+        rm_name: 'Total',
+        branch_name: branchName,
+        overdue: rmStats.reduce((acc, rm) => acc + rm.overdue, 0),
+        today: rmStats.reduce((acc, rm) => acc + rm.today, 0),
+        tomorrow: rmStats.reduce((acc, rm) => acc + rm.tomorrow, 0),
+        future: rmStats.reduce((acc, rm) => acc + rm.future, 0),
+        no_ptp_set: rmStats.reduce((acc, rm) => acc + rm.no_ptp_set, 0),
+        total: rmStats.reduce((acc, rm) => acc + rm.total, 0)
+      };
+
+      return {
+        branch_name: branchName,
+        total_stats: totalStats,
+        rm_stats: rmStats
+      };
+    });
+
+    console.log('[BranchPTPStatusTable] Processed branch PTP data:', result);
+    return result;
+  }, [shouldUseBatchData, applications, batchData, hookBranchPtpData]);
+
+  const branchPtpData = processedBranchPtpData;
+  const loading = shouldUseBatchData ? false : hookLoading;
+  const error = shouldUseBatchData ? null : hookError;
 
   const totals = branchPtpData.reduce(
     (acc, branch) => ({
