@@ -5,10 +5,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { startOfDay } from 'date-fns';
 import { Application } from '@/types/application';
 import { useBranchPTPData, type BranchPTPStatus } from '@/hooks/useBranchPTPData';
 import ClickableTableCell from './shared/ClickableTableCell';
 import { DrillDownFilter } from '@/pages/Analytics';
+import { categorizePtpDate } from '@/utils/ptpDateUtils';
 
 interface BranchPTPStatusTableProps {
   applications: Application[];
@@ -137,48 +139,25 @@ const BranchPTPStatusTable = ({
         
         console.log(`[BranchPTPStatusTable] Non-paid apps for ${rmName}: ${nonPaidApps.length}/${apps.length}`);
         
-        // Create IST-aware date references for comparison
-        const today = new Date('2025-07-11'); // July 11th, 2025 IST
-        console.log(`[BranchPTPStatusTable] Today IST reference: ${today.toLocaleDateString('en-IN')} ${today.toDateString()}`);
+        // Calculate PTP statistics using the utility function for consistency
+        const categorizedApps = {
+          overdue: [] as any[],
+          today: [] as any[],
+          tomorrow: [] as any[],
+          future: [] as any[],
+          no_date: [] as any[]
+        };
         
-        // Use date-only comparison strings for reliable timezone handling
-        const todayDateStr = today.toLocaleDateString('en-CA'); // YYYY-MM-DD format in local timezone
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowDateStr = tomorrow.toLocaleDateString('en-CA');
-        
-        console.log(`[BranchPTPStatusTable] Date references - Today: ${todayDateStr}, Tomorrow: ${tomorrowDateStr}`);
+        nonPaidApps.forEach(app => {
+          const category = categorizePtpDate(app.ptp_date);
+          categorizedApps[category].push(app);
+        });
 
-        // Calculate PTP statistics using date-only comparison
-        const overdueApps = nonPaidApps.filter(app => {
-          if (!app.ptp_date) return false;
-          const ptpDateStr = new Date(app.ptp_date).toLocaleDateString('en-CA');
-          return ptpDateStr < todayDateStr;
-        });
-        
-        const todayApps = nonPaidApps.filter(app => {
-          if (!app.ptp_date) return false;
-          const ptpDateStr = new Date(app.ptp_date).toLocaleDateString('en-CA');
-          const isToday = ptpDateStr === todayDateStr;
-          if (isToday) {
-            console.log(`[BranchPTPStatusTable] Today PTP found: App ${app.applicant_id}, PTP: ${app.ptp_date}, Normalized: ${ptpDateStr}`);
-          }
-          return isToday;
-        });
-        
-        const tomorrowApps = nonPaidApps.filter(app => {
-          if (!app.ptp_date) return false;
-          const ptpDateStr = new Date(app.ptp_date).toLocaleDateString('en-CA');
-          return ptpDateStr === tomorrowDateStr;
-        });
-        
-        const futureApps = nonPaidApps.filter(app => {
-          if (!app.ptp_date) return false;
-          const ptpDateStr = new Date(app.ptp_date).toLocaleDateString('en-CA');
-          return ptpDateStr > tomorrowDateStr;
-        });
-        
-        const noPtpApps = nonPaidApps.filter(app => !app.ptp_date);
+        const overdueApps = categorizedApps.overdue;
+        const todayApps = categorizedApps.today;
+        const tomorrowApps = categorizedApps.tomorrow;
+        const futureApps = categorizedApps.future;
+        const noPtpApps = categorizedApps.no_date;
 
         const stats = {
           rm_name: rmName,
