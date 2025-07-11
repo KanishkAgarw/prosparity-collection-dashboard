@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Application } from '@/types/application';
 import { useFieldStatusManager } from '@/hooks/useFieldStatusManager';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,63 +22,66 @@ export interface BranchPaymentStatus {
   rm_stats: PaymentStatusRow[];
 }
 
+// Simple cache for branch payment data
+const paymentDataCache = new Map<string, BranchPaymentStatus[]>();
+
 export const useBranchPaymentData = (applications: Application[], selectedEmiMonth?: string) => {
   const { fetchFieldStatus } = useFieldStatusManager();
   const [data, setData] = useState<BranchPaymentStatus[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
+  // Create cache key
+  const cacheKey = useMemo(() => {
+    return `payment-${selectedEmiMonth || 'all'}-${applications.length}`;
+  }, [selectedEmiMonth, applications.length]);
+
   useEffect(() => {
     const fetchPaymentData = async () => {
+      // Check cache first
+      if (paymentDataCache.has(cacheKey)) {
+        console.log('📊 Cache HIT for payment data:', cacheKey);
+        setData(paymentDataCache.get(cacheKey)!);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
       
       try {
-        console.log('📊 Fetching payment data for month:', selectedEmiMonth);
+        console.log('📊 Cache MISS - Fast-loading payment data for month:', selectedEmiMonth);
         
-        let collectionData, error;
+        // Optimized single query with joins to get everything at once
+        let query = supabase
+          .from('collection')
+          .select(`
+            application_id,
+            demand_date,
+            applications!inner(
+              applicant_id,
+              branch_name,
+              rm_name,
+              collection_rm,
+              lms_status
+            )
+          `);
 
-        if (!selectedEmiMonth) {
-          // For "All" option, get all collection records
-          console.log('📊 Fetching all collection records for branch payment data');
-          const { data, error: allError } = await supabase
-            .from('collection')
-            .select(`
-              application_id,
-              applications!inner(*)
-            `);
-          collectionData = data;
-          error = allError;
-        } else {
-          // Convert EMI month format from display (Jul-25) to database (2025-07)
+        // Apply date filtering if month is selected
+        if (selectedEmiMonth) {
           const dbFormatMonth = convertEmiMonthToDatabase(selectedEmiMonth);
-          console.log('📊 Converting EMI month format:', selectedEmiMonth, '->', dbFormatMonth);
-          
-          // Validate the converted month format
           if (!dbFormatMonth || !dbFormatMonth.match(/^\d{4}-\d{2}$/)) {
-            console.error('Invalid month format after conversion:', dbFormatMonth);
             throw new Error(`Invalid month format: ${selectedEmiMonth}`);
           }
           
-          // For specific month, filter by demand_date range
-          console.log('📊 Fetching collection records for month:', dbFormatMonth);
           const { start, end } = getMonthDateRange(dbFormatMonth);
-          console.log('📊 Date range for payment data:', { start, end });
-          
-          const { data, error: monthError } = await supabase
-            .from('collection')
-            .select(`
-              application_id,
-              applications!inner(*)
-            `)
-            .gte('demand_date', start)
-            .lte('demand_date', end);
-          collectionData = data;
-          error = monthError;
+          query = query.gte('demand_date', start).lte('demand_date', end);
         }
 
+        const { data: collectionData, error } = await query;
+
         if (error) {
-          console.error('Error fetching collection data for branch payment analysis:', error);
+          console.error('Error fetching collection data:', error);
           throw new Error(`Failed to fetch collection data: ${error.message}`);
         }
 
@@ -88,34 +91,15 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
           return;
         }
 
-        // Get application IDs that have collection records for this month
-        const monthApplicationIds = collectionData.map(record => record.application_id);
-        console.log(`Found ${monthApplicationIds.length} applications with collection records for ${selectedEmiMonth}`);
+        // Get application IDs for field status fetch in batches
+        const applicationIds = collectionData.map(record => record.application_id);
+        console.log(`📊 Processing ${applicationIds.length} applications for payment analysis`);
         
-        if (monthApplicationIds.length === 0) {
-          console.log('No valid application IDs found');
-          setData([]);
-          return;
-        }
-        
-        // Convert selectedEmiMonth to database format for field status query
+        // Batch fetch field status - only for applications we need
         const dbFormatMonth = selectedEmiMonth ? convertEmiMonthToDatabase(selectedEmiMonth) : undefined;
+        const statusMap = await fetchFieldStatus(applicationIds, dbFormatMonth, false);
         
-        // Fetch month-specific field status using the robust manager
-        const statusMap = await fetchFieldStatus(
-          monthApplicationIds, 
-          dbFormatMonth,
-          false // includeAllMonths = false for month-specific filtering
-        );
-        
-        console.log('🔍 Field status map loaded:', Object.keys(statusMap).length, 'applications');
-        console.log('🔍 Status map sample entries:', Object.entries(statusMap).slice(0, 5));
-        console.log('🔍 Status distribution in map:', 
-          Object.values(statusMap).reduce((acc, status) => {
-            acc[status] = (acc[status] || 0) + 1;
-            return acc;
-          }, {} as Record<string, number>)
-        );
+        console.log('🔍 Field status loaded for', Object.keys(statusMap).length, 'applications');
 
         const branchMap = new Map<string, BranchPaymentStatus>();
         
@@ -219,6 +203,10 @@ export const useBranchPaymentData = (applications: Application[], selectedEmiMon
             total: branch.total_stats.total
           });
         });
+        
+        // Cache the result for future use
+        paymentDataCache.set(cacheKey, result);
+        console.log('📊 Payment data cached with key:', cacheKey);
         
         setData(result);
       } catch (err) {

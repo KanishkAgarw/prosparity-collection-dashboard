@@ -67,9 +67,18 @@ const BranchPaymentStatusTable = ({ applications, onDrillDown }: BranchPaymentSt
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2">Loading payment data...</span>
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="relative">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-100 border-t-blue-600"></div>
+              <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-300 animate-ping"></div>
+            </div>
+            <div className="mt-4 text-center">
+              <p className="text-base font-medium text-gray-700 animate-pulse">Loading payment data...</p>
+              <p className="text-sm text-gray-500 mt-1">Analyzing branch performance metrics</p>
+            </div>
+            <div className="mt-4 w-48 bg-gray-200 rounded-full h-2">
+              <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{width: '70%'}}></div>
+            </div>
           </div>
         </CardContent>
       </Card>
