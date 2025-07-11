@@ -13,12 +13,23 @@ import { DrillDownFilter } from '@/pages/Analytics';
 interface BranchPTPStatusTableProps {
   applications: Application[];
   onDrillDown: (filter: DrillDownFilter) => void;
-  batchData?: any; // Preloaded batch data from Analytics page
+  batchData?: any;
+  selectedEmiMonth?: string;
+  onMonthChange?: (month: string) => void;
 }
 
-const BranchPTPStatusTable = ({ applications, onDrillDown, batchData }: BranchPTPStatusTableProps) => {
-  const [selectedEmiMonth, setSelectedEmiMonth] = useState<string>('Jul-25');
+const BranchPTPStatusTable = ({ 
+  applications, 
+  onDrillDown, 
+  batchData, 
+  selectedEmiMonth: propSelectedEmiMonth,
+  onMonthChange 
+}: BranchPTPStatusTableProps) => {
+  const [localSelectedEmiMonth, setLocalSelectedEmiMonth] = useState<string>('Jul-25');
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
+  
+  // Use prop or local state for selected month
+  const selectedEmiMonth = propSelectedEmiMonth || localSelectedEmiMonth;
   
   // Use preloaded batch data when available, fallback to hook for backwards compatibility
   const shouldUseBatchData = batchData && Object.keys(batchData).length > 0;
@@ -59,12 +70,30 @@ const BranchPTPStatusTable = ({ applications, onDrillDown, batchData }: BranchPT
     }
 
     console.log('[BranchPTPStatusTable] Processing batch data for PTP analysis');
+    console.log('[BranchPTPStatusTable] Selected EMI Month:', selectedEmiMonth);
+    
+    // Filter applications by demand_date matching selectedEmiMonth first
+    const filteredApplications = applications.filter(app => {
+      if (!app.demand_date) return false;
+      
+      try {
+        const demandDate = new Date(app.demand_date);
+        const monthYear = demandDate.toLocaleString('en-US', { month: 'short', year: '2-digit' });
+        const formattedMonth = `${monthYear.slice(0, 3)}-${monthYear.slice(-2)}`;
+        return formattedMonth === selectedEmiMonth;
+      } catch (error) {
+        console.error('Error parsing demand_date:', app.demand_date, error);
+        return false;
+      }
+    });
+
+    console.log(`[BranchPTPStatusTable] Filtered ${filteredApplications.length} applications for ${selectedEmiMonth}`);
     
     // Enrich applications with batch data
-    const enrichedApplications = applications.map(app => ({
+    const enrichedApplications = filteredApplications.map(app => ({
       ...app,
-      ptp_date: batchData.ptpDates?.[app.applicant_id]?.ptp_date || null,
-      field_status: batchData.fieldStatuses?.[app.applicant_id]?.status || app.lms_status
+      ptp_date: batchData.ptpDates?.[app.applicant_id] || null,
+      field_status: batchData.statuses?.[app.applicant_id] || app.lms_status
     }));
 
     console.log('[BranchPTPStatusTable] Enriched applications sample:', enrichedApplications.slice(0, 3));
@@ -125,7 +154,7 @@ const BranchPTPStatusTable = ({ applications, onDrillDown, batchData }: BranchPT
 
     console.log('[BranchPTPStatusTable] Processed branch PTP data:', result);
     return result;
-  }, [shouldUseBatchData, applications, batchData, hookBranchPtpData]);
+  }, [shouldUseBatchData, applications, batchData, hookBranchPtpData, selectedEmiMonth]);
 
   const branchPtpData = processedBranchPtpData;
   const loading = shouldUseBatchData ? false : hookLoading;
@@ -192,7 +221,16 @@ const BranchPTPStatusTable = ({ applications, onDrillDown, batchData }: BranchPT
             </CardDescription>
           </div>
           <div className="flex gap-4 items-center">
-            <Select value={selectedEmiMonth} onValueChange={setSelectedEmiMonth}>
+            <Select 
+              value={selectedEmiMonth} 
+              onValueChange={(month) => {
+                if (onMonthChange) {
+                  onMonthChange(month);
+                } else {
+                  setLocalSelectedEmiMonth(month);
+                }
+              }}
+            >
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="Select EMI Month" />
               </SelectTrigger>

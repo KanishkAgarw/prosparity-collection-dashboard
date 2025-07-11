@@ -38,9 +38,36 @@ const Analytics = () => {
   const [filteredApplicationsStatusData, setFilteredApplicationsStatusData] = useState<Record<string, string>>({});
   const [batchData, setBatchData] = useState<any>(null);
   const [modalLoading, setModalLoading] = useState(false);
+  const [selectedEmiMonth, setSelectedEmiMonth] = useState<string>('Jul-25');
+  const [ptpBatchData, setPtpBatchData] = useState<any>(null);
 
   console.log('Analytics - Applications loaded:', allApplications?.length || 0);
   console.log('Analytics - Loading state:', loading);
+
+  // Handle EMI month change for PTP Status tab
+  const handleEmiMonthChange = async (month: string) => {
+    console.log('Analytics - EMI Month changed to:', month);
+    setSelectedEmiMonth(month);
+    
+    // Clear existing PTP batch data
+    setPtpBatchData(null);
+    
+    // Refetch batch data for the new month if we have applications
+    if (allApplications && allApplications.length > 0) {
+      try {
+        console.log('📊 Refetching PTP batch data for month:', month);
+        const applicationIds = allApplications.map(app => app.applicant_id);
+        const freshBatchData = await dataManager.fetchAllData(applicationIds, {
+          selectedEmiMonth: month,
+          priority: 'high'
+        });
+        setPtpBatchData(freshBatchData);
+        console.log('✅ PTP Batch data refetched for month:', month);
+      } catch (error) {
+        console.error('❌ Error refetching PTP batch data:', error);
+      }
+    }
+  };
 
   const handleDrillDown = async (filter: DrillDownFilter) => {
     console.log('Analytics - Drill down filter:', filter);
@@ -394,7 +421,9 @@ const Analytics = () => {
                 <BranchPTPStatusTable 
                   applications={allApplications} 
                   onDrillDown={handleDrillDown}
-                  batchData={batchData}
+                  batchData={ptpBatchData}
+                  selectedEmiMonth={selectedEmiMonth}
+                  onMonthChange={handleEmiMonthChange}
                 />
               </TabsContent>
 
