@@ -110,8 +110,8 @@ export const useBranchPTPData = (applications: Application[], selectedEmiMonth?:
         
         console.log('🔍 Field status map loaded for PTP:', Object.keys(statusMap).length, 'applications');
         
-        // Fetch PTP dates for these applications
-        const ptpDatesMap = await fetchPtpDates(applicationIds, dbFormatMonth);
+        // Fetch PTP dates for these applications (without demand month filtering for accurate categorization)
+        const ptpDatesMap = await fetchPtpDates(applicationIds);
         console.log('📅 PTP dates map loaded:', Object.keys(ptpDatesMap).length, 'applications');
 
         // Enrich applications with PTP dates and field status to match Analytics filtering expectations
