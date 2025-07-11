@@ -103,7 +103,6 @@ const DetailsTab = ({
         <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-8">
                 <DetailItem label="RM Name" value={application.rm_name} />
-                <DetailItem label="Collection RM" value={application.collection_rm} />
                 <DetailItem label="Team Lead" value={application.team_lead} />
                 <DetailItem label="Branch" value={application.branch_name} />
                 <DetailItem label="Dealer" value={application.dealer_name} />

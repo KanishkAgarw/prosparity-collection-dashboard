@@ -55,9 +55,6 @@ const ApplicationRow = memo(({
           <span className="text-xs text-gray-700">Branch: {application.branch_name}</span>
           <span className="text-xs text-gray-700">TL: {application.team_lead}</span>
           <span className="text-xs text-gray-700">RM: {application.rm_name}</span>
-          {application.collection_rm && (
-            <span className="text-xs text-gray-700">Collection RM: {application.collection_rm}</span>
-          )}
           <span className="text-xs text-gray-700">Dealer: {application.dealer_name}</span>
           <span className="text-xs text-gray-700">Lender: {application.lender_name}</span>
         </div>
