@@ -18,7 +18,6 @@ interface CascadingFilterOptions {
   repayments: string[];
   lastMonthBounce: string[];
   ptpDateOptions: string[];
-  collectionRms: string[];
   vehicleStatusOptions: string[];
 }
 
@@ -37,7 +36,6 @@ export const useCascadingFilters = () => {
     repayment: [],
     lastMonthBounce: [],
     ptpDate: [],
-    collectionRm: [],
     vehicleStatus: []
   });
 
@@ -52,7 +50,6 @@ export const useCascadingFilters = () => {
     repayments: [],
     lastMonthBounce: ['Not paid', 'Paid on time', '1-5 days late', '6-15 days late', '15+ days late'],
     ptpDateOptions: ['Overdue PTP', "Today's PTP", "Tomorrow's PTP", 'Future PTP', 'No PTP'],
-    collectionRms: [],
     vehicleStatusOptions: VEHICLE_STATUS_OPTIONS.map(opt => opt.value)
   });
 
@@ -166,18 +163,6 @@ export const useCascadingFilters = () => {
         applicationsQuery = applicationsQuery.in('rm_name', filters.rm);
         collectionQuery = collectionQuery.in('rm_name', filters.rm);
       }
-      if (filters.collectionRm?.length > 0) {
-        // Normalize collection RM values - treat N/A and NA as the same
-        const normalizedCollectionRms = filters.collectionRm.map(rm => 
-          rm === 'N/A' || rm === 'NA' ? 'N/A' : rm
-        );
-        applicationsQuery = applicationsQuery.or(
-          `collection_rm.in.(${normalizedCollectionRms.join(',')}),collection_rm.is.null`
-        );
-        collectionQuery = collectionQuery.or(
-          `collection_rm.in.(${normalizedCollectionRms.join(',')}),collection_rm.is.null`
-        );
-      }
       if (filters.dealer?.length > 0) {
         applicationsQuery = applicationsQuery.in('dealer_name', filters.dealer);
       }
@@ -221,12 +206,6 @@ export const useCascadingFilters = () => {
         branches: [...new Set(apps.map(app => app.branch_name).filter(Boolean))].sort(),
         teamLeads: [...new Set(allData.map(item => item.team_lead).filter(Boolean))].sort(),
         rms: [...new Set(allData.map(item => item.rm_name).filter(Boolean))].sort(),
-        collectionRms: [...new Set(allData.map(item => {
-          // Normalize N/A and NA to the same value
-          const rm = item.collection_rm;
-          if (!rm || rm === 'NA') return 'N/A';
-          return rm;
-        }).filter(Boolean))].sort(),
         dealers: [...new Set(apps.map(app => app.dealer_name).filter(Boolean))].sort(),
         lenders: [...new Set(apps.map(app => app.lender_name).filter(Boolean))].sort(),
         emiMonths: [selectedEmiMonth], // Only show current selected month
@@ -289,7 +268,6 @@ export const useCascadingFilters = () => {
       repayment: [],
       lastMonthBounce: [],
       ptpDate: [],
-      collectionRm: [],
       vehicleStatus: []
     });
   }, []);
@@ -307,7 +285,6 @@ export const useCascadingFilters = () => {
       repayment: [],
       lastMonthBounce: [],
       ptpDate: [],
-      collectionRm: [],
       vehicleStatus: []
     });
   }, []);

@@ -79,9 +79,6 @@ export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: 
       if (filters.branch?.length > 0) {
         query = query.in('applications.branch_name', filters.branch);
       }
-      if (filters.collectionRm?.length > 0) {
-        query = query.in('collection_rm', filters.collectionRm);
-      }
       if (filters.dealer?.length > 0) {
         query = query.in('applications.dealer_name', filters.dealer);
       }
@@ -141,8 +138,7 @@ export const useStatusCounts = ({ filters, selectedEmiMonth, searchTerm = '' }: 
               app?.lender_name?.toLowerCase() || '',
               app?.branch_name?.toLowerCase() || '',
               app?.rm_name?.toLowerCase() || '',
-              app?.team_lead?.toLowerCase() || '',
-              row.collection_rm?.toLowerCase() || ''
+              app?.team_lead?.toLowerCase() || ''
             ];
             return searchableFields.some(field => field.includes(searchLower));
           })

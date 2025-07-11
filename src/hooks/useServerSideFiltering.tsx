@@ -14,7 +14,6 @@ export const useServerSideFiltering = () => {
     repayment: [],
     lastMonthBounce: [],
     ptpDate: [],
-    collectionRm: [],
     vehicleStatus: []
   });
 
@@ -37,7 +36,6 @@ export const useServerSideFiltering = () => {
       repayment: [],
       lastMonthBounce: [],
       ptpDate: [],
-      collectionRm: [],
       vehicleStatus: []
     });
   }, []);

@@ -11,7 +11,6 @@ export interface FilterState {
   repayment: string[];
   lastMonthBounce: LastMonthBounceCategory[];
   ptpDate: string[]; // Changed to string[] to handle display labels
-  collectionRm: string[];
   vehicleStatus: string[];
 }
 
@@ -26,7 +25,6 @@ export interface AvailableOptions {
   repayments: string[];
   lastMonthBounce: LastMonthBounceCategory[];
   ptpDateOptions: string[];
-  collectionRms: string[];
   vehicleStatusOptions: string[];
 }
 

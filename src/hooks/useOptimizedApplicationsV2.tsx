@@ -67,14 +67,6 @@ export const useOptimizedApplicationsV2 = ({
       if (filters.rm?.length > 0) {
         collectionQuery = collectionQuery.in('rm_name', filters.rm);
       }
-      if (filters.collectionRm?.length > 0) {
-        const normalizedCollectionRms = filters.collectionRm.map(rm => 
-          rm === 'N/A' || rm === 'NA' ? 'N/A' : rm
-        );
-        collectionQuery = collectionQuery.or(
-          `collection_rm.in.(${normalizedCollectionRms.join(',')}),collection_rm.is.null`
-        );
-      }
       if (filters.repayment?.length > 0) {
         collectionQuery = collectionQuery.in('repayment', filters.repayment);
       }

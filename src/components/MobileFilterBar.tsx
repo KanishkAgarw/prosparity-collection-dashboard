@@ -16,7 +16,6 @@ interface MobileFilterBarProps {
     repayment: string[];
     lastMonthBounce: string[];
     ptpDate: string[];
-    collectionRm: string[];
   };
   onFilterChange: (key: string, values: string[]) => void;
   availableOptions: {
@@ -30,7 +29,6 @@ interface MobileFilterBarProps {
     repayments: string[];
     lastMonthBounce: string[];
     ptpDateOptions: string[];
-    collectionRms: string[];
   };
   emiMonthOptions?: string[];
 }
@@ -57,7 +55,6 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions, emiMonthOp
     repayments: availableOptions?.repayments || [],
     lastMonthBounce: availableOptions?.lastMonthBounce || [],
     ptpDateOptions: availableOptions?.ptpDateOptions || [],
-    collectionRms: availableOptions?.collectionRms || [],
   };
 
   // Use the prop if provided, else fallback to availableOptions.emiMonths
@@ -75,7 +72,6 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions, emiMonthOp
     repayment: tempFilters?.repayment || [],
     lastMonthBounce: tempFilters?.lastMonthBounce || [],
     ptpDate: tempFilters?.ptpDate || [],
-    collectionRm: tempFilters?.collectionRm || [],
   };
 
   // Count active filters (use applied filters for badge)
@@ -182,15 +178,6 @@ const MobileFilterBar = ({ filters, onFilterChange, availableOptions, emiMonthOp
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="block text-xs font-medium text-gray-700">Collection RMs</label>
-                <CustomMultiSelectFilter
-                  label="Collection RMs"
-                  options={safeFilterOptions.collectionRms}
-                  selected={safeFilters.collectionRm}
-                  onSelectionChange={(values) => handleTempFilterChange('collectionRm', values)}
-                />
-              </div>
 
               <div className="space-y-2">
                 <label className="block text-xs font-medium text-gray-700">Dealers</label>

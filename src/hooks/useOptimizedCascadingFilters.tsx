@@ -17,7 +17,6 @@ interface CascadingFilterOptions {
   repayments: string[];
   lastMonthBounce: string[];
   ptpDateOptions: string[];
-  collectionRms: string[];
   vehicleStatusOptions: string[];
 }
 
@@ -36,7 +35,6 @@ export const useOptimizedCascadingFilters = () => {
     repayment: [],
     lastMonthBounce: [],
     ptpDate: [],
-    collectionRm: [],
     vehicleStatus: []
   });
 
@@ -51,7 +49,6 @@ export const useOptimizedCascadingFilters = () => {
     repayments: [],
     lastMonthBounce: ['Not paid', 'Paid on time', '1-5 days late', '6-15 days late', '15+ days late'],
     ptpDateOptions: ['overdue', 'today', 'tomorrow', 'future', 'no_date'],
-    collectionRms: [],
     vehicleStatusOptions: VEHICLE_STATUS_OPTIONS.map(opt => opt.value)
   });
 
@@ -118,7 +115,7 @@ export const useOptimizedCascadingFilters = () => {
         repayments: [],
         lastMonthBounce: ['Not paid', 'Paid on time', '1-5 days late', '6-15 days late', '15+ days late'],
         ptpDateOptions: ['overdue', 'today', 'tomorrow', 'future', 'no_date'],
-        collectionRms: [],
+        
         vehicleStatusOptions: VEHICLE_STATUS_OPTIONS.map(opt => opt.value)
       };
       
@@ -211,11 +208,6 @@ export const useOptimizedCascadingFilters = () => {
         branches: [...new Set(combinedData.map(item => item.applications?.branch_name).filter(Boolean))].sort(),
         teamLeads: [...new Set(combinedData.map(item => item.team_lead).filter(Boolean))].sort(),
         rms: [...new Set(combinedData.map(item => item.rm_name).filter(Boolean))].sort(),
-        collectionRms: [...new Set(combinedData.map(item => {
-          const rm = item.collection_rm;
-          if (!rm || rm === 'NA') return 'N/A';
-          return rm;
-        }).filter(Boolean))].sort(),
         dealers: [...new Set(combinedData.map(item => item.applications?.dealer_name).filter(Boolean))].sort(),
         lenders: [...new Set(combinedData.map(item => item.applications?.lender_name).filter(Boolean))].sort(),
         repayments: [...new Set(combinedData.map(item => item.repayment).filter(Boolean))].sort(),
@@ -268,7 +260,6 @@ export const useOptimizedCascadingFilters = () => {
       repayment: [],
       lastMonthBounce: [],
       ptpDate: [],
-      collectionRm: [],
       vehicleStatus: []
     });
   }, []);
@@ -285,7 +276,6 @@ export const useOptimizedCascadingFilters = () => {
       repayment: [],
       lastMonthBounce: [],
       ptpDate: [],
-      collectionRm: [],
       vehicleStatus: []
     });
   }, []);

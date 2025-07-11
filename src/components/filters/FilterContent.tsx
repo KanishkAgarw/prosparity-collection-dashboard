@@ -41,14 +41,6 @@ const FilterContent = ({ filters, availableOptions, onFilterChange, onClose, onC
           placeholder="Select RMs"
         />
 
-        {/* Collection RM Filter */}
-        <CustomMultiSelectFilter
-          label="Collection RM"
-          options={availableOptions.collectionRms || []}
-          selected={filters.collectionRm || []}
-          onSelectionChange={(values) => onFilterChange('collectionRm', values)}
-          placeholder="Select collection RMs"
-        />
 
         {/* Dealer Filter */}
         <CustomMultiSelectFilter

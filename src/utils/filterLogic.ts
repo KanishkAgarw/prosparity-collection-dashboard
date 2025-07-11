@@ -44,7 +44,6 @@ export const getAvailableOptions = (allApplications: any[], filteredApplications
     return dateA.getTime() - dateB.getTime();
   });
   const repayments = [...new Set(appsForOptions.map(app => formatRepayment(app.repayment)).filter(Boolean))].sort();
-  const collectionRms = [...new Set(appsForOptions.map(app => app.collection_rm).filter(Boolean))].sort();
 
   const lastMonthBounce: LastMonthBounceCategory[] = [
     'Not paid',
@@ -75,7 +74,6 @@ export const getAvailableOptions = (allApplications: any[], filteredApplications
     repayments,
     lastMonthBounce,
     ptpDateOptions,
-    collectionRms,
     vehicleStatusOptions
   };
 };
@@ -133,7 +131,6 @@ export const filterApplications = (applications: any[], filters: FilterState) =>
     const rmMatch = filters.rm.length === 0 || filters.rm.includes(app.rm_name);
     const dealerMatch = filters.dealer.length === 0 || filters.dealer.includes(app.dealer_name);
     const lenderMatch = filters.lender.length === 0 || filters.lender.includes(app.lender_name);
-    const collectionRmMatch = filters.collectionRm.length === 0 || filters.collectionRm.includes(app.collection_rm || '');
 
     const vehicleStatusMatch = filters.vehicleStatus.length === 0 || 
       (filters.vehicleStatus.includes('None') && !app.vehicle_status) ||
@@ -141,7 +138,7 @@ export const filterApplications = (applications: any[], filters: FilterState) =>
 
     const matches = branchMatch && teamLeadMatch && rmMatch && dealerMatch && 
            lenderMatch && statusMatch && emiMonthMatch && repaymentMatch && 
-           lastMonthBounceMatch && ptpDateMatch && collectionRmMatch && vehicleStatusMatch;
+           lastMonthBounceMatch && ptpDateMatch && vehicleStatusMatch;
 
     if (!matches && filters.ptpDate.length > 0) {
       console.log('PTP filter mismatch for:', app.applicant_name, 'Category:', categorizePtpDate(app.ptp_date), 'Filter:', filters.ptpDate);

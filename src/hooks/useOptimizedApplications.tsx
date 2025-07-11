@@ -26,7 +26,6 @@ interface OptimizedApplicationsResponse {
     repayments: string[];
     lastMonthBounce: string[];
     ptpDateOptions: string[];
-    collectionRms: string[];
     vehicleStatusOptions: string[];
   };
 }
@@ -52,7 +51,6 @@ export const useOptimizedApplications = ({
       repayments: [],
       lastMonthBounce: [],
       ptpDateOptions: [],
-      collectionRms: [],
       vehicleStatusOptions: []
     }
   });
@@ -74,9 +72,6 @@ export const useOptimizedApplications = ({
     }
     if (filters.rm?.length > 0) {
       query = query.in('rm_name', filters.rm);
-    }
-    if (filters.collectionRm?.length > 0) {
-      query = query.in('collection_rm', filters.collectionRm);
     }
     if (filters.dealer?.length > 0) {
       query = query.in('dealer_name', filters.dealer);
@@ -104,7 +99,6 @@ export const useOptimizedApplications = ({
         dealer_name.ilike.${searchPattern},
         lender_name.ilike.${searchPattern},
         rm_name.ilike.${searchPattern},
-        collection_rm.ilike.${searchPattern},
         team_lead.ilike.${searchPattern}
       `);
     }
@@ -211,14 +205,13 @@ export const useOptimizedApplications = ({
     try {
       const { data: apps } = await supabase
         .from('applications')
-        .select('branch_name, team_lead, rm_name, collection_rm, dealer_name, lender_name, demand_date, repayment, last_month_bounce, vehicle_status');
+        .select('branch_name, team_lead, rm_name, dealer_name, lender_name, demand_date, repayment, last_month_bounce, vehicle_status');
 
       if (!apps) return;
 
       const branches = [...new Set(apps.map(app => app.branch_name).filter(Boolean))].sort();
       const teamLeads = [...new Set(apps.map(app => app.team_lead).filter(Boolean))].sort();
       const rms = [...new Set(apps.map(app => app.rm_name).filter(Boolean))].sort();
-      const collectionRms = [...new Set(apps.map(app => app.collection_rm).filter(Boolean))].sort();
       const dealers = [...new Set(apps.map(app => app.dealer_name).filter(Boolean))].sort();
       const lenders = [...new Set(apps.map(app => app.lender_name).filter(Boolean))].sort();
       const emiMonths = [...new Set(apps.map(app => app.demand_date).filter(Boolean))].sort();
@@ -236,7 +229,6 @@ export const useOptimizedApplications = ({
         branches,
         teamLeads,
         rms,
-        collectionRms,
         dealers,
         lenders,
         statuses: uniqueStatuses,

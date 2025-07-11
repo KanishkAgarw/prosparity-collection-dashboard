@@ -91,21 +91,6 @@ export const useOptimizedApplicationsV3 = ({
       if (filters.rm?.length > 0) {
         dataQuery = dataQuery.in('rm_name', filters.rm);
       }
-      if (filters.collectionRm?.length > 0) {
-        const normalizedCollectionRms = filters.collectionRm.map(rm => 
-          rm === 'N/A' || rm === 'NA' ? null : rm
-        );
-        if (normalizedCollectionRms.includes(null)) {
-          const nonNullRms = normalizedCollectionRms.filter(rm => rm !== null);
-          if (nonNullRms.length > 0) {
-            dataQuery = dataQuery.or(`collection_rm.in.(${nonNullRms.join(',')}),collection_rm.is.null`);
-          } else {
-            dataQuery = dataQuery.is('collection_rm', null);
-          }
-        } else {
-          dataQuery = dataQuery.in('collection_rm', normalizedCollectionRms);
-        }
-      }
       if (filters.repayment?.length > 0) {
         dataQuery = dataQuery.in('repayment', filters.repayment);
       }
