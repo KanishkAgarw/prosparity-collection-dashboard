@@ -138,7 +138,7 @@ const BranchPTPStatusTable = ({
         console.log(`[BranchPTPStatusTable] Non-paid apps for ${rmName}: ${nonPaidApps.length}/${apps.length}`);
         
         // Create IST-aware date references for comparison
-        const today = new Date(); // July 11th, 2025 IST
+        const today = new Date('2025-07-11'); // July 11th, 2025 IST
         console.log(`[BranchPTPStatusTable] Today IST reference: ${today.toLocaleDateString('en-IN')} ${today.toDateString()}`);
         
         // Use date-only comparison strings for reliable timezone handling
