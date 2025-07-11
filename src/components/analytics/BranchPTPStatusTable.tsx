@@ -90,11 +90,20 @@ const BranchPTPStatusTable = ({
     console.log(`[BranchPTPStatusTable] Filtered ${filteredApplications.length} applications for ${selectedEmiMonth}`);
     
     // Enrich applications with batch data
-    const enrichedApplications = filteredApplications.map(app => ({
-      ...app,
-      ptp_date: batchData.ptpDates?.[app.applicant_id] || null,
-      field_status: batchData.statuses?.[app.applicant_id] || app.lms_status
-    }));
+    const enrichedApplications = filteredApplications.map(app => {
+      const enriched = {
+        ...app,
+        ptp_date: batchData.ptpDates?.[app.applicant_id] || null,
+        field_status: batchData.statuses?.[app.applicant_id] || app.lms_status
+      };
+      
+      // Log enrichment details for debugging
+      if (batchData.statuses?.[app.applicant_id]) {
+        console.log(`[BranchPTPStatusTable] Enriched ${app.applicant_id}: field_status=${enriched.field_status}, ptp_date=${enriched.ptp_date}`);
+      }
+      
+      return enriched;
+    });
 
     console.log('[BranchPTPStatusTable] Enriched applications sample:', enrichedApplications.slice(0, 3));
 
@@ -115,21 +124,42 @@ const BranchPTPStatusTable = ({
 
     const result: BranchPTPStatus[] = Object.entries(branchGroups).map(([branchName, rmGroups]) => {
       const rmStats = Object.entries(rmGroups).map(([rmName, apps]) => {
-        const nonPaidApps = apps.filter(app => app.field_status !== 'Paid');
+        console.log(`[BranchPTPStatusTable] Processing RM: ${rmName}, Apps: ${apps.length}`);
+        
+        // Filter out applications with 'Paid' field_status for this specific month
+        const nonPaidApps = apps.filter(app => {
+          const isPaid = app.field_status === 'Paid';
+          if (isPaid) {
+            console.log(`[BranchPTPStatusTable] Excluding paid app: ${app.applicant_id}, Status: ${app.field_status}`);
+          }
+          return !isPaid;
+        });
+        
+        console.log(`[BranchPTPStatusTable] Non-paid apps for ${rmName}: ${nonPaidApps.length}/${apps.length}`);
+        
         const today = new Date();
         const todayStr = today.toDateString();
         const tomorrowStr = new Date(today.getTime() + 24 * 60 * 60 * 1000).toDateString();
 
+        // Calculate PTP statistics
+        const overdueApps = nonPaidApps.filter(app => app.ptp_date && new Date(app.ptp_date) < today);
+        const todayApps = nonPaidApps.filter(app => app.ptp_date && new Date(app.ptp_date).toDateString() === todayStr);
+        const tomorrowApps = nonPaidApps.filter(app => app.ptp_date && new Date(app.ptp_date).toDateString() === tomorrowStr);
+        const futureApps = nonPaidApps.filter(app => app.ptp_date && new Date(app.ptp_date) > new Date(today.getTime() + 24 * 60 * 60 * 1000));
+        const noPtpApps = nonPaidApps.filter(app => !app.ptp_date);
+
         const stats = {
           rm_name: rmName,
           branch_name: branchName,
-          overdue: nonPaidApps.filter(app => app.ptp_date && new Date(app.ptp_date) < today).length,
-          today: nonPaidApps.filter(app => app.ptp_date && new Date(app.ptp_date).toDateString() === todayStr).length,
-          tomorrow: nonPaidApps.filter(app => app.ptp_date && new Date(app.ptp_date).toDateString() === tomorrowStr).length,
-          future: nonPaidApps.filter(app => app.ptp_date && new Date(app.ptp_date) > new Date(today.getTime() + 24 * 60 * 60 * 1000)).length,
-          no_ptp_set: nonPaidApps.filter(app => !app.ptp_date).length,
+          overdue: overdueApps.length,
+          today: todayApps.length,
+          tomorrow: tomorrowApps.length,
+          future: futureApps.length,
+          no_ptp_set: noPtpApps.length,
           total: nonPaidApps.length
         };
+
+        console.log(`[BranchPTPStatusTable] ${rmName} PTP stats:`, stats);
 
         return stats;
       });

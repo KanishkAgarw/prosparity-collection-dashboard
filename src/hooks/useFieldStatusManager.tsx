@@ -57,10 +57,28 @@ export const useFieldStatusManager = () => {
 
       // Add month filtering if specified and not including all months
       if (queryParams.selectedMonth && !queryParams.includeAllMonths) {
-        const [year, month] = queryParams.selectedMonth.split('-').map(Number);
+        // Convert from "Jul-25" format to database format "2025-07"
+        let dbFormatMonth: string;
+        if (queryParams.selectedMonth.includes('-')) {
+          const [monthAbbr, year] = queryParams.selectedMonth.split('-');
+          const monthMap: Record<string, string> = {
+            'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
+            'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
+            'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
+          };
+          const monthNum = monthMap[monthAbbr];
+          const fullYear = year.length === 2 ? `20${year}` : year;
+          dbFormatMonth = `${fullYear}-${monthNum}`;
+        } else {
+          dbFormatMonth = queryParams.selectedMonth;
+        }
+        
+        const [year, month] = dbFormatMonth.split('-').map(Number);
         const lastDay = new Date(year, month, 0).getDate();
-        const monthStart = `${queryParams.selectedMonth}-01`;
-        const monthEnd = `${queryParams.selectedMonth}-${String(lastDay).padStart(2, '0')}`;
+        const monthStart = `${dbFormatMonth}-01`;
+        const monthEnd = `${dbFormatMonth}-${String(lastDay).padStart(2, '0')}`;
+        
+        console.log(`📅 Field status month filter: ${monthStart} to ${monthEnd}`);
         supabaseQuery = supabaseQuery
           .gte('demand_date', monthStart)
           .lte('demand_date', monthEnd);
