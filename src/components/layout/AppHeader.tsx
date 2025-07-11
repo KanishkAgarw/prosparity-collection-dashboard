@@ -14,11 +14,9 @@ interface AppHeaderProps {
   onExportFull: () => void;
   onExportPtpComments: () => void;
   onExportPlanVsAchievement: (plannedDateTime: Date) => void;
-  activeTab?: string;
-  onTabChange?: (tab: string) => void;
 }
 
-const AppHeader = ({ onExportFull, onExportPtpComments, onExportPlanVsAchievement, activeTab, onTabChange }: AppHeaderProps) => {
+const AppHeader = ({ onExportFull, onExportPtpComments, onExportPlanVsAchievement }: AppHeaderProps) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { getUserName, fetchProfiles } = useUserProfiles();
@@ -70,6 +68,15 @@ const AppHeader = ({ onExportFull, onExportPtpComments, onExportPlanVsAchievemen
         {/* Desktop Actions */}
         <div className="hidden sm:flex items-center gap-3">
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/analytics')}
+              className="h-8 text-xs"
+            >
+              <BarChart3 className="h-3 w-3 mr-1" />
+              Analytics
+            </Button>
             <ExportDialog 
               onExportFull={onExportFull}
               onExportPtpComments={onExportPtpComments}

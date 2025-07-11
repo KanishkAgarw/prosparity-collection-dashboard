@@ -16,10 +16,8 @@ import StatusCards from "@/components/StatusCards";
 import { ApplicationTableSkeleton, StatusCardsSkeleton } from "@/components/LoadingStates";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import PendingApprovals from "@/components/PendingApprovals";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import Analytics from "@/pages/Analytics";
 
 const PAGE_SIZE = 20;
 
@@ -28,12 +26,10 @@ const Index = () => {
   const { user, loading: authLoading } = useAuth();
   const { isAdmin, loading: rolesLoading } = useUserRoles();
   const { fetchProfiles } = useUserProfiles();
-  const [searchParams, setSearchParams] = useSearchParams();
   
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
-  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "dashboard");
 
   // Debounce search term to reduce API calls
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -169,11 +165,6 @@ const Index = () => {
     }
   };
 
-  const handleTabChange = (value: string) => {
-    setActiveTab(value);
-    setSearchParams({ tab: value });
-  };
-
   // Show loading screen while auth is loading
   if (authLoading || rolesLoading) {
     return (
@@ -197,72 +188,47 @@ const Index = () => {
             onExportFull={handleExportFull}
             onExportPtpComments={handleExportPtpComments}
             onExportPlanVsAchievement={handleExportPlanVsAchievement}
-            activeTab={activeTab}
-            onTabChange={handleTabChange}
           />
 
-          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-white shadow-sm h-12 rounded-lg p-1">
-              <TabsTrigger 
-                value="dashboard" 
-                className="text-base font-medium data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 transition-all duration-200"
-              >
-                Dashboard
-              </TabsTrigger>
-              <TabsTrigger 
-                value="analytics" 
-                className="text-base font-medium data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 transition-all duration-200"
-              >
-                Analytics
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="dashboard" className="space-y-4 sm:space-y-6 mt-6">
-              <FiltersSection
-                filters={filters}
-                availableOptions={availableOptions}
-                onFilterChange={handleFilterChange}
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                selectedEmiMonth={selectedEmiMonth}
-                onEmiMonthChange={handleEmiMonthChange}
-                emiMonthOptions={emiMonthOptions}
-                loading={filtersLoading}
-                searchLoading={appsLoading}
-                totalCount={totalCount}
-              />
+          <FiltersSection
+            filters={filters}
+            availableOptions={availableOptions}
+            onFilterChange={handleFilterChange}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            selectedEmiMonth={selectedEmiMonth}
+            onEmiMonthChange={handleEmiMonthChange}
+            emiMonthOptions={emiMonthOptions}
+            loading={filtersLoading}
+            searchLoading={appsLoading}
+            totalCount={totalCount}
+          />
 
-              {statusLoading ? (
-                <StatusCardsSkeleton />
-              ) : (
-                <StatusCards statusCounts={statusCounts} />
-              )}
+          {statusLoading ? (
+            <StatusCardsSkeleton />
+          ) : (
+            <StatusCards statusCounts={statusCounts} />
+          )}
 
-              {/* Only show Pending Approvals for Admin users */}
-              {isAdmin && <PendingApprovals onUpdate={refetch} />}
+          {/* Only show Pending Approvals for Admin users */}
+          {isAdmin && <PendingApprovals onUpdate={refetch} />}
 
-              {appsLoading ? (
-                <ApplicationTableSkeleton />
-              ) : (
-                <MainContent
-                  applications={applications}
-                  onRowClick={handleApplicationSelect}
-                  onApplicationDeleted={handleApplicationDeleted}
-                  selectedApplicationId={selectedApplication?.id}
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={setCurrentPage}
-                  totalCount={totalCount}
-                  pageSize={PAGE_SIZE}
-                  selectedEmiMonth={selectedEmiMonth}
-                />
-              )}
-            </TabsContent>
-
-            <TabsContent value="analytics" className="mt-6">
-              <Analytics />
-            </TabsContent>
-          </Tabs>
+          {appsLoading ? (
+            <ApplicationTableSkeleton />
+          ) : (
+            <MainContent
+              applications={applications}
+              onRowClick={handleApplicationSelect}
+              onApplicationDeleted={handleApplicationDeleted}
+              selectedApplicationId={selectedApplication?.id}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              totalCount={totalCount}
+              pageSize={PAGE_SIZE}
+              selectedEmiMonth={selectedEmiMonth}
+            />
+          )}
         </div>
       </div>
 

@@ -365,12 +365,24 @@ const Analytics = () => {
   }
 
   return (
-    <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-lg">
-      <div className="p-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+      {/* Use same container width as main applications table */}
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
         {/* Header */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Analytics Dashboard</h2>
-          <p className="text-gray-600">Comprehensive insights into payment collections and PTP performance for {allApplications.length} applications</p>
+        <div className="flex items-center gap-4 mb-8">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 hover:bg-white/80 transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Dashboard
+          </Button>
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Analytics Dashboard</h1>
+            <p className="text-gray-600">Comprehensive insights into payment collections and PTP performance for {allApplications.length} applications</p>
+          </div>
         </div>
 
         {/* Analytics Content */}
@@ -421,18 +433,18 @@ const Analytics = () => {
             </Tabs>
           </Card>
         </div>
-      </div>
 
-      {/* Drill-down Modal */}
-      <ApplicationDetailsModal
-        isOpen={showModal}
-        onClose={handleCloseModal}
-        applications={filteredApplications}
-        filter={selectedFilter}
-        loading={modalLoading}
-        statusData={filteredApplicationsStatusData}
-        batchData={batchData}
-      />
+        {/* Drill-down Modal */}
+        <ApplicationDetailsModal
+          isOpen={showModal}
+          onClose={handleCloseModal}
+          applications={filteredApplications}
+          filter={selectedFilter}
+          loading={modalLoading}
+          statusData={filteredApplicationsStatusData}
+          batchData={batchData}
+        />
+      </div>
     </div>
   );
 };
