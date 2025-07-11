@@ -57,28 +57,41 @@ export const useFieldStatusManager = () => {
 
       // Add month filtering if specified and not including all months
       if (queryParams.selectedMonth && !queryParams.includeAllMonths) {
-        // Convert from "Jul-25" format to database format "2025-07"
+        // Handle multiple month formats: "Jul-25", "2025-07", "2025-07-01", etc.
         let dbFormatMonth: string;
+        
+        console.log(`🔍 Processing month: "${queryParams.selectedMonth}"`);
+        
         if (queryParams.selectedMonth.includes('-')) {
-          const [monthAbbr, year] = queryParams.selectedMonth.split('-');
-          const monthMap: Record<string, string> = {
-            'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
-            'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
-            'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
-          };
-          const monthNum = monthMap[monthAbbr];
+          const parts = queryParams.selectedMonth.split('-');
           
-          // Fix year conversion - ensure proper string interpolation
-          const fullYear = year.length === 2 ? `20${year}` : year;
-          
-          // Validate that we got valid month and year
-          if (!monthNum || !fullYear) {
-            console.error(`❌ Invalid month format: ${queryParams.selectedMonth}. MonthAbbr: ${monthAbbr}, Year: ${year}, MonthNum: ${monthNum}, FullYear: ${fullYear}`);
-            throw new Error(`Invalid month format: ${queryParams.selectedMonth}`);
+          // Check if it's already in YYYY-MM format (like "2025-07")
+          if (parts.length >= 2 && parts[0].length === 4 && !isNaN(Number(parts[0])) && !isNaN(Number(parts[1]))) {
+            // Already in YYYY-MM format, use as is
+            dbFormatMonth = `${parts[0]}-${parts[1].padStart(2, '0')}`;
+            console.log(`✅ Already in YYYY-MM format: ${dbFormatMonth}`);
+          } else {
+            // Assume it's in Month-Year format (like "Jul-25")
+            const [monthAbbr, year] = parts;
+            const monthMap: Record<string, string> = {
+              'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
+              'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
+              'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
+            };
+            const monthNum = monthMap[monthAbbr];
+            
+            // Fix year conversion - ensure proper string interpolation
+            const fullYear = year.length === 2 ? `20${year}` : year;
+            
+            // Validate that we got valid month and year
+            if (!monthNum || !fullYear) {
+              console.error(`❌ Invalid month-year format: ${queryParams.selectedMonth}. MonthAbbr: ${monthAbbr}, Year: ${year}, MonthNum: ${monthNum}, FullYear: ${fullYear}`);
+              throw new Error(`Invalid month-year format: ${queryParams.selectedMonth}`);
+            }
+            
+            dbFormatMonth = `${fullYear}-${monthNum}`;
+            console.log(`🔄 Month-Year conversion: ${queryParams.selectedMonth} → ${dbFormatMonth}`);
           }
-          
-          dbFormatMonth = `${fullYear}-${monthNum}`;
-          console.log(`🔄 Date conversion: ${queryParams.selectedMonth} → ${dbFormatMonth}`);
         } else {
           dbFormatMonth = queryParams.selectedMonth;
         }
