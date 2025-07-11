@@ -2,12 +2,10 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 import { Card } from '@/components/ui/card';
 import { useApplications } from '@/hooks/useApplications';
 import BranchPaymentStatusTable from '@/components/analytics/BranchPaymentStatusTable';
-import BranchPTPStatusTable from '@/components/analytics/BranchPTPStatusTable';
-import PlanVsAchievementTab from '@/components/analytics/PlanVsAchievementTab';
 import ApplicationDetailsModal from '@/components/analytics/ApplicationDetailsModal';
 import { Application } from '@/types/application';
 import { format, isToday, isTomorrow, isBefore, isAfter, startOfDay } from 'date-fns';
@@ -38,36 +36,10 @@ const Analytics = () => {
   const [filteredApplicationsStatusData, setFilteredApplicationsStatusData] = useState<Record<string, string>>({});
   const [batchData, setBatchData] = useState<any>(null);
   const [modalLoading, setModalLoading] = useState(false);
-  const [selectedEmiMonth, setSelectedEmiMonth] = useState<string>('Jul-25');
-  const [ptpBatchData, setPtpBatchData] = useState<any>(null);
 
   console.log('Analytics - Applications loaded:', allApplications?.length || 0);
   console.log('Analytics - Loading state:', loading);
 
-  // Handle EMI month change for PTP Status tab
-  const handleEmiMonthChange = async (month: string) => {
-    console.log('Analytics - EMI Month changed to:', month);
-    setSelectedEmiMonth(month);
-    
-    // Clear existing PTP batch data
-    setPtpBatchData(null);
-    
-    // Refetch batch data for the new month if we have applications
-    if (allApplications && allApplications.length > 0) {
-      try {
-        console.log('📊 Refetching PTP batch data for month:', month);
-        const applicationIds = allApplications.map(app => app.applicant_id);
-        const freshBatchData = await dataManager.fetchAllData(applicationIds, {
-          selectedEmiMonth: month,
-          priority: 'high'
-        });
-        setPtpBatchData(freshBatchData);
-        console.log('✅ PTP Batch data refetched for month:', month);
-      } catch (error) {
-        console.error('❌ Error refetching PTP batch data:', error);
-      }
-    }
-  };
 
   const handleDrillDown = async (filter: DrillDownFilter) => {
     console.log('Analytics - Drill down filter:', filter);
@@ -381,56 +353,17 @@ const Analytics = () => {
           </Button>
           <div className="flex-1">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Analytics Dashboard</h1>
-            <p className="text-gray-600">Comprehensive insights into payment collections and PTP performance for {allApplications.length} applications</p>
+            <p className="text-gray-600">Comprehensive insights into payment collections for {allApplications.length} applications</p>
           </div>
         </div>
 
         {/* Analytics Content */}
         <div className="relative">
-          <Card className="bg-white/95 backdrop-blur-sm shadow-xl border-0">
-            <Tabs defaultValue="payment-status" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-slate-100 to-blue-50 h-14 rounded-lg p-1">
-                <TabsTrigger 
-                  value="payment-status" 
-                  className="text-base font-semibold data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-200"
-                >
-                  Payment Status
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="ptp-status" 
-                  className="text-base font-semibold data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-200"
-                >
-                  PTP Status
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="plan-vs-achievement" 
-                  className="text-base font-semibold data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-200"
-                >
-                  Plan vs Achievement
-                </TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="payment-status" className="space-y-4 p-8">
-                <BranchPaymentStatusTable 
-                  applications={allApplications} 
-                  onDrillDown={handleDrillDown}
-                />
-              </TabsContent>
-              
-              <TabsContent value="ptp-status" className="space-y-4 p-8">
-                <BranchPTPStatusTable 
-                  applications={allApplications} 
-                  onDrillDown={handleDrillDown}
-                  batchData={ptpBatchData}
-                  selectedEmiMonth={selectedEmiMonth}
-                  onMonthChange={handleEmiMonthChange}
-                />
-              </TabsContent>
-
-              <TabsContent value="plan-vs-achievement" className="space-y-4 p-8">
-                <PlanVsAchievementTab />
-              </TabsContent>
-            </Tabs>
+          <Card className="bg-white/95 backdrop-blur-sm shadow-xl border-0 p-8">
+            <BranchPaymentStatusTable 
+              applications={allApplications} 
+              onDrillDown={handleDrillDown}
+            />
           </Card>
         </div>
 
