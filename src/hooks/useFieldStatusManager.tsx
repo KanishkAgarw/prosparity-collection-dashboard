@@ -67,14 +67,32 @@ export const useFieldStatusManager = () => {
             'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
           };
           const monthNum = monthMap[monthAbbr];
+          
+          // Fix year conversion - ensure proper string interpolation
           const fullYear = year.length === 2 ? `20${year}` : year;
+          
+          // Validate that we got valid month and year
+          if (!monthNum || !fullYear) {
+            console.error(`❌ Invalid month format: ${queryParams.selectedMonth}. MonthAbbr: ${monthAbbr}, Year: ${year}, MonthNum: ${monthNum}, FullYear: ${fullYear}`);
+            throw new Error(`Invalid month format: ${queryParams.selectedMonth}`);
+          }
+          
           dbFormatMonth = `${fullYear}-${monthNum}`;
+          console.log(`🔄 Date conversion: ${queryParams.selectedMonth} → ${dbFormatMonth}`);
         } else {
           dbFormatMonth = queryParams.selectedMonth;
         }
         
-        const [year, month] = dbFormatMonth.split('-').map(Number);
-        const lastDay = new Date(year, month, 0).getDate();
+        // Validate the final date format
+        const [year, month] = dbFormatMonth.split('-');
+        if (!year || !month || isNaN(Number(year)) || isNaN(Number(month))) {
+          console.error(`❌ Invalid database format month: ${dbFormatMonth}`);
+          throw new Error(`Invalid database format month: ${dbFormatMonth}`);
+        }
+        
+        const yearNum = Number(year);
+        const monthNum = Number(month);
+        const lastDay = new Date(yearNum, monthNum, 0).getDate();
         const monthStart = `${dbFormatMonth}-01`;
         const monthEnd = `${dbFormatMonth}-${String(lastDay).padStart(2, '0')}`;
         
