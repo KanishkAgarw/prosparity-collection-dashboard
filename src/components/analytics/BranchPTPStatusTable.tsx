@@ -137,15 +137,47 @@ const BranchPTPStatusTable = ({
         
         console.log(`[BranchPTPStatusTable] Non-paid apps for ${rmName}: ${nonPaidApps.length}/${apps.length}`);
         
-        const today = new Date();
-        const todayStr = today.toDateString();
-        const tomorrowStr = new Date(today.getTime() + 24 * 60 * 60 * 1000).toDateString();
+        // Create IST-aware date references for comparison
+        const today = new Date(); // July 11th, 2025 IST
+        console.log(`[BranchPTPStatusTable] Today IST reference: ${today.toLocaleDateString('en-IN')} ${today.toDateString()}`);
+        
+        // Use date-only comparison strings for reliable timezone handling
+        const todayDateStr = today.toLocaleDateString('en-CA'); // YYYY-MM-DD format in local timezone
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowDateStr = tomorrow.toLocaleDateString('en-CA');
+        
+        console.log(`[BranchPTPStatusTable] Date references - Today: ${todayDateStr}, Tomorrow: ${tomorrowDateStr}`);
 
-        // Calculate PTP statistics
-        const overdueApps = nonPaidApps.filter(app => app.ptp_date && new Date(app.ptp_date) < today);
-        const todayApps = nonPaidApps.filter(app => app.ptp_date && new Date(app.ptp_date).toDateString() === todayStr);
-        const tomorrowApps = nonPaidApps.filter(app => app.ptp_date && new Date(app.ptp_date).toDateString() === tomorrowStr);
-        const futureApps = nonPaidApps.filter(app => app.ptp_date && new Date(app.ptp_date) > new Date(today.getTime() + 24 * 60 * 60 * 1000));
+        // Calculate PTP statistics using date-only comparison
+        const overdueApps = nonPaidApps.filter(app => {
+          if (!app.ptp_date) return false;
+          const ptpDateStr = new Date(app.ptp_date).toLocaleDateString('en-CA');
+          return ptpDateStr < todayDateStr;
+        });
+        
+        const todayApps = nonPaidApps.filter(app => {
+          if (!app.ptp_date) return false;
+          const ptpDateStr = new Date(app.ptp_date).toLocaleDateString('en-CA');
+          const isToday = ptpDateStr === todayDateStr;
+          if (isToday) {
+            console.log(`[BranchPTPStatusTable] Today PTP found: App ${app.applicant_id}, PTP: ${app.ptp_date}, Normalized: ${ptpDateStr}`);
+          }
+          return isToday;
+        });
+        
+        const tomorrowApps = nonPaidApps.filter(app => {
+          if (!app.ptp_date) return false;
+          const ptpDateStr = new Date(app.ptp_date).toLocaleDateString('en-CA');
+          return ptpDateStr === tomorrowDateStr;
+        });
+        
+        const futureApps = nonPaidApps.filter(app => {
+          if (!app.ptp_date) return false;
+          const ptpDateStr = new Date(app.ptp_date).toLocaleDateString('en-CA');
+          return ptpDateStr > tomorrowDateStr;
+        });
+        
         const noPtpApps = nonPaidApps.filter(app => !app.ptp_date);
 
         const stats = {
