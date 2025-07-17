@@ -156,7 +156,8 @@ const PendingApprovals = ({ onUpdate }: PendingApprovalsProps) => {
             status_approval_needed: false,
             updated_at: new Date().toISOString()
           })
-          .eq('application_id', request.application_id);
+          .eq('application_id', request.application_id)
+          .eq('demand_date', request.demand_date);
 
         if (statusError) {
           console.error('Error updating field status:', statusError);
@@ -192,7 +193,8 @@ const PendingApprovals = ({ onUpdate }: PendingApprovalsProps) => {
             status_approval_needed: false,
             updated_at: new Date().toISOString()
           })
-          .eq('application_id', request.application_id);
+          .eq('application_id', request.application_id)
+          .eq('demand_date', request.demand_date);
 
         if (statusError) {
           console.error('Error reverting field status:', statusError);
