@@ -83,7 +83,7 @@ export const useOptimizedCascadingFilters = () => {
         .from('collection')
         .select('demand_date')
         .not('demand_date', 'is', null)
-        .limit(1000);
+        .limit(4000);
 
       const allDates: string[] = [];
       colDates?.forEach(item => {

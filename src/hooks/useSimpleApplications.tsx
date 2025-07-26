@@ -22,7 +22,7 @@ interface ApplicationsResponse {
   refetch: () => Promise<void>;
 }
 
-const MAX_RECORDS =2000; // Safety limit to prevent URL length issues
+const MAX_RECORDS =4000; // Safety limit to prevent URL length issues
 
 export const useSimpleApplications = ({
   filters,
