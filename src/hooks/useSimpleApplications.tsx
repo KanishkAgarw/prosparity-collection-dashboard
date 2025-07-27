@@ -22,7 +22,7 @@ interface ApplicationsResponse {
   refetch: () => Promise<void>;
 }
 
-const MAX_RECORDS =4000; // Safety limit to prevent URL length issues
+const MAX_RECORDS = 2000; // Safety limit to prevent URL length issues 
 
 export const useSimpleApplications = ({
   filters,
@@ -242,13 +242,9 @@ export const useSimpleApplications = ({
         return nameA.localeCompare(nameB);
       });
 
-      // Apply pagination
-      const offset = (page - 1) * pageSize;
-      const paginatedApplications = transformedApplications.slice(offset, offset + pageSize);
-
-      // After transforming applications, fetch latest status for each application for the selected EMI month
+      // Always fetch latest status for each application for the selected EMI month (not just when status filter is applied)
       const emiDate = monthToEmiDate(selectedEmiMonth);
-      if (filters.status?.length > 0 && transformedApplications.length > 0) {
+      if (transformedApplications.length > 0) {
         const appIds = transformedApplications.map(app => app.applicant_id);
         
         // Fix: Batch the query if there are too many application IDs to avoid URL length limits
@@ -275,35 +271,41 @@ export const useSimpleApplications = ({
           }
         }
 
-        if (allStatusRows.length > 0) {
-          const latestStatusMap: Record<string, string> = {};
-          allStatusRows.forEach(row => {
-            if (!latestStatusMap[row.application_id] || new Date(row.created_at) > new Date(latestStatusMap[row.application_id + '_created_at'] || 0)) {
-              latestStatusMap[row.application_id] = row.status;
-              latestStatusMap[row.application_id + '_created_at'] = row.created_at;
-            }
-          });
-          
+        // Always build the status map, even if no status filter is applied
+        const latestStatusMap: Record<string, string> = {};
+        allStatusRows.forEach(row => {
+          if (!latestStatusMap[row.application_id] || new Date(row.created_at) > new Date(latestStatusMap[row.application_id + '_created_at'] || 0)) {
+            latestStatusMap[row.application_id] = row.status;
+            latestStatusMap[row.application_id + '_created_at'] = row.created_at;
+          }
+        });
+        
+        // Update all applications with their actual status
+        transformedApplications = transformedApplications.map(app => ({
+          ...app,
+          field_status: latestStatusMap[app.applicant_id] || 'Unpaid'
+        }));
+        
+        // Apply status filter if specified
+        if (filters.status?.length > 0) {
           transformedApplications = transformedApplications.filter(app => {
-            const status = latestStatusMap[app.applicant_id] || 'Unpaid';
+            const status = app.field_status || 'Unpaid';
             return filters.status!.includes(status);
           });
-          
-          // Re-apply pagination after status filter
-          const offset = (page - 1) * pageSize;
-          setApplications(transformedApplications.slice(offset, offset + pageSize));
-          setTotalCount(transformedApplications.length);
-          return;
         }
       }
 
-      setApplications(paginatedApplications);
+      // Apply pagination after all processing
+      const offset = (page - 1) * pageSize;
+      const finalPaginatedApplications = transformedApplications.slice(offset, offset + pageSize);
+
+      setApplications(finalPaginatedApplications);
       setTotalCount(transformedApplications.length);
 
       console.log('Applications loaded successfully:', {
         total: transformedApplications.length,
         page,
-        results: paginatedApplications.length
+        results: finalPaginatedApplications.length
       });
 
     } catch (err) {

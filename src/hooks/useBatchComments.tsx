@@ -30,15 +30,29 @@ export const useBatchComments = (selectedMonth?: string | null) => {
       console.log('Application IDs:', applicationIds.slice(0, 5), '... and', Math.max(0, applicationIds.length - 5), 'more');
       console.log('Selected Month:', selectedMonth);
 
-      // Build query for batch comment fetching - fetch ALL comments for applications
-      const query = supabase
+      // Build query for batch comment fetching with EMI month filtering
+      let query = supabase
         .from('comments')
         .select('*')
-        .in('application_id', applicationIds)
+        .in('application_id', applicationIds);
+
+      // Add month filtering if selectedMonth is provided - filter by demand_date
+      if (selectedMonth) {
+        const { start, end } = getMonthDateRange(selectedMonth);
+        console.log('Date range for batch comments:', { start, end });
+        
+        query = query
+          .gte('demand_date', start)
+          .lte('demand_date', end);
+          
+        console.log('Fetching comments filtered by EMI month:', selectedMonth);
+      } else {
+        console.log('Fetching all comments (no month selected)');
+      }
+
+      query = query
         .order('created_at', { ascending: false })
         .limit(200); // Increased limit for better coverage across applications
-
-      console.log('Fetching all comments for applications (no date filtering)');
 
       const { data: commentsData, error: commentsError } = await query;
 
@@ -48,12 +62,12 @@ export const useBatchComments = (selectedMonth?: string | null) => {
       }
 
       if (!commentsData || commentsData.length === 0) {
-        console.log('No comments found for applications');
+        console.log('No comments found for applications in month:', selectedMonth);
         setComments({});
         return {};
       }
 
-      console.log('Raw batch comments data:', commentsData.length, 'comments');
+      console.log('Raw batch comments data:', commentsData.length, 'comments for month:', selectedMonth);
 
       // Get unique user IDs for profile fetching
       const userIds = [...new Set(commentsData.map(comment => comment.user_id))];

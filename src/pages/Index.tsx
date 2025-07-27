@@ -204,11 +204,13 @@ const Index = () => {
             totalCount={totalCount}
           />
 
+          {/* Temporarily hidden status cards
           {statusLoading ? (
             <StatusCardsSkeleton />
           ) : (
             <StatusCards statusCounts={statusCounts} />
           )}
+          */}
 
           {/* Only show Pending Approvals for Admin users */}
           {isAdmin && <PendingApprovals onUpdate={refetch} />}
